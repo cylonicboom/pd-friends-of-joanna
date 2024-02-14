@@ -506,6 +506,24 @@ bool aiIfStopped(void)
 	return false;
 }
 
+uintptr_t** getPlayerPool(u32 chrId) {
+	struct player** playerpool = 0;
+	switch (chrId){
+		case CHR_ANTI:
+			playerpool = (struct player**)g_Vars.antiplayers;
+		break;
+		case CHR_COOP:
+		case CHR_P1P2:
+			playerpool = (struct player**)g_Vars.coopplayers;
+		break;
+		default:
+			playerpool = (struct player**)g_Vars.players;
+		break;
+	}
+
+	return (uintptr_t**)playerpool;
+}
+
 /**
  * @cmd 0033
  */
@@ -528,21 +546,7 @@ bool aiIfChrDead(void)
 			isdead = true;
 		} else if ((!chr || !chr->prop || chr->prop->type == PROPTYPE_PLAYER)) {
 			// resolve correct playerpool
-			struct player** playerpool;
-			switch (chrId){
-				case CHR_COOP:
-					playerpool = (struct player**)g_Vars.coopplayers;
-					break;
-				case CHR_P1P2:
-					playerpool = (struct player**)g_Vars.players;
-					break;
-				case CHR_ANTI:
-					playerpool = (struct player**)g_Vars.antiplayers;
-					break;
-				default:
-					playerpool = (struct player**)g_Vars.players;
-					break;
-			}
+			struct player** playerpool = getPlayerPool(chrId);
 			for (s32 i = 0; i < MAX_PLAYERS; i++) {
 				// also check bond if p1p2
 				if (isdead) break;
@@ -568,6 +572,8 @@ bool aiIfChrDead(void)
 	return false;
 }
 
+
+
 /**
  * @cmd 0034
  */
@@ -577,19 +583,7 @@ bool aiIfChrDeathAnimationFinished(void)
 	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
 	bool pass;
 
-	struct player** playerpool = 0;
-	switch (cmd[2]){
-		case CHR_ANTI:
-			playerpool = (struct player**)g_Vars.antiplayers;
-		break;
-		case CHR_COOP:
-			playerpool = (struct player**)g_Vars.coopplayers;
-		break;
-		case CHR_P1P2:
-		default:
-			playerpool = (struct player**)g_Vars.players;
-		break;
-	}
+	struct player** playerpool = getPlayerPool(cmd[2]);
 	if ((cmd[2]) == CHR_BOND) {
 		pass = g_Vars.bond->isdead;
 	} else if (!chr || !chr->prop || chr->prop->type == PROPTYPE_PLAYER) {
@@ -2374,9 +2368,36 @@ bool aiGiveObjectToChr(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	struct defaultobj *obj = objFindByTagId(cmd[2]);
+	u32 chrId = cmd[3];
 	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[3]);
 
-	if (obj && obj->prop && chr && chr->prop) {
+	if (obj && obj->prop && isChrIdMpHumanHench(chrId)) {
+		struct player** playerpool = getPlayerPool(chrId);
+		for (s32 i = 0; i < MAX_PLAYERS; i++){
+			u32 playernum = g_Vars.playerorder[i];
+			if (!playerpool[g_Vars.playerorder[i]] || !playerpool[playernum]->prop || !playerpool[playernum]->prop->chr) continue;
+			struct defaultobj *obj2 = obj->prop->obj;
+			chr = playerpool[playernum]->prop->chr;
+			u32 prevplayernum = g_Vars.currentplayernum;
+
+			u32 something;
+
+			setCurrentPlayerNum(playernum);
+#if VERSION >= VERSION_NTSC_1_0
+			if (obj->prop->parent) {
+				objDetach(obj->prop);
+				objFreeEmbedmentOrProjectile(obj->prop);
+				propActivate(obj->prop);
+			}
+#endif
+			something = propPickupByPlayer(obj->prop, 0);
+			propExecuteTickOperation(obj->prop, something);
+			playernum = playermgrGetPlayerNumByProp(chr->prop);
+			obj2->hidden = (playernum << 28) | (obj2->hidden & 0x0fffffff);
+			setCurrentPlayerNum(prevplayernum);
+
+		}
+	} else if (obj && obj->prop && chr && chr->prop) {
 		if (chr->prop->type == PROPTYPE_PLAYER) {
 			u32 something;
 			u32 prevplayernum = g_Vars.currentplayernum;
@@ -3533,10 +3554,27 @@ bool aiChrSetChrflag(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	u32 flags = (cmd[4] << 16) | (cmd[5] << 8) | cmd[6] | (cmd[3] << 24);
-	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
+	u32 chrId = cmd[2];
+	struct chrdata* chr;
+	if (isChrIdMpHumanHench(chrId)) {
+		struct player** playerpool = getPlayerPool(chrId);
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			if (!playerpool[g_Vars.playerorder[i]]) {
+				continue;
+			}
+			chr = playerpool[g_Vars.playerorder[i]]->prop->chr;
+			if (chr) {
+				chr->chrflags |=flags;
+			}
+		}
 
-	if (chr) {
-		chr->chrflags |= flags;
+	} else {
+		chr = chrFindById(g_Vars.chrdata, chrId);
+
+		if (chr) {
+			chr->chrflags |= flags;
+		}
+
 	}
 
 	g_Vars.aioffset += 7;
@@ -3551,7 +3589,9 @@ bool aiChrUnsetChrflag(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	u32 flags = (cmd[4] << 16) | (cmd[5] << 8) | cmd[6] | (cmd[3] << 24);
-	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
+	u32 chrId = cmd[2];
+	struct chrdata *chr;
+	chr = chrFindById(g_Vars.chrdata, cmd[2]);
 
 	if (chr) {
 		chr->chrflags &= ~flags;
@@ -3587,10 +3627,27 @@ bool aiChrSetHiddenFlag(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	u32 flags = (cmd[4] << 16) | (cmd[5] << 8) | cmd[6] | (cmd[3] << 24);
-	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
+	u32 chrId = cmd[2];
+	struct chrdata* chr;
+	if (isChrIdMpHumanHench(chrId)) {
+		struct player** playerpool = getPlayerPool(chrId);
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			if (!playerpool[g_Vars.playerorder[i]]) {
+				continue;
+			}
+			chr = playerpool[g_Vars.playerorder[i]]->prop->chr;
+			if (chr) {
+				chr->hidden |=flags;
+			}
+		}
 
-	if (chr) {
-		chr->hidden |= flags;
+	} else {
+		chr = chrFindById(g_Vars.chrdata, chrId);
+
+		if (chr) {
+			chr->hidden |= flags;
+		}
+
 	}
 
 	g_Vars.aioffset += 7;
