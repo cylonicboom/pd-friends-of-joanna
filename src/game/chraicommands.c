@@ -2136,13 +2136,26 @@ bool aiIfChrHasWeaponEquipped(void)
 	if (chr && chr->prop && chr->prop->type == PROPTYPE_PLAYER) {
 		u32 prevplayernum = g_Vars.currentplayernum;
 		u32 playernum = playermgrGetPlayerNumByProp(chr->prop);
-		setCurrentPlayerNum(playernum);
+		if (g_Vars.coopplayers[playernum]) {
+			for (s32 i = 0;  i < MAX_PLAYERS; i++) {
+				if (passes) break;
+				if (g_Vars.coopplayers[i]) {
+					setCurrentPlayerNum(i);
+					if (bgunGetWeaponNum(HAND_RIGHT) == cmd[3]) {
+						passes = true;
+					}
+				}
+			}
+			setCurrentPlayerNum(prevplayernum);
+		} else {
+			setCurrentPlayerNum(playernum);
 
-		if (bgunGetWeaponNum(HAND_RIGHT) == cmd[3]) {
-			passes = true;
+			if (bgunGetWeaponNum(HAND_RIGHT) == cmd[3]) {
+				passes = true;
+			}
+
+			setCurrentPlayerNum(prevplayernum);
 		}
-
-		setCurrentPlayerNum(prevplayernum);
 	}
 
 	if (passes) {
