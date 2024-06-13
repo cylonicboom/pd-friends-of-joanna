@@ -2227,7 +2227,8 @@ bool aiIfChrActivatedObject(void)
 				if (chr->prop == g_Vars.bond->prop && (obj->hidden & OBJHFLAG_ACTIVATED_BY_BOND)) {
 					pass = true;
 					obj->hidden &= ~OBJHFLAG_ACTIVATED_BY_BOND;
-				} else if (g_Vars.coopplayernum >= 0 && chr->prop == g_Vars.coop->prop && (obj->hidden & OBJHFLAG_ACTIVATED_BY_COOP)) {
+					// TODO: isChrPropCoop
+				} else if (g_Vars.coopplayernum >= 0 && isChrPropCoop(chr->prop) && (obj->hidden & OBJHFLAG_ACTIVATED_BY_COOP)) {
 					pass = true;
 					obj->hidden &= ~OBJHFLAG_ACTIVATED_BY_COOP;
 				}
