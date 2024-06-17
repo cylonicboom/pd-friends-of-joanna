@@ -497,6 +497,7 @@ bool (*g_CommandPointers[])(void) = {
 #if VERSION >= VERSION_NTSC_1_0
 	/*0x01df*/ aiIfChrSameFloorDistanceToPadLessThan,
 	/*0x01e0*/ aiRemoveReferencesToChr,
+	/*0x01e1*/ aiSetChrnumMatchlevel,
 #endif
 };
 
@@ -624,6 +625,7 @@ u16 g_CommandLengths[] = {
 #if VERSION >= VERSION_NTSC_1_0
 	/*0x01df*/ 8,
 	/*0x01e0*/ 2,
+	/*0x01e1*/ 3,
 #endif
 };
 
@@ -780,6 +782,8 @@ void chraiExecute(void *entity, s32 proptype)
 			s32 type = (cmd[0] << 8) + cmd[1];
 
 			if (type >= 0 && type < ARRAYCOUNT(g_CommandPointers)) {
+				// this is where I'm considering adding a check for the chrnummach mode
+				// no, should use cmds to set it back to default
 				if (g_CommandPointers[type]()) {
 					break;
 				}

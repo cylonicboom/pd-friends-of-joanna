@@ -530,7 +530,7 @@ uintptr_t** getPlayerPool(u32 chrId) {
 bool aiIfChrDead(void)
 {
 	/*
-	 * 4player coop: if chr is a playertype, treat as true if 
+	 * 4player coop: if chr is a playertype, treat as true if
 	 * at least one human coop player is dead
 	 *
 	 */
@@ -556,12 +556,12 @@ bool aiIfChrDead(void)
 
 				isdead = (struct player*)playerpool[g_Vars.playerorder[i]]->isdead;
 			}
-		} 
+		}
 	} else {
 		chr = chrFindById(g_Vars.chrdata, cmd[2]);
 		if ((!chr || !chr->prop || chr->prop->type != PROPTYPE_PLAYER) && (!chr || !chr->model || chrIsDead(chr))) {
 			isdead = true;
-		} 
+		}
 	}
 	if (isdead) {
 		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[3]);
@@ -1710,16 +1710,17 @@ bool aiIfCheckFovWithTarget(void)
 			} else pass = chrIsVerticalAngleToTargetWithin(g_Vars.chrdata, cmd[2]);
 		}
 	} else {
-		if (isChrTargetCoop(g_Vars.chrdata)) { 
-			temptarget = g_Vars.chrdata->target;
-			for (s32 i = 0; i < PLAYERCOUNT(); i++) {
-				if (pass) break;
-				if (!g_Vars.coopplayers[i]) continue;
-				chrSetTargetProp(g_Vars.chrdata, g_Vars.coopplayers[i]->prop);
-				pass = g_Vars.chrdata->yvisang && chrIsVerticalAngleToTargetWithin(g_Vars.chrdata, g_Vars.chrdata->yvisang) == 0;
-			}
-			chrSetTarget(g_Vars.chrdata, temptarget, 1);
-		} else pass = g_Vars.chrdata->yvisang && chrIsVerticalAngleToTargetWithin(g_Vars.chrdata, g_Vars.chrdata->yvisang) == 0;
+		// if (isChrTargetCoop(g_Vars.chrdata)) {
+		// 	temptarget = g_Vars.chrdata->target;
+		// 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		// 		if (pass) break;
+		// 		if (!g_Vars.coopplayers[i]) continue;
+		// 		chrSetTargetProp(g_Vars.chrdata, g_Vars.coopplayers[i]->prop);
+		// 		pass = g_Vars.chrdata->yvisang && chrIsVerticalAngleToTargetWithin(g_Vars.chrdata, g_Vars.chrdata->yvisang) == 0;
+		// 	}
+		// 	chrSetTarget(g_Vars.chrdata, temptarget, 1);
+		// } else
+		pass = g_Vars.chrdata->yvisang && chrIsVerticalAngleToTargetWithin(g_Vars.chrdata, g_Vars.chrdata->yvisang) == 0;
 	}
 
 	if (pass) {
@@ -1938,7 +1939,7 @@ bool aiIfChrDistanceToPadGreaterThan(void)
 #endif
 				{
 					passes++;
-				} 
+				}
 				else {
 					fails++;
 				}
@@ -1952,11 +1953,11 @@ bool aiIfChrDistanceToPadGreaterThan(void)
 		{
 			passes = true;
 			fails = false;
-		} 
+		}
 	}
 	if ((iscoop && passes && !fails) || (!iscoop && passes)) {
 		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[7]);
-	} 
+	}
 	else {
 		g_Vars.aioffset += 8;
 	}
@@ -2118,17 +2119,40 @@ bool aiIfTargetInRoom(void)
 /**
  * @cmd 005d
  */
+// BUG: doesn't detect when P1P2 has the A51 keycard
 bool aiIfChrHasObject(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	struct defaultobj *obj = objFindByTagId(cmd[3]);
-	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
+	u8 chrid = cmd[2];
+	// HACK: this should be CHR_P1P2, but it's CHR_BOND in the original game
+	// and this was fixed in the PAL version
+	// but the setup recompilation isn't working for me (not implemented?)
+	// TODO: fix this in the setup file
+	if (mainGetStageNum() == STAGE_INFILTRATION && chrid == CHR_BOND) chrid = CHR_P1P2;
+	struct chrdata *chr = chrFindById(g_Vars.chrdata, chrid);
 	s32 hasprop = false;
+
+	bool iscoop = chr && chr->prop && isChrPropCoop(chr->prop);
 
 	if (obj && obj->prop && chr && chr->prop && chr->prop->type == PROPTYPE_PLAYER) {
 		s32 prevplayernum = g_Vars.currentplayernum;
-		setCurrentPlayerNum(playermgrGetPlayerNumByProp(chr->prop));
-		hasprop = invHasProp(obj->prop);
+		if (iscoop && (g_Vars.chrnummatchmode == CHRNUM_MATCHLEVEL_DEFAULT \
+					|| g_Vars.chrnummatchmode == CHRNUM_MATCHLEVEL_ANY)) {
+			struct player** playerpool = getPlayerPool(cmd[2]);
+			for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+				if (hasprop) break;
+				if (playerpool[i]) {
+					setCurrentPlayerNum(i);
+					hasprop = invHasProp(obj->prop);
+				}
+			}
+		} else if (iscoop && g_Vars.chrnummatchmode == CHRNUM_MATCHLEVEL_ALL) {
+			// TODO: implement
+		} else {
+			setCurrentPlayerNum(playermgrGetPlayerNumByProp(chr->prop));
+			hasprop = invHasProp(obj->prop);
+		}
 		setCurrentPlayerNum(prevplayernum);
 	}
 
@@ -2317,6 +2341,7 @@ bool aiIfChrActivatedObject(void)
 	}
 
 	if (pass) {
+		printf("aiIfChrActivatedObject: pass: cmd[4] %x\n", cmd[4]);
 		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[4]);
 	} else {
 		g_Vars.aioffset += 5;
@@ -10135,3 +10160,21 @@ bool ai01b4(void)
 	return false;
 }
 #endif
+
+/**
+ * @cmd 01e1
+ */
+bool aiSetChrnumMatchlevel(void)
+{
+	// pc implementation
+	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+
+	// default, only, all, any
+	s32 matchlevel = cmd[2];
+
+	g_Vars.chrnummatchmode = matchlevel;
+
+	g_Vars.aioffset += 3;
+
+	return false;
+}

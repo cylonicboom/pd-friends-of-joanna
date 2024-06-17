@@ -84,4 +84,5 @@ void varsInit(void)
 	g_Vars.autocutgroupskip = false;
 	g_Vars.fourmeg2player = false;
 	g_Vars.cutsceneskip60ths = 0;
+	g_Vars.chrnummatchmode = 0;
 }
