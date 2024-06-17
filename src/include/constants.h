@@ -81,7 +81,7 @@
 
 #if MAX_PLAYERS > 4
 #define COOPPLAYERCOUNT() ((g_Vars.coopplayers[0] ? 1 : 0) + (g_Vars.coopplayers[1] ? 1 : 0) + (g_Vars.coopplayers[2] ? 1 : 0) + (g_Vars.coopplayers[3] ? 1 : 0) + (g_Vars.coopplayers[4] ? 1 : 0) + (g_Vars.coopplayers[5] ? 1 : 0) + (g_Vars.coopplayers[6] ? 1 : 0) + (g_Vars.coopplayers[7] ? 1 : 0))
-#else 
+#else
 #define COOPPLAYERCOUNT() ((g_Vars.coopplayers[0] ? 1 : 0) + (g_Vars.coopplayers[1] ? 1 : 0) + (g_Vars.coopplayers[2] ? 1 : 0) + (g_Vars.coopplayers[3] ? 1 : 0))
 #endif
 
@@ -4766,6 +4766,19 @@ enum weaponnum {
 #define MPSETUP_MAXSETUPS 128
 #define MPSETUP_MAXNAME 17
 #define MPSETUP_BLOCKSIZE 80
+
+#define PLAYERROLE_NONE 0
+#define PLAYERROLE_COOP 1
+#define PLAYERROLE_ANTI 2
+#define PLAYERROLE_BOND 3
+
+#define CHRNUM_MATCHLEVEL_DEFAULT 0
+#define CHRNUM_MATCHLEVEL_ONLY    1
+#define CHRNUM_MATCHLEVEL_ANY     2
+#define CHRNUM_MATCHLEVEL_ALL     3
+
+// if controller pak-like support was added and everyone had 4 profiles, this is twice the max
+#define CONFIG_MAX_PROFILES ((MAX_PLAYERS * 4) * 2)
 
 #endif
 

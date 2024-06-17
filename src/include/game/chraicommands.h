@@ -446,6 +446,7 @@ uintptr_t** getPlayerPool(u32 chrId);
 /*0x01de*/ bool aiIfCoopMode(void);
 /*0x01df*/ bool aiIfChrSameFloorDistanceToPadLessThan(void);
 /*0x01e0*/ bool aiRemoveReferencesToChr(void);
+/*0x01e1*/ bool aiSetChrnumMatchlevel(void);
 
 void propDecrementSoundCount(struct prop *prop);
 
