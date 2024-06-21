@@ -4074,8 +4074,8 @@ struct missionconfig {
 	/*0x01*/ u8 stagenum;
 	/*0x02*/ u8 stageindex;
 
-	u8 iscoop : 1;
-	u8 isanti : 1;
+	u8 iscoop; // 4pteam: use for number of players in coop team
+	u8 isanti; // 4pteam: use for number of players in anti team
 
 	/*0x04*/ u8 pdmodereaction;
 	/*0x05*/ u8 pdmodehealth;
@@ -4085,6 +4085,7 @@ struct missionconfig {
 	/*0x0c*/ f32 pdmodehealthf;
 	/*0x10*/ f32 pdmodedamagef;
 	/*0x14*/ f32 pdmodeaccuracyf;
+	u8 isteam;
 };
 
 struct mpsetup {
