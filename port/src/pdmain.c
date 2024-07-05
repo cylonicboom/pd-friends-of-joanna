@@ -442,34 +442,24 @@ void mainLoop(void)
 		}
 
 		if (numplayers < 2) {
-			g_Vars.bondplayernum = 0;
-			g_Vars.coopplayernum = -1;
-			g_Vars.antiplayernum = -1;
+			playermgrDisableTeamPlayers();
 		} else if (argFindByPrefix(1, "-coop")) {
 			g_Vars.bondplayernum = 0;
 			g_Vars.coopplayernum = 1;
 			g_Vars.antiplayernum = -1;
 		} else if (argFindByPrefix(1, "-anti")) {
 			g_Vars.bondplayernum = 0;
+		g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
 			g_Vars.coopplayernum = -1;
 			g_Vars.antiplayernum = 1;
 		}
 
 		if (g_MissionConfig.isteam) {
-			g_Vars.bondplayernum = 0;
-			g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
-			// set the coop / anti player numbers
-			for (s32 i = 0; i < MAX_PLAYERS; i++) {
-				if (g_Vars.coopplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_COOP) {
-					g_Vars.coopplayernum = i;
-				}
-				if (g_Vars.antiplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
-					g_Vars.antiplayernum = i;
-				}
-			}
+			playermgrResetTeamPlayers();
 		}
 
-		playermgrAllocatePlayers(numplayers);
+
+		playermgrAllocatePlayersFromRoles();
 
 		if (argFindByPrefix(1, "-mpbots")) {
 			g_Vars.lvmpbotlevel = 1;
@@ -563,10 +553,6 @@ void mainTick(void)
 			if (g_StageNum < STAGE_TITLE) {
 				for (i = 0; i < PLAYERCOUNT(); i++) {
 					setCurrentPlayerNum(playermgrGetPlayerAtOrder(i));
-					// so we know which anti / coop player to pick from 
-					// coop / anti player pools
-					setCurrentCoopNum(playermgrGetPlayerAtOrder(i));
-					setCurrentAntiNum(playermgrGetPlayerAtOrder(i));
 
 					if (g_StageNum != STAGE_TEST_OLD || !titleIsKeepingMode()) {
 						viSetViewPosition(g_Vars.currentplayer->viewleft, g_Vars.currentplayer->viewtop);

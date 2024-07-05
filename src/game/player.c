@@ -977,6 +977,7 @@ void playerSpawn(void)
 
 	if (g_Vars.mplayerisrunning) {
 		if ((g_Vars.antiplayernum >= 0 && g_Vars.antiplayers[g_Vars.currentplayernum]) || (g_MissionConfig.isteam && g_Vars.antiplayers[g_Vars.currentplayernum])) {
+			setCurrentAntiNum(g_Vars.currentplayernum);
 			numsqdists = 0;
 			force = false;
 
@@ -1192,13 +1193,7 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 	s32 outfit;
 	bool solo;
 
-	if (g_Vars.antiplayers[g_Vars.currentplayernum]) {
-		*headnum = g_Vars.antiheadnum;
-		*bodynum = g_Vars.antibodynum;
-		return;
-	}
-	if (g_Vars.antiplayernum >= 0
-			&& g_Vars.currentplayer == g_Vars.anti
+	if (g_Vars.antiplayers[g_Vars.currentplayernum]
 			&& g_Vars.antiheadnum >= 0
 			&& g_Vars.antibodynum >= 0) {
 		*headnum = g_Vars.antiheadnum;

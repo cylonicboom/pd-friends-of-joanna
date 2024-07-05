@@ -506,22 +506,22 @@ bool aiIfStopped(void)
 	return false;
 }
 
-uintptr_t** getPlayerPool(u32 chrId) {
+struct player** getPlayerPool(u32 chrId) {
 	struct player** playerpool = 0;
 	switch (chrId){
 		case CHR_ANTI:
 			playerpool = (struct player**)g_Vars.antiplayers;
 		break;
 		case CHR_COOP:
-		case CHR_P1P2:
 			playerpool = (struct player**)g_Vars.coopplayers;
 		break;
+		case CHR_P1P2:
 		default:
 			playerpool = (struct player**)g_Vars.players;
 		break;
 	}
 
-	return (uintptr_t**)playerpool;
+	return (struct player**)playerpool;
 }
 
 /**
@@ -554,7 +554,7 @@ bool aiIfChrDead(void)
 				if (!playerpool[g_Vars.playerorder[i]]) continue;
 				if ((chrId == CHR_ANTI || chrId == CHR_COOP) && !playerpool[g_Vars.playerorder[i]] == g_Vars.bond) continue;
 
-				isdead = (struct player*)playerpool[g_Vars.playerorder[i]]->isdead;
+				isdead = ((struct player*)playerpool[g_Vars.playerorder[i]])->isdead;
 			}
 		}
 	} else {
@@ -1680,7 +1680,7 @@ bool aiIfSeesSuspiciousItem(void)
  */
 bool aiIfCheckFovWithTarget(void)
 {
-	bool pass;
+	bool pass = 0;
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 
 	u16 temptarget = g_Vars.chrdata->target;
@@ -1689,7 +1689,7 @@ bool aiIfCheckFovWithTarget(void)
 		if (cmd[3]) {
 			if (isChrTargetCoop(g_Vars.chrdata)) {
 				temptarget = g_Vars.chrdata->target;
-				for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+				for (s32 i = 0; i < MAX_PLAYERS; i++) {
 					if (pass) break;
 					if (!g_Vars.coopplayers[i]) continue;
 					chrSetTargetProp(g_Vars.chrdata, g_Vars.coopplayers[i]->prop);
@@ -1700,7 +1700,7 @@ bool aiIfCheckFovWithTarget(void)
 		} else {
 			if (isChrTargetCoop(g_Vars.chrdata)) {
 				temptarget = g_Vars.chrdata->target;
-				for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+				for (s32 i = 0; i < MAX_PLAYERS; i++) {
 					if (pass) break;
 					if (!g_Vars.coopplayers[i]) continue;
 					chrSetTargetProp(g_Vars.chrdata, g_Vars.coopplayers[i]->prop);
@@ -2228,7 +2228,7 @@ bool aiIfChrHasWeaponEquipped(void)
 		u32 prevplayernum = g_Vars.currentplayernum;
 		u32 playernum = playermgrGetPlayerNumByProp(chr->prop);
 		if (g_Vars.coopplayers[playernum]) {
-			for (s32 i = 0;  i < MAX_PLAYERS; i++) {
+			for (s32 i = 0;  i < PLAYERCOUNT(); i++) {
 				if (passes) break;
 				if (g_Vars.coopplayers[i]) {
 					setCurrentPlayerNum(i);
@@ -9287,7 +9287,7 @@ bool aiToggleP1P2(void)
 
 		if (chr) {
 			if (chr->p1p2 == g_Vars.bondplayernum && !g_Vars.coop->isdead) {
-				chr->p1p2 = g_Vars.currentcoopplayernum;
+				chr->p1p2 = g_Vars.coopplayernum;
 			} else if (!g_Vars.bond->isdead) {
 				chr->p1p2 = g_Vars.bondplayernum;
 			}
@@ -9315,7 +9315,7 @@ bool aiChrSetP1P2(void)
 
 			if (!g_Vars.players[playernum]->isdead) {
 				if (chr2->prop == g_Vars.coop->prop) {
-					chr1->p1p2 = g_Vars.currentcoopplayernum;
+					chr1->p1p2 = g_Vars.coopplayernum;
 				} else {
 					chr1->p1p2 = g_Vars.bondplayernum;
 				}

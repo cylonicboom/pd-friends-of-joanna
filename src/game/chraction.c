@@ -41,6 +41,7 @@
 #include "game/sparks.h"
 #include "game/stagetable.h"
 #include "game/tex.h"
+#include "game/title.h"
 #include "game/wallhit.h"
 #include "bss.h"
 #include "lib/joy.h"
@@ -14161,7 +14162,7 @@ void chrsClearRefsToPlayer(s32 playernum)
 
 	if (g_Vars.coopplayernum >= 0) {
 		if (playernum == g_Vars.bondplayernum) {
-			otherplayernum = g_Vars.currentcoopplayernum;
+			otherplayernum = g_Vars.currentallyplayernum;
 			playerpropnum = g_Vars.bond->prop - g_Vars.props;
 		} else {
 			otherplayernum = g_Vars.bondplayernum;
@@ -14228,15 +14229,16 @@ s32 chrResolveId(struct chrdata *ref, s32 id)
 			{
 				u32 index = g_Vars.coopplayernum >= 0 ? ref->p1p2 : g_Vars.bondplayernum;
 				struct player *player = g_Vars.players[index];
-				if (player && player->prop && player->prop->chr) {
+				if (player && player->prop && player->prop->chr && !g_Vars.antiplayers[index]) {
 					id = player->prop->chr->chrnum;
 				}
 			}
 			break;
 		case CHR_P1P2_OPPOSITE:
 			if (g_Vars.coopplayernum >= 0) {
-				struct player *player = g_Vars.players[(MAX_PLAYERS-1) - ref->p1p2];
-				if (player && player->prop && player->prop->chr) {
+				s32 index = (MAX_PLAYERS-1)-ref->p1p2;;
+				struct player *player = g_Vars.players[index];
+				if (player && player->prop && player->prop->chr && !g_Vars.antiplayers[index]) {
 					id = player->prop->chr->chrnum;
 				}
 			}
@@ -14277,7 +14279,7 @@ s32 chrResolveId(struct chrdata *ref, s32 id)
 			break;
 		case CHR_P1P2_OPPOSITE:
 			if (g_Vars.coopplayernum >= 0) {
-				struct player *player = g_Vars.players[g_Vars.currentcoopplayernum];
+				struct player *player = g_Vars.players[g_Vars.coopplayernum];
 				if (player && player->prop && player->prop->chr) {
 					id = player->prop->chr->chrnum;
 				}

@@ -5,6 +5,7 @@
 #include "game/fmb.h"
 #include "game/mainmenu.h"
 #include "game/challenge.h"
+#include "game/playermgr.h"
 #include "game/mplayer/mplayer.h"
 #include "game/mplayer/scenarios.h"
 #include "game/mplayer/setup.h"
@@ -76,9 +77,7 @@ void fmbReset(void)
 			mpPlayerSetDefaults(i, true);
 		}
 
-		g_Vars.bondplayernum = 0;
-		g_Vars.coopplayernum = -1;
-		g_Vars.antiplayernum = -1;
+		playermgrDisableTeamPlayers();
 
 		challengeDetermineUnlockedFeatures();
 

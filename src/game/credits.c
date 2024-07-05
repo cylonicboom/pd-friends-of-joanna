@@ -8,6 +8,7 @@
 #include "game/savebuffer.h"
 #include "game/menugfx.h"
 #include "game/menu.h"
+#include "game/playermgr.h"
 #include "game/credits.h"
 #include "game/game_1531a0.h"
 #include "game/file.h"
@@ -1902,9 +1903,7 @@ Gfx *creditsDraw(Gfx *gdl)
 		setNumPlayers(1);
 		mainChangeToStage(g_TitleNextStage);
 
-		g_Vars.bondplayernum = 0;
-		g_Vars.coopplayernum = -1;
-		g_Vars.antiplayernum = -1;
+		playermgrDisableTeamPlayers();
 
 		lvSetDifficulty(DIFF_A);
 		viBlack(true);
