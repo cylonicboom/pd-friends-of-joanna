@@ -9,6 +9,7 @@
 #include "game/bondgun.h"
 #include "game/debug.h"
 #include "game/game_0b0fd0.h"
+#include "game/playermgr.h"
 #include "game/player.h"
 #include "game/savebuffer.h"
 #include "game/menugfx.h"
@@ -626,10 +627,8 @@ void endscreenContinue(s32 context)
 						titleSetNextStage(g_MissionConfig.stagenum);
 
 						if (g_MissionConfig.isteam) {
-							g_Vars.bondplayernum = 0;
-							g_Vars.coopplayernum = -1;
-							g_Vars.antiplayernum = -1;
-							setNumPlayers(1);
+							playermgrResetTeamPlayers();
+							setNumPlayers(getNumTeamModePlayers());
 						}
 						else if (g_MissionConfig.iscoop) {
 							if (g_Vars.numaibuddies == 0) {
@@ -638,15 +637,11 @@ void endscreenContinue(s32 context)
 								g_Vars.antiplayernum = -1;
 								setNumPlayers(2);
 							} else {
-								g_Vars.bondplayernum = 0;
-								g_Vars.coopplayernum = -1;
-								g_Vars.antiplayernum = -1;
+								playermgrDisableTeamPlayers();
 								setNumPlayers(1);
 							}
 						} else {
-							g_Vars.bondplayernum = 0;
-							g_Vars.coopplayernum = -1;
-							g_Vars.antiplayernum = -1;
+							playermgrDisableTeamPlayers();
 							setNumPlayers(1);
 						}
 

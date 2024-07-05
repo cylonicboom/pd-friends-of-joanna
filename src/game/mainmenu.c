@@ -21,6 +21,7 @@
 #include "game/options.h"
 #include "game/pdmode.h"
 #include "game/player.h"
+#include "game/playermgr.h"
 #include "game/setup.h"
 #include "game/tex.h"
 #include "game/title.h"
@@ -726,17 +727,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 		titleSetNextStage(g_MissionConfig.stagenum);
 
 		if (g_MissionConfig.isteam) {
-			g_Vars.bondplayernum = 0;
-			g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
-			// set the coop / anti player numbers
-			for (s32 i = 0; i < MAX_PLAYERS; i++) {
-				if (g_Vars.coopplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_COOP) {
-					g_Vars.coopplayernum = i;
-				}
-				if (g_Vars.antiplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
-					g_Vars.antiplayernum = i;
-				}
-			}
+			playermgrResetTeamPlayers();
 			setNumPlayers(getNumTeamModePlayers());
 		}
 		else if (g_MissionConfig.iscoop) {
@@ -748,9 +739,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 				setNumPlayers(2);
 			} else {
 				// Coop with AI buddies
-				g_Vars.bondplayernum = 0;
-				g_Vars.coopplayernum = -1;
-				g_Vars.antiplayernum = -1;
+				playermgrDisableTeamPlayers();
 				setNumPlayers(1);
 			}
 		} else if (g_MissionConfig.isanti) {
@@ -766,9 +755,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 			setNumPlayers(4);
 		} else {
 			// Solo
-			g_Vars.bondplayernum = 0;
-			g_Vars.coopplayernum = -1;
-			g_Vars.antiplayernum = -1;
+			playermgrDisableTeamPlayers();
 			setNumPlayers(1);
 		}
 
@@ -1283,6 +1270,10 @@ MenuItemHandlerResult menuhandlerBuddyOptionsContinue(s32 operation, struct menu
 		return true;
 	}
 
+	if (operation == MENUOP_CHECKDISABLED) {
+	   return getNumTeamModePlayers() <= 1;
+	}
+
 	return 0;
 }
 
@@ -1406,10 +1397,10 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct 
 {
    // HACK: Eventually it'd be cool to be ablek to assign the bond role to any player
 	const uint32_t labels[] = {
-		(void*)"Disabled",          // PLAYERROLE_NONE
+		(uintptr_t)"Disabled",          // PLAYERROLE_NONE
+		(uintptr_t)"Co-Operative",      // PLAYERROLE_COOP
+		(uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
 		// (void*)"Operative",      // PLAYERROLE_BOND
-		(void*)"Co-Operative",      // PLAYERROLE_COOP
-		(void*)"Counter-Operative", // PLAYERROLE_ANTI
 	};
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
@@ -1641,7 +1632,7 @@ struct menuitem g_TeamOptionsMenuItems[] = {
 		MENUITEMTYPE_DROPDOWN,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(void*)"Player 2", // "Continue"
+		(uintptr_t)"Player 2",
 		0,
 		menuhandlerBuddyOptionsPlayer2Assign,
 	}, // ""
@@ -1649,7 +1640,7 @@ struct menuitem g_TeamOptionsMenuItems[] = {
 		MENUITEMTYPE_DROPDOWN,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(void*)"Player 3", // "Continue"
+		(uintptr_t)"Player 3",
 		0,
 		menuhandlerBuddyOptionsPlayer3Assign,
 	}, // ""
@@ -1657,7 +1648,7 @@ struct menuitem g_TeamOptionsMenuItems[] = {
 		MENUITEMTYPE_DROPDOWN,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(void*)"Player 4", // "Continue"
+		(uintptr_t)"Player 4",
 		0,
 		menuhandlerBuddyOptionsPlayer4Assign,
 	}, // ""
@@ -1700,7 +1691,7 @@ struct menudialogdef g_CoopOptionsMenuDialog = {
 
 struct menudialogdef g_TeamOptionsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
-	(void *)"Build Your Perfect Team", // "Team-Operative Options"
+	(uintptr_t)"Build Your Perfect Team", // "Team-Operative Options"
 	g_TeamOptionsMenuItems,
 	menudialogTeamCoopAntiOptions,
 	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
@@ -2043,7 +2034,7 @@ s32 getNumUnlockedSpecialStages(void)
 		}
 	}
 
-	if (g_MissionConfig.iscoop || g_MissionConfig.isanti) {
+	if (g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti) {
 		offsetforduel = 0;
 	} else {
 		for (i = 0; i < (VERSION >= VERSION_NTSC_1_0 ? 32 : 33); i++) {
@@ -2269,7 +2260,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 				((renderdata->x + 60) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
 				G_TX_RENDERTILE, 0, 0x0480, 1024 / g_ScaleX, -1024);
 
-		if (g_MissionConfig.isanti) {
+		if (g_MissionConfig.isanti || g_MissionConfig.isteam) {
 			// No stars
 		} else if (g_MissionConfig.iscoop) {
 			texSelect(&gdl, &g_TexGeneralConfigs[36], 2, 0, 2, true, NULL);
@@ -5064,6 +5055,7 @@ MenuItemHandlerResult menuhandlerMainMenuSoloMissions(s32 operation, struct menu
 	if (operation == MENUOP_SET) {
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = false;
+		g_MissionConfig.isteam = false;
 		menuPushDialog(&g_SelectMissionMenuDialog);
 	}
 
@@ -5079,9 +5071,7 @@ MenuItemHandlerResult menuhandlerMainMenuSoloMissions(s32 operation, struct menu
 MenuItemHandlerResult menuhandlerMainMenuCombatSimulator(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		g_Vars.bondplayernum = 0;
-		g_Vars.coopplayernum = -1;
-		g_Vars.antiplayernum = -1;
+		playermgrDisableTeamPlayers();
 		challengeDetermineUnlockedFeatures();
 		g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
 		func0f0f820c(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);
@@ -5113,6 +5103,7 @@ MenuItemHandlerResult menuhandlerMainMenuCounterOperative(s32 operation, struct 
 	if (operation == MENUOP_SET) {
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = true;
+		g_MissionConfig.isteam = false;
 		menuPushDialog(&g_SelectMissionMenuDialog);
 	}
 
@@ -5143,6 +5134,7 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 		if (g_Menus[g_MpPlayerNum].curdialog &&
 				g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef) {
 			g_MissionConfig.iscoop = false;
+			g_MissionConfig.isteam = false;
 			g_MissionConfig.isanti = false;
 		}
 		break;

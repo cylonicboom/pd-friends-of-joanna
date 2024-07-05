@@ -23,5 +23,8 @@ void playermgrCreateWeapon(s32 hand);
 void playermgrShuffle(void);
 s32 playermgrGetOrderOfPlayer(s32 playernum);
 s32 playermgrGetPlayerAtOrder(s32 ordernum);
+void playermgrResetTeamPlayers(void);
+void playermgrDisableTeamPlayers(void);
+void playermgrAllocatePlayersFromRoles(void);
 
 #endif
