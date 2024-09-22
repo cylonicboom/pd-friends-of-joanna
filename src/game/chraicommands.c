@@ -2123,7 +2123,6 @@ bool aiIfTargetInRoom(void)
 /**
  * @cmd 005d
  */
-// BUG: doesn't detect when P1P2 has the A51 keycard
 bool aiIfChrHasObject(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
