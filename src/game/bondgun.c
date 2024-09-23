@@ -5575,21 +5575,39 @@ void bgunTickSwitch2(void)
 			ctrl->switchtoweaponnum = -1;
 			ctrl->fnfader = 0;
 
+			// 4player-pvp: if not anti, apply disguise to every non-anti player
 			if (ctrl->weaponnum == WEAPON_DISGUISE40 || ctrl->weaponnum == WEAPON_DISGUISE41) {
 				struct chrdata *chr = player->prop->chr;
+				if (g_Vars.bond->prop == chr->prop || isChrPropCoop(chr->prop)) {
+					u8 prevplayer = g_Vars.currentplayernum;
+					for (i = 0; i < PLAYERCOUNT(); i++) {
+						if (g_Vars.antiplayers[i]) continue;
+						if (!g_Vars.players[i]) continue;
+						chr = g_Vars.players[i]->prop->chr;
+						g_Vars.players[i]->disguised = true;
+
+						chr->hidden |= CHRHFLAG_DISGUISED;
+
+						if (g_Vars.stagenum == STAGE_RESCUE) {
+							chr->hidden |= CHRHFLAG_UNTARGETABLE;
+						}
+
+						setCurrentPlayerNum(i);
+						if (i == prevplayer) {
+							invRemoveItemByNum(ctrl->weaponnum);
+							bgunCycleBack();
+						} else {
+							bgunCycleBack();
+							bgunCycleForward();
+						}
+
+					}
+					setCurrentPlayerNum(prevplayer);
+				}
 
 				sndStart(var80095200, SFX_DISGUISE_ON, 0, -1, -1, -1, -1, -1);
 
-				g_Vars.currentplayer->disguised = true;
 
-				chr->hidden |= CHRHFLAG_DISGUISED;
-
-				if (g_Vars.stagenum == STAGE_RESCUE) {
-					chr->hidden |= CHRHFLAG_UNTARGETABLE;
-				}
-
-				invRemoveItemByNum(ctrl->weaponnum);
-				bgunCycleBack();
 			}
 
 			ctrl->curfnstr = 0;
