@@ -3789,6 +3789,21 @@ bool aiChrUnsetHiddenFlag(void)
 
 	if (chr) {
 		chr->hidden &= ~flags;
+		// HACK (4player-pvp): if chr is bond or coop
+		// and the flag is CHRHFLAG_DISGUISED
+		// then also unset flags for all ally players
+		if (chr->prop == g_Vars.bond->prop || isChrPropCoop(chr->prop)) {
+			if (flags & CHRHFLAG_DISGUISED) {
+				for (s32 i = 0; i < MAX_PLAYERS; i++) {
+					if (g_Vars.antiplayers[i]) continue;
+					struct player *player = g_Vars.players[i];
+
+					if (player && player->prop && player->prop->chr) {
+						player->prop->chr->hidden &= ~flags;
+					}
+				}
+			}
+		}
 	}
 
 	g_Vars.aioffset += 7;
