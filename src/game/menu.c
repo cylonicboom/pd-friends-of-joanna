@@ -93,6 +93,11 @@ struct menudialogdef g_PakRemovedMenuDialog;
 struct menudialogdef g_PakRepairFailedMenuDialog;
 struct menudialogdef g_PakRepairSuccessMenuDialog;
 
+
+
+extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
+extern struct menudialogdef g_TeamMissionsHubMenuDialog;
+
 #if VERSION >= VERSION_JPN_FINAL
 const struct menucolourpalette g_MenuColours[] = {
 	{ 0x20202000, 0x20202000, 0x20202000, 0x4f4f4f00, 0x00000000, 0x00000000, 0x4f4f4f00, 0x4f4f4f00, 0x4f4f4f00, 0x4f4f4f00, 0x00000000, 0x00000000, 0x4f4f4f00, 0x00000000, 0x00000000 },
@@ -3366,6 +3371,7 @@ void menuFindAvailableSize(s32 *leftptr, s32 *topptr, s32 *rightptr, s32 *bottom
 	switch (g_MenuData.root) {
 	case MENUROOT_MPSETUP:
 	case MENUROOT_4MBMAINMENU:
+	case MENUROOT_TEAMMISSIONS:
 		playernum = g_Menus[g_MpPlayerNum].playernum;
 
 		// Make room for the "Press START" labels
@@ -3675,6 +3681,7 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 	case MENUROOT_PICKTARGET:
 	case MENUROOT_COOPCONTINUE:
 	case MENUROOT_4MBFILEMGR:
+	case MENUROOT_TEAMMISSIONS:
 	case MENUROOT_TRAINING:
 		g_MenuData.count = 1;
 		break;
@@ -3717,6 +3724,7 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 			break;
 		}
 		// fall-through
+	case MENUROOT_TEAMMISSIONS:
 	case MENUROOT_MAINMENU:
 	case MENUROOT_MPENDSCREEN:
 	case MENUROOT_FILEMGR:
@@ -4683,6 +4691,7 @@ void func0f0fa6ac(void)
 	case MENUROOT_MPSETUP:
 	case MENUROOT_FILEMGR:
 	case MENUROOT_4MBMAINMENU:
+	case MENUROOT_TEAMMISSIONS:
 	case MENUROOT_TRAINING:
 		playerUnpause();
 		g_PlayersWithControl[0] = true;
@@ -5564,7 +5573,7 @@ Gfx *menuRender(Gfx *gdl)
 		text0f153b40();
 
 		// Render corner texts in combat simulator
-		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU) {
+		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || g_MenuData.root == MENUROOT_TEAMMISSIONS) {
 			s32 i;
 			s32 j;
 			s32 viewleft = viGetViewLeft() / g_ScaleX + 20;
@@ -5588,7 +5597,7 @@ Gfx *menuRender(Gfx *gdl)
 				// here is for measuring purposes only and isn't rendered.
 				// Amusingly, there's a %d placeholder in the text which isn't
 				// replaced prior to measuring, so the width is slightly wrong.
-				if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL && g_Vars.waitingtojoin[i]) {
+				if (g_Vars.waitingtojoin[i] && (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Menus[g_Vars.bondplayernum].curdialog->definition != &g_TeamMissionPlayerProfilesHubMenu && g_Menus[g_Vars.bondplayernum].depth)) ) {
 					// Player has pressed start but they can't open the player-specific
 					// dialog yet because they're still on the Combat Simulator dialog
 					// or similar. Show "Ready" in their corner.
@@ -5605,8 +5614,18 @@ Gfx *menuRender(Gfx *gdl)
 									renderit = false;
 								}
 							}
-						} else {
+						} 
+						else {
 							renderit = g_MpNumJoined < 2;
+						}
+					} else if (g_MenuData.root == MENUROOT_TEAMMISSIONS) {
+						renderit = true;
+
+						if (i == g_Vars.bondplayernum) {
+							renderit = false;
+						}
+						else if (g_Vars.waitingtojoin[j]) {
+							renderit = false;
 						}
 					} else {
 						renderit = true;
@@ -5671,7 +5690,7 @@ Gfx *menuRender(Gfx *gdl)
 
 						gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, g_MenuData.playerjoinalpha[i] | 0x5070ff00, viGetWidth(), viGetHeight(), 0, 0);
 
-						if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL && g_Vars.waitingtojoin[i]) {
+						if (g_Vars.waitingtojoin[i] && (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || g_MenuData.root == MENUROOT_TEAMMISSIONS)) {
 							// "Ready!"
 #if VERSION >= VERSION_JPN_FINAL
 							colour = L_MISC_461;

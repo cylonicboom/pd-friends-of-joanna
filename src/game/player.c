@@ -1216,6 +1216,7 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		return;
 	}
 
+	// TODO: look at bondtype while we have disguises on
 	outfit = g_Vars.currentplayer->bondtype;
 	solo = (!g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.coopplayers[g_Vars.currentplayernum] == g_Vars.bond);
 
@@ -2262,6 +2263,7 @@ void playerTickPauseMenu(void)
 			opened = filemgrConsiderPushingFileSelectDialog();
 			break;
 		case MENUROOT_4MBMAINMENU:
+		case MENUROOT_TEAMMISSIONS:
 		case MENUROOT_MPSETUP:
 			opened = true;
 			break;

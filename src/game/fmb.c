@@ -327,7 +327,7 @@ struct menudialogdef g_AudioVideo4MbMenuDialog = {
 	NULL,
 };
 
-struct menuitem g_MpPlayerSetup4MbMenuItems[] = {
+extern struct menuitem g_MpPlayerSetup4MbMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,

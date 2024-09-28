@@ -50,4 +50,5 @@ void func0f01b148(u32 arg0)
 void titleSetNextStage(s32 stagenum)
 {
 	g_TitleNextStage = stagenum;
+	teamMissionConfigStrUpdateMarquee();
 }

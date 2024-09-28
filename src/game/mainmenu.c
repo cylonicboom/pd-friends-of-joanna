@@ -7,6 +7,7 @@
 #include "game/cheats.h"
 #include "game/debug.h"
 #include "game/filemgr.h"
+#include "game/fmb.h"
 #include "game/game_0b0fd0.h"
 #include "game/game_1531a0.h"
 #include "game/gamefile.h"
@@ -36,13 +37,53 @@
 #include "types.h"
 
 u8 g_InventoryWeapon;
+extern struct menuitem g_MpPlayerSetup4MbMenuItems[];
 
+void strTrimToFirstNewline(char* in, char* out, s32 len)
+{
+	strcpy(out, in);
+	s32 i = len - 1;
+	while (i >= 0) {
+		if (out[i] == '\n') {
+			out[i] = '\0';
+		}
+		i--;
+	}
+}
+
+// HACK: this is terrible and should go in g_PlayerConfigsArray[playernum].base.name2 or something like that
+extern char g_PlayerNames[4][32] = {
+	"Player 1",
+	"Player 2",
+	"Player 3",
+	"Player 4",
+};
+
+void updatePlayerName(u32 playernum)
+{
+	// HACK: TODO: add this property to the struct so we dont' have to keep track of this nad update it.
+	s32 sz = ARRAYCOUNT(g_PlayerConfigsArray[playernum].base.name);
+	char playerName[sz];
+
+	strTrimToFirstNewline(g_PlayerConfigsArray[playernum].base.name, playerName, sz);
+
+	strcpy(g_PlayerNames[playernum], playerName);
+}
+
+char *mpGetCurrentPlayerName(struct menuitem *item);
 struct menudialogdef g_2PMissionControlStyleMenuDialog;
 struct menudialogdef g_CiControlPlayer2MenuDialog;
 struct menudialogdef g_CinemaMenuDialog;
 #ifndef PLATFORM_N64
 extern struct menudialogdef g_ExtendedMenuDialog;
 #endif
+
+extern const uint32_t g_PlayerRoleNames[] = {
+	(uintptr_t)"Disabled",          // PLAYERROLE_NONE
+	(uintptr_t)"Co-Operative",      // PLAYERROLE_COOP
+	(uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
+	(uintptr_t)"Operative",      // PLAYERROLE_BOND
+};
 
 char *menuTextCurrentStageName(struct menuitem *item)
 {
@@ -1356,25 +1397,50 @@ MenuDialogHandlerResult menudialogCoopAntiOptions(s32 operation, struct menudial
 
 MenuDialogHandlerResult menudialogTeamCoopAntiOptions(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
-#if VERSION >= VERSION_NTSC_1_0
-	if (operation == MENUOP_OPEN) {
-		s32 max = getMaxAiBuddies();
-
-		if (g_Vars.numaibuddies > max) {
-			g_Vars.numaibuddies = max;
-		}
-	}
-#endif
+// #if VERSION >= VERSION_NTSC_1_0
+// 	if (operation == MENUOP_OPEN) {
+// 		s32 max = getMaxAiBuddies();
+//
+// 		if (g_Vars.numaibuddies > max) {
+// 			g_Vars.numaibuddies = max;
+// 		}
+// 	}
+// #endif
 
 	if (operation == MENUOP_TICK) {
 		if (g_Menus[g_MpPlayerNum].curdialog && g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef) {
 			struct menuinputs *inputs = data->dialog2.inputs;
 
-			if (inputs->start) {
-				menuhandlerTeamOptionsContinue(MENUOP_SET, NULL, NULL);
+			if (inputs->back) {
+				teamMissionConfigStrUpdateMarquee();
 			}
 
-			inputs->start = false;
+		}
+	}
+
+	return 0;
+}
+
+MenuDialogHandlerResult menudialogTeamPlayerProfiles(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
+{
+// #if VERSION >= VERSION_NTSC_1_0
+// 	if (operation == MENUOP_OPEN) {
+// 		s32 max = getMaxAiBuddies();
+//
+// 		if (g_Vars.numaibuddies > max) {
+// 			g_Vars.numaibuddies = max;
+// 		}
+// 	}
+// #endif
+
+	if (operation == MENUOP_TICK) {
+		if (g_Menus[g_MpPlayerNum].curdialog && g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef) {
+			struct menuinputs *inputs = data->dialog2.inputs;
+
+			if (inputs->back) {
+				teamMissionConfigStrUpdateMarquee();
+			}
+
 		}
 	}
 
@@ -1409,13 +1475,7 @@ MenuItemHandlerResult menuhandlerCoopFriendlyFire(s32 operation, struct menuitem
 
 MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum)
 {
-   // HACK: Eventually it'd be cool to be ablek to assign the bond role to any player
-	const uint32_t labels[] = {
-		(uintptr_t)"Disabled",          // PLAYERROLE_NONE
-		(uintptr_t)"Co-Operative",      // PLAYERROLE_COOP
-		(uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
-		// (void*)"Operative",      // PLAYERROLE_BOND
-	};
+
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
 		{
@@ -1428,23 +1488,136 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct 
 	   break;
 	case MENUOP_GETOPTIONTEXT:
 		{
-			return (s32)labels[data->dropdown.value];
+		   if (playernum == 0) {
+			   return (s32)g_PlayerRoleNames[3];
+		   }
+			return (s32)g_PlayerRoleNames[data->dropdown.value];
 		}
 	   break;
 	case MENUOP_SET:
 		{
+			if (playernum == 0) {
+				s32 playerrole = PLAYERROLE_BOND;
+				g_Vars.playerroles[playernum] = playerrole;
+				break;
+			}
 			s32 playerrole = data->dropdown.value;
 			g_Vars.playerroles[playernum] = playerrole;
 		}
 	   break;
 	case MENUOP_GETSELECTEDINDEX:
 		{
+			if (playernum == 0) {
+				data->dropdown.value = 3;
+				break;
+			}
 			s32 playerrole =  g_Vars.playerroles[playernum];
 			data->dropdown.value = playerrole;
 		}
 	   break;
 	}
 	return 0;
+}
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct menuitem *item, union handlerdata *data);
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenu(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum) {
+   switch (operation) {
+   case MENUOP_SET:
+   }
+   return 0;
+}
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayer1Menu(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+   return menuhandlerBuddyOptionsPlayerMenu(operation, item, data, 0);
+}
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayer2Menu(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+   return menuhandlerBuddyOptionsPlayerMenu(operation, item, data, 1);
+}
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayer3Menu(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+   return menuhandlerBuddyOptionsPlayerMenu(operation, item, data, 2);
+}
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayer4Menu(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+   return menuhandlerBuddyOptionsPlayerMenu(operation, item, data, 3);
+}
+
+
+
+struct menuitem g_TeamPlayerProfilesMenuItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[0],
+		0,
+		menuhandlerBuddyOptionsPlayer1Menu,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[1],
+		0,
+		menuhandlerBuddyOptionsPlayer2Menu,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[2],
+		0,
+		menuhandlerBuddyOptionsPlayer3Menu,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[3],
+		0,
+		menuhandlerBuddyOptionsPlayer4Menu,
+	}, // ""
+	{ MENUITEMTYPE_END }, // ""
+};
+
+
+struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Player Profiles",
+	g_MpPlayerSetup4MbMenuItems,
+	menudialogTeamPlayerProfiles,
+	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+
+	switch (operation) {
+	case MENUOP_SET:
+		{
+			printf("menuhandlerBuddyOptionsPlayerMenuHub pushing\n");
+			for (int i = 0; i < MAX_PLAYERS; i++) {
+				updatePlayerName(i);
+			}
+			menuPushDialog(&g_TeamMissionPlayerProfilesHubMenu);
+			// TODO:  implement team missions specific player options + load player
+		}
+	   break;
+	}
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerBuddyOptionsPlayer1Assign(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+   return menuhandlerBuddyOptionsPlayerAssign(operation, item, data, 0);
 }
 
 MenuItemHandlerResult menuhandlerBuddyOptionsPlayer2Assign(s32 operation, struct menuitem *item, union handlerdata *data)
@@ -1617,36 +1790,45 @@ struct menuitem g_CoopOptionsMenuItems[] = {
 	{ MENUITEMTYPE_END }, // ""
 };
 
-struct menuitem g_TeamOptionsMenuItems[] = {
+
+struct menuitem g_TeamPlayerRolesMenuItems[] = {
+ //   	{
+	// 	MENUITEMTYPE_CHECKBOX,
+	// 	0,
+	// 	0,
+	// 	L_OPTIONS_256, // "Radar On"
+	// 	0,
+	// 	menuhandlerCoopRadar,
+	// },
+	// {
+	// 	MENUITEMTYPE_CHECKBOX,
+	// 	0,
+	// 	0,
+	// 	L_OPTIONS_257, // "Friendly Fire"
+	// 	0,
+	// 	menuhandlerCoopFriendlyFire,
+	// },
+	// {
+	// 	MENUITEMTYPE_SEPARATOR,
+	// 	0,
+	// 	0,
+	// 	0,
+	// 	0,
+	// 	NULL,
+	// }, // ""
 	{
-		MENUITEMTYPE_CHECKBOX,
+		MENUITEMTYPE_DROPDOWN,
 		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[0],
 		0,
-		L_OPTIONS_256, // "Radar On"
-		0,
-		menuhandlerCoopRadar,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_257, // "Friendly Fire"
-		0,
-		menuhandlerCoopFriendlyFire,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
+		menuhandlerBuddyOptionsPlayer1Assign,
 	}, // ""
 	{
 		MENUITEMTYPE_DROPDOWN,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 2",
+		(uintptr_t)g_PlayerNames[1],
 		0,
 		menuhandlerBuddyOptionsPlayer2Assign,
 	}, // ""
@@ -1654,7 +1836,7 @@ struct menuitem g_TeamOptionsMenuItems[] = {
 		MENUITEMTYPE_DROPDOWN,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 3",
+		(uintptr_t)g_PlayerNames[2],
 		0,
 		menuhandlerBuddyOptionsPlayer3Assign,
 	}, // ""
@@ -1662,36 +1844,191 @@ struct menuitem g_TeamOptionsMenuItems[] = {
 		MENUITEMTYPE_DROPDOWN,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 4",
+		(uintptr_t)g_PlayerNames[3],
 		0,
 		menuhandlerBuddyOptionsPlayer4Assign,
 	}, // ""
+	{MENUITEMTYPE_SEPARATOR},
 	{
-		MENUITEMTYPE_SEPARATOR,
+		MENUITEMTYPE_MARQUEE,
 		0,
-		0,
-		0,
-		0,
-		NULL,
-	}, // ""
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		0,
-		L_OPTIONS_259, // "Continue"
-		0,
-		menuhandlerTeamOptionsContinue,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_260, // "Cancel"
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
+		(uintptr_t)"Warning: Mixing Counter/Co Operative roles is experimental.",
 		0,
 		NULL,
 	},
 	{ MENUITEMTYPE_END }, // ""
 };
+
+
+/*
+* Team Missions Hub -> Mission Select
+* Team MIssions Hub -> Player Profiles
+* Team Missions Hub -> Player Roles
+* Team Missions Hub -> Mission Options
+*
+*/
+
+struct menudialogdef g_TeamMissionPlayerRolesHubMenu = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Build Your Perfect Team", // "Team-Operative Options"
+	g_TeamPlayerRolesMenuItems,
+	menudialogTeamCoopAntiOptions,
+	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
+MenuItemHandlerResult menuhandlerTeamPlayerRolesHub(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+   if (operation == MENUOP_SET) {
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+	   // this may have been updated by the player profiles menu
+		// or in the combat simulator
+	   updatePlayerName(i);
+	}
+	  menuPushDialog(&g_TeamMissionPlayerRolesHubMenu);
+   }
+   return 0;
+}
+
+struct menuitem g_SelectTeamMissionMenuItems[] = {
+	{
+		MENUITEMTYPE_LIST,
+		0,
+		MENUITEMFLAG_LIST_CUSTOMRENDER,
+		0x000000eb,
+		0,
+		menuhandlerMissionList,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menudialogdef g_TeamMissionSelectMissionMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_OPTIONS_122, // "Mission Select"
+	g_SelectTeamMissionMenuItems,
+	NULL,
+	MENUDIALOGFLAG_STARTSELECTS,
+	NULL,
+};
+
+MenuItemHandlerResult menuhandlerTeamMissionSelect(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_OPEN) {
+		teamMissionConfigStrUpdateMarquee();
+	}
+	if (operation == MENUOP_SET) {
+		menuPushDialog(&g_TeamMissionSelectMissionMenuDialog);
+	}
+
+	return 0;
+}
+
+char* langGetStageName(s32 stagenum);
+char g_TeamMissionConfig_marqueestring[1024];
+char* teamMissionConfigStrGetMarquee(struct menuitem *item)
+{
+	return g_TeamMissionConfig_marqueestring;
+}
+
+void teamMissionConfigStrUpdateMarquee()
+{
+   // setup stage name
+	s32 nextstagenum = g_MissionConfig.stagenum;
+	if (nextstagenum == 0) {
+	   nextstagenum = STAGE_DEFECTION;
+	}
+	char* nextStageName = langGetStageName(nextstagenum);
+
+	// setup player names
+	char player1Name[ARRAYCOUNT(g_PlayerConfigsArray[0].base.name)];
+	char player2Name[ARRAYCOUNT(g_PlayerConfigsArray[1].base.name)];
+	char player3Name[ARRAYCOUNT(g_PlayerConfigsArray[2].base.name)];
+	char player4Name[ARRAYCOUNT(g_PlayerConfigsArray[3].base.name)];
+	strTrimToFirstNewline(g_PlayerConfigsArray[0].base.name, player1Name, ARRAYCOUNT(g_PlayerConfigsArray[0].base.name));
+	strTrimToFirstNewline(g_PlayerConfigsArray[1].base.name, player2Name, ARRAYCOUNT(g_PlayerConfigsArray[1].base.name));
+	strTrimToFirstNewline(g_PlayerConfigsArray[2].base.name, player3Name, ARRAYCOUNT(g_PlayerConfigsArray[2].base.name));
+	strTrimToFirstNewline(g_PlayerConfigsArray[3].base.name, player4Name, ARRAYCOUNT(g_PlayerConfigsArray[3].base.name));
+
+   // TODO: remove debug text
+	printf("Player 1: %s\n", player1Name);
+	printf("Player 2: %s\n", player2Name);
+	printf("Player 3: %s\n", player3Name);
+	printf("Player 4: %s\n", player4Name);
+
+	sprintf(g_TeamMissionConfig_marqueestring, "Mission: %s | %s: %s, %s: %s, %s: %s, %s: %s\n\0", nextStageName, player1Name,
+		 (char*)g_PlayerRoleNames[g_Vars.playerroles[0]],
+		 player2Name, (char*)g_PlayerRoleNames[g_Vars.playerroles[1]],
+		 player3Name,(char*)g_PlayerRoleNames[g_Vars.playerroles[2]],
+		 player4Name,(char*)g_PlayerRoleNames[g_Vars.playerroles[3]]);
+
+   // TODO: remove debug text
+	printf("Marquee: %s\n", g_TeamMissionConfig_marqueestring);
+}
+
+struct menuitem g_TeamMissionsHubMenuItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		(uintptr_t)"Mission Select",
+		0,
+		menuhandlerTeamMissionSelect,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		(uintptr_t)"Mission Options",
+		0,
+		0, //menuHandlerTeamMissionOptions,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		(uintptr_t)"Player Profiles",
+		0,
+		menuhandlerBuddyOptionsPlayerMenuHub,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		(uintptr_t)"Player Roles",
+		0, // (uintptr_t)&mpGetCurrentPlayerName,
+		menuhandlerTeamPlayerRolesHub,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		(uintptr_t)"Start Mission",
+		0,
+		0
+		// menuhandlerBuddyOptionsPlayer1Assign,
+	}, // ""
+	{MENUITEMTYPE_SEPARATOR},
+	{
+		MENUITEMTYPE_MARQUEE,
+		0,
+		MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
+		(uintptr_t)&teamMissionConfigStrGetMarquee,
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END }, // ""
+};
+
+struct menudialogdef g_TeamMissionsHubMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Team Missions Setup",
+	g_TeamMissionsHubMenuItems,
+	NULL,
+	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
 
 
 struct menudialogdef g_CoopOptionsMenuDialog = {
@@ -1703,14 +2040,6 @@ struct menudialogdef g_CoopOptionsMenuDialog = {
 	NULL,
 };
 
-struct menudialogdef g_TeamOptionsMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	(uintptr_t)"Build Your Perfect Team", // "Team-Operative Options"
-	g_TeamOptionsMenuItems,
-	menudialogTeamCoopAntiOptions,
-	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
-	NULL,
-};
 
 MenuItemHandlerResult menuhandlerAntiRadar(s32 operation, struct menuitem *item, union handlerdata *data)
 {
@@ -1827,7 +2156,7 @@ MenuItemHandlerResult menuhandlerTeamDifficulty(s32 operation, struct menuitem *
 		g_MissionConfig.difficulty = item->param;
 		lvSetDifficulty(g_MissionConfig.difficulty);
 		menuPopDialog();
-		menuPushDialog(&g_TeamOptionsMenuDialog);
+		// menuPushDialog(&g_TeamOptionsMenuDialog);
 		break;
 	case MENUOP_CHECKDISABLED:
 		if (!isStageDifficultyUnlocked(g_MissionConfig.stageindex, item->param)) {
@@ -2011,6 +2340,8 @@ struct menudialogdef g_AntiMissionDifficultyMenuDialog = {
 	NULL,
 };
 
+
+
 struct solostage g_SoloStages[NUM_SOLOSTAGES] = {
 	// stage,             unk04,
 	{ STAGE_DEFECTION,     0x0c, L_OPTIONS_133, L_OPTIONS_134, L_MPWEAPONS_124 },
@@ -2035,6 +2366,20 @@ struct solostage g_SoloStages[NUM_SOLOSTAGES] = {
 	{ STAGE_WAR,           0x1c, L_OPTIONS_170, L_OPTIONS_003, L_OPTIONS_170   },
 	{ STAGE_DUEL,          0x1c, L_OPTIONS_171, L_OPTIONS_003, L_OPTIONS_171   },
 };
+
+// searches g_SoloStages for the stage with the given stagenum
+// and returns the name of the stage
+char* langGetStageName(s32 stagenum) {
+   if (stagenum == -1) {
+	  return NULL;
+   }
+	for (s32 i = 0; i < NUM_SOLOSTAGES; i++) {
+		if (g_SoloStages[i].stagenum == stagenum) {
+			return langGet(g_SoloStages[i].name3);
+		}
+	}
+	return NULL;
+}
 
 s32 getNumUnlockedSpecialStages(void)
 {
@@ -2170,9 +2515,11 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 		g_Vars.normmplayerisrunning = false;
 		g_MissionConfig.stagenum = g_SoloStages[sp188].stagenum;
 		g_MissionConfig.stageindex = sp188;
+		teamMissionConfigStrUpdateMarquee();
 
 		if (g_MissionConfig.isteam) {
-			menuPushDialog(&g_TeamMissionDifficultyMenuDialog);
+			menuPopDialog();
+			// menuPushDialog(&g_TeamMissionDifficultyMenuDialog);
 	    }
 		else if (g_MissionConfig.iscoop) {
 			menuPushDialog(&g_CoopMissionDifficultyMenuDialog);
@@ -5130,7 +5477,8 @@ MenuItemHandlerResult menuhandlerMainMenuTeamMissions(s32 operation, struct menu
 	   // players must explicitly join
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = false;
-		menuPushDialog(&g_SelectMissionMenuDialog);
+		teamMissionConfigStrUpdateMarquee();
+		menuPushRootDialog(&g_TeamMissionsHubMenuDialog, MENUROOT_TEAMMISSIONS);
 	}
 
 	return 0;
@@ -5228,7 +5576,7 @@ struct menuitem g_MainMenuMenuItems[] = {
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Quad-Operative",
+		(uintptr_t)"Team Operations",
 		0x00000005,
 		menuhandlerMainMenuTeamMissions,
 	},
