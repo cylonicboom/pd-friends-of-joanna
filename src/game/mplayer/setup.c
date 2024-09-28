@@ -2370,8 +2370,7 @@ char *mpMenuTextMpconfigMarquee(struct menuitem *item)
 	return "";
 }
 
-MenuItemHandlerResult mpLoadPlayerMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
-{
+intptr_t mpLoadPlayerMenu(s32 operation, struct menuitem *item, union handlerdata *data, u32 playernum) {
 	s32 i;
 	struct fileguid guid;
 	struct filelistfile *file;
@@ -2409,7 +2408,7 @@ MenuItemHandlerResult mpLoadPlayerMenuHandler(s32 operation, struct menuitem *it
 
 			menuPopDialog();
 
-			filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, g_MpPlayerNum);
+			filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum);
 		} else {
 			filemgrPushErrorDialog(FILEERROR_ALREADYLOADED);
 		}
@@ -2428,6 +2427,33 @@ MenuItemHandlerResult mpLoadPlayerMenuHandler(s32 operation, struct menuitem *it
 	}
 
 	return 0;
+}
+
+
+
+MenuItemHandlerResult mpLoadPlayerMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return mpLoadPlayerMenu(operation, item, data, g_MpPlayerNum);
+}
+
+MenuItemHandlerResult mpLoadPlayer1MenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return mpLoadPlayerMenu(operation, item, data, 0);
+}
+
+MenuItemHandlerResult mpLoadPlayer2MenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return mpLoadPlayerMenu(operation, item, data, 1);
+}
+
+MenuItemHandlerResult mpLoadPlayer3MenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return mpLoadPlayerMenu(operation, item, data, 2);
+}
+
+MenuItemHandlerResult mpLoadPlayer4MenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return mpLoadPlayerMenu(operation, item, data, 3);
 }
 
 MenuItemHandlerResult menuhandlerMpTimeLimitSlider(s32 operation, struct menuitem *item, union handlerdata *data)
@@ -6136,7 +6162,7 @@ struct menudialogdef g_CombatSimulatorMenuDialog = {
 	MENUDIALOGFLAG_STARTSELECTS,
 	NULL,
 };
-
+extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
 void func0f17fcb0(s32 silent)
 {
 	g_Menus[g_MpPlayerNum].playernum = g_MpPlayerNum;
@@ -6145,7 +6171,10 @@ void func0f17fcb0(s32 silent)
 		menuPushRootDialog(&g_AdvancedSetup4MbMenuDialog, MENUROOT_4MBMAINMENU);
 		func0f0f8300();
 	} else {
-		if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
+		if (g_MenuData.root == MENUROOT_TEAMMISSIONS) {
+			menuPushRootDialog(&g_TeamMissionPlayerProfilesHubMenu, MENUROOT_TEAMMISSIONS);
+		}
+		else if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
 			menuPushRootDialog(&g_MpChallengeListOrDetailsViaAdvChallengeMenuDialog, MENUROOT_MPSETUP);
 		} else {
 			menuPushRootDialog(&g_MpAdvancedSetupMenuDialog, MENUROOT_MPSETUP);

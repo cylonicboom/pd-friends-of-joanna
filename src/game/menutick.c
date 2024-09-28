@@ -42,6 +42,8 @@ const char var7f1a85e0[] = "Live: %d\n";
 const char var7f1a85ec[] = "current:";
 const char var7f1a85f8[] = " numactive %d ";
 
+extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
+extern struct menudialogdef g_TeamMissionsHubMenuDialog;
 void menuCountDialogs(void)
 {
 	s32 i;
@@ -284,7 +286,7 @@ void menuTick(void)
 	if (g_MenuData.count > 0) {
 		var8006294c = 1;
 
-		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU) {
+		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || g_MenuData.root == MENUROOT_TEAMMISSIONS) {
 			if (g_MenuData.unk008 == -1) {
 				g_MpSetup.chrslots &= 0xfff0;
 			}
@@ -331,7 +333,7 @@ void menuTick(void)
 				menuProcessInput();
 				setCurrentPlayerNum(prevplayernum);
 			} else {
-				if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU) {
+				if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || (g_MenuData.root == MENUROOT_TEAMMISSIONS)) {
 					// Check if player is joining the game
 					bool canjoin;
 					u32 buttons = joyGetButtonsPressedThisFrame(i, 0xffffffff);
@@ -362,7 +364,7 @@ void menuTick(void)
 					if (canjoin && (buttons & START_BUTTON)) {
 						g_PlayerConfigsArray[i].handicap = 128;
 
-						if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL) {
+						if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Menus[g_Vars.bondplayernum].curdialog->definition != &g_TeamMissionPlayerProfilesHubMenu && g_Menus[g_Vars.bondplayernum].depth)) {
 							// Joining from a general area such as the Combat
 							// Simulator menu. We can't open dialogs for other
 							// players here, so they are waiting to join.

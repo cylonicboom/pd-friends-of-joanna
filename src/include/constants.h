@@ -1783,6 +1783,7 @@
 #define MENUROOT_4MBMAINMENU  11
 #define MENUROOT_12           12
 #define MENUROOT_TRAINING     13
+#define MENUROOT_TEAMMISSIONS 14
 
 #define MENUSOUND_SWIPE          0x00 // Navigating to left/right dialog
 #define MENUSOUND_OPENDIALOG     0x01
