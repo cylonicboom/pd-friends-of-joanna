@@ -6163,7 +6163,7 @@ struct menudialogdef g_CombatSimulatorMenuDialog = {
 	NULL,
 };
 extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
-void func0f17fcb0(s32 silent)
+void mpDecidePlayerMenuAndPush(s32 silent)
 {
 	g_Menus[g_MpPlayerNum].playernum = g_MpPlayerNum;
 

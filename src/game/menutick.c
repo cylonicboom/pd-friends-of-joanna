@@ -234,7 +234,7 @@ void menuTick(void)
 
 						if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
 							g_MpNumJoined++;
-							func0f17fcb0(true);
+							mpDecidePlayerMenuAndPush(true);
 						} else if (g_MpNumJoined == 0) {
 							g_MpNumJoined++;
 
@@ -390,7 +390,7 @@ void menuTick(void)
 						} else {
 							// Joining from advanced setup
 							g_MpNumJoined++;
-							func0f17fcb0(false);
+							mpDecidePlayerMenuAndPush(false);
 						}
 					}
 
@@ -418,7 +418,7 @@ void menuTick(void)
 								// reached the adv setup layer - open the dialog
 								g_Vars.waitingtojoin[i] = false;
 								g_MpNumJoined++;
-								func0f17fcb0(false);
+								mpDecidePlayerMenuAndPush(false);
 							}
 						}
 					}
