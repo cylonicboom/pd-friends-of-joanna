@@ -71,7 +71,7 @@ MenuItemHandlerResult menuhandlerMpNumberOfSimulants(s32 operation, struct menui
 MenuItemHandlerResult menuhandlerMpSimulantsPerTeam(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult mpQuickTeamSimulantDifficultyHandler(s32 operation, struct menuitem *item, union handlerdata *data);
 void mpCloseDialogsForNewSetup(void);
-void func0f17fcb0(s32 silent);
+void mpDecidePlayerMenuAndPush(s32 silent);
 MenuItemHandlerResult menuhandlerMpSlowMotion(s32 operation, struct menuitem *item, union handlerdata *data);
 void htbAddPad(s16 padnum);
 void htbRemoveAmmoCrateAtPad(s16 padnum);
