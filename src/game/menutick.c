@@ -413,7 +413,7 @@ void menuTick(void)
 								} else {
 									menuPushRootDialog(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
 								}
-							} else if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
+							} else if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Menus[g_Vars.bondplayernum].curdialog->definition == &g_TeamMissionPlayerProfilesHubMenu && g_Menus[g_Vars.bondplayernum].depth)) {
 								// Player was waiting to join and we have just
 								// reached the adv setup layer - open the dialog
 								g_Vars.waitingtojoin[i] = false;
