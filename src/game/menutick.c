@@ -450,14 +450,14 @@ void menuTick(void)
 								endscreenPushCoop();
 								setCurrentPlayerNum(prevplayernum);
 								handled = true;
-							} 
+							}
 							if (g_Vars.antiplayers[playernum]) {
 								s32 prevplayernum = g_Vars.currentplayernum;
 								setCurrentPlayerNum(playernum);
 								endscreenPushAnti();
 								setCurrentPlayerNum(prevplayernum);
 								handled = true;
-							} 
+							}
 							if (!handled) {
 								mpPushEndscreenDialog(playernum, i);
 							}
@@ -513,6 +513,10 @@ void menuTick(void)
 				g_MenuData.prevmenuroot = MENUROOT_MPSETUP;
 				g_MenuData.unk00c = &g_CombatSimulatorMenuDialog;
 			}
+		}
+		if (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_MenuData.prevmenuroot == -1) {
+			g_MenuData.prevmenuroot = MENUROOT_MAINMENU;
+			g_MenuData.prevmenudialog = IS4MB() ? &g_CiMenuViaPauseMenuDialog : &g_CiMenuViaPcMenuDialog;
 		}
 
 		if (g_MenuData.prevmenuroot != -1) {
