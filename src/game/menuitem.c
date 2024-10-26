@@ -2374,7 +2374,7 @@ Gfx *menuitemSelectableRender(Gfx *gdl, struct menurendercontext *context)
 
 	if (context->item->flags & MENUITEMFLAG_BIGFONT) {
 		if (context->item->flags & MENUITEMFLAG_LESSLEFTPADDING) {
-			x += 12;
+			x += 8;
 		} else {
 			x += 36;
 		}
