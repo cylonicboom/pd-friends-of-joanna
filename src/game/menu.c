@@ -5690,7 +5690,7 @@ Gfx *menuRender(Gfx *gdl)
 
 						gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, g_MenuData.playerjoinalpha[i] | 0x5070ff00, viGetWidth(), viGetHeight(), 0, 0);
 
-						if (g_Vars.waitingtojoin[i] && (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || g_MenuData.root == MENUROOT_TEAMMISSIONS)) {
+						if (g_Vars.waitingtojoin[i] && (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS)) {
 							// "Ready!"
 #if VERSION >= VERSION_JPN_FINAL
 							colour = L_MISC_461;
