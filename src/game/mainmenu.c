@@ -1590,7 +1590,7 @@ struct menuitem g_TeamPlayerProfilesMenuItems[] = {
 extern struct menuitem g_MpPlayerSetup234MenuItems[];
 struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
 	MENUDIALOGTYPE_DEFAULT,
-	(uintptr_t)"Bring your Perfect Self",
+	(uintptr_t)"Bring Your Perfect Self",
 	g_MpPlayerSetup234MenuItems,
 	menudialogTeamPlayerProfiles,
 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
@@ -1989,7 +1989,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Mission Select",
 		0,
 		menuhandlerTeamMissionSelect,
@@ -1997,7 +1997,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Mission Options",
 		0,
 		0, //menuHandlerTeamMissionOptions,
@@ -2005,7 +2005,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Operative Profile",
 		0,
 		menuhandlerBuddyOptionsPlayerMenuHub,
@@ -2013,7 +2013,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Player Roles",
 		0, // (uintptr_t)&mpGetCurrentPlayerName,
 		menuhandlerTeamPlayerRolesHub,
@@ -2021,7 +2021,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
+		 MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Start Mission",
 		0,
 		menuhandlerTeamStartMission,
@@ -2043,7 +2043,7 @@ struct menudialogdef g_TeamMissionsHubMenuDialog = {
 	(uintptr_t)"Team Missions Setup",
 	g_TeamMissionsHubMenuItems,
 	NULL,
-	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
 
