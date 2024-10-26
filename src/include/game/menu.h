@@ -80,7 +80,7 @@ void menuClose(void);
 void func0f0f8120(void);
 void func0f0f820c(struct menudialogdef *dialogdef, s32 root);
 void menuSetBackground(s32 bg);
-void func0f0f8300(void);
+void menuResetJoinFadeAlpha(void);
 void menuPushRootDialog(struct menudialogdef *dialogdef, s32 arg1);
 void func0f0f85e0(struct menudialogdef *dialogdef, s32 root);
 Gfx *menuRenderDialog(Gfx *gdl, struct menudialog *dialog, struct menu *menu, bool lightweight);

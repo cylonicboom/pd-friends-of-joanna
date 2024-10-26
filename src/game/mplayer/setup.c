@@ -6169,7 +6169,7 @@ void mpDecidePlayerMenuAndPush(s32 silent)
 
 	if (IS4MB()) {
 		menuPushRootDialog(&g_AdvancedSetup4MbMenuDialog, MENUROOT_4MBMAINMENU);
-		func0f0f8300();
+		menuResetJoinFadeAlpha();
 	} else {
 		if (g_MenuData.root == MENUROOT_TEAMMISSIONS) {
 			menuPushRootDialog(&g_TeamMissionPlayerProfilesHubMenu, MENUROOT_TEAMMISSIONS);
@@ -6180,7 +6180,7 @@ void mpDecidePlayerMenuAndPush(s32 silent)
 			menuPushRootDialog(&g_MpAdvancedSetupMenuDialog, MENUROOT_MPSETUP);
 		}
 
-		func0f0f8300();
+		menuResetJoinFadeAlpha();
 	}
 
 	if (!silent) {

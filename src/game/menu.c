@@ -3640,7 +3640,7 @@ void menuSetBackground(s32 bg)
 	}
 }
 
-void func0f0f8300(void)
+void menuResetJoinFadeAlpha(void)
 {
 	s32 i;
 
