@@ -477,7 +477,7 @@ void menuTick(void)
 
 	if (var8006294c) {
 		if (var80062948 == 0 &&
-				(g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU)) {
+				(g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || g_MenuData.root == MENUROOT_TEAMMISSIONS)) {
 			var80062948 = 1;
 			filelistCreate(0, FILETYPE_MPPLAYER);
 		}
