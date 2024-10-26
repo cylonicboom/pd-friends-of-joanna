@@ -5477,6 +5477,7 @@ MenuItemHandlerResult menuhandlerMainMenuTeamMissions(s32 operation, struct menu
 	   // players must explicitly join
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = false;
+		g_Vars.mpsetupmenu = MPSETUPMENU_TEAMMISSIONS;
 		teamMissionConfigStrUpdateMarquee();
 		menuPushRootDialog(&g_TeamMissionsHubMenuDialog, MENUROOT_TEAMMISSIONS);
 	}
