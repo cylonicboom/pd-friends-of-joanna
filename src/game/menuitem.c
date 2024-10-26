@@ -2373,9 +2373,13 @@ Gfx *menuitemSelectableRender(Gfx *gdl, struct menurendercontext *context)
 	}
 
 	if (context->item->flags & MENUITEMFLAG_BIGFONT) {
-		x += 35;
+		if (context->item->flags & MENUITEMFLAG_LESSLEFTPADDING) {
+			x += 12;
+		} else {
+			x += 36;
+		}
 		y += 6;
-	}
+	} 
 
 	gdl = text0f153628(gdl);
 	gdl = textRenderProjected(gdl, &x, &y, text, font1, font2,
