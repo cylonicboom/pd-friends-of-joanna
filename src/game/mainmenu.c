@@ -1587,10 +1587,11 @@ struct menuitem g_TeamPlayerProfilesMenuItems[] = {
 };
 
 
+extern struct menuitem g_MpPlayerSetup234MenuItems[];
 struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
 	MENUDIALOGTYPE_DEFAULT,
-	(uintptr_t)"Player Profiles",
-	g_MpPlayerSetup4MbMenuItems,
+	(uintptr_t)"Bring your Perfect Self",
+	g_MpPlayerSetup234MenuItems,
 	menudialogTeamPlayerProfiles,
 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
@@ -1608,7 +1609,6 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct
 				updatePlayerName(i);
 			}
 			menuPushDialog(&g_TeamMissionPlayerProfilesHubMenu);
-			// TODO:  implement team missions specific player options + load player
 		}
 	   break;
 	}
@@ -1891,6 +1891,25 @@ MenuItemHandlerResult menuhandlerTeamPlayerRolesHub(s32 operation, struct menuit
    return 0;
 }
 
+MenuItemHandlerResult menuhandlerTeamStartMission(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		if (!g_MissionConfig.stagenum) {
+			g_MissionConfig.stagenum = STAGE_DEFECTION;
+		}
+		menuPushDialog(&g_AcceptMissionMenuDialog);
+	}
+
+	if (operation == MENUOP_CHECKDISABLED) {
+		for (int i = 0; i < MAX_PLAYERS; i++) {
+			if (i == g_Vars.bondplayernum) continue;
+			if (g_Vars.playerroles[i]) return false;
+		}
+		return true;
+	}
+	return 0;
+}
+
 struct menuitem g_SelectTeamMissionMenuItems[] = {
 	{
 		MENUITEMTYPE_LIST,
@@ -1987,7 +2006,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
-		(uintptr_t)"Player Profiles",
+		(uintptr_t)"Operative Profile",
 		0,
 		menuhandlerBuddyOptionsPlayerMenuHub,
 	}, // ""
@@ -2005,8 +2024,7 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 		/* MENUITEMFLAG_SELECTABLE_OPENSDIALOG | */ MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_BIGFONT,
 		(uintptr_t)"Start Mission",
 		0,
-		0
-		// menuhandlerBuddyOptionsPlayer1Assign,
+		menuhandlerTeamStartMission,
 	}, // ""
 	{MENUITEMTYPE_SEPARATOR},
 	{
