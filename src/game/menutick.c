@@ -287,7 +287,7 @@ void menuTick(void)
 		var8006294c = 1;
 
 		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || g_MenuData.root == MENUROOT_TEAMMISSIONS) {
-			if (g_MenuData.unk008 == -1) {
+			if (g_MenuData.prevmenuroot == -1) {
 				g_MpSetup.chrslots &= 0xfff0;
 			}
 
@@ -297,7 +297,7 @@ void menuTick(void)
 				if (g_Menus[i].curdialog) {
 					g_Menus[i].playernum = g_MpNumJoined++;
 
-					if (g_MenuData.unk008 == -1) {
+					if (g_MenuData.prevmenuroot == -1) {
 						g_MpSetup.chrslots |= (1 << i);
 					}
 				}
@@ -500,23 +500,23 @@ void menuTick(void)
 		}
 	}
 
-	if ((g_MenuData.unk5d5_06 || g_MenuData.unk008 != -1) && sp344 == false) {
+	if ((g_MenuData.unk5d5_06 || g_MenuData.prevmenuroot != -1) && sp344 == false) {
 		if ((g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU)
-				&& g_MenuData.unk008 == -1) {
+				&& g_MenuData.prevmenuroot == -1) {
 			if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL) {
-				g_MenuData.unk008 = MENUROOT_MAINMENU;
+				g_MenuData.prevmenuroot = MENUROOT_MAINMENU;
 				g_MenuData.unk00c = IS4MB() ? &g_CiMenuViaPauseMenuDialog : &g_CiMenuViaPcMenuDialog;
 			} else if (IS4MB()) {
-				g_MenuData.unk008 = MENUROOT_4MBMAINMENU;
+				g_MenuData.prevmenuroot = MENUROOT_4MBMAINMENU;
 				g_MenuData.unk00c = &g_MainMenu4MbMenuDialog;
 			} else {
-				g_MenuData.unk008 = MENUROOT_MPSETUP;
+				g_MenuData.prevmenuroot = MENUROOT_MPSETUP;
 				g_MenuData.unk00c = &g_CombatSimulatorMenuDialog;
 			}
 		}
 
-		if (g_MenuData.unk008 != -1) {
-			if (g_MenuData.unk008 == -5) {
+		if (g_MenuData.prevmenuroot != -1) {
+			if (g_MenuData.prevmenuroot == -5) {
 				// Match is beginning
 				mpStartMatch();
 				menuStop();
@@ -525,7 +525,7 @@ void menuTick(void)
 					bossfileSave();
 					g_Vars.modifiedfiles &= ~MODFILE_MPSETUP;
 				}
-			} else if (g_MenuData.unk008 == -6) {
+			} else if (g_MenuData.prevmenuroot == -6) {
 				// Match is ending
 				s32 playernum = 0;
 
@@ -568,7 +568,7 @@ void menuTick(void)
 						playernum++;
 					}
 				}
-			} else if (g_MenuData.unk008 == -7) {
+			} else if (g_MenuData.prevmenuroot == -7) {
 				menuStop();
 				g_FileState = FILESTATE_CHANGINGAGENT;
 				gamefileLoadDefaults(&g_GameFile);
@@ -577,7 +577,7 @@ void menuTick(void)
 				musicQueueStopAllEvent();
 			} else {
 				bool startmusic = false;
-				menuPushRootDialog(g_MenuData.unk00c, g_MenuData.unk008);
+				menuPushRootDialog(g_MenuData.unk00c, g_MenuData.prevmenuroot);
 				sp344 = true;
 
 				if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU) {
@@ -605,7 +605,7 @@ void menuTick(void)
 			}
 
 			g_MenuData.unk00c = NULL;
-			g_MenuData.unk008 = -1;
+			g_MenuData.prevmenuroot = -1;
 		} else {
 			switch (g_MenuData.root) {
 			case MENUROOT_ENDSCREEN:
