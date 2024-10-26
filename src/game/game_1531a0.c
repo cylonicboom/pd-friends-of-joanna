@@ -2652,6 +2652,10 @@ void textMeasure(s32 *textheight, s32 *textwidth, char *text, struct fontchar *f
 		}
 	}
 
+	// HACK: adjust the textheight to the lineheight if textheight is 0
+	if (!*textheight) {
+		*textheight += lineheight;
+	}
 	// @bug? Shouldn't this go at the very end of the function?
 	if (g_ScaleX == 1) {
 		*textwidth *= var8007fad0;
