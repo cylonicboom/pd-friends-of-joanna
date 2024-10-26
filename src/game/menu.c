@@ -3219,6 +3219,7 @@ void menuGetContPads(s8 *contpadnum1, s8 *contpadnum2)
 	case MENUROOT_FILEMGR:
 	case MENUROOT_BOOTPAKMGR:
 	case MENUROOT_4MBFILEMGR:
+	case MENUROOT_TEAMMISSIONS:
 	case MENUROOT_4MBMAINMENU:
 		*contpadnum1 = g_MpPlayerNum;
 		*contpadnum2 = -1;
