@@ -1833,7 +1833,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
-		MENUITEMFLAG_SMALLFONT,
+		0,
 		L_OPTIONS_256, // "Radar On"
 		0,
 		menuhandlerCoopRadar,
@@ -1841,7 +1841,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
-		MENUITEMFLAG_SMALLFONT,
+		0,
 		L_OPTIONS_257, // "Friendly Fire"
 		0,
 		menuhandlerCoopFriendlyFire,
@@ -1849,7 +1849,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_DROPDOWN,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SMALLFONT,
+		MENUITEMFLAG_LITERAL_TEXT, 
 		(uintptr_t)"Difficulty",
 		0,
 		menuhandlerTeamMissionDifficultyDropdown
@@ -1865,7 +1865,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_MARQUEE,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
+		MENUITEMFLAG_LITERAL_TEXT  | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
 		(uintptr_t)&g_TeamMissionMarqueeText,
 		0,
 		NULL,
