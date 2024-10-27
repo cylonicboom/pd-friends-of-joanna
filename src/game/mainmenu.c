@@ -51,6 +51,15 @@ void strTrimToFirstNewline(char* in, char* out, s32 len)
 	}
 }
 
+u32 menuGetNumDialogs() {
+	u32 nummenus = 0;
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Menus[i].curdialog) nummenus++;
+	}
+	return nummenus;
+
+}
+
 // HACK: this is terrible and should go in g_PlayerConfigsArray[playernum].base.name2 or something like that
 extern char g_PlayerNames[4][32] = {
 	"Player 1",
