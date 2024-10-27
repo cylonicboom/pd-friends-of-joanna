@@ -1473,6 +1473,34 @@ MenuItemHandlerResult menuhandlerCoopFriendlyFire(s32 operation, struct menuitem
 	return 0;
 }
 
+const char* g_difficulties[] = {
+   "Agent\0",
+   "Special Agent\0",
+   "Perfect Agent\0"
+};
+MenuItemHandlerResult menuhandlerTeamMissionDifficultyDropdown(s32 operation, struct menuitem *item, union handlerdata *data)
+{ 
+   switch (operation) {
+   case MENUOP_GETOPTIONCOUNT:
+	   data->dropdown.value = 3; // agent, special agent, perfect agent
+   break;
+   case MENUOP_GETOPTIONTEXT:
+	   return (uintptr_t)g_difficulties[data->dropdown.value];
+   break;
+   case MENUOP_SET:
+		g_MissionConfig.pdmode = false;
+		g_MissionConfig.difficulty = data->dropdown.value;
+		lvSetDifficulty(g_MissionConfig.difficulty);
+		g_MissionConfig.pdmode = g_MissionConfig.difficulty > 3? 1 : 0;
+   break;
+   case MENUOP_GETSELECTEDINDEX:
+		data->dropdown.value = g_MissionConfig.difficulty;
+   break;
+   }
+
+   return 0;
+}
+
 MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum)
 {
 
@@ -1808,6 +1836,14 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 		L_OPTIONS_257, // "Friendly Fire"
 		0,
 		menuhandlerCoopFriendlyFire,
+	},
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Difficulty",
+		0,
+		menuhandlerTeamMissionDifficultyDropdown
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
