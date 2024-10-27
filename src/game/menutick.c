@@ -234,7 +234,7 @@ void menuTick(void)
 
 						if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
 							g_MpNumJoined++;
-							mpDecidePlayerMenuAndPush(true);
+							mpDecidePlayerMenuAndPush(true, i);
 						} else if (g_MpNumJoined == 0) {
 							g_MpNumJoined++;
 
@@ -364,7 +364,7 @@ void menuTick(void)
 					if (canjoin && (buttons & START_BUTTON)) {
 						g_PlayerConfigsArray[i].handicap = 128;
 
-						if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Menus[g_Vars.bondplayernum].curdialog->definition != &g_TeamMissionPlayerProfilesHubMenu && g_Menus[g_Vars.bondplayernum].depth)) {
+						if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS)) {
 							// Joining from a general area such as the Combat
 							// Simulator menu. We can't open dialogs for other
 							// players here, so they are waiting to join.
@@ -390,7 +390,7 @@ void menuTick(void)
 						} else {
 							// Joining from advanced setup
 							g_MpNumJoined++;
-							mpDecidePlayerMenuAndPush(false);
+							mpDecidePlayerMenuAndPush(false, i);
 						}
 					}
 
@@ -413,12 +413,12 @@ void menuTick(void)
 								} else {
 									menuPushRootDialog(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
 								}
-							} else if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP || (g_MenuData.root == MENUROOT_TEAMMISSIONS /*&& g_Menus[g_Vars.bondplayernum].curdialog->definition == &g_TeamMissionPlayerProfilesHubMenu*/ && g_Menus[g_Vars.bondplayernum].depth)) {
+							} else if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS)) {
 								// Player was waiting to join and we have just
 								// reached the adv setup layer - open the dialog
 								g_Vars.waitingtojoin[i] = false;
 								g_MpNumJoined++;
-								mpDecidePlayerMenuAndPush(false);
+								mpDecidePlayerMenuAndPush(false, i);
 							}
 						}
 					}

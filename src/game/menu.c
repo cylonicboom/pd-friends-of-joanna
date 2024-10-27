@@ -5600,11 +5600,12 @@ Gfx *menuRender(Gfx *gdl)
 				// here is for measuring purposes only and isn't rendered.
 				// Amusingly, there's a %d placeholder in the text which isn't
 				// replaced prior to measuring, so the width is slightly wrong.
-				if (g_Vars.waitingtojoin[i] && (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Menus[g_Vars.bondplayernum].curdialog->definition != &g_TeamMissionPlayerProfilesHubMenu && g_Menus[g_Vars.bondplayernum].depth)) ) {
+				if (g_Vars.waitingtojoin[i] && (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS)) ) {
 					// Player has pressed start but they can't open the player-specific
 					// dialog yet because they're still on the Combat Simulator dialog
 					// or similar. Show "Ready" in their corner.
 					renderit = true;
+					if (i == g_Vars.bondplayernum) renderit = false;
 					// "Player %d: " and "Ready!"
 					sprintf(text, "%s%s", langGet(L_MPMENU_482), langGet(L_MISC_461));
 				} else {
@@ -5624,11 +5625,10 @@ Gfx *menuRender(Gfx *gdl)
 					} else if (g_MenuData.root == MENUROOT_TEAMMISSIONS) {
 						renderit = true;
 
-						if (i == g_Vars.bondplayernum) {
-							renderit = false;
-						}
-						else if (g_Vars.waitingtojoin[j]) {
-							renderit = false;
+						for (j = 0; j < ARRAYCOUNT(g_Vars.waitingtojoin); j++) {
+							if (g_Vars.waitingtojoin[j]) {
+								renderit = false;
+							}
 						}
 					} else {
 						renderit = true;
