@@ -6163,7 +6163,8 @@ struct menudialogdef g_CombatSimulatorMenuDialog = {
 	NULL,
 };
 extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
-void mpDecidePlayerMenuAndPush(s32 silent)
+extern struct menudialogdef g_TeamMissionsHubMenuDialog;
+void mpDecidePlayerMenuAndPush(s32 silent, s32 playernum)
 {
 	g_Menus[g_MpPlayerNum].playernum = g_MpPlayerNum;
 
@@ -6172,7 +6173,8 @@ void mpDecidePlayerMenuAndPush(s32 silent)
 		menuResetJoinFadeAlpha();
 	} else {
 		if (g_MenuData.root == MENUROOT_TEAMMISSIONS) {
-			menuPushRootDialog(&g_TeamMissionPlayerProfilesHubMenu, MENUROOT_TEAMMISSIONS);
+			if (g_Vars.bondplayernum != playernum) menuPushRootDialog(&g_TeamMissionPlayerProfilesHubMenu, MENUROOT_TEAMMISSIONS);
+			else menuPushRootDialog(&g_TeamMissionsHubMenuDialog, MENUROOT_TEAMMISSIONS);
 		}
 		else if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
 			menuPushRootDialog(&g_MpChallengeListOrDetailsViaAdvChallengeMenuDialog, MENUROOT_MPSETUP);
