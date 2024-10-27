@@ -870,6 +870,15 @@ Gfx *menuitemDropdownRender(Gfx *gdl, struct menurendercontext *context)
 
 	colour = MIXCOLOUR(context->dialog, item_unfocused);
 
+	struct fontchar *chars = g_CharsHandelGothicSm;
+	struct font *font = g_FontHandelGothicSm;
+
+	if (context->item->flags & MENUITEMFLAG_SMALLFONT) {
+		chars = g_CharsHandelGothicXs;
+		font = g_FontHandelGothicXs;
+	}
+
+
 	if (context->dialog->dimmed) {
 		colour = (colourBlend(colour, 0, 0x7f) & 0xffffff00) | (colour & 0xff);
 	}
@@ -910,7 +919,7 @@ Gfx *menuitemDropdownRender(Gfx *gdl, struct menurendercontext *context)
 
 	x = context->x + 10;
 	y = context->y + 2;
-	gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, colour, context->width, context->height, 0, 0);
+	gdl = textRenderProjected(gdl, &x, &y, text, chars, font, colour, context->width, context->height, 0, 0);
 
 	if (context->dialog->unk6e) {
 		x = context->x + 80;
@@ -934,10 +943,10 @@ Gfx *menuitemDropdownRender(Gfx *gdl, struct menurendercontext *context)
 		data.list.unk04 = 0;
 		text = (char *)context->item->handler(MENUOP_GETOPTIONTEXT, context->item, &data);
 
-		textMeasure(&textheight, &textwidth, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, 0);
+		textMeasure(&textheight, &textwidth, text, chars, font, 0);
 
 		x = context->x + context->width - textwidth - 10;
-		gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm, colour, context->width, context->height, 0, 0);
+		gdl = textRenderProjected(gdl, &x, &y, text, chars, font, colour, context->width, context->height, 0, 0);
 	}
 
 	gdl = text0f153780(gdl);

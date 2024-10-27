@@ -1475,8 +1475,8 @@ MenuItemHandlerResult menuhandlerCoopFriendlyFire(s32 operation, struct menuitem
 
 const char* g_difficulties[] = {
    "Agent\0",
-   "Special Agent\0",
-   "Perfect Agent\0"
+   "Special\0",
+   "Perfect\0"
 };
 MenuItemHandlerResult menuhandlerTeamMissionDifficultyDropdown(s32 operation, struct menuitem *item, union handlerdata *data)
 { 
@@ -1824,7 +1824,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
-		0,
+		MENUITEMFLAG_SMALLFONT,
 		L_OPTIONS_256, // "Radar On"
 		0,
 		menuhandlerCoopRadar,
@@ -1832,7 +1832,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
-		0,
+		MENUITEMFLAG_SMALLFONT,
 		L_OPTIONS_257, // "Friendly Fire"
 		0,
 		menuhandlerCoopFriendlyFire,
@@ -1840,7 +1840,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_DROPDOWN,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SMALLFONT,
 		(uintptr_t)"Difficulty",
 		0,
 		menuhandlerTeamMissionDifficultyDropdown
