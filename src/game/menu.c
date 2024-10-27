@@ -3726,8 +3726,8 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 		}
 		// fall-through
 	case MENUROOT_TEAMMISSIONS:
-		g_MenuData.bg = MENUBG_SUCCESS;
-		break;
+		// g_MenuData.bg = MENUBG_SUCCESS;
+		// break;
 	case MENUROOT_MAINMENU:
 	case MENUROOT_MPENDSCREEN:
 	case MENUROOT_FILEMGR:
