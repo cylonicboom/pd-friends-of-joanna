@@ -2681,29 +2681,33 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 		}
 
 		// Draw the thumbnail
-		gDPPipeSync(gdl++);
-		gDPSetTexturePersp(gdl++, G_TP_NONE);
-		gDPSetAlphaCompare(gdl++, G_AC_NONE);
-		gDPSetTextureLOD(gdl++, G_TL_TILE);
-		gDPSetTextureConvert(gdl++, G_TC_FILT);
+		u32 nummenus = menuGetNumDialogs();
+		if (nummenus < 2) {
+			gDPPipeSync(gdl++);
+			gDPSetTexturePersp(gdl++, G_TP_NONE);
+			gDPSetAlphaCompare(gdl++, G_AC_NONE);
+			gDPSetTextureLOD(gdl++, G_TL_TILE);
+			gDPSetTextureConvert(gdl++, G_TC_FILT);
 
 #if VERSION >= VERSION_NTSC_1_0
-		texSelect(&gdl, g_TexGeneralConfigs + 13 + stageindex, 2, 0, 2, true, NULL);
-		gDPSetCycleType(gdl++, G_CYC_1CYCLE);
-		gDPSetCombineMode(gdl++, G_CC_CUSTOM_00, G_CC_CUSTOM_00);
-		gDPSetTextureFilter(gdl++, G_TF_POINT);
-		gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 255 / 256));
+			texSelect(&gdl, g_TexGeneralConfigs + 13 + stageindex, 2, 0, 2, true, NULL);
+			gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+			gDPSetCombineMode(gdl++, G_CC_CUSTOM_00, G_CC_CUSTOM_00);
+			gDPSetTextureFilter(gdl++, G_TF_POINT);
+			gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 255 / 256));
 #else
-		texSelect(&gdl, g_TexGeneralConfigs + 13 + stageindex, 1, 0, 2, true, NULL);
-		gDPSetCycleType(gdl++, G_CYC_1CYCLE);
-		gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
-		gDPSetTextureFilter(gdl++, G_TF_POINT);
+			texSelect(&gdl, g_TexGeneralConfigs + 13 + stageindex, 1, 0, 2, true, NULL);
+			gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+			gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+			gDPSetTextureFilter(gdl++, G_TF_POINT);
 #endif
 
-		gSPTextureRectangle(gdl++,
-				((renderdata->x + 4) << 2) * g_ScaleX, (renderdata->y + 3) << 2,
-				((renderdata->x + 60) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
-				G_TX_RENDERTILE, 0, 0x0480, 1024 / g_ScaleX, -1024);
+			gSPTextureRectangle(gdl++,
+					((renderdata->x + 4) << 2) * g_ScaleX, (renderdata->y + 3) << 2,
+					((renderdata->x + 60) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
+					G_TX_RENDERTILE, 0, 0x0480, 1024 / g_ScaleX, -1024);
+				
+		}
 
 		if (g_MissionConfig.isanti || g_MissionConfig.isteam) {
 			// No stars
@@ -2780,8 +2784,14 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 			}
 		}
 
-		x = renderdata->x + 62;
-		y = renderdata->y + 3;
+		if (menuGetNumDialogs() < 2) {
+			x = renderdata->x + 62;
+			y = renderdata->y + 3;
+		} else {
+			x = renderdata->x + 12;
+			y = renderdata->y + 12;
+			if (menuGetNumDialogs() > 2) y += 4;
+		}
 
 		gdl = text0f153628(gdl);
 
@@ -2789,13 +2799,25 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 		strcpy(text, langGet(g_SoloStages[stageindex].name1));
 		strcat(text, "\n");
 
-		gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicMd, g_FontHandelGothicMd,
+		struct font *font = g_FontHandelGothicMd;
+		struct font *fontsm = g_FontHandelGothicSm;
+		struct fontchar *chars = g_CharsHandelGothicMd;
+		struct fontchar *charssm = g_CharsHandelGothicSm;
+
+		if (menuGetNumDialogs() > 1) {
+			font = g_FontHandelGothicSm;
+			fontsm = g_FontHandelGothicXs;
+			chars = g_CharsHandelGothicSm;
+			charssm = g_CharsHandelGothicXs;
+
+		}
+		gdl = textRenderProjected(gdl, &x, &y, text, chars, font,
 				renderdata->colour, viGetWidth(), viGetHeight(), 0, 0);
 
 		// Draw last part of name
 		strcpy(text, langGet(g_SoloStages[stageindex].name2));
 
-		gdl = textRenderProjected(gdl, &x, &y, text, g_CharsHandelGothicSm, g_FontHandelGothicSm,
+		gdl = textRenderProjected(gdl, &x, &y, text, charssm, fontsm,
 				renderdata->colour, viGetWidth(), viGetHeight(), 0, 0);
 
 		gdl = text0f153780(gdl);
