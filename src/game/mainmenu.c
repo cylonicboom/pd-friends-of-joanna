@@ -1791,31 +1791,44 @@ struct menuitem g_CoopOptionsMenuItems[] = {
 };
 
 
+char g_TeamMissionMarqueeText[256] = "\0";
+struct menuitem g_TeamMissionOptionsMenuItems[] = {
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_256, // "Radar On"
+		0,
+		menuhandlerCoopRadar,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_257, // "Friendly Fire"
+		0,
+		menuhandlerCoopFriendlyFire,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	}, // ""
+	{
+		MENUITEMTYPE_MARQUEE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
+		(uintptr_t)&g_TeamMissionMarqueeText,
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END }, // ""
+};
+
 struct menuitem g_TeamPlayerRolesMenuItems[] = {
- //   	{
-	// 	MENUITEMTYPE_CHECKBOX,
-	// 	0,
-	// 	0,
-	// 	L_OPTIONS_256, // "Radar On"
-	// 	0,
-	// 	menuhandlerCoopRadar,
-	// },
-	// {
-	// 	MENUITEMTYPE_CHECKBOX,
-	// 	0,
-	// 	0,
-	// 	L_OPTIONS_257, // "Friendly Fire"
-	// 	0,
-	// 	menuhandlerCoopFriendlyFire,
-	// },
-	// {
-	// 	MENUITEMTYPE_SEPARATOR,
-	// 	0,
-	// 	0,
-	// 	0,
-	// 	0,
-	// 	NULL,
-	// }, // ""
 	{
 		MENUITEMTYPE_DROPDOWN,
 		0,
@@ -1931,6 +1944,15 @@ struct menudialogdef g_TeamMissionSelectMissionMenuDialog = {
 	NULL,
 };
 
+struct menudialogdef g_TeamMissionOptionsDialog = {
+   MENUDIALOGTYPE_DEFAULT,
+   (uintptr_t*)"Mission Options",
+   g_TeamMissionOptionsMenuItems,
+   0,
+   MENUDIALOGFLAG_LITERAL_TEXT,
+   0
+};
+
 MenuItemHandlerResult menuhandlerTeamMissionSelect(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_OPEN) {
@@ -1997,10 +2019,10 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Mission Options",
 		0,
-		0, //menuHandlerTeamMissionOptions,
+		(void *)&g_TeamMissionOptionsDialog, //menuHandlerTeamMissionOptions,
 	}, // ""
 	{
 		MENUITEMTYPE_SELECTABLE,
