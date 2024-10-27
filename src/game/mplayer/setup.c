@@ -5679,6 +5679,78 @@ struct menuitem g_MpPlayerSetup234MenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
+struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_030, // "Name"
+		(uintptr_t)&mpGetCurrentPlayerName,
+		(void *)&g_MpPlayerNameMenuDialog,
+	},
+	// tabling this for now
+	// becuase this is a rabbit hole of design decisions and work
+	// {
+	// 	MENUITEMTYPE_SELECTABLE,
+	// 	0,
+	// 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+	// 	L_MPMENU_031, // "Character"
+	// 	0,
+	// 	(void *)&g_MpCharacterMenuDialog,
+	// },
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_033, // "Control"
+		0,
+		(void *)&g_MpControlMenuDialog,
+	},
+	// tabling this for now
+	// becuase this is a rabbit hole of design decisions and work
+	// {
+	// 	MENUITEMTYPE_SELECTABLE,
+	// 	0,
+	// 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+	// 	L_MPMENU_034, // "Player Options"
+	// 	0,
+	// 	(void *)&g_MpPlayerOptionsMenuDialog,
+	// },
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_035, // "Statistics"
+		0,
+		(void *)&g_MpPlayerStatsMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_029, // "Load Player"
+		0,
+		(void *)&g_MpLoadPlayerMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		0,
+		(uintptr_t)&mpMenuTextSavePlayerOrCopy,
+		0,
+		menuhandlerMpSavePlayer,
+	},
+	{ MENUITEMTYPE_END },
+};
+
 struct menudialogdef g_MpPlayerSetupViaAdvMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	L_MPMENU_028, // "Player Setup"
