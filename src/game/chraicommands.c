@@ -9339,12 +9339,12 @@ bool aiToggleP1P2(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 
-	if (g_Vars.coopplayernum >= 0) {
+	if (g_Vars.currentcoopplayernum >= 0) {
 		struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
 
 		if (chr) {
 			if (chr->p1p2 == g_Vars.bondplayernum && !g_Vars.coop->isdead) {
-				chr->p1p2 = g_Vars.coopplayernum;
+				chr->p1p2 = g_Vars.currentcoopplayernum;
 			} else if (!g_Vars.bond->isdead) {
 				chr->p1p2 = g_Vars.bondplayernum;
 			}
@@ -9363,7 +9363,7 @@ bool aiChrSetP1P2(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 
-	if (g_Vars.coopplayernum >= 0) {
+	if (g_Vars.currentcoopplayernum >= 0) {
 		struct chrdata *chr1 = chrFindById(g_Vars.chrdata, cmd[2]);
 		struct chrdata *chr2 = chrFindById(g_Vars.chrdata, cmd[3]);
 
@@ -9372,7 +9372,7 @@ bool aiChrSetP1P2(void)
 
 			if (!g_Vars.players[playernum]->isdead) {
 				if (chr2->prop == g_Vars.coop->prop) {
-					chr1->p1p2 = g_Vars.coopplayernum;
+					chr1->p1p2 = g_Vars.currentcoopplayernum;
 				} else {
 					chr1->p1p2 = g_Vars.bondplayernum;
 				}
