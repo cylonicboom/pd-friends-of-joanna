@@ -40,6 +40,7 @@ void varsInit(void)
 	g_Vars.diffframe240freal = 4;
 	playermgrDisableTeamPlayers();
 	g_Vars.coopplayernum = -1;
+	g_Vars.currentcoopplayernum = -1;
 	g_Vars.antiplayernum = -1;
 	g_Vars.bond = NULL;
 	clearCoopPlayers();

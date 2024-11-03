@@ -23,6 +23,7 @@ void playermgrInit(void)
 
 	g_Vars.bondplayernum = 0;
 	g_Vars.coopplayernum = -1;
+	g_Vars.currentcoopplayernum = -1;
 	g_Vars.antiplayernum = -1;
 }
 
@@ -37,6 +38,7 @@ void playermgrDisableTeamPlayers(void)
 	g_Vars.bondplayernum = 0;
 	g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
 	g_Vars.coopplayernum = -1;
+	g_Vars.currentcoopplayernum = -1;
 	g_Vars.antiplayernum = -1;
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		if (i == g_Vars.bondplayernum) continue;

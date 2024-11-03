@@ -14227,7 +14227,7 @@ s32 chrResolveId(struct chrdata *ref, s32 id)
 			break;
 		case CHR_P1P2:
 			{
-				u32 index = g_Vars.coopplayernum >= 0 ? ref->p1p2 : g_Vars.bondplayernum;
+				u32 index = g_Vars.currentcoopplayernum >= 0 ? ref->p1p2 : g_Vars.bondplayernum;
 				struct player *player = g_Vars.players[index];
 				if (player && player->prop && player->prop->chr && !g_Vars.antiplayers[index]) {
 					id = player->prop->chr->chrnum;
@@ -14235,7 +14235,7 @@ s32 chrResolveId(struct chrdata *ref, s32 id)
 			}
 			break;
 		case CHR_P1P2_OPPOSITE:
-			if (g_Vars.coopplayernum >= 0) {
+			if (g_Vars.currentcoopplayernum >= 0) {
 				s32 index = (MAX_PLAYERS-1)-ref->p1p2;;
 				struct player *player = g_Vars.players[index];
 				if (player && player->prop && player->prop->chr && !g_Vars.antiplayers[index]) {
@@ -14278,7 +14278,7 @@ s32 chrResolveId(struct chrdata *ref, s32 id)
 			}
 			break;
 		case CHR_P1P2_OPPOSITE:
-			if (g_Vars.coopplayernum >= 0) {
+			if (g_Vars.currentcoopplayernum >= 0) {
 				struct player *player = g_Vars.players[g_Vars.coopplayernum];
 				if (player && player->prop && player->prop->chr) {
 					id = player->prop->chr->chrnum;

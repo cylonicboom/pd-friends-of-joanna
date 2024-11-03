@@ -899,6 +899,7 @@ void mainLoop(void)
 		} else if (argFindByPrefix(1, "-anti")) {
 			g_Vars.bondplayernum = 0;
 			g_Vars.coopplayernum = -1;
+			g_Vars.currentcoopplayernum = -1;
 			g_Vars.antiplayernum = 1;
 		}
 
