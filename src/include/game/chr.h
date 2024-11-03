@@ -17,6 +17,7 @@ void chrSetTarget(struct chrdata *chr, u16 newtarget, bool isplayer);
 void chrSetTargetProp(struct chrdata *chr, struct prop *prop);
 bool isChrIdMpHumanAnti(u32 chrId);
 bool isChrPropCoop(struct prop *prop);
+bool isChrPropAnti(struct prop *prop);
 void chrSetChrnum(struct chrdata *chr, s16 chrnum);
 void chrDeregister(s32 chrnum);
 void chrCalculatePushPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, bool arg3);
