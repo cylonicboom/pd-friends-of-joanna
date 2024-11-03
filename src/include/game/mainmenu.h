@@ -14,6 +14,8 @@ extern struct menudialogdef g_NextMissionMenuDialog;
 extern struct menudialogdef g_ExitGameMenuDialog;
 #endif
 
+void teamMissionConfigStrUpdateMarquee();
+char* teamMissionConfigStrGetMarquee(struct menuitem *item);
 char *menuTextCurrentStageName(struct menuitem *item);
 char *soloMenuTextDifficulty(struct menuitem *item);
 MenuItemHandlerResult menuhandlerControlStyleImpl(s32 operation, struct menuitem *item, union handlerdata *data, s32 mpindex);

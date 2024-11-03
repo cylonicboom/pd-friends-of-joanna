@@ -1991,7 +1991,7 @@ struct menudialogdef g_TeamMissionSelectMissionMenuDialog = {
 
 struct menudialogdef g_TeamMissionOptionsDialog = {
    MENUDIALOGTYPE_DEFAULT,
-   (uintptr_t*)"Mission Options",
+   (uintptr_t)"Mission Options",
    g_TeamMissionOptionsMenuItems,
    0,
    MENUDIALOGFLAG_LITERAL_TEXT,
