@@ -6775,6 +6775,15 @@ bool isChrPropCoop(struct prop *prop) {
 	return false;
 }
 
+bool isChrPropAnti(struct prop *prop) {
+	for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+		if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->prop == prop) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void chrSetTarget(struct chrdata *chr, u16 newtarget, bool isplayer) {
 	if (newtarget != chr->target) {
 		chr->lastvisibletarget60 = 0;

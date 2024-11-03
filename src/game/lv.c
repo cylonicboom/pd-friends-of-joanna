@@ -1250,8 +1250,8 @@ Gfx *lvRender(Gfx *gdl)
 
 				// Calculate lookingatprop
 				if (PLAYERCOUNT() == 1
-						|| g_Vars.coopplayernum >= 0
-						|| g_Vars.antiplayernum >= 0
+						|| g_Vars.currentcoopplayernum >= 0
+						|| g_Vars.currentantiplayernum >= 0
 						|| (weaponHasFlag(bgunGetWeaponNum(HAND_RIGHT), WEAPONFLAG_AIMTRACK) && bmoveIsInSightAimMode())) {
 					g_Vars.currentplayer->lookingatprop.prop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
 

@@ -109,11 +109,11 @@ bool sightIsPropFriendly(struct prop *prop)
 		return false;
 	}
 
-	if (g_Vars.coopplayernum >= 0 && prop->type == PROPTYPE_PLAYER) {
+	if (!g_Vars.antiplayers[g_Vars.currentplayernum] && isChrPropCoop(prop) && prop->type == PROPTYPE_PLAYER) {
 		return true;
 	}
 
-	if (g_Vars.antiplayernum >= 0 && prop->type == PROPTYPE_PLAYER) {
+	if (!g_Vars.antiplayers[g_Vars.currentplayernum] && isChrPropAnti(prop) && prop->type == PROPTYPE_PLAYER) {
 		return false;
 	}
 
