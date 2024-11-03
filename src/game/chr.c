@@ -6672,9 +6672,9 @@ void chrSetDrCarollImages(struct chrdata *drcaroll, s32 imageleft, s32 imagerigh
 }
 
 bool isChrNumCoop(u32 chrnum) {
-	if (g_Vars.coopplayernum < 0) {
-		return false;
-	}
+	// if (g_Vars.coopplayernum < 0) {
+	// 	return false;
+	// }
 
 	for (s32 i = 0; i < PLAYERCOUNT(); i++) {
 		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->prop &&  g_Vars.coopplayers[i]->prop->chr->chrnum == chrnum) {
@@ -6687,9 +6687,9 @@ bool isChrNumCoop(u32 chrnum) {
 
 
 bool isChrTargetCoop(struct chrdata *chr) {
-	if (g_Vars.coopplayernum < 0) {
-		return false;
-	}
+	// if (g_Vars.coopplayernum < 0) {
+	// 	return false;
+	// }
 
 	struct prop *prop = chrGetTargetProp(chr);
 
@@ -6697,6 +6697,20 @@ bool isChrTargetCoop(struct chrdata *chr) {
 		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->prop == prop) {
 			return true;
 		}
+	}
+
+	return false;
+}
+
+bool isChrTargetBond(struct chrdata *chr) {
+	// if (g_Vars.coopplayernum < 0) {
+	// 	return false;
+	// }
+
+	struct prop *prop = chrGetTargetProp(chr);
+
+	if (g_Vars.bond && g_Vars.bond->prop == prop) {
+		return true;
 	}
 
 	return false;
@@ -6750,9 +6764,9 @@ bool isChrIdMpHumanAnti(u32 chrId) {
 }
 
 bool isChrPropCoop(struct prop *prop) {
-	if (g_Vars.coopplayernum < 0) {
-		return false;
-	}
+	// if (g_Vars.coopplayernum < 0) {
+	// 	return false;
+	// }
 	for (s32 i = 0; i < PLAYERCOUNT(); i++) {
 		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->prop == prop) {
 			return true;
