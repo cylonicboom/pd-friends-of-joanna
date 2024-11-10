@@ -4603,7 +4603,8 @@ bool aiShowHudmsg(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	char *text = langGet(cmd[4] | (cmd[3] << 8));
-	struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
+	u32 chrid = cmd[2];
+	struct chrdata *chr = chrFindById(g_Vars.chrdata, chrid);
 
 	u32 prevplayernum = g_Vars.currentplayernum;
 	u32 playernum = g_Vars.currentplayernum;
@@ -4612,8 +4613,28 @@ bool aiShowHudmsg(void)
 		playernum = playermgrGetPlayerNumByProp(chr->prop);
 	}
 
-	setCurrentPlayerNum(playernum);
-	hudmsgCreate(text, HUDMSGTYPE_DEFAULT);
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (!g_Vars.players[i]) continue;
+		bool skip = false;
+		switch (chrid) {
+			case CHR_BOND:
+				if (g_Vars.bondplayernum != i) skip = true;
+				break;
+			case CHR_COOP:
+				if (!g_Vars.coopplayers[i]) skip = true;
+				break;
+			case CHR_ANTI:
+				if (!g_Vars.antiplayers[i]) skip = true;
+				break;
+			case CHR_P1P2:
+			default:
+				if (g_Vars.antiplayers[i]) skip = true;
+				break;
+		}
+		if (skip) continue;
+		setCurrentPlayerNum(i);
+		hudmsgCreate(text, HUDMSGTYPE_DEFAULT);
+	}
 	setCurrentPlayerNum(prevplayernum);
 
 	g_Vars.aioffset += 5;
