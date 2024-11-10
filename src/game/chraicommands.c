@@ -2128,11 +2128,6 @@ bool aiIfChrHasObject(void)
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	struct defaultobj *obj = objFindByTagId(cmd[3]);
 	u8 chrid = cmd[2];
-	// HACK: this should be CHR_P1P2, but it's CHR_BOND in the original game
-	// and this was fixed in the PAL version
-	// but the setup recompilation isn't working for me (not implemented?)
-	// TODO: fix this in the setup file
-	if (mainGetStageNum() == STAGE_INFILTRATION && chrid == CHR_BOND) chrid = CHR_P1P2;
 	struct chrdata *chr = chrFindById(g_Vars.chrdata, chrid);
 	s32 hasprop = false;
 

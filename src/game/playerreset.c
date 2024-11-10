@@ -422,15 +422,15 @@ void playerReset(void)
 
 	if (g_NumSpawnPoints > 0) {
 		if (g_Vars.coopplayernum >= 0) {
-			turnanglerad = M_BADTAU - scenarioChooseSpawnLocation(30, &pos, rooms, g_Vars.currentplayer->prop);
+			turnanglerad = M_BADTAU - scenarioChooseSpawnLocation(60, &pos, rooms, g_Vars.currentplayer->prop);
 		} else if (g_Vars.antiplayernum >= 0) {
-			turnanglerad = M_BADTAU - scenarioChooseSpawnLocation(30, &pos, rooms, g_Vars.currentplayer->prop);
+			turnanglerad = M_BADTAU - scenarioChooseSpawnLocation(60, &pos, rooms, g_Vars.currentplayer->prop);
 		} else {
 			if (g_Vars.mplayerisrunning == 0) {
 				g_NumSpawnPoints = 1;
 			}
 
-			turnanglerad = M_BADTAU - scenarioChooseSpawnLocation(30, &pos, rooms, g_Vars.currentplayer->prop);
+			turnanglerad = M_BADTAU - scenarioChooseSpawnLocation(60, &pos, rooms, g_Vars.currentplayer->prop);
 		}
 	}
 
