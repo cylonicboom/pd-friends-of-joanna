@@ -1250,7 +1250,7 @@ u8 func1006_lift_switches[] = {
 #if VERSION >= VERSION_PAL_BETA
 		if_chr_has_object(CHR_P1P2, OBJ_KEYCARD, /*goto*/ 0x2e)
 #else
-		if_chr_has_object(CHR_BOND, OBJ_KEYCARD, /*goto*/ 0x2e)
+		if_chr_has_object(CHR_P1P2, OBJ_KEYCARD, /*goto*/ 0x2e)
 #endif
 		show_hudmsg(CHR_P1P2, L_LUE_036) // "Lift access denied - key card needed."
 		goto_next(0x0b)

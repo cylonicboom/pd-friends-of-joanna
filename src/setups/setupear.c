@@ -648,6 +648,7 @@ s32 intro[] = {
 	intro_weapon(WEAPON_EYESPY, -1)
 	outfit(OUTFIT_DEFAULT)
 	spawn(PAD_EAR_001B)
+	spawn(PAD_EAR_001C)
 	endintro
 };
 
