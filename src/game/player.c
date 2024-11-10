@@ -527,7 +527,7 @@ void playerStartNewLife(void)
 
 	hudmsgsSetOn(0xffffffff);
 
-	angle = M_BADTAU - scenarioChooseSpawnLocation(30, &pos, rooms, g_Vars.currentplayer->prop); // var7f1ad534
+	angle = M_BADTAU - scenarioChooseSpawnLocation(60, &pos, rooms, g_Vars.currentplayer->prop); // var7f1ad534
 
 	groundy = cdFindGroundInfoAtCyl(&pos, 30, rooms,
 			&g_Vars.currentplayer->floorcol,
