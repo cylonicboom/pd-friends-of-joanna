@@ -125,7 +125,7 @@ Controls can be rebound in `pd.ini`. Default control scheme is as follows:
 7. The resulting executable will be at `build/pd.x86_64.exe` (or at `build/pd.i686.exe` if building for i686).
 8. If you don't know where you downloaded the source to, you can run `explorer .` to open the current directory.
 
-### Linux
+### Linux / OSX
 
 1. Ensure you have gcc, g++ (version 10.0+), make, cmake, git, python3 and SDL2 (version 2.0.12+), libGL and ZLib installed on your system.
    * If you wish to crosscompile, you will also need to have libraries and compilers for the target platform installed, e.g. `gcc-multilib` and `g++-multilib` for x86_64 -> i686 crosscompilation.
