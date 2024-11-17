@@ -87,7 +87,7 @@ struct menudialogdef g_CinemaMenuDialog;
 extern struct menudialogdef g_ExtendedMenuDialog;
 #endif
 
-extern const uint32_t g_PlayerRoleNames[] = {
+extern const uintptr_t g_PlayerRoleNames[] = {
 	(uintptr_t)"Disabled",          // PLAYERROLE_NONE
 	(uintptr_t)"Co-Operative",      // PLAYERROLE_COOP
 	(uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
