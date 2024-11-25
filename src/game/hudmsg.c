@@ -85,6 +85,9 @@ u8 hudmsgsAreActive(void)
 
 s32 hudmsgIsZoomRangeVisible(void)
 {
+	if (PLAYERCOUNT() >= 3) {
+		return false;
+	}
 	return optionsGetShowZoomRange(g_Vars.currentplayerstats->mpindex)
 		&& (PLAYERCOUNT() == 1
 				|| !g_Vars.mplayerisrunning
