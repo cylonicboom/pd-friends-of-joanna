@@ -1526,9 +1526,9 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct 
 	case MENUOP_GETOPTIONTEXT:
 		{
 		   if (playernum == 0) {
-			   return (s32)g_PlayerRoleNames[3];
+			   return (uintptr_t)g_PlayerRoleNames[3];
 		   }
-			return (s32)g_PlayerRoleNames[data->dropdown.value];
+			return (uintptr_t)g_PlayerRoleNames[data->dropdown.value];
 		}
 	   break;
 	case MENUOP_SET:
