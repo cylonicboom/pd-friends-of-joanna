@@ -1301,6 +1301,9 @@ Gfx *sightDrawZoom(Gfx *gdl, bool sighton, f32 crossx, f32 crossy)
 	showzoomrange = optionsGetShowZoomRange(g_Vars.currentplayerstats->mpindex)
 		&& optionsGetSightOnScreen(g_Vars.currentplayerstats->mpindex);
 
+	if (PLAYERCOUNT() >= 3) {
+		showzoomrange = false;
+	}
 	maxfovy = currentPlayerGetGunZoomFov();
 	zoominfovy = g_Vars.currentplayer->zoominfovy;
 
