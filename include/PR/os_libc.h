@@ -90,7 +90,9 @@ extern "C" {
 
 #ifndef PLATFORM_OSX
 extern void     bcopy(const void *, void *, size_t);
+#endif
 extern int      bcmp(const void *, const void *, size_t);
+#ifndef PLATFORM_OSX
 extern void     bzero(void *, size_t);
 #endif
 
