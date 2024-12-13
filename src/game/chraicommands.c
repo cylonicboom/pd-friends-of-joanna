@@ -4080,6 +4080,11 @@ bool aiPrint(void)
 
 	len = chraiGetCommandLength(g_Vars.ailist, g_Vars.aioffset);
 
+	#if DPRINT
+	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+	if (cmd) printf("%s\n", cmd + 2);
+	#endif
+
 	g_Vars.aioffset += len;
 
 	return false;
