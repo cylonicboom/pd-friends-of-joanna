@@ -32,6 +32,7 @@ endif()
 # Options
 
 set(ROMID "ntsc-final" CACHE STRING "Which ROM to build an executable for: ntsc-final, pal-final or jpn-final")
+set(DPRINT 0 CACHE BOOL "Enable debug print statements")
 option(FORCE_CROSSCOMPILE "Force cross compiling" NO)
 
 # Determine target arch
@@ -143,6 +144,7 @@ add_definitions(
   -DAVOID_UB=1
   -D_LANGUAGE_C=1
   -DPAL=${VERSION_IS_PAL}
+  -DDPRINT=${DPRINT}
   -DVERSION=${VERSION}
 )
 
