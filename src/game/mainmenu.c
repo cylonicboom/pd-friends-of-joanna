@@ -68,15 +68,31 @@ extern char g_PlayerNames[4][32] = {
 	"Player 4",
 };
 
+extern char g_PlayerNamesHP[4][35] = {
+	"Player 1 HP",
+	"Player 2 HP",
+	"Player 3 HP",
+	"Player 4 HP",
+};
+
 void updatePlayerName(u32 playernum)
 {
-	// HACK: TODO: add this property to the struct so we dont' have to keep track of this nad update it.
 	s32 sz = ARRAYCOUNT(g_PlayerConfigsArray[playernum].base.name);
 	char playerName[sz];
 
 	strTrimToFirstNewline(g_PlayerConfigsArray[playernum].base.name, playerName, sz);
 
 	strcpy(g_PlayerNames[playernum], playerName);
+	sprintf(g_PlayerNamesHP[playernum], "%s HP", playerName);
+}
+
+void updatePlayerNames()
+{
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+	   // this may have been updated by the player profiles menu
+		// or in the combat simulator
+		updatePlayerName(i);
+	}
 }
 
 char *mpGetCurrentPlayerName(struct menuitem *item);
@@ -1415,12 +1431,17 @@ MenuDialogHandlerResult menudialogTeamCoopAntiOptions(s32 operation, struct menu
 // 		}
 // 	}
 // #endif
+	if (operation == MENUOP_OPEN) {
+		updatePlayerNames();
+		teamMissionConfigStrUpdateMarquee();
+	}
 
 	if (operation == MENUOP_TICK) {
 		if (g_Menus[g_MpPlayerNum].curdialog && g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef) {
 			struct menuinputs *inputs = data->dialog2.inputs;
 
 			if (inputs->back) {
+				configSave(CONFIG_PATH);
 				teamMissionConfigStrUpdateMarquee();
 			}
 
@@ -1488,7 +1509,7 @@ const char* g_difficulties[] = {
    "Perfect\0"
 };
 MenuItemHandlerResult menuhandlerTeamMissionDifficultyDropdown(s32 operation, struct menuitem *item, union handlerdata *data)
-{ 
+{
    switch (operation) {
    case MENUOP_GETOPTIONCOUNT:
 	   data->dropdown.value = 3; // agent, special agent, perfect agent
@@ -1550,6 +1571,7 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct 
 			}
 			s32 playerrole =  g_Vars.playerroles[playernum];
 			data->dropdown.value = playerrole;
+			registerExtendedProfile(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
 		}
 	   break;
 	}
@@ -1849,7 +1871,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_DROPDOWN,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT, 
+		MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Difficulty",
 		0,
 		menuhandlerTeamMissionDifficultyDropdown
@@ -1863,12 +1885,68 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 		NULL,
 	}, // ""
 	{
-		MENUITEMTYPE_MARQUEE,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT  | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
-		(uintptr_t)&g_TeamMissionMarqueeText,
-		0,
-		NULL,
+		MENUITEMTYPE_SLIDER,
+		1,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		L_MPWEAPONS_224, // "Enemy Health:"
+		0x000000ff,
+		menuhandlerPdModeSetting,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		2,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		L_MPWEAPONS_225, // "Enemy Damage:"
+		0x000000ff,
+		menuhandlerPdModeSetting,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		3,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		L_MPWEAPONS_226, // "Enemy Accuracy:"
+		0x000000ff,
+		menuhandlerPdModeSetting,
+	},
+	// {
+	// 	MENUITEMTYPE_SEPARATOR,
+	// 	0,
+	// 	0,
+	// 	0,
+	// 	0,
+	// 	NULL,
+	// }, // ""
+	{
+		MENUITEMTYPE_SLIDER,
+		4,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		(uintptr_t)g_PlayerNamesHP[0],
+		0x000000ff,
+		menuhandlerTeamHandicapPlayer1,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		5,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		(uintptr_t)g_PlayerNamesHP[1],
+		0x000000ff,
+		menuhandlerTeamHandicapPlayer2,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		6,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		(uintptr_t)g_PlayerNamesHP[2],
+		0x000000ff,
+		menuhandlerTeamHandicapPlayer3,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		7,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		(uintptr_t)g_PlayerNamesHP[3],
+		0x000000ff,
+		menuhandlerTeamHandicapPlayer4,
 	},
 	{ MENUITEMTYPE_END }, // ""
 };
@@ -1939,12 +2017,8 @@ struct menudialogdef g_TeamMissionPlayerRolesHubMenu = {
 MenuItemHandlerResult menuhandlerTeamPlayerRolesHub(s32 operation, struct menuitem *item, union handlerdata *data)
 {
    if (operation == MENUOP_SET) {
-	for (int i = 0; i < MAX_PLAYERS; i++) {
-	   // this may have been updated by the player profiles menu
-		// or in the combat simulator
-	   updatePlayerName(i);
-	}
-	  menuPushDialog(&g_TeamMissionPlayerRolesHubMenu);
+		updatePlayerNames();
+		menuPushDialog(&g_TeamMissionPlayerRolesHubMenu);
    }
    return 0;
 }
@@ -1990,12 +2064,12 @@ struct menudialogdef g_TeamMissionSelectMissionMenuDialog = {
 };
 
 struct menudialogdef g_TeamMissionOptionsDialog = {
-   MENUDIALOGTYPE_DEFAULT,
-   (uintptr_t)"Mission Options",
-   g_TeamMissionOptionsMenuItems,
-   0,
-   MENUDIALOGFLAG_LITERAL_TEXT,
-   0
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Mission Options",
+	g_TeamMissionOptionsMenuItems,
+	menudialogTeamCoopAntiOptions, // HACK: this just updates the player names
+	MENUDIALOGFLAG_LITERAL_TEXT | MENUDIALOGFLAG_MPLOCKABLE,
+	0
 };
 
 MenuItemHandlerResult menuhandlerTeamMissionSelect(s32 operation, struct menuitem *item, union handlerdata *data)
@@ -2706,7 +2780,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 					((renderdata->x + 4) << 2) * g_ScaleX, (renderdata->y + 3) << 2,
 					((renderdata->x + 60) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
 					G_TX_RENDERTILE, 0, 0x0480, 1024 / g_ScaleX, -1024);
-				
+
 		}
 
 		if (g_MissionConfig.isanti || g_MissionConfig.isteam) {
@@ -5596,6 +5670,11 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 {
 	switch (operation) {
 	case MENUOP_OPEN:
+		updateGuids();
+		updatePlayerNames();
+		for (int i = 0; i < MAX_PLAYERS; i++) {
+			registerExtendedProfile(&g_PlayerConfigsArray[i].fileguid, 1, i);
+		}
 		g_Menus[g_MpPlayerNum].main.unke2c = 0;
 		break;
 	case MENUOP_TICK:

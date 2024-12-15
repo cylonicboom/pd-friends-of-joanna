@@ -362,7 +362,7 @@ void menuTick(void)
 					}
 
 					if (canjoin && (buttons & START_BUTTON)) {
-						g_PlayerConfigsArray[i].handicap = 128;
+						// g_PlayerConfigsArray[i].handicap = 128;
 
 						if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL || (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS)) {
 							// Joining from a general area such as the Combat

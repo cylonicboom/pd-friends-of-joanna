@@ -2409,6 +2409,10 @@ intptr_t mpLoadPlayerMenu(s32 operation, struct menuitem *item, union handlerdat
 			menuPopDialog();
 
 			filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum);
+
+			updateGuids();
+			registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, playernum);
+			updatePlayerNames();
 		} else {
 			filemgrPushErrorDialog(FILEERROR_ALREADYLOADED);
 		}
@@ -2524,26 +2528,54 @@ MenuItemHandlerResult menuhandlerMpRestoreScoreDefaults(s32 operation, struct me
 	return 0;
 }
 
-MenuItemHandlerResult menuhandlerMpHandicapPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+MenuItemHandlerResult menuhandlerHandicapPlayer(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum)
 {
 	switch (operation) {
 	case MENUOP_CHECKHIDDEN:
-		if ((g_MpSetup.chrslots & (1 << item->param)) == 0) {
+		if ((g_MpSetup.chrslots & (1 << playernum)) == 0) {
+			if (g_Vars.playerroles[playernum]) {
+				return 0;
+			}
 			return 1;
 		}
 		break;
 	case MENUOP_GETSLIDER:
-		data->slider.value = g_PlayerConfigsArray[item->param].handicap;
+		data->slider.value = *g_PlayerConfigsArray[playernum].handicap;
 		break;
 	case MENUOP_SET:
-		g_PlayerConfigsArray[item->param].handicap = (u16)data->slider.value;
+		*g_PlayerConfigsArray[playernum].handicap = (u16)data->slider.value;
 		break;
 	case MENUOP_GETSLIDERLABEL:
-		sprintf(data->slider.label, "%s%s%.00f%%\n", "", "", mpHandicapToDamageScale(g_PlayerConfigsArray[item->param].handicap) * 100);
+		sprintf(data->slider.label, "%s%s%.00f%%\n", "", "", mpHandicapToDamageScale(*g_PlayerConfigsArray[playernum].handicap) * 100);
 		break;
 	}
 
 	return 0;
+}
+
+MenuItemHandlerResult menuhandlerMpHandicapPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return menuhandlerHandicapPlayer(operation, item, data, item->param);
+}
+
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer1(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return menuhandlerHandicapPlayer(operation, item, data, 0);
+}
+
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer2(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return menuhandlerHandicapPlayer(operation, item, data, 1);
+}
+
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer3(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return menuhandlerHandicapPlayer(operation, item, data, 2);
+}
+
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer4(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return menuhandlerHandicapPlayer(operation, item, data, 3);
 }
 
 char *mpMenuTextHandicapPlayerName(struct menuitem *item)
@@ -2561,7 +2593,7 @@ MenuItemHandlerResult menuhandlerMpRestoreHandicapDefaults(s32 operation, struct
 		s32 i;
 
 		for (i = 0; i < MAX_PLAYERS; i++) {
-			g_PlayerConfigsArray[i].handicap = 0x80;
+			if (g_PlayerConfigsArray[i].handicap) *g_PlayerConfigsArray[i].handicap = 0x80;
 		}
 	}
 
@@ -6239,6 +6271,9 @@ extern struct menudialogdef g_TeamMissionsHubMenuDialog;
 void mpDecidePlayerMenuAndPush(s32 silent, s32 playernum)
 {
 	g_Menus[g_MpPlayerNum].playernum = g_MpPlayerNum;
+		updateGuids();
+		updatePlayerNames();
+		registerExtendedProfile(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
 
 	if (IS4MB()) {
 		menuPushRootDialog(&g_AdvancedSetup4MbMenuDialog, MENUROOT_4MBMAINMENU);

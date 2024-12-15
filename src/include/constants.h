@@ -4775,6 +4775,8 @@ enum weaponnum {
 #define PLAYERROLE_COOP 1
 #define PLAYERROLE_ANTI 2
 #define PLAYERROLE_BOND 3
+// if controller pak-like support was added and everyone had 4 profiles, this is twice the max
+#define CONFIG_MAX_PROFILES ((MAX_PLAYERS * 4) * 2)
 
 #define CHRNUM_MATCHLEVEL_DEFAULT 0
 #define CHRNUM_MATCHLEVEL_ONLY    1

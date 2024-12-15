@@ -5618,7 +5618,7 @@ Gfx *menuRender(Gfx *gdl)
 									renderit = false;
 								}
 							}
-						} 
+						}
 						else {
 							renderit = g_MpNumJoined < 2;
 						}

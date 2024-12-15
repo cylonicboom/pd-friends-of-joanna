@@ -31,6 +31,8 @@
 #include "fs.h"
 #include "system.h"
 #include "mpsetups.h"
+#include "config.h"
+#include "input.h"
 
 // bss
 struct chrdata *g_MpAllChrPtrs[MAX_MPCHRS];
@@ -46,6 +48,8 @@ struct bossfile g_BossFile;
 u32 var800acc1c;
 struct mplockinfo g_MpLockInfo;
 struct modeldef *var800acc28[18];
+
+s32 g_NumProfiles = 0;
 
 // Forward declaractions
 struct mpweaponset g_MpWeaponSets[12];
@@ -150,6 +154,182 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
 	PLAYER_EXT_CFG_DEFAULT,
 };
 
+
+#define PLAYER_EXT_PROFILE_DEFAULT { \
+	.fileguid = 0, \
+	.handicap = 0x80, \
+};
+
+struct extplayerprofile g_ExtendedProfiles[CONFIG_MAX_PROFILES];
+
+struct extprofileproperty {
+	configtype type;
+	char *name;
+	union{
+		struct {
+			u8 initialvalue_u8;
+			s8 min_u8;
+			s8 max_u8;
+		};
+		struct {
+			s32 min_s32;
+			s32 initialvalue_s32;
+			s32 max_s32;
+		};
+		struct {
+			u32 max_u32;
+			u32 min_u32;
+			u32 initialvalue_u32;
+		};
+		struct {
+			f32 max_f32;
+			f32 min_f32;
+			f32 initialvalue_f32;
+		};
+		struct {
+			char initialvalue_str[128];
+			u32 max_str;
+		};
+	};
+	void (*initfunc)(s32, s32);
+};
+
+static void mpExtendedProfileInitHandicap(s32 profileindex,  s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].handicap = &g_ExtendedProfiles[profileindex].handicap;
+}
+
+struct extprofileproperty g_ExtendedProfileProperties[] = {
+	{ CFG_U8, "Handicap", 0x80, 0, 255, &mpExtendedProfileInitHandicap},
+}; // these must be in the same order as the extendedprofile struct, ignoring the fileguid
+
+static inline s32 getExtendedProfileIndexFromFileGuid(const struct fileguid* fileguid)
+{
+	s32 i;
+
+	if (!fileguid->fileid && !fileguid->fileid) return -1;
+
+	for (i = 0; i < g_NumProfiles; i++) {
+		if (g_ExtendedProfiles[i].fileguid.fileid == fileguid->fileid &&\
+				g_ExtendedProfiles[i].fileguid.deviceserial == fileguid->deviceserial) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static inline s32 mpExtendedProfileAdd(struct fileguid *fileguid)
+{
+	s32 index = getExtendedProfileIndexFromFileGuid(fileguid);
+
+	if (index < 0) {
+		index = g_NumProfiles;
+
+		if (g_NumProfiles < CONFIG_MAX_PROFILES) {
+			g_NumProfiles++;
+		}
+
+		g_ExtendedProfiles[index] = (struct extplayerprofile)PLAYER_EXT_PROFILE_DEFAULT;
+		g_ExtendedProfiles[index].fileguid.deviceserial = fileguid->deviceserial;
+		g_ExtendedProfiles[index].fileguid.fileid = fileguid->fileid;
+	}
+
+	return index;
+}
+
+static inline s32 mpPlayerGetIndexFromFileGuid(struct fileguid *fileguid)
+{
+	s32 i;
+
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		if (g_PlayerConfigsArray[i].fileguid.fileid == fileguid->fileid &&\
+				g_PlayerConfigsArray[i].fileguid.deviceserial == fileguid->deviceserial) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static inline s32 mpExtendedProfileRegister(struct fileguid *fileguid, s32 arg0, s32 playernum)
+{
+	s32 i;
+
+	char *playerslug = 0;
+	char playerbuf[128];
+
+	if (!fileguid->fileid && !fileguid->deviceserial) {
+		fileguid->deviceserial = 0xFFFF;
+		fileguid->fileid = 0xff00 | playernum;
+	}
+	if (arg0 & 1) {
+		sprintf(playerbuf, "MpPlayer.%x-%x", fileguid->deviceserial, fileguid->fileid);
+		playerslug = playerbuf;
+	}
+
+	s32 configindex = mpExtendedProfileAdd(fileguid);
+
+	if (playernum < 0) {
+		s32 playernum = mpPlayerGetIndexFromFileGuid(fileguid);
+	}
+
+	if (playernum >= 0 && (fileguid->deviceserial == 0xFFFF)) {
+		sprintf(playerbuf, "MpPlayer.Player%x", playernum);
+		playerslug = playerbuf;
+	}
+
+	for (i = 0; i < ARRAYCOUNT(g_ExtendedProfileProperties); i++) {
+		char key[128];
+		sprintf(key, "%s.%s", playerslug, g_ExtendedProfileProperties[i].name);
+
+		switch (g_ExtendedProfileProperties[i].type) {
+		case CFG_U8:
+			if (playerslug) {
+				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_u8;
+				configRegisterU8Int(key, (u8*)&g_ExtendedProfiles[configindex].ptr[i+1].u8, g_ExtendedProfileProperties[i].min_u8, g_ExtendedProfileProperties[i].max_u8);
+			}
+			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+			break;
+		case CFG_S32:
+			if (playerslug) {
+				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_s32;
+				configRegisterInt(key, (s32*)&g_ExtendedProfiles[configindex].ptr[i+1].s32, g_ExtendedProfileProperties[i].min_s32, g_ExtendedProfileProperties[i].max_s32);
+			}
+			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+			break;
+		case CFG_U32:
+			if (playerslug) {
+				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_u32;
+				configRegisterUInt(key, (u32*)&g_ExtendedProfiles[configindex].ptr[i+1].u32, g_ExtendedProfileProperties[i].min_u32, g_ExtendedProfileProperties[i].max_u32);
+			}
+			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+			break;
+		case CFG_F32:
+			if (playerslug) {
+				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_f32;
+				configRegisterFloat(key, (f32*)&g_ExtendedProfiles[configindex].ptr[i+1].f32, g_ExtendedProfileProperties[i].min_f32, g_ExtendedProfileProperties[i].max_f32);
+			}
+			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+			break;
+		case CFG_STR:
+			if (playerslug) {
+				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_str;
+				configRegisterString(key, (char*)g_ExtendedProfiles[configindex].ptr[i+1].string, sizeof(g_ExtendedProfiles[configindex].ptr[i]));
+			}
+			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+			break;
+		}
+		if (playerslug) configLoadKey(CONFIG_PATH, key);
+	}
+
+	return configindex;
+}
+
+s32 registerExtendedProfile(struct fileguid *fileguid, s32 arg0, s32 playernum) {
+	return mpExtendedProfileRegister(fileguid, arg0, playernum);
+}
+
 #endif
 
 /**
@@ -233,6 +413,8 @@ void mpStartMatch(void)
 
 	g_Vars.perfectbuddynum = 1;
 }
+
+
 
 void mpReset(void)
 {
@@ -428,6 +610,30 @@ void func0f187fec(void)
 	g_MpSetup.teamscorelimit = 19;
 }
 
+static inline void processGuids()
+{
+	for (s32 i = 0; i < g_NumGuidsToProcess; i++) {
+		printf("Processing guid %x\n", g_GuidsToProcess[i].fileid);
+		mpExtendedProfileRegister(&g_GuidsToProcess[i], 1, -1);
+	}
+	g_NumGuidsToProcess = 0;
+}
+
+void mpExtendedProfileRegisterBlank(void)
+{
+	struct fileguid fileguid = {0, 0};
+	mpExtendedProfileRegister(&fileguid, 1, -1);
+}
+void updateNewGuids(s32 arg0)
+{
+	processGuids();
+}
+
+void updateGuids(void)
+{
+	processGuids();
+}
+
 void mpPlayerSetDefaults(s32 playernum, bool autonames)
 {
 	s32 i;
@@ -458,7 +664,7 @@ void mpPlayerSetDefaults(s32 playernum, bool autonames)
 		| OPTION_ALWAYSSHOWTARGET
 		| OPTION_SHOWZOOMRANGE;
 
-	g_PlayerConfigsArray[playernum].handicap = 128;
+	updateNewGuids(autonames);
 
 	switch (playernum) {
 	case 0:
@@ -3684,6 +3890,33 @@ void mpplayerfileGetOverview(char *arg0, char *name, u32 *playtime)
 	*playtime = savebufferReadBits(&buffer, 28);
 }
 
+// save: this should be called immediately after updating the file guid / device serial
+// load: this should be called immediately after loading the wad
+static inline void mpplayerExtendedMpProfileOnFileOperation(s32 playernum)
+{
+	s32 configindex = getExtendedProfileIndexFromFileGuid(&g_PlayerConfigsArray[playernum].fileguid);
+
+	if (configindex > 0) {
+		// old config is still saved to its own index, if any
+		// we just need to calculate the index of the config in the global array
+		// for the player we just loaded
+		g_PlayerConfigsArray[playernum].configindex = configindex;
+		configindex = mpExtendedProfileRegister(&g_PlayerConfigsArray[playernum].fileguid, 0, -1);
+		g_PlayerConfigsArray[playernum].configindex = configindex;
+
+	} else {
+		// register new entry
+		// need table with cfgtype, slugname, defaultvalue for every extended profile property
+		// so the appriate init function can be called and config file setup
+		configindex = mpExtendedProfileRegister(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
+		g_PlayerConfigsArray[playernum].configindex = configindex;
+	}
+}
+
+void onUpdateExtendedMpProfileFileOperation(s32 playernum) {
+	mpplayerExtendedMpProfileOnFileOperation(playernum);
+}
+
 s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial)
 {
 	s32 ret;
@@ -3700,6 +3933,7 @@ s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial)
 		if (ret == 0) {
 			g_PlayerConfigsArray[playernum].fileguid.fileid = newfileid;
 			g_PlayerConfigsArray[playernum].fileguid.deviceserial = deviceserial;
+			mpplayerExtendedMpProfileOnFileOperation(playernum);
 			return 0;
 		}
 
@@ -3715,6 +3949,10 @@ s32 mpplayerfileLoad(s32 playernum, s32 device, s32 fileid, u16 deviceserial)
 	s32 ret;
 	struct savebuffer buffer;
 
+	// iterate through g_GuidsToProcess and check if the fileid is already loaded
+	// the counter is g_NumGuidsToProcess
+	processGuids();
+
 	if (device >= 0) {
 		savebufferClear(&buffer);
 
@@ -3725,7 +3963,9 @@ s32 mpplayerfileLoad(s32 playernum, s32 device, s32 fileid, u16 deviceserial)
 			g_PlayerConfigsArray[playernum].fileguid.deviceserial = deviceserial;
 
 			mpplayerfileLoadWad(playernum, &buffer, 1);
-			g_PlayerConfigsArray[playernum].handicap = 0x80;
+
+			mpplayerExtendedMpProfileOnFileOperation(playernum);
+
 			return 0;
 		}
 
