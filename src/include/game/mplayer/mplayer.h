@@ -4,6 +4,9 @@
 #include "data.h"
 #include "types.h"
 
+s32 registerExtendedProfile(struct fileguid *fileguid, s32 arg0, s32 playernum);
+void onUpdateExtendedMpProfileFileOperation(s32 playernum);
+void processAllGuids();
 f32 mpHandicapToDamageScale(u8 value);
 void func0f187838(struct mpchrconfig *mpchr);
 void mpStartMatch(void);
@@ -124,5 +127,8 @@ void mpsetupfileGetOverview(char *arg0, char *filename, u16 *numsims, u16 *stage
 s32 mpsetupfileSave(s32 device, s32 filenum, u16 deviceserial);
 void func0f18e558(void);
 struct modeldef *func0f18e57c(s32 index, s32 *headnum);
+void updateNewGuids(s32 arg0);
+void updateGuids(void);
+void mpExtendedProfileRegisterBlank(void);
 
 #endif

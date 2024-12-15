@@ -35,4 +35,10 @@ void setupLoadBriefing(s32 stagenum, u8 *buffer, s32 bufferlen, struct briefing 
 void setupLoadFiles(s32 stagenum);
 void setupCreateProps(s32 stagenum);
 
+
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer1(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer2(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer3(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamHandicapPlayer4(s32 operation, struct menuitem *item, union handlerdata *data);
+
 #endif

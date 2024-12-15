@@ -4550,9 +4550,9 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 			if (g_Vars.normmplayerisrunning) {
 #if VERSION >= VERSION_PAL_FINAL
 				// Fixing a @bug?
-				damage = damage * mpHandicapToDamageScale(g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
+				damage = damage * mpHandicapToDamageScale(*g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
 #else
-				damage /= mpHandicapToDamageScale(g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
+				damage /= mpHandicapToDamageScale(*g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
 #endif
 			}
 
@@ -4756,8 +4756,8 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 			s32 prevplayernum = g_Vars.currentplayernum;
 			setCurrentPlayerNum(playermgrGetPlayerNumByProp(vprop));
 
-			if (g_Vars.normmplayerisrunning) {
-				damage /= mpHandicapToDamageScale(g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
+			if (g_Vars.normmplayerisrunning || g_MissionConfig.isteam) {
+				damage /= mpHandicapToDamageScale(*g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
 			}
 
 			if (g_Vars.currentplayer->isdead == false && !g_PlayerInvincible) {
