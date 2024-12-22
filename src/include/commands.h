@@ -4365,6 +4365,10 @@
 	mkshort(0x01de), \
 	label,
 
+#define set_chrnum_match_level(chrnum) \
+	mkshort(0x01e1), \
+	chrnum,
+
 /**
  * Clears references to the current chr.
  *

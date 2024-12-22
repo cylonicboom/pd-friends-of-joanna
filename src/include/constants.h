@@ -4848,4 +4848,9 @@ enum weaponnum {
 #define BODY_DARK_LEATHER     0x95
 #define BODY_DARK_NEGOTIATOR  0x96
 
+#define CHRNUM_MATCHLEVEL_DEFAULT 0
+#define CHRNUM_MATCHLEVEL_ONLY    1
+#define CHRNUM_MATCHLEVEL_ANY     2
+#define CHRNUM_MATCHLEVEL_ALL     3
+
 #endif

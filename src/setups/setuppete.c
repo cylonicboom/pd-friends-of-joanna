@@ -711,10 +711,13 @@ u8 func100f_check_mine[] = {
 	yield
 	beginloop(0x08)
 		chr_toggle_p1p2(CHR_SELF)
+		set_chrnum_match_level(CHRNUM_MATCHLEVEL_ONLY)
 		if_chr_has_object(CHR_P1P2, OBJ_BRIEFCASE1, /*goto*/ 0x03)
+		set_chrnum_match_level(CHRNUM_MATCHLEVEL_DEFAULT)
 		reloop(0x08)
 
 		label(0x03)
+		set_chrnum_match_level(CHRNUM_MATCHLEVEL_DEFAULT)
 		set_target_chr(CHR_P1P2)
 
 		beginloop(0x11)
