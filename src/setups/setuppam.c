@@ -2714,6 +2714,7 @@ u8 func0416_teleport_bond_to_a_pa_drcaroll[] = {
  * - calls 0418 teleport_coop_to_drcaroll
  */
 u8 func100b_coop_teleports[] = {
+	label(0x2e)
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
 	goto_next(0x1f)
 
@@ -2866,7 +2867,7 @@ u8 func100b_coop_teleports[] = {
 	label(0x2e)
 	grant_control(CHR_COOP)
 	teleport_to_pad(PAD_PAM_0000, CHR_COOP)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	goto_first(0x2e)
 	endlist
 };
 
