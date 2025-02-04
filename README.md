@@ -1,3 +1,13 @@
+# MOD: Friends of Joanna
+
+4player co-op + counter-op. 
+
+Counter-op is highly experimental and mostly untested.
+
+[Co-op issues are filed in this project.](https://github.com/cylonicboom/perfect-dark-neon/issues?q=is%3Aissue%20state%3Aopen%20project%3Acylonicboom%2F2)
+
+[Setup instructions below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building--setup-friends-of-joanna)
+
 # Perfect Dark port
 
 This repository contains a work-in-progress port of the [Perfect Dark decompilation](https://github.com/n64decomp/perfect_dark) to modern platforms.
@@ -41,16 +51,6 @@ There are minor graphics- and gameplay-related issues, and possibly occasional c
 * MacOS: x86_64 (OS 10.9+), arm64 (OS 11.0+)
 * Nintendo Switch: arm64
 
-## Download
-
-Latest [automatic builds](https://github.com/fgsfdsfgs/perfect_dark/releases/tag/ci-dev-build) for supported platforms:
-* [x86_64-windows](https://github.com/fgsfdsfgs/perfect_dark/releases/download/ci-dev-build/pd-x86_64-windows.zip)
-* [i686-windows](https://github.com/fgsfdsfgs/perfect_dark/releases/download/ci-dev-build/pd-i686-windows.zip)
-* [x86_64-linux](https://github.com/fgsfdsfgs/perfect_dark/releases/download/ci-dev-build/pd-x86_64-linux.tar.gz)
-* [i686-linux](https://github.com/fgsfdsfgs/perfect_dark/releases/download/ci-dev-build/pd-i686-linux.tar.gz)
-* [arm64-nswitch](https://github.com/fgsfdsfgs/perfect_dark/releases/download/ci-dev-build/pd-arm64-nswitch.zip)
-
-If you are looking for netplay builds (the `port-net` branch), see [this link](https://github.com/fgsfdsfgs/perfect_dark/blob/port-net/README.md#download).
 
 ## Running
 
@@ -108,6 +108,41 @@ Controls can be rebound in `pd.ini`. Default control scheme is as follows:
 | Alt fire mode    | F                      | RB                       | L Trigger                 |
 | Alt-fire oneshot | `F + LMB` or `E + LMB` | `A + RT` or  `RB + RT`   | `A + Z`     or `L + Z`    |
 | Quick-detonate   | `E + Q`   or `E + R`   | `A + B`  or  `A + X`     | `A + D-Left`or `A + X`    |
+
+## Building / Setup Friends of Joanna
+
+
+Because Friends of Joanna requires setup file changes, the n64 rom must also be built (`n64-friends-of-joanna`) For the sake of convinience, these instructions have you clone two work trees, one for the PC port and one for the N64 version. Because of this, it's recomended to use a seperate data dir to store the rom, save data, and config file.
+
+
+Create a new data directory if it doesn't already exist: 
+
+- Linux: `mkdir -p ~/.local/share/perfectdark-friends-of-joanna/data`
+- Windows: `mkdir %LOCALAPPDATA%\perfectdark-friends-of-joanna\data`
+- MacOS: `mkdir -p ~/Library/Application\ Support/perfectdark-friends-of-joanna/data`
+
+
+### Build Friends of Joanna PC Port
+
+[Follow PC port instructions as below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building)
+
+### Build Friends of Joanna N64 Rom
+
+- Clone the N64 repo: `https://github.com/cylonicboom/perfect-dark-neon -b n64-friends-of-joanna n64-friends-of-joanna`
+- [Setup and build the PD tree as you'd normally setup an N64 rom](https://github.com/cylonicboom/perfect-dark-neon/tree/n64-friends-of-joanna?tab=readme-ov-file#installation-requirements)
+- Copy the built rom to your data dir.
+
+
+### Running Friends of Joanna
+
+use `--basedir` and `--savedir` parameters to use the custom rom / saves / ini directory we created earlier. Adjust the path as needed for your OS / architecture
+
+- Linux: `build/pd.x86_64 --basedir ~/.local/share/perfectdark-friends-of-joanna/data --savedir ~/.local/share/perfectdark-friends-of-joanna/data`
+
+- Windows: `build\pd.exe --basedir %LOCALAPPDATA%\perfectdark-friends-of-joanna\data --savedir %LOCALAPPDATA%\perfectdark-friends-of-joanna\data`
+
+- macOS: `build/pd.arm64 --basedir ~/Library/Application\ Support/perfectdark-friends-of-joanna/data --savedir ~/Library/Application\ Support/perfectdark-friends-of-joanna/data`
+
 
 ## Building
 
@@ -198,6 +233,10 @@ Alternate compilers or toolchains can be specified by passing `-DCMAKE_TOOLCHAIN
 You will need to provide a `jpn-final` or `pal-final` ROM to run executables built for those regions, named `pd.jpn-final.z64` or `pd.pal-final.z64`.
 
 It might be possible to build and run the game on platforms that are not specified in the supported platforms list (e.g. Linux on armv7), but this has not been tested.
+
+
+## Friends of Joanna Credits
+- iamgreaser for the concurrent 4-player counter-op effort I borrowed some patches from
 
 ## Credits
 
