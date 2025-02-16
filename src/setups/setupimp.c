@@ -546,6 +546,8 @@ s32 intro[] = {
 	intro_weapon(WEAPON_LASER, -1)
 	intro_weapon(WEAPON_LASER, -1)
 	spawn(PAD_IMP_0120)
+	spawn(PAD_IMP_013C)
+	spawn(PAD_IMP_013D)
 	endintro
 };
 
@@ -3947,12 +3949,13 @@ u8 func102c_door_flags[] = {
 	set_object_flag2(0x19, OBJFLAG2_SKIPDOORLOCKEDMSG)
 
 	beginloop(0xe4)
-		if_chr_activated_object(CHR_BOND, 0x23, /*goto*/ 0x0a)
-		if_chr_activated_object(CHR_BOND, 0x23, /*goto*/ 0x0a)
-		if_chr_activated_object(CHR_BOND, 0x43, /*goto*/ 0x0b)
-		if_chr_activated_object(CHR_BOND, 0x44, /*goto*/ 0x0b)
-		if_chr_activated_object(CHR_BOND, 0x54, /*goto*/ 0x0c)
-		if_chr_activated_object(CHR_BOND, 0x19, /*goto*/ 0x0d)
+		chr_toggle_p1p2(CHR_SELF)
+		if_chr_activated_object(CHR_P1P2, 0x23, /*goto*/ 0x0a)
+		if_chr_activated_object(CHR_P1P2, 0x23, /*goto*/ 0x0a)
+		if_chr_activated_object(CHR_P1P2, 0x43, /*goto*/ 0x0b)
+		if_chr_activated_object(CHR_P1P2, 0x44, /*goto*/ 0x0b)
+		if_chr_activated_object(CHR_P1P2, 0x54, /*goto*/ 0x0c)
+		if_chr_activated_object(CHR_P1P2, 0x19, /*goto*/ 0x0d)
 		reloop(0xe4)
 
 		label(0x0a)
