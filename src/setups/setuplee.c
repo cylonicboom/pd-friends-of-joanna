@@ -686,17 +686,18 @@ u8 func1019_check_shields_lowered[] = {
 		if_object_in_good_condition(OBJ_SHIELDCONSOLE1, /*goto*/ 0x06)
 		if_object_in_good_condition(OBJ_SHIELDCONSOLE2, /*goto*/ 0x06)
 		if_object_in_good_condition(OBJ_SHIELDCONSOLE3, /*goto*/ 0x06)
-		show_hudmsg(CHR_BOND, L_LEE_010) // "Ship's shields have been lowered."
+		show_hudmsg(CHR_P1P2, L_LEE_010) // "Ship's shields have been lowered."
 		set_stage_flag(STAGEFLAG_SHIELDS_DISABLED)
 		if_difficulty_lt(DIFF_PA, /*goto*/ 0x09)
 		restart_timer
 
 		beginloop(0x08)
-			if_chr_in_room(CHR_BOND, 0x00, 0x0002, /*goto*/ 0x2c)
+			chr_toggle_p1p2(CHR_SELF)
+			if_chr_in_room(CHR_P1P2, 0x00, 0x0002, /*goto*/ 0x2c)
 		endloop(0x08)
 
 		label(0x2c)
-		speak(CHR_BOND, L_LEE_017, SFX_81A1, CHANNEL_6, COLOR_04_ORANGE) // "You've got to open the hangar doors so we can dock..."
+		speak(CHR_P1P2, L_LEE_017, SFX_81A1, CHANNEL_6, COLOR_04_ORANGE) // "You've got to open the hangar doors so we can dock..."
 		set_ailist(CHR_SELF, GAILIST_IDLE)
 
 		label(0x06)
@@ -890,8 +891,8 @@ u8 func040e_elvis_give_ar34[] = {
 
 	label(0x06)
 	speak(CHR_P1P2, L_LEE_020, MP3_02E2, CHANNEL_6, COLOR_04_ORANGE) // "Take this - you should find it useful..."
-	give_object_to_chr(OBJ_AR34, CHR_PRESET)
-	show_hudmsg(CHR_PRESET, L_LEE_021) // "Received AR34 assault rifle."
+	give_object_to_chr(OBJ_AR34, CHR_P1P2)
+	show_hudmsg(CHR_P1P2, L_LEE_021) // "Received AR34 assault rifle."
 	restart_timer
 
 	beginloop(0x0d)
@@ -1141,26 +1142,28 @@ u8 func040a_elvis_go_to_hangar_lift[] = {
 	// Alive
 	label(0x06)
 
-	label(0x03)
-	set_target_chr(CHR_BOND)
-	restart_timer
-	if_morale_lt(50, /*goto*/ 0x06)
-	goto_next(LABEL_C3)
+	beginloop(0x03)
+		set_target_chr(CHR_P1P2)
+		restart_timer
+		if_morale_lt(50, /*goto*/ 0x06)
+		goto_next(LABEL_C3)
 
-	label(0x06)
-	try_run_to_target(/*goto*/ 0x04)
+		label(0x06)
+		try_run_to_target(/*goto*/ 0x04)
 
-	beginloop(0x04)
-		if_timer_gt(60, /*goto*/ 0x2c)
-		if_distance_to_target_lt(200, /*goto*/ 0x06)
-	endloop(0x04)
+		beginloop(0x04)
+			if_timer_gt(60, /*goto*/ 0x2c)
+			if_distance_to_target_lt(200, /*goto*/ 0x06)
+		endloop(0x04)
+	endloop(0x03)
 
+	// break out of inner loop and into outer loop
 	label(0x2c)
 	goto_first(0x03)
 
 	// At player
 	label(0x06)
-	speak(CHR_BOND, L_LEE_022, MP3_02E4, CHANNEL_6, COLOR_04_ORANGE) // "Time to head upwards. I'll take this lift; you tak..."
+	speak(CHR_P1P2, L_LEE_022, MP3_02E4, CHANNEL_6, COLOR_04_ORANGE) // "Time to head upwards. I'll take this lift; you tak..."
 	chr_do_animation(ANIM_TALKING_0231, 0, -1, CHRANIMFLAG_SLOWUPDATE, 16, CHR_SELF, 2)
 	set_morale(50)
 
@@ -1445,8 +1448,8 @@ u8 func1008_hangar_lifts[] = {
 	beginloop(LABEL_67)
 		dprint 'T','R','\n',0,
 		chr_toggle_p1p2(CHR_SELF)
-		if_chr_death_animation_finished(CHR_BOND, /*goto*/ 0x2c)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0018, /*goto*/ 0x2c)
+		if_chr_death_animation_finished(CHR_P1P2, /*goto*/ 0x2c)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0018, /*goto*/ 0x2c)
 		if_door_state(0x39, (DOORSTATE_CLOSED | DOORSTATE_CLOSING), /*goto*/ 0x2d)
 		if_door_state(0x3a, (DOORSTATE_CLOSED | DOORSTATE_CLOSING), /*goto*/ 0x2d)
 	endloop(LABEL_67)
@@ -1466,7 +1469,7 @@ u8 func1008_hangar_lifts[] = {
 	// Note the lift naturally waits 5 seconds at each stop,
 	// hence the 5 second wait if entered as soon as the door opens.
 	label(0x2c)
-	set_chr_hiddenflag(CHR_BOND, CHRHFLAG_TRIGGER_BUDDY_WARP)
+	set_chr_hiddenflag(CHR_P1P2, CHRHFLAG_TRIGGER_BUDDY_WARP)
 	unset_object_flag(0x39, OBJFLAG_DOOR_KEEPOPEN)
 	unset_object_flag(0x3a, OBJFLAG_DOOR_KEEPOPEN)
 	unset_object_flag(OBJ_HANGARLIFT_JO, OBJFLAG_DEACTIVATED)
@@ -3263,7 +3266,7 @@ u8 func1013_msg_gottogetshieldsdown[] = {
 	endloop(0x08)
 
 	label(0x2c)
-	speak(CHR_BOND, L_LEE_027, MP3_03DC, CHANNEL_6, COLOR_09_BLUE) // "I've got to get those shields down to let Elvis in..."
+	speak(CHR_P1P2, L_LEE_027, MP3_03DC, CHANNEL_6, COLOR_09_BLUE) // "I've got to get those shields down to let Elvis in..."
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };
@@ -3284,7 +3287,7 @@ u8 func1014_msg_hangarbaydoors[] = {
 	endloop(0x08)
 
 	label(0x2c)
-	speak(CHR_BOND, L_LEE_028, MP3_03DD, CHANNEL_6, COLOR_09_BLUE) // "Now only the hangar bay doors are in the way."
+	speak(CHR_P1P2, L_LEE_028, MP3_03DD, CHANNEL_6, COLOR_09_BLUE) // "Now only the hangar bay doors are in the way."
 
 	label(0x09)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
@@ -3492,7 +3495,7 @@ u8 func1012_update_elvis_target_chr[] = {
 
 		// Velvet dead or both alive
 		label(0x09)
-		set_chr_target_chr(CHR_ELVIS, CHR_BOND)
+		set_chr_target_chr(CHR_ELVIS, CHR_P1P2)
 	endloop(0x04)
 
 	set_ailist(CHR_SELF, GAILIST_IDLE)
@@ -3615,7 +3618,7 @@ u8 func101d_unlock_doors[] = {
 u8 func101e_bridge_music[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
-		if_chr_in_room(CHR_BOND, 0x00, 0x006e, /*goto*/ 0x2c)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x006e, /*goto*/ 0x2c)
 	endloop(0x04)
 
 	label(0x2c)
@@ -3707,7 +3710,7 @@ u8 func1021_check_ammo_wasted[] = {
 	// Ammo wasted
 	label(0x2c)
 	set_stage_flag(STAGEFLAG_AMMO_WASTED)
-	show_hudmsg(CHR_BOND, L_LEE_049) // "Ammo depleted - consoles can't be destroyed."
+	show_hudmsg(CHR_P1P2, L_LEE_049) // "Ammo depleted - consoles can't be destroyed."
 
 	beginloop(LABEL_66)
 		if_stage_flag_eq(STAGEFLAG_SHIELDS_DISABLED, TRUE, /*goto*/ 0x2c)
