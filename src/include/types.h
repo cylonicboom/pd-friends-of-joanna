@@ -6156,6 +6156,24 @@ struct extplayerconfig {
 	s32 usereloads;
 };
 
+struct setupblock {
+	u8 bytes[MPSETUP_BLOCKSIZE];
+};
+
+struct setupgroup {
+	char name[MPSETUP_MAXGROUPNAME];
+	u8 offset_index;
+};
+
+struct mpsetupfile {
+	u8 version;
+	u8 defaultsetup;
+	u8 numsetups;
+	u8 numgroups;
+	struct setupblock setups[MPSETUP_MAXSETUPS];
+	struct setupgroup groups[MPSETUP_MAXGROUPS];
+};
+
 #endif
 
 #endif

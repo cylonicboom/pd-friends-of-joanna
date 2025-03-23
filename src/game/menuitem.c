@@ -614,6 +614,15 @@ Gfx *menuitemListRender(Gfx *gdl, struct menurendercontext *context)
 							height = 0;
 						}
 
+						// reuse the label color flag here
+						if (context->item->flags & MENUITEMFLAG_LABEL_CUSTOMCOLOUR) {
+							u32 savedunk04 = sp15c.list.unk04;
+							sp15c.list.unk04 = colour;
+							context->item->handler(MENUOP_GETCOLOUR, context->item, &sp15c);
+							colour = sp15c.list.unk04;
+							sp15c.list.unk04 = savedunk04;
+						}
+
 						gdl = textRenderProjected(gdl, &x, &y, text2, chars, font, colour, context->width - left + context->x, height, sp128, 0);
 
 						// Consider a checkbox

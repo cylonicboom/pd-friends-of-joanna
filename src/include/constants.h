@@ -4756,6 +4756,11 @@ enum weaponnum {
 
 #define EXTRA_SLEEP_TIME 1000LL // 100us
 
+#define MPSETUP_MAXSETUPS 100
+#define MPSETUP_MAXGROUPS 100
+#define MPSETUP_MAXGROUPNAME 33
+#define MPSETUP_BLOCKSIZE 64
+
 #endif
 
 #endif

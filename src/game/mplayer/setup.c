@@ -23,6 +23,8 @@
 #include "data.h"
 #include "gbiex.h"
 #include "types.h"
+#include "system.h"
+#include "mpsetups.h"
 
 struct menuitem g_MpCharacterMenuItems[];
 struct menudialogdef g_MpAddSimulantMenuDialog;
@@ -30,6 +32,10 @@ struct menudialogdef g_MpChangeSimulantMenuDialog;
 struct menudialogdef g_MpChangeTeamNameMenuDialog;
 struct menudialogdef g_MpEditSimulantMenuDialog;
 struct menudialogdef g_MpSaveSetupNameMenuDialog;
+
+extern struct menudialogdef g_MpSetupGroupsDialog;
+extern struct menudialogdef g_FilemgrFileSavedMenuDialog;
+extern struct menudialogdef g_FilemgrErrorMenuDialog;
 
 #ifndef PLATFORM_N64
 extern s32 g_MpWeaponSetNum;
@@ -454,6 +460,7 @@ MenuItemHandlerResult menuhandlerMpConfirmSaveChr(s32 operation, struct menuitem
 MenuItemHandlerResult menuhandlerMpSetupName(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	char *name = data->keyboard.string;
+	s32 err;
 
 	switch (operation) {
 	case MENUOP_GETTEXT:
@@ -463,7 +470,14 @@ MenuItemHandlerResult menuhandlerMpSetupName(s32 operation, struct menuitem *ite
 		strcpy(g_MpSetup.name, name);
 		break;
 	case MENUOP_SET:
-		filemgrPushSelectLocationDialog(7, FILETYPE_MPSETUP);
+		err = mpsetupSaveFile(name, false);
+		if (!err) {
+			menuPushDialog(&g_FilemgrFileSavedMenuDialog);
+		}
+		else {
+//			menuPushDialog(&g_FilemgrErrorMenuDialog);
+			// TODO
+		}
 		break;
 	}
 
@@ -474,7 +488,7 @@ MenuItemHandlerResult menuhandlerMpSaveSetupOverwrite(s32 operation, struct menu
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
-		filemgrSaveOrLoad(&g_MpSetup.fileguid, FILEOP_SAVE_MPSETUP, 0);
+		mpsetupSaveFile(g_MpSetupFile.setups[g_MpCurrentSetup].bytes, true);
 	}
 
 	return 0;
@@ -484,7 +498,7 @@ MenuItemHandlerResult menuhandlerMpSaveSetupCopy(s32 operation, struct menuitem 
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
-		menuPushDialog(&g_MpSaveSetupNameMenuDialog);
+		menuPushDialog(&g_MpSetupGroupsDialog);
 	}
 
 	return 0;
@@ -1112,10 +1126,10 @@ struct menuitem g_MpSaveSetupExistsMenuItems[] = {
 		NULL,
 	},
 	{
-		MENUITEMTYPE_LABEL,
+		MENUITEMTYPE_SEPARATOR,
 		0,
-		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT,
-		(uintptr_t)&filemgrMenuTextDeviceName,
+		0,
+		0,
 		0,
 		NULL,
 	},
@@ -1123,8 +1137,16 @@ struct menuitem g_MpSaveSetupExistsMenuItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
-		MENUITEMFLAG_LESSLEFTPADDING,
-		L_MPMENU_184, // "Do you want to save over your original game file?"
+		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Save over your\noriginal setup?\n",
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
 		0,
 		NULL,
 	},
@@ -2235,17 +2257,15 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
 		data->list.value = mpGetNumUnlockedPresets();
-
-		if (g_FileLists[1] != NULL) {
-			data->list.value += g_FileLists[1]->numfiles;
-		}
+		data->list.value += g_MpSetupFile.numsetups;
 		break;
 	case MENUOP_GETOPTIONTEXT:
 		if (data->list.value < mpGetNumUnlockedPresets()) {
 			return (uintptr_t)mpGetPresetNameBySlot(data->list.value);
 		}
-		if (g_FileLists[1] != NULL) {
-			func0f0d564c(g_FileLists[1]->files[data->list.value - mpGetNumUnlockedPresets()].name, g_StringPointer, false);
+		if (g_MpSetupFile.numsetups > 0) {
+			struct setupblock *block = &g_MpSetupFile.setups[data->list.value - mpGetNumUnlockedPresets()];
+			func0f0d564c(block->bytes, g_StringPointer, false);
 			return (uintptr_t)g_StringPointer;
 		}
 		break;
@@ -2254,14 +2274,10 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 
 		if (data->list.value < mpGetNumUnlockedPresets()) {
 			mp0f18dec4(data->list.value);
-		} else if (g_FileLists[1] != NULL) {
-			struct filelistfile *file = &g_FileLists[1]->files[data->list.value - mpGetNumUnlockedPresets()];
-			struct fileguid guid;
-
-			guid.fileid = file->fileid;
-			guid.deviceserial = file->deviceserial;
-
-			filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPSETUP, 0);
+			g_MpCurrentSetup = -1;
+		}
+		else {
+			mpsetupLoadSetup(data->list.value - mpGetNumUnlockedPresets());
 		}
 
 		if (item->param == 1) {
@@ -2276,19 +2292,14 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		data->list.value = 0xfffff;
 		break;
 	case MENUOP_GETOPTGROUPCOUNT:
-		data->list.value = 1;
-
-		if (g_FileLists[1] != NULL) {
-			data->list.value += g_FileLists[1]->numdevices;
-		}
+		data->list.value = g_MpSetupFile.numgroups + 1;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
 		if (data->list.value == 0) {
 			return (uintptr_t)langGet(L_MPMENU_141); // "Presets"
 		}
-		if (g_FileLists[1] != NULL) {
-			return (uintptr_t)filemgrGetDeviceNameOrStartIndex(1, operation, data->list.value - 1);
-		}
+
+		return (uintptr_t)&g_MpSetupFile.groups[data->list.value - 1].name;
 		break;
 	case MENUOP_GETGROUPSTARTINDEX:
 		if (data->list.value == 0) {
@@ -2296,16 +2307,14 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		} else {
 			data->list.groupstartindex = mpGetNumUnlockedPresets();
 
-			if (g_FileLists[1] != NULL) {
-				data->list.groupstartindex += filemgrGetDeviceNameOrStartIndex(1, operation, data->list.value - 1);
+			if (g_MpSetupFile.numgroups > 0) {
+				data->list.groupstartindex += g_MpSetupFile.groups[data->list.value - 1].offset_index;
 			}
 		}
 		break;
 	case MENUOP_LISTITEMFOCUS:
 		if (data->list.value < mpGetNumUnlockedPresets()) {
 			g_Menus[g_MpPlayerNum].mpsetup.slotindex = 0xffff;
-		} else {
-			g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value - mpGetNumUnlockedPresets();
 		}
 		break;
 	}
@@ -2630,6 +2639,22 @@ struct menuitem g_MpLoadSettingsMenuItems[] = {
 		0,
 		MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
 		(uintptr_t)&mpMenuTextMpconfigMarquee,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		MENUITEMFLAG_00000002,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_LABEL,
+		0,
+		MENUITEMFLAG_00000002 | MENUITEMFLAG_SELECTABLE_CENTRE,
+		L_MPMENU_414, // "Press the B Button to go back."
 		0,
 		NULL,
 	},
@@ -5016,13 +5041,10 @@ MenuItemHandlerResult menuhandler0017ef30(s32 operation, struct menuitem *item, 
 MenuItemHandlerResult menuhandlerMpSaveSettings(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		if (g_MpSetup.fileguid.fileid == 0) {
-			menuPushDialog(&g_MpSaveSetupNameMenuDialog);
-		} else {
-#if VERSION >= VERSION_NTSC_1_0
-			filemgrSetDevice1BySerial(g_MpSetup.fileguid.deviceserial);
-#endif
-
+		if (g_MpCurrentSetup < 0) {
+			menuPushDialog(&g_MpSetupGroupsDialog);
+		}
+		else {
 			menuPushDialog(&g_MpSaveSetupExistsMenuDialog);
 		}
 	}
@@ -5365,6 +5387,9 @@ MenuDialogHandlerResult menudialogCombatSimulator(s32 operation, struct menudial
 		g_Vars.waitingtojoin[1] = false;
 		g_Vars.waitingtojoin[2] = false;
 		g_Vars.waitingtojoin[3] = false;
+
+		// load the setup file when entering the Combat Simulator
+		mpsetupLoadFile();
 	}
 
 	if (g_Menus[g_MpPlayerNum].curdialog

@@ -28,6 +28,9 @@
 #include "lib/lib_317f0.h"
 #include "data.h"
 #include "types.h"
+#include "fs.h"
+#include "system.h"
+#include "mpsetups.h"
 
 // bss
 struct chrdata *g_MpAllChrPtrs[MAX_MPCHRS];
@@ -3926,7 +3929,7 @@ void mpsetupfileLoadWad(struct savebuffer *buffer)
 	scenarioInit();
 	scenarioReadSave(buffer);
 
-	g_MpSetup.options = savebufferReadBits(buffer, 21);
+	g_MpSetup.options = savebufferReadBits(buffer, 32);
 	g_MpSetup.chrslots &= 0x000f;
 
 	for (i = 0; i < MAX_BOTS; i++) {
@@ -3986,7 +3989,7 @@ void mpsetupfileSaveWad(struct savebuffer *buffer)
 
 	scenarioWriteSave(buffer);
 
-	savebufferOr(buffer, g_MpSetup.options, 21);
+	savebufferOr(buffer, g_MpSetup.options, 32);
 
 	for (i = 0; i < MAX_BOTS; i++) {
 		savebufferOr(buffer, g_BotConfigsArray[i].type, 5);
@@ -4039,60 +4042,6 @@ void mpsetupfileGetOverview(char *arg0, char *filename, u16 *numsims, u16 *stage
 	*numsims = savebufferReadBits(&buffer, 4);
 	*stagenum = savebufferReadBits(&buffer, 7);
 	*scenarionum = savebufferReadBits(&buffer, 3);
-}
-
-s32 mpsetupfileSave(s32 device, s32 fileid, u16 deviceserial)
-{
-	s32 ret;
-	s32 newfileid;
-	struct savebuffer buffer;
-
-	if (device >= 0) {
-		savebufferClear(&buffer);
-		mpsetupfileSaveWad(&buffer);
-		func0f0d54c4(&buffer);
-
-		ret = pakSaveAtGuid(device, fileid, PAKFILETYPE_MPSETUP, buffer.bytes, &newfileid, 0);
-		var80075bd0[1] = true;
-
-		if (ret == 0) {
-			g_MpSetup.fileguid.fileid = newfileid;
-			g_MpSetup.fileguid.deviceserial = deviceserial;
-			return 0;
-		}
-
-		g_FilemgrLastPakError = ret;
-		return -1;
-	}
-
-	return -1;
-}
-
-s32 mpsetupfileLoad(s32 device, s32 fileid, u16 deviceserial)
-{
-	s32 ret;
-	struct savebuffer buffer;
-
-	if (device >= 0) {
-		savebufferClear(&buffer);
-		ret = pakReadBodyAtGuid(device, fileid, buffer.bytes, 0);
-
-		if (ret == 0) {
-			g_MpSetup.fileguid.fileid = fileid;
-			g_MpSetup.fileguid.deviceserial = deviceserial;
-
-			mpsetupfileLoadWad(&buffer);
-			func0f0d54c4(&buffer);
-
-			return 0;
-		}
-
-		g_FilemgrLastPakError = ret;
-
-		return -1;
-	}
-
-	return -1;
 }
 
 void func0f18e558(void)

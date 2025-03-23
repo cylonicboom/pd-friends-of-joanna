@@ -816,12 +816,6 @@ bool filemgrAttemptOperation(s32 device, bool closeonsuccess)
 				g_Menus[g_MpPlayerNum].fm.fileid,
 				g_Menus[g_MpPlayerNum].fm.deviceserial);
 		break;
-	case FILEOP_SAVE_MPSETUP:
-		errnum = mpsetupfileSave(device,
-				g_Menus[g_MpPlayerNum].fm.fileid,
-				g_Menus[g_MpPlayerNum].fm.deviceserial);
-		showfilesaved = true;
-		break;
 	case FILEOP_WRITE_GAME:
 	case FILEOP_WRITE_MPSETUP:
 	case FILEOP_WRITE_MPPLAYER:
@@ -842,11 +836,6 @@ bool filemgrAttemptOperation(s32 device, bool closeonsuccess)
 		errnum = mpplayerfileLoad(
 				(s32) g_Menus[g_MpPlayerNum].fm.unke44,
 				device,
-				g_Menus[g_MpPlayerNum].fm.fileid,
-				g_Menus[g_MpPlayerNum].fm.deviceserial);
-		break;
-	case FILEOP_LOAD_MPSETUP:
-		errnum = mpsetupfileLoad(device,
 				g_Menus[g_MpPlayerNum].fm.fileid,
 				g_Menus[g_MpPlayerNum].fm.deviceserial);
 		break;
