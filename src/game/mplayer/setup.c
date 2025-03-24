@@ -33,7 +33,7 @@ struct menudialogdef g_MpChangeTeamNameMenuDialog;
 struct menudialogdef g_MpEditSimulantMenuDialog;
 struct menudialogdef g_MpSaveSetupNameMenuDialog;
 
-extern struct menudialogdef g_MpSetupGroupsDialog;
+extern struct menudialogdef g_MpManageSettingsDialog;
 extern struct menudialogdef g_FilemgrFileSavedMenuDialog;
 extern struct menudialogdef g_FilemgrErrorMenuDialog;
 
@@ -470,7 +470,7 @@ MenuItemHandlerResult menuhandlerMpSetupName(s32 operation, struct menuitem *ite
 		strcpy(g_MpSetup.name, name);
 		break;
 	case MENUOP_SET:
-		err = mpsetupSaveFile(name, false);
+		err = mpsetupSaveSetup(g_MpSetupFile.numsetups);
 		if (!err) {
 			menuPushDialog(&g_FilemgrFileSavedMenuDialog);
 		}
@@ -488,7 +488,8 @@ MenuItemHandlerResult menuhandlerMpSaveSetupOverwrite(s32 operation, struct menu
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
-		mpsetupSaveFile(g_MpSetupFile.setups[g_MpCurrentSetup].bytes, true);
+		mpsetupSaveSetup(g_MpCurrentSetup);
+		menuPushDialog(&g_FilemgrFileSavedMenuDialog);
 	}
 
 	return 0;
@@ -498,7 +499,7 @@ MenuItemHandlerResult menuhandlerMpSaveSetupCopy(s32 operation, struct menuitem 
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
-		menuPushDialog(&g_MpSetupGroupsDialog);
+		menuPushDialog(&g_MpSaveSetupNameMenuDialog);
 	}
 
 	return 0;
@@ -2292,25 +2293,15 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		data->list.value = 0xfffff;
 		break;
 	case MENUOP_GETOPTGROUPCOUNT:
-		data->list.value = g_MpSetupFile.numgroups + 1;
+		data->list.value = 2;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
 		if (data->list.value == 0) {
 			return (uintptr_t)langGet(L_MPMENU_141); // "Presets"
 		}
-
-		return (uintptr_t)&g_MpSetupFile.groups[data->list.value - 1].name;
-		break;
+		return (uintptr_t)"Custom";
 	case MENUOP_GETGROUPSTARTINDEX:
-		if (data->list.value == 0) {
-			data->list.groupstartindex = 0;
-		} else {
-			data->list.groupstartindex = mpGetNumUnlockedPresets();
-
-			if (g_MpSetupFile.numgroups > 0) {
-				data->list.groupstartindex += g_MpSetupFile.groups[data->list.value - 1].offset_index;
-			}
-		}
+		data->list.groupstartindex = data->list.value == 0 ? 0 : mpGetNumUnlockedPresets();
 		break;
 	case MENUOP_LISTITEMFOCUS:
 		if (data->list.value < mpGetNumUnlockedPresets()) {
@@ -2639,22 +2630,6 @@ struct menuitem g_MpLoadSettingsMenuItems[] = {
 		0,
 		MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
 		(uintptr_t)&mpMenuTextMpconfigMarquee,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		MENUITEMFLAG_00000002,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_LABEL,
-		0,
-		MENUITEMFLAG_00000002 | MENUITEMFLAG_SELECTABLE_CENTRE,
-		L_MPMENU_414, // "Press the B Button to go back."
 		0,
 		NULL,
 	},
@@ -5042,7 +5017,7 @@ MenuItemHandlerResult menuhandlerMpSaveSettings(s32 operation, struct menuitem *
 {
 	if (operation == MENUOP_SET) {
 		if (g_MpCurrentSetup < 0) {
-			menuPushDialog(&g_MpSetupGroupsDialog);
+			menuPushDialog(&g_MpSaveSetupNameMenuDialog);
 		}
 		else {
 			menuPushDialog(&g_MpSaveSetupExistsMenuDialog);
@@ -5781,6 +5756,14 @@ struct menuitem g_MpAdvancedSetupMenuItems[] = {
 		0x00000082,
 		0,
 		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_LOCKABLEMAJOR,
+		(uintptr_t)"Manage Settings\n",
+		0,
+		(void *)&g_MpManageSettingsDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,

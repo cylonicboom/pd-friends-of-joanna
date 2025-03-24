@@ -564,7 +564,6 @@ extern s32 g_MpWeaponRandomFilterNum;
 
 extern struct mpsetupfile g_MpSetupFile;
 extern s16 g_MpCurrentSetup;
-extern s16 g_MpCurrentGroup;
 
 #define PLAYER_EXTCFG() g_PlayerExtCfg[g_Vars.currentplayerstats->mpindex & 3]
 #define PLAYER_DEFAULT_FOV (PLAYER_EXTCFG().fovy)

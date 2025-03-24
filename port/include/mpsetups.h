@@ -4,7 +4,7 @@
 #include "types.h"
 
 s32 mpsetupLoadFile();
-void mpsetupLoadSetup(s32 index);
-s32 mpsetupSaveFile(const char *name, u8 overwrite);
+void mpsetupLoadSetup(s32 slotindex);
+s32 mpsetupSaveSetup(s32 slotindex);
 
 #endif
