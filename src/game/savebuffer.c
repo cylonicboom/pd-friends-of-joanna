@@ -481,13 +481,13 @@ void func0f0d54c4(struct savebuffer *buffer)
  * Read a zero-terminated string from the buffer and move the buffer's internal
  * pointer past the end of the string.
  */
-void savebufferReadString(struct savebuffer *buffer, char *dst, bool addlinebreak)
+void savebufferReadString_ext(struct savebuffer *buffer, char *dst, bool addlinebreak, u8 len)
 {
 	bool foundnull = false;
 	s32 index = 0;
 	s32 i;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < len; i++) {
 		s32 byte = savebufferReadBits(buffer, 8);
 
 		if (!foundnull) {
@@ -509,12 +509,17 @@ void savebufferReadString(struct savebuffer *buffer, char *dst, bool addlinebrea
 	dst[index] = '\0';
 }
 
-void func0f0d55a4(struct savebuffer *buffer, char *src)
+void savebufferReadString(struct savebuffer *buffer, char *dst, bool addlinebreak)
+{
+	savebufferReadString_ext(buffer, dst, addlinebreak, 10);
+}
+
+void func0f0d55a4_ext(struct savebuffer *buffer, char *src, u8 len)
 {
 	bool done = false;
 	s32 i;
 
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < len; i++) {
 		if (!done) {
 			if (src[i] == '\0') {
 				done = true;
@@ -532,12 +537,22 @@ void func0f0d55a4(struct savebuffer *buffer, char *src)
 	}
 }
 
-void func0f0d564c(u8 *data, char *dst, bool addlinebreak)
+void func0f0d55a4(struct savebuffer *buffer, char *src)
+{
+	func0f0d55a4_ext(buffer, src, 10);
+}
+
+void func0f0d564c_ext(u8 *data, char *dst, bool addlinebreak, u8 len)
 {
 	struct savebuffer buffer;
 
-	savebufferWriteData(&buffer, data, 10);
-	savebufferReadString(&buffer, dst, addlinebreak);
+	savebufferWriteData(&buffer, data, len);
+	savebufferReadString_ext(&buffer, dst, addlinebreak, len);
+}
+
+void func0f0d564c(u8 *data, char *dst, bool addlinebreak)
+{
+	func0f0d564c_ext(data, dst, addlinebreak, 10);
 }
 
 #if VERSION >= VERSION_NTSC_1_0

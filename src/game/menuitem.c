@@ -1529,6 +1529,7 @@ bool menuitemKeyboardTick(struct menuitem *item, struct menuinputs *inputs, u32 
 			inputs->start = false;
 		}
 
+		u8 maxlen = item->param == 0 ? 10 : item->param;
 #ifndef PLATFORM_N64
 		if (g_MenuKeyboardPlayer == g_MpPlayerNum) {
 			// match caps state to keyboard shift/caps if typing with keyboard
@@ -1540,7 +1541,7 @@ bool menuitemKeyboardTick(struct menuitem *item, struct menuinputs *inputs, u32 
 			// handle text input
 			s32 prevpos = strlen(kb->string);
 			s32 pos = prevpos;
-			s32 result = inputTextHandler(kb->string, sizeof(kb->string), &pos, true);
+			s32 result = inputTextHandler(kb->string, maxlen-1, &pos, true);
 			if (result == -1) {
 				// cancel
 				kb->row = 5;
@@ -1617,7 +1618,7 @@ bool menuitemKeyboardTick(struct menuitem *item, struct menuinputs *inputs, u32 
 				s32 textwidth;
 				s32 textheight;
 
-				if (kb->string[9] == '\0') {
+				if (kb->string[maxlen-1] == '\0') {
 					// String is not full
 					i = 0;
 
@@ -1653,7 +1654,7 @@ bool menuitemKeyboardTick(struct menuitem *item, struct menuinputs *inputs, u32 
 		// Handle deleting
 		if (delete && kb->string[0] != '\0') {
 			s32 deleted = false;
-			s32 i = 10;
+			s32 i = maxlen;
 
 			menuPlaySound(MENUSOUND_FOCUS);
 

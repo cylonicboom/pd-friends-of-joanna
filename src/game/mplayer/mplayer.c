@@ -3920,7 +3920,7 @@ void mpsetupfileLoadWad(struct savebuffer *buffer)
 	s32 i;
 	s32 j;
 
-	savebufferReadString(buffer, g_MpSetup.name, false);
+	savebufferReadString_ext(buffer, g_MpSetup.name, false, MPSETUP_MAXSETUPS+1);
 	savebufferReadBits(buffer, 4);
 
 	g_MpSetup.stagenum = savebufferReadBits(buffer, 7);
@@ -3975,7 +3975,7 @@ void mpsetupfileSaveWad(struct savebuffer *buffer)
 	s32 mpbodynum;
 	s32 i;
 
-	func0f0d55a4(buffer, g_MpSetup.name);
+	func0f0d55a4_ext(buffer, g_MpSetup.name, MPSETUP_MAXSETUPS+1);
 
 	for (i = 0; i < MAX_BOTS; i++) {
 		if (g_MpSetup.chrslots & (1 << (i + 4))) {

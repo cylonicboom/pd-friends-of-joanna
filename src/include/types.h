@@ -3295,7 +3295,7 @@ struct menuitemdata_dropdown {
 };
 
 struct menuitemdata_keyboard {
-	char string[11];
+	char string[MPSETUP_MAXNAME+1];
 	s8 col;
 	s8 row;
 	u8 capslock : 1;      // Pressed A on caps button
@@ -4080,7 +4080,7 @@ struct missionconfig {
 };
 
 struct mpsetup {
-	/*0x800acb88*/ char name[12];
+	/*0x800acb88*/ char name[MPSETUP_MAXNAME+1];
 	/*0x800acb94*/ u32 options;
 	/*0x800acb98*/ u8 scenario;
 	/*0x800acb99*/ u8 stagenum;

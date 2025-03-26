@@ -35,7 +35,7 @@ s16 g_MpCurrentSetup = -1;
 	memcpy(buf, src, size); \
 	buf += size; }
 
-// #### Rename setup dialogue
+// #### Rename setup dialog
 MenuItemHandlerResult menuhandlerRenameSetup(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	char *name = data->keyboard.string;
@@ -80,10 +80,10 @@ struct menuitem g_RenameSetupItems[] = {
 #endif
 	{
 		MENUITEMTYPE_KEYBOARD,
+		18,
 		0,
 		0,
-		0,
-		0,
+		1,
 		menuhandlerRenameSetup,
 	},
 	{ MENUITEMTYPE_END },
@@ -181,7 +181,7 @@ struct menuitem g_MpManageSettingsListItems[] = {
 		MENUITEMTYPE_LIST,
 		0,
 		0,
-		0x00000078,
+		160,
 		0x00000042,
 		mpSelectSettingHandler,
 	},

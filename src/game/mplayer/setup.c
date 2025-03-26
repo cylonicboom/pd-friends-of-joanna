@@ -1098,10 +1098,10 @@ struct menuitem g_MpSaveSetupNameMenuItems[] = {
 #endif
 	{
 		MENUITEMTYPE_KEYBOARD,
+		MPSETUP_MAXNAME,
 		0,
 		0,
-		0,
-		0,
+		1,
 		menuhandlerMpSetupName,
 	},
 	{ MENUITEMTYPE_END },
@@ -2257,8 +2257,7 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 {
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
-		data->list.value = mpGetNumUnlockedPresets();
-		data->list.value += g_MpSetupFile.numsetups;
+		data->list.value = mpGetNumUnlockedPresets() + g_MpSetupFile.numsetups;
 		break;
 	case MENUOP_GETOPTIONTEXT:
 		if (data->list.value < mpGetNumUnlockedPresets()) {
@@ -2266,7 +2265,7 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		}
 		if (g_MpSetupFile.numsetups > 0) {
 			struct setupblock *block = &g_MpSetupFile.setups[data->list.value - mpGetNumUnlockedPresets()];
-			func0f0d564c(block->bytes, g_StringPointer, false);
+			func0f0d564c_ext(block->bytes, g_StringPointer, false, MPSETUP_MAXSETUPS+1);
 			return (uintptr_t)g_StringPointer;
 		}
 		break;
@@ -2621,7 +2620,7 @@ struct menuitem g_MpLoadSettingsMenuItems[] = {
 		MENUITEMTYPE_LIST,
 		0,
 		0,
-		0x00000078,
+		160,
 		0x00000042,
 		mpLoadSettingsMenuHandler,
 	},
