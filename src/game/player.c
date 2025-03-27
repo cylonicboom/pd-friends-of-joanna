@@ -602,7 +602,7 @@ void playerStartNewLife(void)
 		if (cmd);
 		if (cmd);
 
-		if (g_Vars.antiplayernum < 0 || g_Vars.currentplayer != g_Vars.anti) {
+		if (g_Vars.currentantiplayernum != g_Vars.currentplayernum || g_Vars.currentplayer != g_Vars.anti) {
 			while (cmd[0] != INTROCMD_END) {
 				switch (cmd[0]) {
 				case INTROCMD_SPAWN:
@@ -976,7 +976,7 @@ void playerSpawn(void)
 	}
 
 	if (g_Vars.mplayerisrunning) {
-		if ((g_Vars.antiplayernum >= 0 && g_Vars.antiplayers[g_Vars.currentplayernum]) || (g_MissionConfig.isteam && g_Vars.antiplayers[g_Vars.currentplayernum])) {
+		if ((g_Vars.antiplayernum >= 0 || g_Vars.antiplayers[g_Vars.currentplayernum]) || (g_MissionConfig.isteam && g_Vars.antiplayers[g_Vars.currentplayernum])) {
 			setCurrentAntiNum(g_Vars.currentplayernum);
 			numsqdists = 0;
 			force = false;

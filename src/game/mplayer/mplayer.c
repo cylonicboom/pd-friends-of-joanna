@@ -436,8 +436,7 @@ void mpReset(void)
 		g_Vars.lvmpbotlevel = true;
 	}
 
-	// if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-	if (false) {
+	if (!g_MissionConfig.isteam && (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)) {
 		struct mpplayerconfig tmp;
 
 		tmp = g_PlayerConfigsArray[MAX_PLAYERS];
@@ -482,6 +481,13 @@ void mpReset(void)
 
 				g_PlayerConfigsArray[i].contpad1 = i;
 				g_PlayerConfigsArray[i].contpad2 = 0;
+
+				if (((g_Vars.coopplayernum >= 0 || g_Vars.bondplayernum == g_Vars.currentplayernum) && g_Vars.coopradaron)
+						|| (g_Vars.antiplayernum >= 0 && g_Vars.antiradaron)) {
+					g_PlayerConfigsArray[i].base.displayoptions |= MPDISPLAYOPTION_RADAR;
+				} else {
+					g_PlayerConfigsArray[i].base.displayoptions &= ~MPDISPLAYOPTION_RADAR;
+				}
 
 				mpCalculatePlayerTitle(&g_PlayerConfigsArray[i]);
 

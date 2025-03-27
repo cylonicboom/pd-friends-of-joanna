@@ -14,6 +14,8 @@ extern struct menudialogdef g_NextMissionMenuDialog;
 extern struct menudialogdef g_ExitGameMenuDialog;
 #endif
 
+void updatePlayerNames();
+void updatePlayerName(u32 playernum);
 void teamMissionConfigStrUpdateMarquee();
 char* teamMissionConfigStrGetMarquee(struct menuitem *item);
 char *menuTextCurrentStageName(struct menuitem *item);

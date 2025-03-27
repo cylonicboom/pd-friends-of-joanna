@@ -15894,7 +15894,7 @@ void objHit(struct shotdata *shotdata, struct hit *hit)
 		}
 	}
 
-	if (g_Vars.antiplayernum < 0 || g_Vars.currentplayer != g_Vars.anti || (obj->flags2 & OBJFLAG2_IMMUNETOANTI) == 0) {
+	if (isCurrentPlayerAlly() || (obj->flags2 & OBJFLAG2_IMMUNETOANTI) == 0) {
 		if (hit->hitthing.texturenum != 10000) {
 			f32 damage = gsetGetDamage(&shotdata->gset);
 

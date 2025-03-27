@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "game/cheats.h"
 #include "game/game_00b820.h"
+#include "game/mainmenu.h"
 #include "game/setup.h"
 #include "game/objectives.h"
 #include "game/playerreset.h"

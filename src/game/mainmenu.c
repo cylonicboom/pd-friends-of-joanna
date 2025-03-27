@@ -1521,7 +1521,7 @@ MenuItemHandlerResult menuhandlerTeamMissionDifficultyDropdown(s32 operation, st
 		g_MissionConfig.pdmode = false;
 		g_MissionConfig.difficulty = data->dropdown.value;
 		lvSetDifficulty(g_MissionConfig.difficulty);
-		g_MissionConfig.pdmode = g_MissionConfig.difficulty > 3? 1 : 0;
+		g_MissionConfig.pdmode = g_MenuData.root == MENUROOT_TEAMMISSIONS || g_MissionConfig.difficulty > 3? 1 : 0;
    break;
    case MENUOP_GETSELECTEDINDEX:
 		data->dropdown.value = g_MissionConfig.difficulty;
@@ -2029,6 +2029,10 @@ MenuItemHandlerResult menuhandlerTeamStartMission(s32 operation, struct menuitem
 		if (!g_MissionConfig.stagenum) {
 			g_MissionConfig.stagenum = STAGE_DEFECTION;
 		}
+		g_MissionConfig.pdmode = true;
+		g_MissionConfig.pdmodehealthf = func0f1036ac(g_MissionConfig.pdmodehealth, PDMODEPROP_HEALTH);
+		g_MissionConfig.pdmodedamagef = func0f1036ac(g_MissionConfig.pdmodedamage, PDMODEPROP_DAMAGE);
+		g_MissionConfig.pdmodeaccuracyf = func0f1036ac(g_MissionConfig.pdmodeaccuracy, PDMODEPROP_ACCURACY);
 		menuPushDialog(&g_AcceptMissionMenuDialog);
 	}
 
@@ -5656,6 +5660,7 @@ MenuItemHandlerResult menuhandlerMainMenuTeamMissions(s32 operation, struct menu
 	if (operation == MENUOP_SET) {
 		g_MissionConfig.isteam = true;
 	   // players must explicitly join
+		g_MissionConfig.pdmode = true;
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = false;
 		g_Vars.mpsetupmenu = MPSETUPMENU_TEAMMISSIONS;
@@ -5683,6 +5688,7 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 			g_MissionConfig.iscoop = false;
 			g_MissionConfig.isteam = false;
 			g_MissionConfig.isanti = false;
+			g_MissionConfig.pdmode = false;
 		}
 		break;
 	}
@@ -5737,26 +5743,6 @@ struct menuitem g_MainMenuMenuItems[] = {
 		(uintptr_t)&mainMenuTextLabel,
 		0x00000003,
 		menuhandlerMainMenuCombatSimulator,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		2,
-		MENUITEMFLAG_BIGFONT,
-		(uintptr_t)&mainMenuTextLabel,
-		0x00000004,
-		menuhandlerMainMenuCooperative,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		3,
-		MENUITEMFLAG_BIGFONT,
-		(uintptr_t)&mainMenuTextLabel,
-#ifndef PLATFORM_N64
-		0x00000006,
-#else
-		0x00000005,
-#endif
-		menuhandlerMainMenuCounterOperative,
 	},
 #ifndef PLATFORM_N64
 	{
