@@ -1761,6 +1761,7 @@ Gfx *lvRender(Gfx *gdl)
 		{
 			g_MissionConfig.iscoop = false;
 			g_MissionConfig.isteam = false;
+			g_MissionConfig.pdmode = false;
 			g_Vars.mplayerisrunning = false;
 			g_Vars.normmplayerisrunning = false;
 			playermgrDisableTeamPlayers();

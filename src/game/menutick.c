@@ -458,6 +458,13 @@ void menuTick(void)
 								setCurrentPlayerNum(prevplayernum);
 								handled = true;
 							}
+							if (g_MissionConfig.isteam && g_Vars.bondplayernum == playernum) {
+								s32 prevplayernum = g_Vars.currentplayernum;
+								setCurrentPlayerNum(playernum);
+								endscreenPushCoop();
+								setCurrentPlayerNum(prevplayernum);
+								handled = true;
+							}
 							if (!handled) {
 								mpPushEndscreenDialog(playernum, i);
 							}
@@ -645,6 +652,10 @@ void menuTick(void)
 				} else {
 					mpSetPaused(MPPAUSEMODE_UNPAUSED);
 					g_Vars.mplayerisrunning = false;
+					g_MissionConfig.iscoop = false;
+					g_MissionConfig.isanti = false;
+					g_MissionConfig.isteam = false;
+					g_MissionConfig.pdmode = false;
 					g_Vars.normmplayerisrunning = false;
 					g_Vars.lvmpbotlevel = 0;
 
@@ -677,6 +688,7 @@ void menuTick(void)
 					mainChangeToStage(STAGE_CITRAINING);
 					g_MissionConfig.iscoop = false;
 					g_MissionConfig.isteam = false;
+					g_MissionConfig.pdmode = false;
 				}
 				break;
 			}

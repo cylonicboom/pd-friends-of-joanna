@@ -4,6 +4,9 @@
 #include "data.h"
 #include "types.h"
 
+bool isCurrentPlayerAlly();
+bool isChrPropAlly(struct prop *prop);
+bool isPlayerNumAlly(u32 playernum);
 bool isChrNumCoop(u32 chrnum);
 bool isChrHumanCoop(struct chrdata *chr, u32 chrid);
 bool isChrHumanAnti(struct chrdata *chr, u32 chrid);

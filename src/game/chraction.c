@@ -4301,20 +4301,20 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 	}
 
 	// Don't damage if attacker was anti and chr is non-interactable by anti
-	if (g_Vars.antiplayernum >= 0
+	if (g_Vars.antiplayers[g_Vars.currentplayernum]
 			&& aprop
-			&& aprop == g_Vars.anti->prop
+			&& isChrPropAnti(aprop)
 			&& (chr->hidden & CHRHFLAG_ANTINONINTERACTABLE)) {
 		return;
 	}
 
 	// Don't damage if coop and friendly fire is off (human buddy)
-	if (g_Vars.coopplayernum >= 0
+	if (isCurrentPlayerAlly()
 			&& g_Vars.coopfriendlyfire == false
 			&& aprop
 			&& aprop != vprop
-			&& aprop->type == PROPTYPE_PLAYER
-			&& vprop->type == PROPTYPE_PLAYER) {
+			&& isChrPropAlly(aprop)
+			&& isChrPropAlly(vprop)) {
 		return;
 	}
 

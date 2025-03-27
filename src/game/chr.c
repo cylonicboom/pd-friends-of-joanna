@@ -4659,19 +4659,20 @@ void chrHit(struct shotdata *shotdata, struct hit *hit)
 				g_Vars.currentplayer->prop, hit->hitpart, hit->prop, hit->bboxnode,
 				hit->model, hit->hitthing.unk28 / 2, sp90);
 
-		if (g_Vars.antiplayernum >= 0
-				&& g_Vars.currentplayer == g_Vars.anti
+		if (g_Vars.antiplayers[g_Vars.currentplayernum]
 				&& (chr->hidden & CHRHFLAG_ANTINONINTERACTABLE)) {
 			return;
 		}
 
-		if (g_Vars.coopplayernum >= 0
+		printf("Anti: firing at a guard!");
+
+		if ((g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.bondplayernum == g_Vars.currentplayernum)
 				&& g_Vars.coopfriendlyfire == false
-				&& prop->type == PROPTYPE_PLAYER) {
+				&& (isChrPropCoop(prop) || g_Vars.bond->prop == prop)) {
 			return;
 		}
 
-		if (g_MissionConfig.iscoop && g_Vars.coopfriendlyfire == false && chr->team == TEAM_ALLY) {
+		if ((g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.bondplayernum == g_Vars.currentplayernum) && g_Vars.coopfriendlyfire == false && chr->team == TEAM_ALLY) {
 			return;
 		}
 
@@ -6761,6 +6762,22 @@ bool isChrIdMpHumanAnti(u32 chrId) {
 		return false;
 	}
 	return chrId == CHR_ANTI;
+}
+
+bool isPlayerNumAlly(u32 playernum) {
+	return ((g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.bondplayernum == g_Vars.currentplayernum));
+}
+
+bool isCurrentPlayerAlly() {
+	return isPlayerNumAlly(g_Vars.currentplayernum);
+}
+
+bool isChrPropAlly(struct prop *prop) {
+	if (isChrPropCoop(prop)) {
+		return true;
+	} else {
+		return g_Vars.bond->prop == prop;
+	}
 }
 
 bool isChrPropCoop(struct prop *prop) {
