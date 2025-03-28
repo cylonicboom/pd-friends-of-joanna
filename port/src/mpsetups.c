@@ -421,9 +421,17 @@ struct menudialogdef g_ManageImportExportDialog = {
 
 // #### Manage settings dialog
 struct menudialogdef g_ManageSetupDialog;
-MenuItemHandlerResult mpSelectSettingHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+char g_LabelSetDefault[20] = "Set Default\n";
+MenuItemHandlerResult mpSelectSetupHandler(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	switch (operation) {
+	case MENUOP_GETCOLOUR: {
+		u32 colour = data->list.unk04;
+		if (data->list.value + 1 == g_MpSetupFile.defaultsetup) {
+			data->list.unk04 = (colour & 0xffff0000) | 0xff;
+		}
+		break;
+	}
 	case MENUOP_GETOPTIONCOUNT:
 		data->list.value = g_MpSetupFile.numsetups;
 		break;
@@ -432,6 +440,12 @@ MenuItemHandlerResult mpSelectSettingHandler(s32 operation, struct menuitem *ite
 	case MENUOP_SET:
 	{
 		g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value;
+		if (data->list.value == g_MpSetupFile.defaultsetup - 1) {
+			strcpy(g_LabelSetDefault, "Clear Default\n");
+		}
+		else {
+			strcpy(g_LabelSetDefault, "Set Default\n");
+		}
 		menuPushDialog(&g_ManageSetupDialog);
 	}
 	case MENUOP_GETSELECTEDINDEX:
@@ -446,10 +460,10 @@ struct menuitem g_MpManageSettingsListItems[] = {
 	{
 		MENUITEMTYPE_LIST,
 		0,
-		0,
+		MENUITEMFLAG_LABEL_CUSTOMCOLOUR,
 		160,
 		0x00000042,
-		mpSelectSettingHandler,
+		mpSelectSetupHandler,
 	},
 	{ MENUITEMTYPE_END },
 
@@ -483,6 +497,25 @@ static MenuItemHandlerResult menuhandlerSetupDelete(s32 operation, struct menuit
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerSetupSetDefault(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		s32 selected = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
+		if (selected == g_MpSetupFile.defaultsetup - 1) {
+			strcpy(g_LabelSetDefault, "Set Default\n");
+			g_MpSetupFile.defaultsetup = -1;
+		}
+		else {
+			strcpy(g_LabelSetDefault, "Clear Default\n");
+			g_MpSetupFile.defaultsetup = selected + 1;
+		}
+
+		mpsetupSaveCurrentFile();
+	}
+
+	return 0;
+}
+
 struct menuitem g_ManageSetupItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -499,6 +532,14 @@ struct menuitem g_ManageSetupItems[] = {
 		(uintptr_t)"Delete\n",
 		0,
 		menuhandlerSetupDelete,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_LabelSetDefault,
+		0,
+		menuhandlerSetupSetDefault,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -624,8 +665,12 @@ static s32 deleteSetup()
 		g_MpCurrentSetup = -1;
 	}
 
+	 if (g_MpSetupFile.defaultsetup == slotindex + 1) {
+		 g_MpSetupFile.defaultsetup = 0;
+	 }
+
 	g_MpSetupFile.numsetups--;
-	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
+	return mpsetupSaveCurrentFile();
 }
 
 static FILE *openMpSetupFile(u8 mode, u8 op) {
@@ -689,8 +734,8 @@ s32 mpsetupLoadFile(struct mpsetupfile *setupfile, u8 op)
 
 	mpsetupDeserialize(setupfile, filebuffer);
 
-	if (op == MPSETUP_OP_DEFAULT && setupfile->defaultsetup != 0) {
-		g_MpCurrentSetup = setupfile->defaultsetup;
+	if (op == MPSETUP_OP_DEFAULT && setupfile->defaultsetup > 0) {
+		mpsetupLoadSetup(setupfile->defaultsetup - 1);
 	}
 
 	fsFileFree(f);
@@ -698,9 +743,14 @@ s32 mpsetupLoadFile(struct mpsetupfile *setupfile, u8 op)
 	return 0;
 }
 
-s32 mpsetupLoadCurrentSetupFile()
+s32 mpsetupLoadCurrentFile()
 {
 	return mpsetupLoadFile(&g_MpSetupFile, MPSETUP_OP_DEFAULT);
+}
+
+s32 mpsetupSaveCurrentFile()
+{
+	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
 }
 
 s32 importMpSetupFile(u8 op, u8 skipOverlap)
@@ -739,7 +789,7 @@ s32 importMpSetupFile(u8 op, u8 skipOverlap)
 		memcpy(g_MpSetupFile.setups[importIdx].bytes, g_ImportMpSetupFile.setups[i].bytes, MPSETUP_BLOCKSIZE);
 	}
 
-	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
+	return mpsetupSaveCurrentFile();
 }
 
 s32 exportMpSetupFile()
@@ -790,7 +840,7 @@ static s32 mpsetupSaveFile(u8 op, struct mpsetupfile *setupfile)
 	fsFileFree(f);
 
 	// reload the file to update in-memory structs
-	return mpsetupLoadFile(&g_MpSetupFile, MPSETUP_OP_DEFAULT);
+	return mpsetupLoadCurrentFile();
 }
 
 s32 mpsetupSaveSetup(s32 slotindex)
@@ -805,9 +855,9 @@ s32 mpsetupSaveSetup(s32 slotindex)
 	savebufferClear(&setup);
 	mpsetupfileSaveWad(&setup);
 
-	memcpy(g_MpSetupFile.setups[slotindex].bytes, &setup.bytes, MPSETUP_BLOCKSIZE);
+	memcpy(g_MpSetupFile.setups[slotindex].bytes, setup.bytes, MPSETUP_BLOCKSIZE);
 
-	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
+	return mpsetupSaveCurrentFile();
 }
 
 void mpsetupLoadSetup(s32 index)

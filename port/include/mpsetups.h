@@ -3,7 +3,8 @@
 
 #include "types.h"
 
-s32 mpsetupLoadCurrentSetupFile();
+s32 mpsetupLoadCurrentFile();
+s32 mpsetupSaveCurrentFile();
 void mpsetupLoadSetup(s32 slotindex);
 s32 mpsetupSaveSetup(s32 slotindex);
 
