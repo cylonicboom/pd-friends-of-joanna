@@ -33,7 +33,7 @@ struct menudialogdef g_MpChangeTeamNameMenuDialog;
 struct menudialogdef g_MpEditSimulantMenuDialog;
 struct menudialogdef g_MpSaveSetupNameMenuDialog;
 
-extern struct menudialogdef g_MpManageSettingsDialog;
+extern struct menudialogdef g_ManageSettingsDialog;
 extern struct menudialogdef g_FilemgrFileSavedMenuDialog;
 extern struct menudialogdef g_FilemgrErrorMenuDialog;
 
@@ -5363,7 +5363,7 @@ MenuDialogHandlerResult menudialogCombatSimulator(s32 operation, struct menudial
 		g_Vars.waitingtojoin[3] = false;
 
 		// load the setup file when entering the Combat Simulator
-		mpsetupLoadFile();
+		mpsetupLoadCurrentSetupFile();
 	}
 
 	if (g_Menus[g_MpPlayerNum].curdialog
@@ -5762,7 +5762,7 @@ struct menuitem g_MpAdvancedSetupMenuItems[] = {
 		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_LOCKABLEMAJOR,
 		(uintptr_t)"Manage Settings\n",
 		0,
-		(void *)&g_MpManageSettingsDialog,
+		(void *)&g_ManageSettingsDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
