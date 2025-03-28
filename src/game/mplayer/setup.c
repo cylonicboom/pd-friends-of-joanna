@@ -2265,7 +2265,7 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		}
 		if (g_MpSetupFile.numsetups > 0) {
 			struct setupblock *block = &g_MpSetupFile.setups[data->list.value - mpGetNumUnlockedPresets()];
-			func0f0d564c_ext(block->bytes, g_StringPointer, false, MPSETUP_MAXSETUPS+1);
+			func0f0d564c_ext(block->bytes, g_StringPointer, false, MPSETUP_MAXNAME+1);
 			return (uintptr_t)g_StringPointer;
 		}
 		break;
@@ -2306,6 +2306,9 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		if (data->list.value < mpGetNumUnlockedPresets()) {
 			g_Menus[g_MpPlayerNum].mpsetup.slotindex = 0xffff;
 		}
+		else {
+			g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value - mpGetNumUnlockedPresets();
+		}
 		break;
 	}
 
@@ -2321,14 +2324,14 @@ char *mpMenuTextMpconfigMarquee(struct menuitem *item)
 	s32 arenanum;
 	s32 i;
 
-	if (g_Menus[g_MpPlayerNum].mpsetup.slotindex < 0xffff && g_FileLists[1]) {
+	if (g_Menus[g_MpPlayerNum].mpsetup.slotindex < 0xffff && g_MpSetupFile.numsetups > 0) {
 #if VERSION >= VERSION_NTSC_1_0
 		arenanum = -1;
 #else
 		arenanum = 0;
 #endif
 
-		mpsetupfileGetOverview(g_FileLists[1]->files[g_Menus[g_MpPlayerNum].mpsetup.slotindex].name,
+		mpsetupfileGetOverview(g_MpSetupFile.setups[g_Menus[g_MpPlayerNum].mpsetup.slotindex].bytes,
 				filename, &numsims, &stagenum, &scenarionum);
 
 		for (i = 0; i < ARRAYCOUNT(g_MpArenas); i++) {

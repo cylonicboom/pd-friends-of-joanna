@@ -421,7 +421,7 @@ void scenarioReadSave(struct savebuffer *buffer)
 	if (g_MpScenarios[g_MpSetup.scenario].readsavefunc) {
 		g_MpScenarios[g_MpSetup.scenario].readsavefunc(buffer);
 	} else {
-		savebufferReadBits(buffer, 8);
+		savebufferReadBits(buffer, 32);
 	}
 }
 
