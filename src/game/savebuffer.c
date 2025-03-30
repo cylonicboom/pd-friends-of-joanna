@@ -374,13 +374,13 @@ Gfx *menugfxDrawPlane(Gfx *gdl, s32 x1, s32 y1, s32 x2, s32 y2, u32 colour1, u32
 /**
  * Write the specified amount of bits to the buffer, advancing the internal pointer.
  *
- * numbits is expected to be 32 or less.
+ * numbits is expected to be 64 or less.
  *
  * This function only sets bits to on and does not unset them.
  */
-void savebufferOr(struct savebuffer *buffer, u32 value, s32 numbits)
+void savebufferOr(struct savebuffer *buffer, u64 value, s32 numbits)
 {
-	u32 bit = 1 << (numbits - 1);
+	u64 bit = 1LL << (numbits - 1LL);
 
 	for (; bit; bit >>= 1) {
 		if (bit & value) {
@@ -399,11 +399,11 @@ void savebufferOr(struct savebuffer *buffer, u32 value, s32 numbits)
 /**
  * Write the specified amount of bits to the buffer, advancing the internal pointer.
  *
- * numbits is expected to be 32 or less.
+ * numbits is expected to be 64 or less.
  */
-void savebufferWriteBits(struct savebuffer *buffer, u32 value, s32 numbits, u8 *dst)
+void savebufferWriteBits(struct savebuffer *buffer, u64 value, s32 numbits, u8 *dst)
 {
-	u32 bit = 1 << (numbits - 1);
+	u64 bit = 1LL << (numbits - 1);
 
 	for (; bit; bit >>= 1) {
 		s32 bitindex = buffer->bitpos % 8;
@@ -425,12 +425,12 @@ void savebufferWriteBits(struct savebuffer *buffer, u32 value, s32 numbits, u8 *
  * Read the specified amount of bits from the buffer and return it as an
  * integer, advancing the internal pointer.
  *
- * numbits is expected to be 32 or less.
+ * numbits is expected to be 64 or less.
  */
-u32 savebufferReadBits(struct savebuffer *buffer, s32 numbits)
+u64 savebufferReadBits(struct savebuffer *buffer, s32 numbits)
 {
-	u32 bit = 1 << (numbits - 1);
-	u32 value = 0;
+	u64 bit = 1LL << (numbits - 1);
+	u64 value = 0;
 
 	for (; bit; bit >>= 1) {
 		s32 bitindex = buffer->bitpos % 8;
@@ -470,13 +470,6 @@ void savebufferWriteData(struct savebuffer *buffer, u8 *data, u8 len)
 	}
 }
 
-void func0f0d54c4(struct savebuffer *buffer)
-{
-	s32 tmp = buffer->bitpos;
-
-	if (tmp / 8 && buffer->bitpos);
-}
-
 /**
  * Read a zero-terminated string from the buffer and move the buffer's internal
  * pointer past the end of the string.
@@ -514,7 +507,7 @@ void savebufferReadString(struct savebuffer *buffer, char *dst, bool addlinebrea
 	savebufferReadString_ext(buffer, dst, addlinebreak, 10);
 }
 
-void func0f0d55a4_ext(struct savebuffer *buffer, char *src, u8 len)
+void savebufferWriteString_ext(struct savebuffer *buffer, char *src, u8 len)
 {
 	bool done = false;
 	s32 i;
@@ -537,9 +530,9 @@ void func0f0d55a4_ext(struct savebuffer *buffer, char *src, u8 len)
 	}
 }
 
-void func0f0d55a4(struct savebuffer *buffer, char *src)
+void savebufferWriteString(struct savebuffer *buffer, char *src)
 {
-	func0f0d55a4_ext(buffer, src, 10);
+	savebufferWriteString_ext(buffer, src, 10);
 }
 
 void func0f0d564c_ext(u8 *data, char *dst, bool addlinebreak, u8 len)
