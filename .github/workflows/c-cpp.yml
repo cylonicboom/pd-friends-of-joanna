@@ -291,19 +291,28 @@ jobs:
         path: io.github.fgsfdsfgs.perfect_dark.flatpak
         retention-days: 0
 
-
-  publish-tag-release:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/coup' || startsWith(github.ref, 'refs/heads/mod/') || startsWith(github.ref, 'refs/heads/builds/')
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Create tag and release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BRANCH_NAME=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/[^a-zA-Z0-9]/-/g')
-          TAG_NAME="release-${BRANCH_NAME}-$(date +'%Y%m%d%H%M%S')"
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
-          gh release create $TAG_NAME --title "$TAG_NAME" --notes "Automated release from workflow"
+publish-tag-release:
+  runs-on: ubuntu-latest
+  if: github.ref == 'refs/heads/coup' || startsWith(github.ref, 'refs/heads/mod/') || startsWith(github.ref, 'refs/heads/builds/')
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Create tag and release
+      id: create_release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        BRANCH_NAME=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/[^a-zA-Z0-9]/-/g')
+        TAG_NAME="release-pd-${BRANCH_NAME}-$(date +'%Y%m%d%H%M%S')"
+        git tag $TAG_NAME
+        git push origin $TAG_NAME
+        gh release create $TAG_NAME --title "$TAG_NAME" --notes "Automated release from workflow"
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts/
+    - name: Upload binaries to release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload $TAG_NAME artifacts/* --clobber
