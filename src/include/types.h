@@ -3774,6 +3774,7 @@ struct menudata_main {
 struct menudata_mpsetup {
 	u32 slotindex;
 	u32 slotcount;
+	u8 showpresets;
 	u32 unke24;
 };
 

@@ -602,6 +602,10 @@ void mpInit(void)
 	}
 
 	g_MpSetup.chrslots = 0;
+
+	for (i = 0; i < ARRAYCOUNT(g_Menus); i++) {
+		g_Menus[i].mpsetup.showpresets = 1;
+	}
 }
 
 #if VERSION >= VERSION_PAL_BETA

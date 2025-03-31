@@ -20,10 +20,12 @@
 #include "lib/vi.h"
 #include "lib/rng.h"
 #include "lib/str.h"
+#include "lib/joy.h"
 #include "data.h"
 #include "gbiex.h"
 #include "types.h"
 #include "system.h"
+#include "input.h"
 #include "mpsetups.h"
 
 struct menuitem g_MpCharacterMenuItems[];
@@ -2255,16 +2257,19 @@ MenuItemHandlerResult mpPlayerNameMenuHandler(s32 operation, struct menuitem *it
 
 MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	u8 presets = g_Menus[g_MpPlayerNum].mpsetup.showpresets;
+	s32 numpresets = mpGetNumUnlockedPresets()*presets;
+
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
-		data->list.value = mpGetNumUnlockedPresets() + g_MpSetupFile.numsetups;
+		data->list.value = numpresets + g_MpSetupFile.numsetups;
 		break;
 	case MENUOP_GETOPTIONTEXT:
-		if (data->list.value < mpGetNumUnlockedPresets()) {
+		if (presets && data->list.value < mpGetNumUnlockedPresets()) {
 			return (uintptr_t)mpGetPresetNameBySlot(data->list.value);
 		}
 		if (g_MpSetupFile.numsetups > 0) {
-			struct setupblock *block = &g_MpSetupFile.setups[data->list.value - mpGetNumUnlockedPresets()];
+			struct setupblock *block = &g_MpSetupFile.setups[data->list.value - numpresets];
 			func0f0d564c_ext(block->bytes, g_StringPointer, false, MPSETUP_MAXNAME+1);
 			return (uintptr_t)g_StringPointer;
 		}
@@ -2272,12 +2277,12 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 	case MENUOP_SET:
 		mpCloseDialogsForNewSetup();
 
-		if (data->list.value < mpGetNumUnlockedPresets()) {
+		if (presets && data->list.value < mpGetNumUnlockedPresets()) {
 			mp0f18dec4(data->list.value);
 			g_MpCurrentSetup = -1;
 		}
 		else {
-			mpsetupLoadSetup(data->list.value - mpGetNumUnlockedPresets());
+			mpsetupLoadSetup(data->list.value - numpresets);
 		}
 
 		if (item->param == 1) {
@@ -2292,22 +2297,22 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		data->list.value = 0xfffff;
 		break;
 	case MENUOP_GETOPTGROUPCOUNT:
-		data->list.value = 2;
+		data->list.value = presets ? 2 : 1;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
-		if (data->list.value == 0) {
+		if (presets && data->list.value == 0) {
 			return (uintptr_t)langGet(L_MPMENU_141); // "Presets"
 		}
 		return (uintptr_t)"Custom";
 	case MENUOP_GETGROUPSTARTINDEX:
-		data->list.groupstartindex = data->list.value == 0 ? 0 : mpGetNumUnlockedPresets();
+		data->list.groupstartindex = data->list.value == 0 ? 0 : numpresets;
 		break;
 	case MENUOP_LISTITEMFOCUS:
-		if (data->list.value < mpGetNumUnlockedPresets()) {
+		if (presets && data->list.value < mpGetNumUnlockedPresets()) {
 			g_Menus[g_MpPlayerNum].mpsetup.slotindex = 0xffff;
 		}
 		else {
-			g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value - mpGetNumUnlockedPresets();
+			g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value - numpresets;
 		}
 		break;
 	}
@@ -2635,14 +2640,40 @@ struct menuitem g_MpLoadSettingsMenuItems[] = {
 		0,
 		NULL,
 	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_LABEL,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SMALLFONT,
+		(uintptr_t)"Menu Alt: Toggle Presets\n",
+		0,
+		NULL,
+	},
 	{ MENUITEMTYPE_END },
 };
+
+MenuDialogHandlerResult loadSettingsDialogHandler(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
+{
+	if (operation == MENUOP_TICK) {
+		if (inputMenuAltMenuPressed(g_MpPlayerNum)) {
+			u8 presets = g_Menus[g_MpPlayerNum].mpsetup.showpresets;
+			g_Menus[g_MpPlayerNum].mpsetup.showpresets = 1 - presets;
+		}
+	}
+}
 
 struct menudialogdef g_MpLoadSettingsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	L_MPMENU_139, // "Load Game Settings"
 	g_MpLoadSettingsMenuItems,
-	NULL,
+	loadSettingsDialogHandler,
 	MENUDIALOGFLAG_CLOSEONSELECT,
 	NULL,
 };

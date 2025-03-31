@@ -1197,6 +1197,33 @@ s32 inputKeyJustPressed(u32 vk)
 	return result;
 }
 
+s32 inputMenuAlt1MenuPressed(s32 playerNum)
+{
+	s32 RSHOULDER = VK_JOY1_RSHOULDER + playerNum * INPUT_MAX_CONTROLLER_BUTTONS;
+
+	if (playerNum == 0) {
+		return inputKeyJustPressed(VK_LCTRL) || inputKeyJustPressed(RSHOULDER);
+	}
+
+	return inputKeyJustPressed(RSHOULDER);
+}
+
+s32 inputMenuAlt2MenuPressed(s32 playerNum)
+{
+	s32 LSHOULDER = VK_JOY1_LSHOULDER + playerNum * INPUT_MAX_CONTROLLER_BUTTONS;
+
+	if (playerNum == 0) {
+		return inputKeyJustPressed(VK_LALT) || inputKeyJustPressed(LSHOULDER);
+	}
+
+	return inputKeyJustPressed(LSHOULDER);
+}
+
+s32 inputMenuAltMenuPressed(s32 playerNum)
+{
+	return inputMenuAlt1MenuPressed(playerNum) || inputMenuAlt2MenuPressed(playerNum);
+}
+
 static inline u32 inputContToContKey(const u32 cont)
 {
 	if (cont == 0) {
