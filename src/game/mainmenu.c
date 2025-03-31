@@ -1888,7 +1888,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 		MENUITEMTYPE_SLIDER,
 		1,
 		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
-		L_MPWEAPONS_224, // "Enemy Health:"
+		(uintptr_t)"AI Health", // "Enemy Health:"
 		0x000000ff,
 		menuhandlerPdModeSetting,
 	},
@@ -1896,7 +1896,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 		MENUITEMTYPE_SLIDER,
 		2,
 		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
-		L_MPWEAPONS_225, // "Enemy Damage:"
+		(uintptr_t)"AI Damage", // "Enemy Damage:"
 		0x000000ff,
 		menuhandlerPdModeSetting,
 	},
@@ -1904,7 +1904,7 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 		MENUITEMTYPE_SLIDER,
 		3,
 		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
-		L_MPWEAPONS_226, // "Enemy Accuracy:"
+		(uintptr_t)"AI Accuracy", // "Enemy Accuracy:"
 		0x000000ff,
 		menuhandlerPdModeSetting,
 	},
