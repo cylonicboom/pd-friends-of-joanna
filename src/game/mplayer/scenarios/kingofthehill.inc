@@ -181,9 +181,10 @@ struct menudialogdef g_KohOptionsMenuDialog = {
 	NULL,
 };
 
-void kohReadSave(struct savebuffer *buffer)
+void kohReadSave(struct savebuffer *buffer, u8 version)
 {
-	g_Vars.mphilltime = savebufferReadBits(buffer, 32);
+	u8 sz = version > 0 ? 32 : 8;
+	g_Vars.mphilltime = savebufferReadBits(buffer, sz);
 }
 
 void kohWriteSave(struct savebuffer *buffer)

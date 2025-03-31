@@ -470,7 +470,7 @@ MenuItemHandlerResult menuhandlerMpSetupName(s32 operation, struct menuitem *ite
 		strcpy(g_MpSetup.name, name);
 		break;
 	case MENUOP_SET:
-		err = mpsetupSaveSetup(g_MpSetupFile.numsetups);
+		err = mpsetupSaveSetup(g_MpSetupFile.numsetups, true);
 		if (!err) {
 			menuPushDialog(&g_FilemgrFileSavedMenuDialog);
 		}
@@ -488,7 +488,7 @@ MenuItemHandlerResult menuhandlerMpSaveSetupOverwrite(s32 operation, struct menu
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
-		mpsetupSaveSetup(g_MpCurrentSetup);
+		mpsetupSaveSetup(g_MpCurrentSetup, true);
 		menuPushDialog(&g_FilemgrFileSavedMenuDialog);
 	}
 
@@ -5366,6 +5366,7 @@ MenuDialogHandlerResult menudialogCombatSimulator(s32 operation, struct menudial
 		g_Vars.waitingtojoin[3] = false;
 
 		// load the setup file when entering the Combat Simulator
+		mpsetupCopyAllFromPak();
 		mpsetupLoadCurrentFile();
 	}
 

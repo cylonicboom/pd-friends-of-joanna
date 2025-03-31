@@ -1,6 +1,8 @@
 #include "types.h"
 #include "constants.h"
 #include "bss.h"
+#include "game/pak.h"
+#include "game/filelist.h"
 #include "game/menu.h"
 #include "game/savebuffer.h"
 #include "game/mplayer/mplayer.h"
@@ -20,6 +22,8 @@ MP Setup File Format
 	...
 	[setup_n{64}]
  */
+
+#define MPSETUP_VERSION 1
 
 #define MPSETUP_EXPORTDIR "$S/exported/"
 #define MPSETUP_FILENAME "mpsetups"
@@ -131,7 +135,7 @@ MenuItemHandlerResult menuhandlerRenameSetup(s32 operation, struct menuitem *ite
 			break;
 		case MENUOP_SET:
 			strcpy(setup->bytes, name);
-			err = mpsetupSaveSetup(slotindex);
+			err = mpsetupSaveSetup(slotindex, true);
 			if (!err) {
 				menuPopDialog();
 			}
@@ -501,13 +505,14 @@ static MenuItemHandlerResult menuhandlerSetupSetDefault(s32 operation, struct me
 {
 	if (operation == MENUOP_SET) {
 		s32 selected = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
+		// clicked on "clear default"
 		if (selected == g_MpSetupFile.defaultsetup - 1) {
-			strcpy(g_LabelSetDefault, "Set Default\n");
 			g_MpSetupFile.defaultsetup = -1;
+			strcpy(g_LabelSetDefault, "Set Default\n");
 		}
 		else {
-			strcpy(g_LabelSetDefault, "Clear Default\n");
 			g_MpSetupFile.defaultsetup = selected + 1;
+			strcpy(g_LabelSetDefault, "Clear Default\n");
 		}
 
 		mpsetupSaveCurrentFile();
@@ -750,6 +755,7 @@ s32 mpsetupLoadCurrentFile()
 
 s32 mpsetupSaveCurrentFile()
 {
+	g_MpSetupFile.version = MPSETUP_VERSION;
 	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
 }
 
@@ -843,7 +849,7 @@ static s32 mpsetupSaveFile(u8 op, struct mpsetupfile *setupfile)
 	return mpsetupLoadCurrentFile();
 }
 
-s32 mpsetupSaveSetup(s32 slotindex)
+s32 mpsetupSaveSetup(s32 slotindex, u8 savefile)
 {
 	struct savebuffer setup;
 
@@ -857,7 +863,7 @@ s32 mpsetupSaveSetup(s32 slotindex)
 
 	memcpy(g_MpSetupFile.setups[slotindex].bytes, setup.bytes, MPSETUP_BLOCKSIZE);
 
-	return mpsetupSaveCurrentFile();
+	return savefile ? mpsetupSaveCurrentFile() : 0;
 }
 
 void mpsetupLoadSetup(s32 index)
@@ -866,6 +872,39 @@ void mpsetupLoadSetup(s32 index)
 	savebufferClear(&buffer);
 	struct setupblock *block = &g_MpSetupFile.setups[index];
 	memcpy(&buffer.bytes, block->bytes, MPSETUP_BLOCKSIZE);
-	mpsetupfileLoadWad(&buffer);
+	mpsetupfileLoadWad(&buffer, g_MpSetupFile.version);
 	g_MpCurrentSetup = index;
+}
+
+void mpsetupCopyAllFromPak()
+{
+	if (fsFileSize("$S/" MPSETUP_FILENAME ".bin") > 0) {
+		return;
+	}
+
+	filelistCreate(1, FILETYPE_MPSETUP);
+	filelistsTick();
+
+	for (int i = 0; i < g_FileLists[1]->numfiles; ++i) {
+		struct savebuffer buffer;
+		savebufferClear(&buffer);
+		struct filelistfile *file = &g_FileLists[1]->files[i];
+		s32 device = pakFindBySerial(file->deviceserial);
+		s32 err = pakReadBodyAtGuid(device, file->fileid, buffer.bytes, 0);
+
+		if (err != 0) {
+			sysLogPrintf(LOG_ERROR, "Unable to read pak. device %d fileid %d deviceserial %d err %d",
+				device, file->fileid, file->deviceserial, err);
+			continue;
+		}
+
+		mpsetupfileLoadWad(&buffer, 0);
+
+		// save the file when writing the last setup
+		u8 savefile = i == g_FileLists[1]->numfiles - 1;
+		mpsetupSaveSetup(g_MpSetupFile.numsetups, savefile);
+	}
+
+	// to reset the mp setup
+	mpInit();
 }

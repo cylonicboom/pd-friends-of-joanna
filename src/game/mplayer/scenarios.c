@@ -70,7 +70,7 @@ struct mpscenario {
 	bool (*isroomhighlightedfunc)(RoomNum room);
 	void (*highlightroomfunc)(RoomNum room, s32 *arg1, s32 *arg2, s32 *arg3);
 	void *unk3c; // never hooked into nor fired
-	void (*readsavefunc)(struct savebuffer *buffer);
+	void (*readsavefunc)(struct savebuffer *buffer, u8 version);
 	void (*writesavefunc)(struct savebuffer *buffer);
 };
 
@@ -416,12 +416,13 @@ MenuItemHandlerResult menuhandlerMpOpenOptions(s32 operation, struct menuitem *i
  *
  * Used by KOH to read the mphilltime.
  */
-void scenarioReadSave(struct savebuffer *buffer)
+void scenarioReadSave(struct savebuffer *buffer, u8 version)
 {
 	if (g_MpScenarios[g_MpSetup.scenario].readsavefunc) {
-		g_MpScenarios[g_MpSetup.scenario].readsavefunc(buffer);
+		g_MpScenarios[g_MpSetup.scenario].readsavefunc(buffer, version);
 	} else {
-		savebufferReadBits(buffer, 32);
+		u8 sz = version > 0 ? 32 : 8;
+		savebufferReadBits(buffer, sz);
 	}
 }
 

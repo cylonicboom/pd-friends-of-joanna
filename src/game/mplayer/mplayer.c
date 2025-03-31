@@ -3933,16 +3933,32 @@ void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version)
 	s32 i;
 	s32 j;
 
-	savebufferReadString_ext(buffer, g_MpSetup.name, false, MPSETUP_MAXNAME+1);
+	if (version > 0) {
+		savebufferReadString_ext(buffer, g_MpSetup.name, false, MPSETUP_MAXNAME + 1);
+	}
+	else {
+		savebufferReadString(buffer, g_MpSetup.name, false);
+	}
+
 	savebufferReadBits(buffer, 4);
 
 	g_MpSetup.stagenum = savebufferReadBits(buffer, 7);
 	g_MpSetup.scenario = savebufferReadBits(buffer, 3);
 
-	scenarioInit();
-	scenarioReadSave(buffer);
+	// version == 0 means we're only reading to convert, so no actions are needed
+	if (version > 0) {
+		scenarioInit();
+	}
 
-	g_MpSetup.options = savebufferReadBits(buffer, 32);
+	scenarioReadSave(buffer, version);
+
+	if (version > 0) {
+		g_MpSetup.options = savebufferReadBits(buffer, 32);
+	}
+	else {
+		g_MpSetup.options = savebufferReadBits(buffer, 21);
+	}
+
 	g_MpSetup.chrslots &= 0x000f;
 
 	for (i = 0; i < MAX_BOTS; i++) {
@@ -3963,14 +3979,18 @@ void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version)
 		g_BotConfigsArray[i].base.team = savebufferReadBits(buffer, 3);
 	}
 
-	mpGenerateBotNames();
+	if (version > 0) {
+		mpGenerateBotNames();
+	}
 
 	for (i = 0; i < ARRAYCOUNT(g_MpSetup.weapons); i++) {
 		g_MpSetup.weapons[i] = savebufferReadBits(buffer, 7);
 	}
 
-	u64 wpnRndPacked = savebufferReadBits(buffer, 64);
-	unpackWeaponSetRandomFilters(wpnRndPacked);
+	if (version > 0) {
+		u64 wpnRndPacked = savebufferReadBits(buffer, 64);
+		unpackWeaponSetRandomFilters(wpnRndPacked);
+	}
 
 	func0f18913c();
 
