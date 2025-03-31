@@ -663,16 +663,16 @@ static s32 deleteSetup()
 		memcpy(dst, src, MPSETUP_BLOCKSIZE);
 	}
 
-	if (g_MpCurrentSetup > slotindex) {
+	if (g_MpCurrentSetup >= slotindex) {
 		g_MpCurrentSetup--;
 	}
-	else if (g_MpCurrentSetup == slotindex) {
-		g_MpCurrentSetup = -1;
-	}
 
-	 if (g_MpSetupFile.defaultsetup == slotindex + 1) {
-		 g_MpSetupFile.defaultsetup = 0;
-	 }
+	if (g_MpSetupFile.defaultsetup > slotindex + 1) {
+		 g_MpSetupFile.defaultsetup--;
+	}
+	else if (g_MpSetupFile.defaultsetup == slotindex + 1) {
+		g_MpSetupFile.defaultsetup = 0;
+	}
 
 	g_MpSetupFile.numsetups--;
 	return mpsetupSaveCurrentFile();
