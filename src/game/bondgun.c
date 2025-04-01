@@ -5593,6 +5593,20 @@ void bgunTickSwitch2(void)
 						}
 
 						setCurrentPlayerNum(i);
+
+						// taken from
+						// playerRemoveChrBody
+						g_Vars.currentplayer->haschrbody = false;
+						chrRemove(g_Vars.currentplayer->prop, false);
+						g_Vars.currentplayer->model00d4 = NULL;
+						playerTickChrBody();
+
+						bmoveUpdateRooms(g_Vars.currentplayer);
+						if (PLAYERCOUNT() == 1) {
+							bgunFreeGunMem();
+							g_Vars.currentplayer->gunmem2 = NULL;
+						}
+
 						if (i == prevplayer) {
 							invRemoveItemByNum(ctrl->weaponnum);
 							bgunCycleBack();
