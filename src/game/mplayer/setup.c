@@ -459,6 +459,7 @@ MenuItemHandlerResult menuhandlerMpConfirmSaveChr(s32 operation, struct menuitem
 	return 0;
 }
 
+extern struct menudialogdef g_StatusErrorDialog;
 MenuItemHandlerResult menuhandlerMpSetupName(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	char *name = data->keyboard.string;
@@ -475,10 +476,10 @@ MenuItemHandlerResult menuhandlerMpSetupName(s32 operation, struct menuitem *ite
 		err = mpsetupSaveSetup(g_MpSetupFile.numsetups, true);
 		if (!err) {
 			menuPushDialog(&g_FilemgrFileSavedMenuDialog);
+			g_MpCurrentSetup = g_MpSetupFile.numsetups - 1;
 		}
 		else {
-//			menuPushDialog(&g_FilemgrErrorMenuDialog);
-			// TODO
+			menuPushDialog(&g_StatusErrorDialog);
 		}
 		break;
 	}
@@ -1092,8 +1093,8 @@ struct menuitem g_MpSaveSetupNameMenuItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
-		MENUITEMFLAG_LESSLEFTPADDING,
-		L_MPMENU_189, // "Enter a name for your game setup file:"
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING,
+		(uintptr_t)"Enter the setup name:\n",
 		0,
 		NULL,
 	},
@@ -2322,7 +2323,7 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 
 char *mpMenuTextMpconfigMarquee(struct menuitem *item)
 {
-	char filename[20];
+	char filename[MPSETUP_MAXNAME+1];
 	u16 numsims;
 	u16 stagenum;
 	u16 scenarionum;
@@ -2628,7 +2629,7 @@ struct menuitem g_MpLoadSettingsMenuItems[] = {
 		MENUITEMTYPE_LIST,
 		0,
 		0,
-		160,
+		0x00000078,
 		0x00000042,
 		mpLoadSettingsMenuHandler,
 	},

@@ -154,8 +154,8 @@ struct menuitem g_RenameSetupItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
-		MENUITEMFLAG_LESSLEFTPADDING,
-		L_MPMENU_189, // "Enter a name for your game setup file:"
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING,
+		(uintptr_t)"Enter the setup name:\n",
 		0,
 		NULL,
 	},
@@ -663,8 +663,11 @@ static s32 deleteSetup()
 		memcpy(dst, src, MPSETUP_BLOCKSIZE);
 	}
 
-	if (g_MpCurrentSetup >= slotindex) {
+	if (g_MpCurrentSetup > slotindex) {
 		g_MpCurrentSetup--;
+	}
+	else if (g_MpCurrentSetup == slotindex) {
+		g_MpCurrentSetup = -1;
 	}
 
 	if (g_MpSetupFile.defaultsetup > slotindex + 1) {
@@ -802,8 +805,10 @@ s32 exportMpSetupFile()
 {
 	struct mpsetupfile expMpSetupFile;
 	expMpSetupFile.numsetups = 0;
-	
-	u8 maxsetups = g_MpImportExportFilter[1] == 0 ? 64 : 128;
+	expMpSetupFile.defaultsetup = 0;
+	expMpSetupFile.version = MPSETUP_VERSION;
+
+	u8 maxsetups = MPSETUP_MAXSETUPS;
 	maxsetups = MIN(maxsetups, g_MpSetupFile.numsetups);
 	for (int i = 0; i < maxsetups; ++i) {
 		u8 bank = i < 64 ? 0 : 1;
@@ -840,13 +845,12 @@ static s32 mpsetupSaveFile(u8 op, struct mpsetupfile *setupfile)
 	if (nwritten < 1) {
 		fsFileFree(f);
 		sysLogPrintf(LOG_ERROR, "Unable to write the MP setup file");
+		sprintf(g_StatusText, "Unable to write the setup file\n");
 		return -1;
 	}
 
 	fsFileFree(f);
-
-	// reload the file to update in-memory structs
-	return mpsetupLoadCurrentFile();
+	return 0;
 }
 
 s32 mpsetupSaveSetup(s32 slotindex, u8 savefile)

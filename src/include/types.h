@@ -3983,13 +3983,14 @@ struct menu {
 	union {
 		struct menudata_endscreen endscreen;
 		struct menudata_main main;
-		struct menudata_mpsetup mpsetup;
 		struct menudata_mppause mppause;
 		struct menudata_mpend mpend;
 		struct menudata_filemgr fm;
 		struct menudata_main4mb main4mb;
 		struct menudata_training training;
 	};
+
+	struct menudata_mpsetup mpsetup;
 };
 
 struct gamefile {
