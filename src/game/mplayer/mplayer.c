@@ -518,12 +518,6 @@ void mpPlayerSetDefaults(s32 playernum, bool autonames)
 	for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
 		g_PlayerConfigsArray[playernum].gunfuncs[i] = 0;
 	}
-
-#ifndef PLATFORM_N64
-	for (i = 0; i < ARRAYCOUNT(g_MpWeapons); i++) {
-		g_MpWeaponSetRandomFilters[i] = 1;
-	}
-#endif
 }
 
 void func0f1881d4(s32 index)
@@ -535,7 +529,7 @@ void func0f1881d4(s32 index)
 	g_BotConfigsArray[index].difficulty = BOTDIFF_DISABLED;
 }
 
-void mpInit(void)
+void mpInit(bool resetplayers)
 {
 	s32 i;
 	s32 j;
@@ -568,8 +562,10 @@ void mpInit(void)
 
 	strcpy(g_MpSetup.name, "");
 
-	for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
-		mpPlayerSetDefaults(i, false);
+	if (resetplayers) {
+		for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
+			mpPlayerSetDefaults(i, false);
+		}
 	}
 
 	for (i = 0; i < MAX_BOTS; i++) {
@@ -606,6 +602,12 @@ void mpInit(void)
 	for (i = 0; i < ARRAYCOUNT(g_Menus); i++) {
 		g_Menus[i].mpsetup.showpresets = 1;
 	}
+
+#ifndef PLATFORM_N64
+	for (i = 0; i < ARRAYCOUNT(g_MpWeapons); i++) {
+		g_MpWeaponSetRandomFilters[i] = 1;
+	}
+#endif
 }
 
 #if VERSION >= VERSION_PAL_BETA

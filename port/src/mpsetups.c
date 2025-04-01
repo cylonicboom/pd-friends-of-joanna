@@ -910,5 +910,5 @@ void mpsetupCopyAllFromPak()
 	}
 
 	// to reset the mp setup
-	mpInit();
+	mpInit(false);
 }

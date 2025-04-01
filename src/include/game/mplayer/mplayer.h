@@ -13,7 +13,7 @@ void func0f187fbc(s32 playernum);
 void func0f187fec(void);
 void mpPlayerSetDefaults(s32 playernum, bool autonames);
 void func0f1881d4(s32 index);
-void mpInit(void);
+void mpInit(bool resetplayers);
 void mpGetTeamsWithDefaultName(u8 *mask);
 void mpSetTeamNamesToDefault(u8 mask);
 void mpSetDefaultNamesIfEmpty(void);
