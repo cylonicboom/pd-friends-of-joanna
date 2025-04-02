@@ -288,6 +288,6 @@ s32 fsCreateDir(const char *path) {
 #ifdef PLATFORM_WIN32
 	return _mkdir(fsFullPath(path));
 #else
-	return mkdir(fsFullPath(path), S_IRWXU | S_IRWXG)
+	return mkdir(fsFullPath(path), S_IRWXU | S_IRWXG);
 #endif
 }
