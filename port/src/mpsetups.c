@@ -18,9 +18,9 @@ MP Setup File Format
 	[defaultsetup{1}]
 	[numsetups{1}]
 	# setups
-	[setup_1{64}]
+	[setup_1{80}]
 	...
-	[setup_n{64}]
+	[setup_n{80}]
  */
 
 #define MPSETUP_VERSION 1

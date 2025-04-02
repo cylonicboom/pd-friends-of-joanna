@@ -3998,7 +3998,7 @@ void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version)
 		unpackWeaponSetRandomFilters(wpnRndPacked);
 	}
 
-	func0f18913c();
+	g_MpWeaponSetNum = savebufferReadBits(buffer, 8);
 
 	g_MpSetup.timelimit = savebufferReadBits(buffer, 6);
 	g_MpSetup.scorelimit = savebufferReadBits(buffer, 7);
@@ -4066,6 +4066,7 @@ void mpsetupfileSaveWad(struct savebuffer *buffer)
 
 	u64 wpnRndPacked = packWeaponSetRandomFilters();
 	savebufferOr(buffer, wpnRndPacked, 64);
+	savebufferOr(buffer, g_MpWeaponSetNum, 8);
 
 	savebufferOr(buffer, g_MpSetup.timelimit, 6);
 	savebufferOr(buffer, g_MpSetup.scorelimit, 7);
