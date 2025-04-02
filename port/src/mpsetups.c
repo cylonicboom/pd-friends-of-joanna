@@ -314,6 +314,7 @@ MenuItemHandlerResult menuhandlerImportOrExportSettings(s32 operation, struct me
 						}
 						else {
 							if (err == MPSETUP_IMPORT_CONFLICT) {
+								menuPopDialog();
 								menuPushDialog(&g_ImportOverrideDialog);
 							}
 							else {
@@ -817,7 +818,6 @@ s32 exportMpSetupFile()
 			u8 n = expMpSetupFile.numsetups;
 			expMpSetupFile.numsetups++;
 			char *name = g_MpSetupFile.setups[i].bytes;
-			sysLogPrintf(LOG_NOTE, "%s", name);
 			memcpy(expMpSetupFile.setups[n].bytes, g_MpSetupFile.setups[i].bytes, MPSETUP_BLOCKSIZE);
 			expMpSetupFile.numsetups = n + 1;
 		}
