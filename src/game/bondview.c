@@ -174,13 +174,22 @@ Gfx *bviewCopyPixels(Gfx *gdl, u16 *fb, s32 top, u32 tile, s32 arg4, f32 arg5, s
 
 Gfx *bviewDrawFisheyeRect(Gfx *gdl, s32 arg1, f32 arg2, s32 arg3, s32 arg4)
 {
+	// arg1: y-coordinate
+	// arg2: draw something when greater than 2
+	// arg3: viewleft
+	// arg4: viewwidth
 	if (arg2 < 1) {
-		f32 tmp = arg4 * 0.5f;
-		f32 fVar4 = arg3 + tmp;
-		f32 fVar7 = (s32)(arg2 * tmp);
+		f32 halfw = arg4 * 0.5f;
+		f32 xcenter = arg3 + halfw;
+		f32 fVar7 = (s32)(arg2 * halfw);
+		f32 fVar7Extra = 0;
 
-		gDPFillRectangle(gdl++, arg3, arg1, fVar4 - fVar7, arg1 + 1);
-		gDPFillRectangle(gdl++, fVar4 + fVar7, arg1, arg3 + arg4, arg1 + 1);
+		if ((optionsGetScreenSplit() == SCREENSPLIT_VERTICAL && PLAYERCOUNT() == 2) || PLAYERCOUNT() > 2) {
+			fVar7Extra = fVar7;
+		}
+
+		gDPFillRectangle(gdl++, arg3, arg1, xcenter - fVar7 - fVar7Extra, arg1 + 1);
+		gDPFillRectangle(gdl++, xcenter + fVar7 + fVar7Extra, arg1, arg3 + arg4, arg1 + 1);
 	}
 
 	return gdl;
@@ -601,8 +610,15 @@ static inline Gfx *bviewDrawFisheyeLine(Gfx *gdl, s32 viewleft, s32 viewwidth, s
 	const f32 orighalfw = viewwidth * 0.5f;
 	const f32 xcenter = viewleft + orighalfw;
 	const f32 halfw = orighalfw * scale;
-	const s32 left = xcenter - halfw;
-	const s32 right = xcenter + halfw;
+	s32 left;
+	s32 right;
+	if ((optionsGetScreenSplit() == SCREENSPLIT_VERTICAL && PLAYERCOUNT() == 2) || (PLAYERCOUNT() > 2)) {
+		left = xcenter - halfw - halfw;
+		right = xcenter + halfw + halfw;
+	} else {
+		left = xcenter - halfw;
+		right = xcenter + halfw;
+	}
 
 	gSPImageRectangleEXT(gdl++,
 		left << 2, y << 2, viewleft, y,
@@ -1029,6 +1045,9 @@ Gfx *bviewDrawEyespyMetrics(Gfx *gdl)
 
 #if VERSION >= VERSION_NTSC_1_0
 	if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL && PLAYERCOUNT() >= 2) {
+		vsplit = true;
+	}
+	if (PLAYERCOUNT() > 2) {
 		vsplit = true;
 	}
 #endif
