@@ -43,6 +43,33 @@ extern struct menudialogdef g_FilemgrErrorMenuDialog;
 extern s32 g_MpWeaponSetNum;
 #endif
 
+static inline s32 menuAlt1Pressed(s32 playerNum)
+{
+	const s32 rshoulderKey = VK_JOY1_RSHOULDER + playerNum * INPUT_MAX_CONTROLLER_BUTTONS;
+
+	if (playerNum == 0) {
+		return inputKeyJustPressed(VK_LCTRL) || inputKeyJustPressed(rshoulderKey);
+	}
+
+	return inputKeyJustPressed(rshoulderKey);
+}
+
+static inline s32 menuAlt2Pressed(s32 playerNum)
+{
+	const s32 lshoulderKey = VK_JOY1_LSHOULDER + playerNum * INPUT_MAX_CONTROLLER_BUTTONS;
+
+	if (playerNum == 0) {
+		return inputKeyJustPressed(VK_LALT) || inputKeyJustPressed(lshoulderKey);
+	}
+
+	return inputKeyJustPressed(lshoulderKey);
+}
+
+static inline s32 menuAltPressed(s32 playerNum)
+{
+	return menuAlt1Pressed(playerNum) || menuAlt2Pressed(playerNum);
+}
+
 MenuItemHandlerResult menuhandlerMpDropOut(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -2281,8 +2308,7 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 		if (presets && data->list.value < mpGetNumUnlockedPresets()) {
 			mp0f18dec4(data->list.value);
 			g_MpCurrentSetup = -1;
-		}
-		else {
+		} else {
 			mpsetupLoadSetup(data->list.value - numpresets);
 		}
 
@@ -2311,8 +2337,7 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 	case MENUOP_LISTITEMFOCUS:
 		if (presets && data->list.value < mpGetNumUnlockedPresets()) {
 			g_Menus[g_MpPlayerNum].mpsetup.slotindex = 0xffff;
-		}
-		else {
+		} else {
 			g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value - numpresets;
 		}
 		break;
@@ -2566,6 +2591,16 @@ MenuDialogHandlerResult menudialogMpSimulant(s32 operation, struct menudialogdef
 	return false;
 }
 
+MenuDialogHandlerResult mpLoadSettingsDialogHandler(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
+{
+	if (operation == MENUOP_TICK) {
+		if (menuAltPressed(g_MpPlayerNum)) {
+			u8 presets = g_Menus[g_MpPlayerNum].mpsetup.showpresets;
+			g_Menus[g_MpPlayerNum].mpsetup.showpresets = 1 - presets;
+		}
+	}
+}
+
 struct menuitem g_MpCharacterMenuItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
@@ -2660,21 +2695,11 @@ struct menuitem g_MpLoadSettingsMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-MenuDialogHandlerResult loadSettingsDialogHandler(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
-{
-	if (operation == MENUOP_TICK) {
-		if (inputMenuAltMenuPressed(g_MpPlayerNum)) {
-			u8 presets = g_Menus[g_MpPlayerNum].mpsetup.showpresets;
-			g_Menus[g_MpPlayerNum].mpsetup.showpresets = 1 - presets;
-		}
-	}
-}
-
 struct menudialogdef g_MpLoadSettingsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	L_MPMENU_139, // "Load Game Settings"
 	g_MpLoadSettingsMenuItems,
-	loadSettingsDialogHandler,
+	mpLoadSettingsDialogHandler,
 	MENUDIALOGFLAG_CLOSEONSELECT,
 	NULL,
 };

@@ -3,10 +3,10 @@
 
 #include "types.h"
 
-s32 mpsetupLoadCurrentFile();
-s32 mpsetupSaveCurrentFile();
+s32 mpsetupLoadCurrentFile(void);
+s32 mpsetupSaveCurrentFile(void);
 void mpsetupLoadSetup(s32 slotindex);
 s32 mpsetupSaveSetup(s32 slotindex, u8 savefile);
-void mpsetupCopyAllFromPak();
+void mpsetupCopyAllFromPak(void);
 
 #endif

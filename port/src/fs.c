@@ -284,10 +284,11 @@ void fsFileFree(FILE *f)
 	fclose(f);
 }
 
-s32 fsCreateDir(const char *path) {
+s32 fsCreateDir(const char *path)
+{
 #ifdef PLATFORM_WIN32
 	return _mkdir(fsFullPath(path));
 #else
-	return mkdir(fsFullPath(path), S_IRWXU | S_IRWXG);
+	return mkdir(fsFullPath(path), 0777);
 #endif
 }

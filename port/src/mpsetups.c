@@ -40,26 +40,29 @@ MP Setup File Format
 
 extern struct menudialogdef g_MpSaveSetupNameMenuDialog;
 
-u8 filebuffer[sizeof(struct mpsetupfile)];
-
-struct mpsetupfile g_MpSetupFile;
-struct mpsetupfile g_ImportMpSetupFile;
 s16 g_MpCurrentSetup = -1;
-u64 g_MpImportExportFilter[2];
+struct mpsetupfile g_MpSetupFile;
 
-#define BUF_READ(dst, buf, type) { dst = *(type*)((buf)); buf += sizeof(type); }
-#define BUF_WRITE(src, buf, type) { *((type*)(buf)) = src; buf += sizeof(type); }
-#define BUF_WRITEBLOCK(buf, src, size) { \
-	memcpy(buf, src, size); \
-	buf += size; }
+static struct mpsetupfile g_ImportMpSetupFile;
+static u64 g_MpImportExportFilter[2];
 
-static inline void zeroFileBuffer()
-{
-	memset(filebuffer, 0, sizeof(struct mpsetupfile));
-}
+static char g_StatusText[128];
+static char g_TitleImportExportDialog[20];
+static char g_LabelSetDefault[20] = "Set Default\n";
 
-char g_StatusText[128];
-struct menuitem g_StatusOkMenuItems[] = {
+/* extended mpsetup menu definitions */
+
+static MenuItemHandlerResult menuhandlerRenameSetup(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerDeleteSetup(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerImportOrExportSettings(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerImportAction(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerOpenImportExportDialog(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerSelectSetupHandler(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerSetupRename(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerSetupDelete(s32 operation, struct menuitem *item, union handlerdata *data);
+static MenuItemHandlerResult menuhandlerSetupSetDefault(s32 operation, struct menuitem *item, union handlerdata *data);
+
+static struct menuitem g_StatusOkMenuItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
@@ -79,7 +82,7 @@ struct menuitem g_StatusOkMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_StatusOkDialog = {
+static struct menudialogdef g_StatusOkDialog = {
 	MENUDIALOGTYPE_SUCCESS,
 	L_OPTIONS_345, // "Cool!"
 	g_StatusOkMenuItems,
@@ -88,7 +91,7 @@ struct menudialogdef g_StatusOkDialog = {
 	NULL,
 };
 
-struct menuitem g_StatusErrorMenuItems[] = {
+static struct menuitem g_StatusErrorMenuItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
@@ -108,6 +111,7 @@ struct menuitem g_StatusErrorMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
+/* public */
 struct menudialogdef g_StatusErrorDialog = {
 		MENUDIALOGTYPE_DANGER,
 		L_OPTIONS_277, // "Failed"
@@ -117,39 +121,7 @@ struct menudialogdef g_StatusErrorDialog = {
 		NULL,
 };
 
-// #### Rename setup dialog
-MenuItemHandlerResult menuhandlerRenameSetup(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	char *name = data->keyboard.string;
-	s32 slotindex = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
-	struct setupblock *setup = &g_MpSetupFile.setups[slotindex];
-	s32 err;
-
-	switch (operation) {
-		case MENUOP_GETTEXT:
-//			strcpy(name, g_MpSetup.name);
-			strcpy(name, setup->bytes);
-			break;
-		case MENUOP_SETTEXT:
-			strcpy(g_MpSetup.name, name);
-			break;
-		case MENUOP_SET:
-			strcpy(setup->bytes, name);
-			err = mpsetupSaveSetup(slotindex, true);
-			if (!err) {
-				menuPopDialog();
-			}
-			else {
-				// TODO
-//				menuPushDialog(&g_FilemgrFileSavedMenuDialog);
-			}
-			break;
-	}
-
-	return 0;
-}
-
-struct menuitem g_RenameSetupItems[] = {
+static struct menuitem g_RenameSetupItems[] = {
 #if VERSION != VERSION_JPN_FINAL
 	{
 		MENUITEMTYPE_LABEL,
@@ -171,7 +143,7 @@ struct menuitem g_RenameSetupItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_RenameSetupDialog = {
+static struct menudialogdef g_RenameSetupDialog = {
 		MENUDIALOGTYPE_DEFAULT,
 		(uintptr_t)"Setup Name:\n",
 		g_RenameSetupItems,
@@ -180,25 +152,7 @@ struct menudialogdef g_RenameSetupDialog = {
 		NULL,
 };
 
-// #### Delete setup dialog
-static s32 deleteSetup();
-MenuItemHandlerResult menuhandlerDeleteSetup(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	if (operation == MENUOP_SET) {
-		s32 err = deleteSetup();
-		if (!err) {
-			menuPopDialog();
-			menuPopDialog();
-		}
-		else {
-			// TODO
-		}
-	}
-
-	return 0;
-}
-
-struct menuitem g_DeleteSetupItems[] = {
+static struct menuitem g_DeleteSetupItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
@@ -226,7 +180,7 @@ struct menuitem g_DeleteSetupItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_DeleteSetupDialog = {
+static struct menudialogdef g_DeleteSetupDialog = {
 		MENUDIALOGTYPE_DANGER,
 		(uintptr_t)"Delete Setup\n",
 		g_DeleteSetupItems,
@@ -235,112 +189,7 @@ struct menudialogdef g_DeleteSetupDialog = {
 		NULL,
 };
 
-// #### Import (or Export) settings dialog
-s32 importMpSetupFile(u8 op, u8 skipOverlap);
-s32 exportMpSetupFile();
-struct menudialogdef g_ManageSettingsDialog;
-struct menudialogdef g_ImportOverrideDialog;
-MenuItemHandlerResult menuhandlerImportOrExportSettings(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	static const char *labels[] = {
-		"Select All",
-		"Select None",
-		"Import",
-		"Export",
-	};
-
-	s32 op = g_Menus[g_MpPlayerNum].mpsetup.unke24;
-
-	struct mpsetupfile *setupfile = op == MPSETUP_OP_IMPORT ? &g_ImportMpSetupFile : &g_MpSetupFile;
-
-	u8 numsetups = setupfile->numsetups;
-	u8 numitems = numsetups + 3;
-	u8 bank = data->list.value < 64 ? 0 : 1;
-	u8 bit = data->list.value - bank * 64;
-	u8 hasselection = (g_MpImportExportFilter[0] | g_MpImportExportFilter[1]) != 0;
-	s32 err;
-
-	switch (operation) {
-		case MENUOP_GETCOLOUR: {
-			u32 colour = data->list.unk04;
-			if (data->list.value == numitems - 1) {
-				data->list.unk04 = hasselection ? colour : (colour & 0xffffff00) | 0x66;
-			}
-			break;
-		}
-		case MENUOP_GETOPTIONCOUNT:
-			data->list.value = numitems;
-			break;
-		case MENUOP_GETOPTIONTEXT:
-			if (data->list.value < numsetups) {
-				return (uintptr_t) setupfile->setups[data->list.value].bytes;
-			}
-			else {
-				// creates an offset to select the "Export" or "Import" label for the last item
-				u8 ofs = (data->list.value == numitems - 1) ? op - 1 : 0;
-				return (intptr_t)labels[data->list.value - numsetups + ofs];
-			}
-		case MENUOP_SET: {
-			if (data->list.value < setupfile->numsetups) {
-				g_MpImportExportFilter[bank] ^= (1 << bit);
-			}
-			else {
-				s32 index = data->list.value - setupfile->numsetups;
-
-				switch (index) {
-				// Select All
-				case 0:
-					g_MpImportExportFilter[0] = g_MpImportExportFilter[1] = -1;
-					break;
-				// Select None
-				case 1:
-					g_MpImportExportFilter[0] = g_MpImportExportFilter[1] = 0;
-					break;
-				// Export (or Import)
-				case 2:
-					if (hasselection) {
-						err = op == MPSETUP_OP_IMPORT ? importMpSetupFile(0, false) : exportMpSetupFile();
-						if (!err) {
-							menuPopDialog();
-							if (op == MPSETUP_OP_IMPORT) {
-								// back to the 'Manage Settings' screen
-								menuPopDialog();
-								menuPushDialog(&g_ManageSettingsDialog);
-							}
-							else {
-								sprintf(g_StatusText, "File %s.bin\nwritten to the folder 'exported'\n", MPSETUP_FILENAME_EXP);
-								menuPushDialog(&g_StatusOkDialog);
-							}
-						}
-						else {
-							if (err == MPSETUP_IMPORT_CONFLICT) {
-								menuPopDialog();
-								menuPushDialog(&g_ImportOverrideDialog);
-							}
-							else {
-								menuPushDialog(&g_StatusErrorDialog);
-							}
-						}
-					}
-					break;
-				}
-			}
-		}
-		case MENUOP_GETSELECTEDINDEX:
-			data->list.value = 0x000fffff;
-			break;
-		case MENUOP_GETLISTITEMCHECKBOX: {
-			if (data->list.value < numsetups) {
-				data->list.unk04 = (g_MpImportExportFilter[bank] & (1 << bit));
-			}
-			break;
-		}
-	}
-
-	return 0;
-}
-
-struct menuitem g_ImportExportItems[] = {
+static struct menuitem g_ImportExportItems[] = {
 	{
 		MENUITEMTYPE_LIST,
 		0,
@@ -352,8 +201,7 @@ struct menuitem g_ImportExportItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-char g_TitleImportExportDialog[20];
-struct menudialogdef g_ImportExportDialog = {
+static struct menudialogdef g_ImportExportDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t) g_TitleImportExportDialog,
 	g_ImportExportItems,
@@ -362,40 +210,7 @@ struct menudialogdef g_ImportExportDialog = {
 	NULL,
 };
 
-
-// #### Manage Import/Export settings dialog
-s32 mpsetupLoadFile(struct mpsetupfile *setupfile, u8 op);
-MenuItemHandlerResult menuhandlerOpenImportExportDialog(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	switch (operation) {
-		case MENUOP_SET:
-		{
-			if (item->param == MPSETUP_OP_IMPORT) {
-				strcpy(g_TitleImportExportDialog, "Import Settings\n");
-				if (fsFileSize("$S/" MPSETUP_FILENAME_EXP ".bin") < 0) {
-					sprintf(g_StatusText,
-							"No import file found.\n"
-							"Place the file %s.bin\n"
-							"Next to your %s.bin file\n", MPSETUP_FILENAME_EXP, MPSETUP_FILENAME);
-					menuPushDialog(&g_StatusErrorDialog);
-					return 0;
-				}
-
-				mpsetupLoadFile(&g_ImportMpSetupFile, MPSETUP_OP_IMPORT);
-			}
-			else {
-				strcpy(g_TitleImportExportDialog, "Export Settings\n");
-			}
-			g_Menus[g_MpPlayerNum].mpsetup.unke24 = item->param;
-			g_MpImportExportFilter[0] = g_MpImportExportFilter[1] = -1;
-			menuPushDialog(&g_ImportExportDialog);
-		}
-	}
-
-	return 0;
-}
-
-struct menuitem g_ManageImportExportItems[] = {
+static struct menuitem g_ManageImportExportItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		MPSETUP_OP_IMPORT,
@@ -415,7 +230,7 @@ struct menuitem g_ManageImportExportItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_ManageImportExportDialog = {
+static struct menudialogdef g_ManageImportExportDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t) "Import/Export\n",
 	g_ManageImportExportItems,
@@ -424,56 +239,20 @@ struct menudialogdef g_ManageImportExportDialog = {
 	NULL,
 };
 
-// #### Manage settings dialog
-struct menudialogdef g_ManageSetupDialog;
-char g_LabelSetDefault[20] = "Set Default\n";
-MenuItemHandlerResult mpSelectSetupHandler(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	switch (operation) {
-	case MENUOP_GETCOLOUR: {
-		u32 colour = data->list.unk04;
-		if (data->list.value + 1 == g_MpSetupFile.defaultsetup) {
-			data->list.unk04 = (colour & 0xffff0000) | 0xff;
-		}
-		break;
-	}
-	case MENUOP_GETOPTIONCOUNT:
-		data->list.value = g_MpSetupFile.numsetups;
-		break;
-	case MENUOP_GETOPTIONTEXT:
-		return (uintptr_t) g_MpSetupFile.setups[data->list.value].bytes;
-	case MENUOP_SET:
-	{
-		g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value;
-		if (data->list.value == g_MpSetupFile.defaultsetup - 1) {
-			strcpy(g_LabelSetDefault, "Clear Default\n");
-		}
-		else {
-			strcpy(g_LabelSetDefault, "Set Default\n");
-		}
-		menuPushDialog(&g_ManageSetupDialog);
-	}
-	case MENUOP_GETSELECTEDINDEX:
-		data->list.value = 0xfffff;
-		break;
-	}
-
-	return 0;
-}
-
-struct menuitem g_MpManageSettingsListItems[] = {
+static struct menuitem g_MpManageSettingsListItems[] = {
 	{
 		MENUITEMTYPE_LIST,
 		0,
 		MENUITEMFLAG_LABEL_CUSTOMCOLOUR,
 		160,
 		0x00000042,
-		mpSelectSetupHandler,
+		menuhandlerSelectSetupHandler,
 	},
 	{ MENUITEMTYPE_END },
 
 };
 
+/* public */
 struct menudialogdef g_ManageSettingsDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t) "Manage Settings\n",
@@ -483,46 +262,7 @@ struct menudialogdef g_ManageSettingsDialog = {
 	&g_ManageImportExportDialog,
 };
 
-struct menudialogdef g_RenameSetupDialog;
-static MenuItemHandlerResult menuhandlerSetupRename(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	if (operation == MENUOP_SET) {
-		menuPushDialog(&g_RenameSetupDialog);
-	}
-
-	return 0;
-}
-
-static MenuItemHandlerResult menuhandlerSetupDelete(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	if (operation == MENUOP_SET) {
-		menuPushDialog(&g_DeleteSetupDialog);
-	}
-
-	return 0;
-}
-
-static MenuItemHandlerResult menuhandlerSetupSetDefault(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	if (operation == MENUOP_SET) {
-		s32 selected = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
-		// clicked on "clear default"
-		if (selected == g_MpSetupFile.defaultsetup - 1) {
-			g_MpSetupFile.defaultsetup = -1;
-			strcpy(g_LabelSetDefault, "Set Default\n");
-		}
-		else {
-			g_MpSetupFile.defaultsetup = selected + 1;
-			strcpy(g_LabelSetDefault, "Clear Default\n");
-		}
-
-		mpsetupSaveCurrentFile();
-	}
-
-	return 0;
-}
-
-struct menuitem g_ManageSetupItems[] = {
+static struct menuitem g_ManageSetupItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
@@ -566,7 +306,7 @@ struct menuitem g_ManageSetupItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_ManageSetupDialog = {
+static struct menudialogdef g_ManageSetupDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)"Manage Setup",
 	g_ManageSetupItems,
@@ -575,28 +315,10 @@ struct menudialogdef g_ManageSetupDialog = {
 	NULL,
 };
 
-// #### Import: overwrite dialog
-MenuItemHandlerResult menuhandlerImportAction(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	if (operation == MENUOP_SET) {
-		s32 err = importMpSetupFile(item->param, true);
-		if (!err) {
-			menuPopDialog();
-			menuPushDialog(&g_ManageSettingsDialog);
-		}
-		else {
-			menuPushDialog(&g_StatusErrorDialog);
-		}
-	}
-
-	return 0;
-}
-
-struct menuitem g_ImportOverrideItems[] = {
+static struct menuitem g_ImportOverrideItems[] = {
 	{
 		MENUITEMTYPE_LABEL,
 		0,
-//		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SMALLFONT,
 		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING,
 		(uintptr_t) "How to resolve setups\nwith the same name?\n",
 		0,
@@ -621,7 +343,7 @@ struct menuitem g_ImportOverrideItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_ImportOverrideDialog = {
+static struct menudialogdef g_ImportOverrideDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)"Name Conflicts\n",
 	g_ImportOverrideItems,
@@ -629,60 +351,40 @@ struct menudialogdef g_ImportOverrideDialog = {
 	MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
-// --------------------------------------------------------
-static void mpsetupDeserialize(struct mpsetupfile *setupfile, u8 *buffer)
+
+/* common utils */
+
+static s32 mpsetupDeserialize(FILE *f, struct mpsetupfile *setupfile)
 {
-	BUF_READ(setupfile->version, buffer, u8);
-	BUF_READ(setupfile->defaultsetup, buffer, u8);
-	BUF_READ(setupfile->numsetups, buffer, u8);
+	s32 rx = 0;
+
+	rx += fread(&setupfile->version, sizeof(setupfile->version), 1, f);
+	rx += fread(&setupfile->defaultsetup, sizeof(setupfile->defaultsetup), 1, f);
+	rx += fread(&setupfile->numsetups, sizeof(setupfile->numsetups), 1, f);
 
 	for (int i = 0; i < setupfile->numsetups; ++i) {
-		memcpy(setupfile->setups[i].bytes, buffer, MPSETUP_BLOCKSIZE);
-		buffer += MPSETUP_BLOCKSIZE;
+		rx += fread(setupfile->setups[i].bytes, sizeof(setupfile->setups[i].bytes), 1, f);
 	}
+
+	return rx;
 }
 
-void mpsetupSerialize(u8 *buffer, struct mpsetupfile *setupfile)
+static s32 mpsetupSerialize(FILE *f, struct mpsetupfile *setupfile)
 {
-	BUF_WRITE(setupfile->version, buffer, u8);
-	BUF_WRITE(setupfile->defaultsetup, buffer, u8);
-	BUF_WRITE(setupfile->numsetups, buffer, u8);
+	s32 wx = 0;
+
+	wx += fwrite(&setupfile->version, sizeof(setupfile->version), 1, f);
+	wx += fwrite(&setupfile->defaultsetup, sizeof(setupfile->defaultsetup), 1, f);
+	wx += fwrite(&setupfile->numsetups, sizeof(setupfile->numsetups), 1, f);
 
 	for (int i = 0; i < setupfile->numsetups; ++i) {
-		BUF_WRITEBLOCK(buffer, setupfile->setups[i].bytes, MPSETUP_BLOCKSIZE)
+		wx += fwrite(setupfile->setups[i].bytes, sizeof(setupfile->setups[i].bytes), 1, f);
 	}
+
+	return wx;
 }
 
-static s32 mpsetupSaveFile(u8 op, struct mpsetupfile *setupfile);
-static s32 deleteSetup()
-{
-	s32 slotindex = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
-	for (int i = slotindex; i < g_MpSetupFile.numsetups - 1; ++i) {
-		u8* dst = g_MpSetupFile.setups[i].bytes;
-		u8* src = g_MpSetupFile.setups[i+1].bytes;
-
-		memcpy(dst, src, MPSETUP_BLOCKSIZE);
-	}
-
-	if (g_MpCurrentSetup > slotindex) {
-		g_MpCurrentSetup--;
-	}
-	else if (g_MpCurrentSetup == slotindex) {
-		g_MpCurrentSetup = -1;
-	}
-
-	if (g_MpSetupFile.defaultsetup > slotindex + 1) {
-		 g_MpSetupFile.defaultsetup--;
-	}
-	else if (g_MpSetupFile.defaultsetup == slotindex + 1) {
-		g_MpSetupFile.defaultsetup = 0;
-	}
-
-	g_MpSetupFile.numsetups--;
-	return mpsetupSaveCurrentFile();
-}
-
-static FILE *openMpSetupFile(u8 mode, u8 op) {
+static FILE *mpsetupOpenFile(bool write, u8 op) {
 	const char *filename = fsFullPath("$S/" MPSETUP_FILENAME ".bin");
 
 	if (op == MPSETUP_OP_EXPORT) {
@@ -693,8 +395,7 @@ static FILE *openMpSetupFile(u8 mode, u8 op) {
 			}
 		}
 		filename = fsFullPath(MPSETUP_EXPORTDIR MPSETUP_FILENAME_EXP ".bin");
-	}
-	else if (op == MPSETUP_OP_IMPORT) {
+	} else if (op == MPSETUP_OP_IMPORT) {
 		// same name as export but different folder
 		filename = fsFullPath("$S/" MPSETUP_FILENAME_EXP ".bin");
 	}
@@ -707,15 +408,10 @@ static FILE *openMpSetupFile(u8 mode, u8 op) {
 		fsFileFree(f);
 	}
 
-	if (mode == 'r') {
-		f = fsFileOpenRead(filename);
-	}
-	else if (mode == 'w') {
+	if (write) {
 		f = fsFileOpenWrite(filename);
-	}
-	else {
-		sysLogPrintf(LOG_ERROR, "openMpSetupFile: invalid file mode");
-		return NULL;
+	} else {
+		f = fsFileOpenRead(filename);
 	}
 
 	if (f == NULL) {
@@ -726,22 +422,33 @@ static FILE *openMpSetupFile(u8 mode, u8 op) {
 	return f;
 }
 
-s32 mpsetupLoadFile(struct mpsetupfile *setupfile, u8 op)
+static s32 mpsetupSaveFile(u8 op, struct mpsetupfile *setupfile)
 {
-	FILE *f = openMpSetupFile('r', op);
+	FILE *f = mpsetupOpenFile(true, op);
 	if (f == NULL) {
 		return -1;
 	}
 
-	zeroFileBuffer();
+	s32 nwritten = mpsetupSerialize(f, setupfile);
+	if (nwritten < 1) {
+		fsFileFree(f);
+		sysLogPrintf(LOG_ERROR, "Unable to write the MP setup file");
+		snprintf(g_StatusText, sizeof(g_StatusText), "Unable to write the setup file\n");
+		return -1;
+	}
 
-	fseek(f, 0L, SEEK_END);
-	size_t size = ftell(f);
-	fseek(f, 0, SEEK_SET);
+	fsFileFree(f);
+	return 0;
+}
 
-	fread(filebuffer, 1, size, f);
+static s32 mpsetupLoadFile(struct mpsetupfile *setupfile, u8 op)
+{
+	FILE *f = mpsetupOpenFile(false, op);
+	if (f == NULL) {
+		return -1;
+	}
 
-	mpsetupDeserialize(setupfile, filebuffer);
+	mpsetupDeserialize(f, setupfile);
 
 	if (op == MPSETUP_OP_DEFAULT && setupfile->defaultsetup > 0) {
 		mpsetupLoadSetup(setupfile->defaultsetup - 1);
@@ -752,18 +459,7 @@ s32 mpsetupLoadFile(struct mpsetupfile *setupfile, u8 op)
 	return 0;
 }
 
-s32 mpsetupLoadCurrentFile()
-{
-	return mpsetupLoadFile(&g_MpSetupFile, MPSETUP_OP_DEFAULT);
-}
-
-s32 mpsetupSaveCurrentFile()
-{
-	g_MpSetupFile.version = MPSETUP_VERSION;
-	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
-}
-
-s32 importMpSetupFile(u8 op, u8 skipOverlap)
+static s32 mpsetupImportFile(u8 op, u8 skipOverlap)
 {
 	if (!skipOverlap) {
 		// check for names overlap
@@ -790,7 +486,7 @@ s32 importMpSetupFile(u8 op, u8 skipOverlap)
 		s16 importIdx = overlapIdx;
 		if (overlapIdx < 0 || op == MPSETUP_IMPORT_ADD) {
 			if (g_MpSetupFile.numsetups == MPSETUP_MAXSETUPS) {
-				sprintf(g_StatusText, "Number of setups exceeds %d\n", MPSETUP_MAXSETUPS);
+				snprintf(g_StatusText, sizeof(g_StatusText), "Number of setups exceeds %d\n", MPSETUP_MAXSETUPS);
 				return -1;
 			}
 			importIdx = g_MpSetupFile.numsetups++;
@@ -802,7 +498,7 @@ s32 importMpSetupFile(u8 op, u8 skipOverlap)
 	return mpsetupSaveCurrentFile();
 }
 
-s32 exportMpSetupFile()
+static s32 mpsetupExportFile(void)
 {
 	struct mpsetupfile expMpSetupFile;
 	expMpSetupFile.numsetups = 0;
@@ -825,32 +521,318 @@ s32 exportMpSetupFile()
 
 	s32 err = mpsetupSaveFile(MPSETUP_OP_EXPORT, &expMpSetupFile);
 	if (err) {
-		sprintf(g_StatusText, "Unable to write\nsetup file\n");
+		snprintf(g_StatusText, sizeof(g_StatusText), "Unable to write\nsetup file\n");
 	}
 
 	return err;
 }
 
-static s32 mpsetupSaveFile(u8 op, struct mpsetupfile *setupfile)
+static s32 mpsetupDelete(void)
 {
-	zeroFileBuffer();
-	mpsetupSerialize(filebuffer, setupfile);
-
-	FILE *f = openMpSetupFile('w', op);
-	if (f == NULL) {
-		return -1;
+	s32 slotindex = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
+	for (int i = slotindex; i < g_MpSetupFile.numsetups - 1; ++i) {
+		u8* dst = g_MpSetupFile.setups[i].bytes;
+		u8* src = g_MpSetupFile.setups[i+1].bytes;
+		memcpy(dst, src, MPSETUP_BLOCKSIZE);
 	}
 
-	size_t nwritten = fwrite(filebuffer, sizeof(struct mpsetupfile), 1, f);
-	if (nwritten < 1) {
-		fsFileFree(f);
-		sysLogPrintf(LOG_ERROR, "Unable to write the MP setup file");
-		sprintf(g_StatusText, "Unable to write the setup file\n");
-		return -1;
+	if (g_MpCurrentSetup > slotindex) {
+		g_MpCurrentSetup--;
+	}
+	else if (g_MpCurrentSetup == slotindex) {
+		g_MpCurrentSetup = -1;
 	}
 
-	fsFileFree(f);
+	if (g_MpSetupFile.defaultsetup > slotindex + 1) {
+		 g_MpSetupFile.defaultsetup--;
+	}
+	else if (g_MpSetupFile.defaultsetup == slotindex + 1) {
+		g_MpSetupFile.defaultsetup = 0;
+	}
+
+	g_MpSetupFile.numsetups--;
+	return mpsetupSaveCurrentFile();
+}
+
+/* menu handlers */
+
+// Rename setup dialog
+static MenuItemHandlerResult menuhandlerRenameSetup(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	char *name = data->keyboard.string;
+	s32 slotindex = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
+	struct setupblock *setup = &g_MpSetupFile.setups[slotindex];
+	s32 err;
+
+	switch (operation) {
+	case MENUOP_GETTEXT:
+		strcpy(name, setup->bytes);
+		break;
+	case MENUOP_SETTEXT:
+		strcpy(g_MpSetup.name, name);
+		break;
+	case MENUOP_SET:
+		strcpy(setup->bytes, name);
+		err = mpsetupSaveSetup(slotindex, true);
+		if (!err) {
+			menuPopDialog();
+		} else {
+			// TODO
+			// menuPushDialog(&g_FilemgrFileSavedMenuDialog);
+		}
+		break;
+	}
+
 	return 0;
+}
+
+// Delete setup dialog
+static MenuItemHandlerResult menuhandlerDeleteSetup(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		s32 err = mpsetupDelete();
+		if (!err) {
+			menuPopDialog();
+			menuPopDialog();
+		} else {
+			// TODO
+		}
+	}
+
+	return 0;
+}
+
+// Import (or Export) settings dialog
+static MenuItemHandlerResult menuhandlerImportOrExportSettings(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	static const char *labels[] = {
+		"Select All",
+		"Select None",
+		"Import",
+		"Export",
+	};
+
+	s32 op = g_Menus[g_MpPlayerNum].mpsetup.unke24;
+
+	struct mpsetupfile *setupfile = op == MPSETUP_OP_IMPORT ? &g_ImportMpSetupFile : &g_MpSetupFile;
+
+	u8 numsetups = setupfile->numsetups;
+	u8 numitems = numsetups + 3;
+	u8 bank = data->list.value < 64 ? 0 : 1;
+	u8 bit = data->list.value - bank * 64;
+	u8 hasselection = (g_MpImportExportFilter[0] | g_MpImportExportFilter[1]) != 0;
+	u8 ofs;
+	s32 err;
+	u32 colour;
+	s32 index;
+
+	switch (operation) {
+	case MENUOP_GETCOLOUR:
+		colour = data->list.unk04;
+		if (data->list.value == numitems - 1) {
+			data->list.unk04 = hasselection ? colour : (colour & 0xffffff00) | 0x66;
+		}
+		break;
+
+	case MENUOP_GETOPTIONCOUNT:
+		data->list.value = numitems;
+		break;
+
+	case MENUOP_GETOPTIONTEXT:
+		if (data->list.value < numsetups) {
+			return (uintptr_t) setupfile->setups[data->list.value].bytes;
+		} else {
+			// creates an offset to select the "Export" or "Import" label for the last item
+			ofs = (data->list.value == numitems - 1) ? op - 1 : 0;
+			return (intptr_t)labels[data->list.value - numsetups + ofs];
+		}
+
+	case MENUOP_SET:
+		if (data->list.value < setupfile->numsetups) {
+			g_MpImportExportFilter[bank] ^= (1 << bit);
+		} else {
+			index = data->list.value - setupfile->numsetups;
+
+			switch (index) {
+			// Select All
+			case 0:
+				g_MpImportExportFilter[0] = g_MpImportExportFilter[1] = -1;
+				break;
+			// Select None
+			case 1:
+				g_MpImportExportFilter[0] = g_MpImportExportFilter[1] = 0;
+				break;
+			// Export (or Import)
+			case 2:
+				if (hasselection) {
+					err = op == MPSETUP_OP_IMPORT ? mpsetupImportFile(0, false) : mpsetupExportFile();
+					if (!err) {
+						menuPopDialog();
+						if (op == MPSETUP_OP_IMPORT) {
+							// back to the 'Manage Settings' screen
+							menuPopDialog();
+							menuPushDialog(&g_ManageSettingsDialog);
+						} else {
+							snprintf(g_StatusText, sizeof(g_StatusText), "File %s.bin\nwritten to the folder 'exported'\n", MPSETUP_FILENAME_EXP);
+							menuPushDialog(&g_StatusOkDialog);
+						}
+					} else {
+						if (err == MPSETUP_IMPORT_CONFLICT) {
+							menuPopDialog();
+							menuPushDialog(&g_ImportOverrideDialog);
+						} else {
+							menuPushDialog(&g_StatusErrorDialog);
+						}
+					}
+				}
+				break;
+			}
+		}
+		break;
+
+	case MENUOP_GETSELECTEDINDEX:
+		data->list.value = 0x000fffff;
+		break;
+
+	case MENUOP_GETLISTITEMCHECKBOX:
+		if (data->list.value < numsetups) {
+			data->list.unk04 = (g_MpImportExportFilter[bank] & (1 << bit));
+		}
+		break;
+	}
+
+	return 0;
+}
+
+// Import: overwrite dialog
+static MenuItemHandlerResult menuhandlerImportAction(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		s32 err = mpsetupImportFile(item->param, true);
+		if (!err) {
+			menuPopDialog();
+			menuPushDialog(&g_ManageSettingsDialog);
+		} else {
+			menuPushDialog(&g_StatusErrorDialog);
+		}
+	}
+
+	return 0;
+}
+
+// Manage Import/Export settings dialog
+static MenuItemHandlerResult menuhandlerOpenImportExportDialog(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_SET:
+		if (item->param == MPSETUP_OP_IMPORT) {
+			strcpy(g_TitleImportExportDialog, "Import Settings\n");
+			if (fsFileSize("$S/" MPSETUP_FILENAME_EXP ".bin") < 0) {
+				snprintf(
+					g_StatusText, sizeof(g_StatusText),
+					"No import file found.\n"
+					"Place the file %s.bin\n"
+					"Next to your %s.bin file\n",
+					MPSETUP_FILENAME_EXP, MPSETUP_FILENAME
+				);
+				menuPushDialog(&g_StatusErrorDialog);
+				return 0;
+			}
+
+			mpsetupLoadFile(&g_ImportMpSetupFile, MPSETUP_OP_IMPORT);
+		} else {
+			strcpy(g_TitleImportExportDialog, "Export Settings\n");
+		}
+		g_Menus[g_MpPlayerNum].mpsetup.unke24 = item->param;
+		g_MpImportExportFilter[0] = g_MpImportExportFilter[1] = -1;
+		menuPushDialog(&g_ImportExportDialog);
+		break;
+	}
+
+	return 0;
+}
+
+// Manage settings dialog
+static MenuItemHandlerResult menuhandlerSelectSetupHandler(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	u32 colour;
+	switch (operation) {
+	case MENUOP_GETCOLOUR:
+		colour = data->list.unk04;
+		if (data->list.value + 1 == g_MpSetupFile.defaultsetup) {
+			data->list.unk04 = (colour & 0xffff0000) | 0xff;
+		}
+		break;
+	case MENUOP_GETOPTIONCOUNT:
+		data->list.value = g_MpSetupFile.numsetups;
+		break;
+	case MENUOP_GETOPTIONTEXT:
+		return (uintptr_t) g_MpSetupFile.setups[data->list.value].bytes;
+	case MENUOP_SET:
+		g_Menus[g_MpPlayerNum].mpsetup.slotindex = data->list.value;
+		if (data->list.value == g_MpSetupFile.defaultsetup - 1) {
+			strcpy(g_LabelSetDefault, "Clear Default\n");
+		} else {
+			strcpy(g_LabelSetDefault, "Set Default\n");
+		}
+		menuPushDialog(&g_ManageSetupDialog);
+		break;
+	case MENUOP_GETSELECTEDINDEX:
+		data->list.value = 0xfffff;
+		break;
+	}
+
+	return 0;
+}
+
+static MenuItemHandlerResult menuhandlerSetupRename(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		menuPushDialog(&g_RenameSetupDialog);
+	}
+
+	return 0;
+}
+
+static MenuItemHandlerResult menuhandlerSetupDelete(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		menuPushDialog(&g_DeleteSetupDialog);
+	}
+
+	return 0;
+}
+
+static MenuItemHandlerResult menuhandlerSetupSetDefault(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		s32 selected = g_Menus[g_MpPlayerNum].mpsetup.slotindex;
+		// clicked on "clear default"
+		if (selected == g_MpSetupFile.defaultsetup - 1) {
+			g_MpSetupFile.defaultsetup = -1;
+			strcpy(g_LabelSetDefault, "Set Default\n");
+		} else {
+			g_MpSetupFile.defaultsetup = selected + 1;
+			strcpy(g_LabelSetDefault, "Clear Default\n");
+		}
+
+		mpsetupSaveCurrentFile();
+	}
+
+	return 0;
+}
+
+/* public functions */
+
+s32 mpsetupLoadCurrentFile(void)
+{
+	return mpsetupLoadFile(&g_MpSetupFile, MPSETUP_OP_DEFAULT);
+}
+
+s32 mpsetupSaveCurrentFile(void)
+{
+	g_MpSetupFile.version = MPSETUP_VERSION;
+	return mpsetupSaveFile(MPSETUP_OP_DEFAULT, &g_MpSetupFile);
 }
 
 s32 mpsetupSaveSetup(s32 slotindex, u8 savefile)
@@ -880,7 +862,7 @@ void mpsetupLoadSetup(s32 index)
 	g_MpCurrentSetup = index;
 }
 
-void mpsetupCopyAllFromPak()
+void mpsetupCopyAllFromPak(void)
 {
 	if (fsFileSize("$S/" MPSETUP_FILENAME ".bin") > 0) {
 		return;

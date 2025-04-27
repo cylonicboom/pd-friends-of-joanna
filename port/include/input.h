@@ -270,8 +270,4 @@ const char *inputGetClipboard(void);
 // returns keymod values
 u32 inputGetKeyModState(void);
 
-s32 inputMenuAlt1MenuPressed(s32 playerNum);
-s32 inputMenuAlt2MenuPressed(s32 playerNum);
-s32 inputMenuAltMenuPressed(s32 playerNum);
-
 #endif
