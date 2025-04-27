@@ -43,33 +43,6 @@ extern struct menudialogdef g_FilemgrErrorMenuDialog;
 extern s32 g_MpWeaponSetNum;
 #endif
 
-static inline s32 menuAlt1Pressed(s32 playerNum)
-{
-	const s32 rshoulderKey = VK_JOY1_RSHOULDER + playerNum * INPUT_MAX_CONTROLLER_BUTTONS;
-
-	if (playerNum == 0) {
-		return inputKeyJustPressed(VK_LCTRL) || inputKeyJustPressed(rshoulderKey);
-	}
-
-	return inputKeyJustPressed(rshoulderKey);
-}
-
-static inline s32 menuAlt2Pressed(s32 playerNum)
-{
-	const s32 lshoulderKey = VK_JOY1_LSHOULDER + playerNum * INPUT_MAX_CONTROLLER_BUTTONS;
-
-	if (playerNum == 0) {
-		return inputKeyJustPressed(VK_LALT) || inputKeyJustPressed(lshoulderKey);
-	}
-
-	return inputKeyJustPressed(lshoulderKey);
-}
-
-static inline s32 menuAltPressed(s32 playerNum)
-{
-	return menuAlt1Pressed(playerNum) || menuAlt2Pressed(playerNum);
-}
-
 MenuItemHandlerResult menuhandlerMpDropOut(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -2594,7 +2567,7 @@ MenuDialogHandlerResult menudialogMpSimulant(s32 operation, struct menudialogdef
 MenuDialogHandlerResult mpLoadSettingsDialogHandler(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
 	if (operation == MENUOP_TICK) {
-		if (menuAltPressed(g_MpPlayerNum)) {
+		if (menuAltAnyPressed(g_MpPlayerNum)) {
 			u8 presets = g_Menus[g_MpPlayerNum].mpsetup.showpresets;
 			g_Menus[g_MpPlayerNum].mpsetup.showpresets = 1 - presets;
 		}
