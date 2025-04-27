@@ -293,7 +293,7 @@ jobs:
 
   publish-latest-build:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/port'
+    if: github.ref == 'refs/heads/coup' || startsWith(github.ref, 'refs/heads/mod/') || startsWith(github.ref, 'refs/heads/builds/')
     needs: [build-i686-windows, build-i686-linux, build-x86_64-windows, build-x86_64-linux, build-arm64-nswitch, build-x86_64-osx, build-arm64-osx, build-flatpak-bundle]
     permissions:
       contents: write
