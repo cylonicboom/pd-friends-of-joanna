@@ -4789,8 +4789,8 @@ struct menudata_5d8 {
 struct menudata {
 	/*0x000*/ s32 count;
 	/*0x004*/ s32 root;
-	/*0x008*/ s32 unk008; // also a menuroot constant
-	/*0x00c*/ struct menudialogdef *unk00c;
+	/*0x008*/ s32 prevmenuroot; // also a menuroot constant
+	/*0x00c*/ struct menudialogdef *prevmenudialog;
 	/*0x010*/ f32 unk010;
 	/*0x014*/ u8 bg;
 	/*0x015*/ u8 nextbg;
