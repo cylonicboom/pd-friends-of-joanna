@@ -1,0 +1,34 @@
+# investigation
+stage 0x33 {
+  setupfile "UsetupearZ"
+}
+
+# chicago
+stage 0x1d {
+  setupfile "UsetuppeteZ"
+}
+
+# infiltration
+stage 0x2f {
+  setupfile "UsetuplueZ"
+}
+
+# deep sea
+stage 0x38 {
+  setupfile "UsetuppamZ"
+}
+
+# ci defense
+stage 0x2d {
+  setupfile "UsetupimpZ"
+}
+
+# attack ship
+stage 0x34 {
+  setupfile "UsetupleeZ"
+}
+
+# skedar ruins
+stage 0x2a {
+  setupfile "UsetupshoZ"
+}
