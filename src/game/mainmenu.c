@@ -2115,10 +2115,10 @@ void teamMissionConfigStrUpdateMarquee()
 	strTrimToFirstNewline(g_PlayerConfigsArray[3].base.name, player4Name, ARRAYCOUNT(g_PlayerConfigsArray[3].base.name));
 
    // TODO: remove debug text
-	printf("Player 1: %s\n", player1Name);
-	printf("Player 2: %s\n", player2Name);
-	printf("Player 3: %s\n", player3Name);
-	printf("Player 4: %s\n", player4Name);
+	// printf("Player 1: %s\n", player1Name);
+	// printf("Player 2: %s\n", player2Name);
+	// printf("Player 3: %s\n", player3Name);
+	// printf("Player 4: %s\n", player4Name);
 
 	sprintf(g_TeamMissionConfig_marqueestring, "Mission: %s | %s: %s, %s: %s, %s: %s, %s: %s\n\0", nextStageName, player1Name,
 		 (char*)g_PlayerRoleNames[g_Vars.playerroles[0]],
@@ -2127,7 +2127,7 @@ void teamMissionConfigStrUpdateMarquee()
 		 player4Name,(char*)g_PlayerRoleNames[g_Vars.playerroles[3]]);
 
    // TODO: remove debug text
-	printf("Marquee: %s\n", g_TeamMissionConfig_marqueestring);
+	// printf("Marquee: %s\n", g_TeamMissionConfig_marqueestring);
 }
 
 struct menuitem g_TeamMissionsHubMenuItems[] = {
