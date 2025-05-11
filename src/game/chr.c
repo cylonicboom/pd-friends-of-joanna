@@ -4664,8 +4664,6 @@ void chrHit(struct shotdata *shotdata, struct hit *hit)
 			return;
 		}
 
-		printf("Anti: firing at a guard!");
-
 		if ((g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.bondplayernum == g_Vars.currentplayernum)
 				&& g_Vars.coopfriendlyfire == false
 				&& (isChrPropCoop(prop) || g_Vars.bond->prop == prop)) {
