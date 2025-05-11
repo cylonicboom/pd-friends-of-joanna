@@ -2332,8 +2332,7 @@ bool aiIfChrActivatedObject(void)
 				if (chr->prop == g_Vars.bond->prop && (obj->hidden & OBJHFLAG_ACTIVATED_BY_BOND)) {
 					pass = true;
 					obj->hidden &= ~OBJHFLAG_ACTIVATED_BY_BOND;
-					// TODO: isChrPropCoop
-				} else if (g_Vars.coopplayernum >= 0 && isChrPropCoop(chr->prop) && (obj->hidden & OBJHFLAG_ACTIVATED_BY_COOP)) {
+				} else if (isChrPropCoop(chr->prop) && (obj->hidden & OBJHFLAG_ACTIVATED_BY_COOP)) {
 					pass = true;
 					obj->hidden &= ~OBJHFLAG_ACTIVATED_BY_COOP;
 				}
@@ -2342,9 +2341,9 @@ bool aiIfChrActivatedObject(void)
 	}
 
 	if (pass) {
-		printf("aiIfChrActivatedObject: pass: cmd[4] %x\n", cmd[4]);
 		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[4]);
 	} else {
+		obj->hidden &= ~(OBJHFLAG_ACTIVATED_BY_BOND | OBJHFLAG_ACTIVATED_BY_COOP);
 		g_Vars.aioffset += 5;
 	}
 
