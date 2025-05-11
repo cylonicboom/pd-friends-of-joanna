@@ -1898,6 +1898,13 @@ Gfx *creditsDraw(Gfx *gdl)
 #endif
 #endif
 	{
+		g_Vars.mplayerisrunning = false;
+		g_MissionConfig.iscoop = false;
+		g_MissionConfig.isanti = false;
+		g_MissionConfig.isteam = false;
+		g_MissionConfig.pdmode = false;
+		g_Vars.normmplayerisrunning = false;
+		g_Vars.lvmpbotlevel = 0;
 		g_TitleNextStage = STAGE_CITRAINING;
 
 		setNumPlayers(1);
