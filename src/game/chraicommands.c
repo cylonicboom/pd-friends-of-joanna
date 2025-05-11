@@ -584,23 +584,26 @@ bool aiIfChrDeathAnimationFinished(void)
 	bool pass;
 
 	struct player** playerpool = getPlayerPool(cmd[2]);
-	if ((cmd[2]) == CHR_BOND) {
-		pass = g_Vars.bond->isdead;
-	} else if (!chr || !chr->prop || chr->prop->type == PROPTYPE_PLAYER) {
-		struct player* thisplayer;
-		for (s32 i = 0; i < MAX_PLAYERS; i++) {
-			thisplayer = playerpool[g_Vars.playerorder[i]];
-			if (cmd[2] == CHR_P1P2) {
-				if (!thisplayer) continue;
-				pass = thisplayer->isdead;
-				continue;
-			} else if (!thisplayer || thisplayer == g_Vars.bond) continue;
-			else pass = thisplayer->isdead;
-		}
-	} else if (!chr || !chr->prop) {
+	if (!chr || !chr->prop) {
 		pass = true;
-	} else {
-		pass = chr->actiontype == ACT_DEAD;
+	}
+	else {
+		if ((cmd[2]) == CHR_BOND) {
+			pass = g_Vars.bond->isdead;
+		} else if (!chr || !chr->prop || chr->prop->type == PROPTYPE_PLAYER) {
+			struct player* thisplayer;
+			for (s32 i = 0; i < MAX_PLAYERS; i++) {
+				thisplayer = playerpool[g_Vars.playerorder[i]];
+				if (cmd[2] == CHR_P1P2) {
+					if (!thisplayer) continue;
+					pass = thisplayer->isdead;
+					continue;
+				} else if (!thisplayer || thisplayer == g_Vars.bond) continue;
+				else pass = thisplayer->isdead;
+			}
+		} else {
+			pass = chr->actiontype == ACT_DEAD;
+		}
 	}
 
 	if (pass) {
