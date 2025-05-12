@@ -545,7 +545,15 @@ s32 intro[] = {
 	ammo(AMMOTYPE_BOOST, 2)
 	intro_weapon(WEAPON_LASER, -1)
 	intro_weapon(WEAPON_LASER, -1)
-	spawn(PAD_IMP_0120)
+	// Jo is moved to spawn by the intro?
+	// and we don't want to spawn coop on top of her
+	// spawn(PAD_IMP_0120)
+
+	// Jo's room
+	spawn(PAD_IMP_00F5)
+
+	// the lower areas
+	spawn(PAD_IMP_013B)
 	spawn(PAD_IMP_013C)
 	spawn(PAD_IMP_013D)
 	endintro
