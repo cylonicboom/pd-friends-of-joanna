@@ -513,6 +513,24 @@ struct menudialogdef g_2PMissionInventoryVMenuDialog = {
 	&g_2PMissionOptionsVMenuDialog,
 };
 
+struct menudialogdef g_4PMissionInventoryHMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_MPMENU_284, // "Inventory"
+	g_Mp2PMissionInventoryMenuItems,
+	NULL,
+	0,
+	&g_4PMissionOptionsHMenuDialog,
+};
+
+struct menudialogdef g_4PMissionInventoryVMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_MPMENU_284, // "Inventory"
+	g_Mp2PMissionInventoryMenuItems,
+	NULL,
+	0,
+	&g_4PMissionOptionsVMenuDialog,
+};
+
 struct menuitem g_MpInGamePlayerStatsMenuItems[] = {
 	{
 		MENUITEMTYPE_PLAYERSTATS,
@@ -792,9 +810,17 @@ void mpPushPauseDialog(void)
 					|| PLAYERCOUNT() >= 3
 #endif
 				) {
-					menuPushRootDialog(&g_2PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
+					if (PLAYERCOUNT() >= 3) {
+						menuPushRootDialog(&g_4PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
+					} else {
+						menuPushRootDialog(&g_2PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
+					}
 				} else {
-					menuPushRootDialog(&g_2PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);
+					if (PLAYERCOUNT() >= 3) {
+						menuPushRootDialog(&g_4PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);
+					} else {
+						menuPushRootDialog(&g_2PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);
+					}
 				}
 			}
 		}
