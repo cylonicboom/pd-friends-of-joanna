@@ -112,14 +112,7 @@ Controls can be rebound in `pd.ini`. Default control scheme is as follows:
 ## Building / Setup Friends of Joanna
 
 
-Because Friends of Joanna requires setup file changes, the n64 rom must also be built (`n64-friends-of-joanna`) For the sake of convinience, these instructions have you clone two work trees, one for the PC port and one for the N64 version. Because of this, it's recomended to use a seperate data dir to store the rom, save data, and config file.
-
-
-Create a new data directory if it doesn't already exist: 
-
-- Linux: `mkdir -p ~/.local/share/perfectdark-friends-of-joanna/data`
-- Windows: `mkdir %LOCALAPPDATA%\perfectdark-friends-of-joanna\data`
-- MacOS: `mkdir -p ~/Library/Application\ Support/perfectdark-friends-of-joanna/data`
+Because Friends of Joanna requires setup file changes, the n64 rom must also be built (`n64-friends-of-joanna`) For the sake of convinience, these instructions have you clone two work trees, one for the PC port and one for the N64 version.
 
 
 ### Build Friends of Joanna PC Port
@@ -132,16 +125,14 @@ Create a new data directory if it doesn't already exist:
 - [Setup and build the PD tree as you'd normally setup an N64 rom](https://github.com/cylonicboom/perfect-dark-neon/tree/n64-friends-of-joanna?tab=readme-ov-file#installation-requirements)
 - Copy the built rom to your data dir.
 
+Assuming you're using `docker-caroll`, you can use this oneliner to rebuild Friends of Joanna, the setup files, and a mod layout
+
+`pd build-port --clean --root $FRIENDSOFJOANNA && pd psake --tasklist foj --root $FRIENDSOFJOANNA64`
+
 
 ### Running Friends of Joanna
 
-use `--basedir` and `--savedir` parameters to use the custom rom / saves / ini directory we created earlier. Adjust the path as needed for your OS / architecture
-
-- Linux: `build/pd.x86_64 --basedir ~/.local/share/perfectdark-friends-of-joanna/data --savedir ~/.local/share/perfectdark-friends-of-joanna/data`
-
-- Windows: `build\pd.exe --basedir %LOCALAPPDATA%\perfectdark-friends-of-joanna\data --savedir %LOCALAPPDATA%\perfectdark-friends-of-joanna\data`
-
-- macOS: `build/pd.arm64 --basedir ~/Library/Application\ Support/perfectdark-friends-of-joanna/data --savedir ~/Library/Application\ Support/perfectdark-friends-of-joanna/data`
+`build/pd --moddir $FRIENDSOFJOANNA64/build/$ROMID/mod`
 
 
 ## Building
