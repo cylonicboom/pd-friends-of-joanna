@@ -291,7 +291,59 @@ s32 intro[] = {
 	ammo(AMMOTYPE_PISTOL, 300)
 	ammo(AMMOTYPE_ROCKET, 3)
 	ammo(AMMOTYPE_SMG, 100)
+
+	// spawn(PAD_STAT_0000)
+
+	// around the corner near Skedar Ruins Spawn
+	// spawn(PAD_STAT_00A0)
+
+	// where two skedar w/ reapers are
+	// spawn(PAD_STAT_00B0)
+
+	// where the shield is on agent
+	// on Skedar Ruins near the crack in the wall
+	spawn(PAD_STAT_00BA)
+
+	// where the baby skedar spawn in front of the rotating rods
+	// spawn(PAD_STAT_00C0)
+
+	// room with last skedar king
+	// spawn(PAD_STAT_00D0)
+
+	// weapon sacrafice platform
+	// spawn(PAD_STAT_00D6)
+
+	// vanilla war spawn
 	spawn(PAD_STAT_00D7)
+
+	// near skedar ruins start area
+	// spawn(PAD_STAT_00D8)
+	//
+
+	// pillar near skedar ruins start area
+	// spawn(PAD_STAT_00D9)
+
+	// round path where skedar uncloak
+	// spawn(PAD_STAT_00DA)
+
+	// end of that round path
+	// spawn(PAD_STAT_00DB)
+
+	// at T-junction near double pheonix
+	// spawn(PAD_STAT_00DC)
+
+	// the out-of-way pillar with the cloaked skedar. it's bombed immedately at the start of the level
+	// spawn(PAD_STAT_00DD)
+
+	//the pillars in the room behind the two skedar w/ reapers. it's also bombed at the start of the level
+	// spawn(PAD_STAT_00DE)
+
+	// area just outside the "door" that Jo is supposed to create with her devastator. In Skedar Ruins this is where a cloaked skedar hangs out.
+	// spawn(PAD_STAT_00DF)
+
+	// just inside the door that Jo creates with her devastator.
+	// spawn(PAD_STAT_00E0)
+
 	endintro
 };
 

@@ -28,3 +28,7 @@ stage 0x34 {
   setupfile "UsetupleeZ"
 }
 
+# war
+stage 0x16 {
+  setupfile "UsetupstatZ"
+}
