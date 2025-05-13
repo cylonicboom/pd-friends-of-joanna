@@ -262,6 +262,7 @@ s32 optionsGetEffectiveScreenSize(void)
 				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_CheatsBuddiesMenuDialog
 				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_CheatsMenuDialog
 				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_AcceptMissionMenuDialog
+				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_4PAcceptMissionMenuDialog
 				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_PreAndPostMissionBriefingMenuDialog
 				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_RetryMissionMenuDialog
 				|| g_Menus[g_MpPlayerNum].curdialog->definition == &g_NextMissionMenuDialog) {
