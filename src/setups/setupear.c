@@ -2834,10 +2834,12 @@ u8 func101d_coop_radioactivty[] = {
 
 u8 func1021_counterop_radioactivity[] = {
 	yield
-	set_target_chr(CHR_ANTI)
-	if_chr_death_animation_finished(CHR_TARGET, /*goto*/ 0x2f)
-	set_ailist(CHR_SELF, AILIST_RADIOACTIVITY)
-	label(0x2f)
+	beginloop(0x2e)
+		set_target_chr(CHR_ANTI)
+		if_chr_death_animation_finished(CHR_TARGET, /*goto*/ 0x2f)
+		set_ailist(CHR_SELF, AILIST_RADIOACTIVITY)
+		label(0x2f)
+	endloop(0x2e)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };
