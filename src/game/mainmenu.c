@@ -4455,6 +4455,114 @@ struct menuitem g_2PMissionOptionsVMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
+struct menuitem g_4PMissionOptionsHMenuItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_181, // "Audio"
+		0,
+		(void *)&g_AudioOptionsMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_182, // "Video"
+		0,
+		(void *)&g_2PMissionVideoOptionsMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_183, // "Control"
+		0,
+		(void *)&g_MissionControlOptionsMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_184, // "Display"
+		0,
+		(void *)&g_MissionDisplayOptionsMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0x00000064,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		0,
+		(uintptr_t)&menutextPauseOrUnpause,
+		0,
+		menuhandlerMpPause,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menuitem g_4PMissionOptionsVMenuItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_181, // "Audio"
+		0,
+		(void *)&g_2PMissionAudioOptionsVMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_182, // "Video"
+		0,
+		(void *)&g_2PMissionVideoOptionsMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_183, // "Control"
+		0,
+#if VERSION >= VERSION_PAL_FINAL
+		(void *)&g_CiControlOptionsMenuDialog2,
+#else
+		(void *)&g_MissionControlOptionsMenuDialog,
+#endif
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_184, // "Display"
+		0,
+		(void *)&g_2PMissionDisplayOptionsVMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0x00000064,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		0,
+		(uintptr_t)&menutextPauseOrUnpause,
+		0,
+		menuhandlerMpPause,
+	},
+	{ MENUITEMTYPE_END },
+};
+
 struct menuitem g_CiOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -4557,6 +4665,24 @@ struct menudialogdef g_2PMissionOptionsVMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	L_OPTIONS_180, // "Options"
 	g_2PMissionOptionsVMenuItems,
+	menudialog0010559c,
+	0,
+	&g_2PMissionBriefingVMenuDialog,
+};
+
+struct menudialogdef g_4PMissionOptionsHMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_OPTIONS_180, // "Options"
+	g_4PMissionOptionsHMenuItems,
+	menudialog0010559c,
+	0,
+	&g_2PMissionBriefingHMenuDialog,
+};
+
+struct menudialogdef g_4PMissionOptionsVMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_OPTIONS_180, // "Options"
+	g_4PMissionOptionsVMenuItems,
 	menudialog0010559c,
 	0,
 	&g_2PMissionBriefingVMenuDialog,
@@ -5366,6 +5492,24 @@ struct menudialogdef g_2PMissionPauseVMenuDialog = {
 	soloMenuDialogPauseStatus,
 	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
 	&g_2PMissionInventoryVMenuDialog,
+};
+
+struct menudialogdef g_4PMissionPauseHMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)&soloMenuTitlePauseStatus,
+	g_MissionPauseMenuItems,
+	soloMenuDialogPauseStatus,
+	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
+	&g_2PMissionInventoryHMenuDialog,
+};
+
+struct menudialogdef g_4PMissionPauseVMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_OPTIONS_172, // "Status"
+	g_2PMissionPauseVMenuItems,
+	soloMenuDialogPauseStatus,
+	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
+	&g_4PMissionInventoryVMenuDialog,
 };
 
 struct cutscene g_Cutscenes[] = {
