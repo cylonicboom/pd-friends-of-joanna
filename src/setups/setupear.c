@@ -2822,10 +2822,12 @@ u8 func1014_jo_radioactivity[] = {
 
 u8 func101d_coop_radioactivty[] = {
 	yield
-	set_target_chr(CHR_COOP)
-	if_chr_death_animation_finished(CHR_TARGET, /*goto*/ 0x2f)
-	set_ailist(CHR_SELF, AILIST_RADIOACTIVITY)
-	label(0x2f)
+	beginloop(0x2e)
+		set_target_chr(CHR_COOP)
+		if_chr_death_animation_finished(CHR_TARGET, /*goto*/ 0x2f)
+		set_ailist(CHR_SELF, AILIST_RADIOACTIVITY)
+		label(0x2f)
+	endloop(0x2e)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };
