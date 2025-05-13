@@ -896,6 +896,35 @@ struct menuitem g_AcceptMissionMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
+struct menuitem g_4PAcceptMissionMenuItems[] = {
+	{
+		MENUITEMTYPE_OBJECTIVES,
+		2,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		0,
+		L_OPTIONS_274, // "Accept"
+		0,
+		menuhandlerAcceptMission,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
+		L_OPTIONS_275, // "Decline"
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+
 struct menudialogdef g_AcceptMissionMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)&soloMenuTitleStageOverview,
@@ -903,6 +932,16 @@ struct menudialogdef g_AcceptMissionMenuDialog = {
 	menudialog00103608,
 	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_DISABLEITEMSCROLL,
 	&g_PreAndPostMissionBriefingMenuDialog,
+};
+
+struct menudialogdef g_2PMissionBriefingVMenuDialog;
+struct menudialogdef g_4PAcceptMissionMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)&soloMenuTitleStageOverview,
+	g_4PAcceptMissionMenuItems,
+	menudialog00103608,
+	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_DISABLEITEMSCROLL,
+	&g_2PMissionBriefingVMenuDialog,
 };
 
 f32 func0f1036ac(u8 value, s32 prop)
@@ -1343,7 +1382,7 @@ MenuItemHandlerResult menuhandlerTeamOptionsContinue(s32 operation, struct menui
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
-		menuPushDialog(&g_AcceptMissionMenuDialog);
+		menuPushDialog(&g_4PAcceptMissionMenuDialog);
 	}
 
 	if (operation == MENUOP_CHECKPREFOCUSED) {
@@ -2033,7 +2072,7 @@ MenuItemHandlerResult menuhandlerTeamStartMission(s32 operation, struct menuitem
 		g_MissionConfig.pdmodehealthf = func0f1036ac(g_MissionConfig.pdmodehealth, PDMODEPROP_HEALTH);
 		g_MissionConfig.pdmodedamagef = func0f1036ac(g_MissionConfig.pdmodedamage, PDMODEPROP_DAMAGE);
 		g_MissionConfig.pdmodeaccuracyf = func0f1036ac(g_MissionConfig.pdmodeaccuracy, PDMODEPROP_ACCURACY);
-		menuPushDialog(&g_AcceptMissionMenuDialog);
+		menuPushDialog(&g_4PAcceptMissionMenuDialog);
 	}
 
 	if (operation == MENUOP_CHECKDISABLED) {

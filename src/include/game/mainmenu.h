@@ -7,6 +7,7 @@
 extern u16 g_ControlStyleOptions[];
 
 extern struct menudialogdef g_AcceptMissionMenuDialog;
+extern struct menudialogdef g_4PAcceptMissionMenuDialog;
 extern struct menudialogdef g_PreAndPostMissionBriefingMenuDialog;
 extern struct menudialogdef g_RetryMissionMenuDialog;
 extern struct menudialogdef g_NextMissionMenuDialog;
