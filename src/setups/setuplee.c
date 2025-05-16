@@ -1573,7 +1573,9 @@ u8 func1008_hangar_lifts[] = {
 	// wait for lift to be called from hangar
 	beginloop(LABEL_68)
 		chr_toggle_p1p2(CHR_SELF)
+		set_if_chr_hidden_else_mask(~(OBJHFLAG_ACTIVATED_BY_BOND | OBJHFLAG_ACTIVATED_BY_COOP))
 		if_chr_activated_object(CHR_P1P2, 0x3b, /*goto*/ 0x2c)
+		set_if_chr_hidden_else_mask(~(OBJHFLAG_ACTIVATED_BY_BOND | OBJHFLAG_ACTIVATED_BY_COOP))
 		if_chr_activated_object(CHR_P1P2, 0x3c, /*goto*/ 0x2c)
 		if_chr_activated_object(CHR_ANTI, 0x3b, /*goto*/ 0x2c)
 		if_chr_activated_object(CHR_ANTI, 0x3c, /*goto*/ 0x2c)
@@ -1581,6 +1583,7 @@ u8 func1008_hangar_lifts[] = {
 
 	// Bring Elvis's lift down
 	label(0x2c)
+	set_if_chr_hidden_else_mask(0)
 	play_sound(SFX_81A6, -1)
 	unset_object_flag(OBJ_HANGARLIFT_ELVIS, OBJFLAG_DEACTIVATED)
 	yield

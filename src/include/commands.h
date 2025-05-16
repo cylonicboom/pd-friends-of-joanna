@@ -4369,6 +4369,10 @@
 	mkshort(0x01e1), \
 	chrnum,
 
+#define set_if_chr_hidden_else_mask(mask) \
+	mkshort(0x01e2), \
+	mask,
+
 /**
  * Clears references to the current chr.
  *
