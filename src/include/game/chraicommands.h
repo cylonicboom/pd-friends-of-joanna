@@ -447,6 +447,7 @@ struct player** getPlayerPool(u32 chrId);
 /*0x01df*/ bool aiIfChrSameFloorDistanceToPadLessThan(void);
 /*0x01e0*/ bool aiRemoveReferencesToChr(void);
 /*0x01e1*/ bool aiSetChrnumMatchlevel(void);
+/*0x01e2*/ bool aiSetHiddenElseMask(void);
 
 void propDecrementSoundCount(struct prop *prop);
 

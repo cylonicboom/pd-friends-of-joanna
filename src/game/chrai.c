@@ -498,6 +498,7 @@ bool (*g_CommandPointers[])(void) = {
 	/*0x01df*/ aiIfChrSameFloorDistanceToPadLessThan,
 	/*0x01e0*/ aiRemoveReferencesToChr,
 	/*0x01e1*/ aiSetChrnumMatchlevel,
+	/*0x01e2*/ aiSetHiddenElseMask,
 #endif
 };
 
@@ -626,6 +627,7 @@ u16 g_CommandLengths[] = {
 	/*0x01df*/ 8,
 	/*0x01e0*/ 2,
 	/*0x01e1*/ 3,
+	/*0x01e2*/ 3,
 #endif
 };
 

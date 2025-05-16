@@ -1355,6 +1355,7 @@ struct chrdata {
 	/*0x362*/ u8 drcarollimage_left : 4;
 	/*0x362*/ u8 drcarollimage_right : 4;
 	/*0x364*/ struct prop *lift;
+	/*ext*/   s32 hiddenelsemask; // used by aiSetHiddenElseMask and aiIfChrActivatedObject
 };
 
 // This appears to be misnamed. Not only is it projectiles such as grenades and

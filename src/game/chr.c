@@ -1293,6 +1293,7 @@ void chrInit(struct prop *prop, u8 *ailist)
 #if VERSION >= VERSION_NTSC_1_0
 	chr->goposhitcount = 0;
 #endif
+	chr->hiddenelsemask = 0;
 
 	splatResetChr(chr);
 }

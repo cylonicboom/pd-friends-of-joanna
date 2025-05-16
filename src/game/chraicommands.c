@@ -2332,8 +2332,7 @@ bool aiIfChrActivatedObject(void)
 				if (chr->prop == g_Vars.bond->prop && (obj->hidden & OBJHFLAG_ACTIVATED_BY_BOND)) {
 					pass = true;
 					obj->hidden &= ~OBJHFLAG_ACTIVATED_BY_BOND;
-					// TODO: isChrPropCoop
-				} else if (g_Vars.coopplayernum >= 0 && isChrPropCoop(chr->prop) && (obj->hidden & OBJHFLAG_ACTIVATED_BY_COOP)) {
+				} else if (isChrPropCoop(chr->prop) && (obj->hidden & OBJHFLAG_ACTIVATED_BY_COOP)) {
 					pass = true;
 					obj->hidden &= ~OBJHFLAG_ACTIVATED_BY_COOP;
 				}
@@ -2342,9 +2341,11 @@ bool aiIfChrActivatedObject(void)
 	}
 
 	if (pass) {
-		printf("aiIfChrActivatedObject: pass: cmd[4] %x\n", cmd[4]);
 		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[4]);
 	} else {
+		if (g_Vars.chrdata && g_Vars.chrdata->hiddenelsemask) {
+			obj->hidden &= g_Vars.chrdata->hiddenelsemask;
+		}
 		g_Vars.aioffset += 5;
 	}
 
@@ -10285,6 +10286,31 @@ bool aiSetChrnumMatchlevel(void)
 	s32 matchlevel = cmd[2];
 
 	g_Vars.chrnummatchmode = matchlevel;
+
+	g_Vars.aioffset += 3;
+
+	return false;
+}
+
+/**
+ * @cmd 01e2
+ */
+bool aiSetHiddenElseMask(void)
+{
+	// HACK: we need to change the behavior of aiIfChrActivatedObject
+	// but only on Attack Ship for the elevators
+	// rather than hardcording it in the aicmd (which is likely covering for a bug), I'm making a new aicmd to set this property and possibly use it in other scripts that need it
+
+	// pc implementation
+	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+
+	struct chrdata *chr = g_Vars.chrdata;
+
+	s32 mask = cmd[2];
+
+	if (chr) {
+		chr->hiddenelsemask = mask;
+	}
 
 	g_Vars.aioffset += 3;
 
