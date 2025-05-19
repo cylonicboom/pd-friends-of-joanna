@@ -2229,7 +2229,7 @@ s32 getNumAllyPlayers(void)
 	s32 i;
 
 	for (i = 0; i < MAX_PLAYERS; i++) {
-		if (g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole && g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole != PLAYERROLE_ANTI) {
+		if (g_Vars.playerroles[i] && g_Vars.playerroles[i] != PLAYERROLE_ANTI) {
 			count++;
 		}
 	}
@@ -2242,7 +2242,7 @@ s32 getNumTeamModePlayers(void)
 {
 	s32 count = 0;
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole) count++;
+		if (g_Vars.playerroles[i]) count++;
 	}
 
 	return count;

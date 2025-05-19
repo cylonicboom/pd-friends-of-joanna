@@ -718,8 +718,6 @@ void mpPlayerSetDefaults(s32 playernum, bool autonames)
 	g_PlayerConfigsArray[playernum].survivormedals = 0;
 	g_PlayerConfigsArray[playernum].title = MPPLAYERTITLE_BEGINNER;
 
-	g_PlayerConfigsArray[playernum].playerrole = PLAYERROLE_NONE;
-
 	if (playernum < MAX_PLAYERS) {
 		for (i = 0; i < ARRAYCOUNT(g_MpChallenges); i++) {
 			for (j = 1; j <= MAX_PLAYERS; j++) {

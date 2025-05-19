@@ -2533,7 +2533,7 @@ MenuItemHandlerResult menuhandlerHandicapPlayer(s32 operation, struct menuitem *
 	switch (operation) {
 	case MENUOP_CHECKHIDDEN:
 		if ((g_MpSetup.chrslots & (1 << playernum)) == 0) {
-			if (g_PlayerConfigsArray[g_Vars.playerstats[playernum].mpindex].playerrole) {
+			if (g_Vars.playerroles[playernum]) {
 				return 0;
 			}
 			return 1;
