@@ -1595,11 +1595,11 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct 
 		{
 			if (playernum == 0) {
 				s32 playerrole = PLAYERROLE_BOND;
-				g_Vars.playerroles[playernum] = playerrole;
+				g_PlayerConfigsArray[g_Vars.playerstats[playernum].mpindex].playerrole = playerrole;
 				break;
 			}
 			s32 playerrole = data->dropdown.value;
-			g_Vars.playerroles[playernum] = playerrole;
+			g_PlayerConfigsArray[g_Vars.playerstats[playernum].mpindex].playerrole = playerrole;
 		}
 	   break;
 	case MENUOP_GETSELECTEDINDEX:
@@ -1608,7 +1608,7 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct 
 				data->dropdown.value = 3;
 				break;
 			}
-			s32 playerrole =  g_Vars.playerroles[playernum];
+			s32 playerrole =  g_PlayerConfigsArray[g_Vars.playerstats[playernum].mpindex].playerrole;
 			data->dropdown.value = playerrole;
 			registerExtendedProfile(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
 		}
@@ -2078,7 +2078,7 @@ MenuItemHandlerResult menuhandlerTeamStartMission(s32 operation, struct menuitem
 	if (operation == MENUOP_CHECKDISABLED) {
 		for (int i = 0; i < MAX_PLAYERS; i++) {
 			if (i == g_Vars.bondplayernum) continue;
-			if (g_Vars.playerroles[i]) return false;
+			if (g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole) return false;
 		}
 		return true;
 	}
@@ -2159,14 +2159,11 @@ void teamMissionConfigStrUpdateMarquee()
 	// printf("Player 3: %s\n", player3Name);
 	// printf("Player 4: %s\n", player4Name);
 
-	sprintf(g_TeamMissionConfig_marqueestring, "Mission: %s | %s: %s, %s: %s, %s: %s, %s: %s\n\0", nextStageName, player1Name,
-		 (char*)g_PlayerRoleNames[g_Vars.playerroles[0]],
-		 player2Name, (char*)g_PlayerRoleNames[g_Vars.playerroles[1]],
-		 player3Name,(char*)g_PlayerRoleNames[g_Vars.playerroles[2]],
-		 player4Name,(char*)g_PlayerRoleNames[g_Vars.playerroles[3]]);
-
-   // TODO: remove debug text
-	// printf("Marquee: %s\n", g_TeamMissionConfig_marqueestring);
+	sprintf(g_TeamMissionConfig_marqueestring, "Mission: %s | %s: %s, %s: %s, %s: %s, %s: %s\n\0", nextStageName,
+		player1Name,(char*)g_PlayerRoleNames[g_PlayerConfigsArray[g_Vars.playerstats[0].mpindex].playerrole],
+		player2Name,(char*)g_PlayerRoleNames[g_PlayerConfigsArray[g_Vars.playerstats[1].mpindex].playerrole],
+		player3Name,(char*)g_PlayerRoleNames[g_PlayerConfigsArray[g_Vars.playerstats[2].mpindex].playerrole],
+		player4Name,(char*)g_PlayerRoleNames[g_PlayerConfigsArray[g_Vars.playerstats[3].mpindex].playerrole]);
 }
 
 struct menuitem g_TeamMissionsHubMenuItems[] = {

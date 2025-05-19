@@ -449,7 +449,7 @@ void mainLoop(void)
 			g_Vars.antiplayernum = -1;
 		} else if (argFindByPrefix(1, "-anti")) {
 			g_Vars.bondplayernum = 0;
-		g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
+			g_PlayerConfigsArray[g_Vars.playerstats[g_Vars.bondplayernum].mpindex].playerrole = PLAYERROLE_BOND;
 			g_Vars.coopplayernum = -1;
 			g_Vars.antiplayernum = 1;
 		}

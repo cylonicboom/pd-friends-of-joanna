@@ -36,13 +36,13 @@ void playermgrInit(void)
 void playermgrDisableTeamPlayers(void)
 {
 	g_Vars.bondplayernum = 0;
-	g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
+	g_PlayerConfigsArray[g_Vars.playerstats[g_Vars.bondplayernum].mpindex].playerrole = PLAYERROLE_BOND;
 	g_Vars.coopplayernum = -1;
 	g_Vars.currentcoopplayernum = -1;
 	g_Vars.antiplayernum = -1;
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		if (i == g_Vars.bondplayernum) continue;
-		g_Vars.playerroles[i] = PLAYERROLE_NONE;
+		g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole = PLAYERROLE_NONE;
 	}
 }
 /**
@@ -55,14 +55,14 @@ void playermgrDisableTeamPlayers(void)
 void playermgrResetTeamPlayers(void)
 {
 	g_Vars.bondplayernum = 0;
-	g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
+	g_PlayerConfigsArray[g_Vars.playerstats[g_Vars.bondplayernum].mpindex].playerrole = PLAYERROLE_BOND;
 	// set the coop / anti player numbers
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Vars.coopplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_COOP) {
+		if (g_Vars.coopplayernum < 0 && g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole == PLAYERROLE_COOP) {
 			g_Vars.coopplayernum = i;
 			g_Vars.currentcoopplayernum = i;
 		}
-		if (g_Vars.antiplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
+		if (g_Vars.antiplayernum < 0 && g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole == PLAYERROLE_ANTI) {
 			g_Vars.antiplayernum = i;
 			g_Vars.currentantiplayernum = i;
 		}
@@ -87,7 +87,7 @@ void playermgrReset(void)
 	g_Vars.playerorder[3] = 3;
 
 	g_Vars.bond = NULL;
-	
+
 	clearCoopPlayers();
 	clearAntiPlayers();
 }
@@ -107,9 +107,9 @@ void playermgrAllocatePlayersFromRoles(void)
 	s32 playercount = 0;
 
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Vars.playerroles[i]) {
+		if (g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole) {
 			playermgrAllocatePlayer(playercount);
-			if (g_Vars.playerroles[i] == PLAYERROLE_COOP) {
+			if (g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole == PLAYERROLE_COOP) {
 				g_Vars.coopplayers[playercount] = g_Vars.players[playercount];
 				g_Vars.coop = g_Vars.players[playercount];
 				g_Vars.currentcoopplayernum = playercount;
@@ -117,7 +117,7 @@ void playermgrAllocatePlayersFromRoles(void)
 				// these will be synced when the playernum changes during the level
 				g_Vars.antiplayernum = -1;
 			}
-			else if (g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
+			else if (g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].playerrole == PLAYERROLE_ANTI) {
 				g_Vars.antiplayers[playercount] = g_Vars.players[playercount];
 				g_Vars.anti = g_Vars.players[playercount];
 				g_Vars.currentantiplayernum = i;
@@ -133,65 +133,6 @@ void playermgrAllocatePlayersFromRoles(void)
 
 	setCurrentPlayerNum(0); // don't think this needed for player loading but probably is there to restart the playerloop
 
-}
-
-void playermgrAllocatePlayers(s32 count)
-{
-	g_Vars.players[0] = NULL;
-	g_Vars.players[1] = NULL;
-	g_Vars.players[2] = NULL;
-	g_Vars.players[3] = NULL;
-
-	// these hold references to coop / anti players
-	// NULL can mean either that slot is bond or no player is in that slot
-	clearCoopPlayers();
-	clearAntiPlayers();
-
-	if (count > 0) {
-		s32 i;
-
-		for (i = 0; i < count; i++) {
-			playermgrAllocatePlayer(i);
-		}
-
-		setCurrentPlayerNum(0);
-		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
-
-#ifndef PLATFORM_N64
-		for (i = 0; i < count; i++) {
-			if (i != g_Vars.bondplayernum && g_Vars.players[i] && g_Vars.playerroles[i] == PLAYERROLE_COOP) {
-				g_Vars.coopplayers[i] = g_Vars.players[i];
-				g_Vars.coop = g_Vars.players[i];
-			}
-			if (i != g_Vars.bondplayernum && g_Vars.players[i] && g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
-				g_Vars.antiplayers[i] = g_Vars.players[i];
-				g_Vars.anti = g_Vars.players[i];
-			}
-		}
-
-#else
-		if (g_Vars.coopplayernum >= 0) {
-			g_Vars.coop = g_Vars.players[g_Vars.coopplayernum];
-			clearAntiPlayers();
-		} else if (g_Vars.antiplayernum >= 0) {
-			clearCoopPlayers();
-			g_Vars.anti = g_Vars.players[g_Vars.antiplayernum];
-		}
-#endif
-	} else {
-		playermgrAllocatePlayer(0);
-		setCurrentPlayerNum(0);
-
-		if (g_Vars.fourmeg2player) {
-			playermgrSetViewSize(playerGetFbWidth(), playerGetFbHeight() * 2);
-		} else {
-			playermgrSetViewSize(playerGetFbWidth(), playerGetFbHeight());
-		}
-
-		clearCoopPlayers();
-		clearAntiPlayers();
-		g_Vars.bond = g_Vars.players[0];
-	}
 }
 
 void playermgrAllocatePlayer(s32 index)
