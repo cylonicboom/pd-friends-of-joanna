@@ -87,12 +87,26 @@ void playermgrReset(void)
 	g_Vars.playerorder[3] = 3;
 
 	g_Vars.bond = NULL;
-	
+
 	clearCoopPlayers();
 	clearAntiPlayers();
 }
-
-void playermgrAllocatePlayersFromRoles(void)
+/**
+ * Allocates player structures based on the provided player count and roles.
+ *
+ * If playercount is negative, players are allocated according to the roles
+ * defined in g_Vars.playerroles[]. Coop and anti players are assigned to their
+ * respective arrays and variables. If playercount is zero, a single player is
+ * allocated for game start. Otherwise, the specified number of players are
+ * allocated in order.
+ *
+ * Resets all player references, clears coop/anti players, and sets the current
+ * player number and bond player pointer as appropriate.
+ *
+ * @param playercount The number of players to allocate, or negative to use roles.
+ * @return The number of players allocated.
+ */
+s32 playermgrAllocatePlayersFromRoles(s32 playercount)
 {
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
@@ -104,35 +118,52 @@ void playermgrAllocatePlayersFromRoles(void)
 	clearCoopPlayers();
 	clearAntiPlayers();
 	playermgrResetTeamPlayers();
-	s32 playercount = 0;
 
-	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Vars.playerroles[i]) {
-			playermgrAllocatePlayer(playercount);
-			if (g_Vars.playerroles[i] == PLAYERROLE_COOP) {
-				g_Vars.coopplayers[playercount] = g_Vars.players[playercount];
-				g_Vars.coop = g_Vars.players[playercount];
-				g_Vars.currentcoopplayernum = playercount;
-				// HACK: So functions that are coop / anti exclusive can still work
-				// these will be synced when the playernum changes during the level
-				g_Vars.antiplayernum = -1;
+	if (playercount < 0) {
+		playercount = 0;
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			if (g_Vars.playerroles[i]) {
+				playermgrAllocatePlayer(playercount);
+				g_MpSetup.chrslots |= 1 << i;
+				if (g_Vars.playerroles[i] == PLAYERROLE_COOP) {
+					g_Vars.coopplayers[playercount] = g_Vars.players[playercount];
+					g_Vars.coop = g_Vars.players[playercount];
+					g_Vars.currentcoopplayernum = playercount;
+					// HACK: So functions that are coop / anti exclusive can still work
+					// these will be synced when the playernum changes during the level
+					g_Vars.antiplayernum = -1;
+				}
+				else if (g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
+					g_Vars.antiplayers[playercount] = g_Vars.players[playercount];
+					g_Vars.anti = g_Vars.players[playercount];
+					g_Vars.currentantiplayernum = i;
+					// HACK: So functions that are coop / anti exclusive can still work
+					// these will be synced when the playernum changes during the level
+					g_Vars.coopplayernum = -1;
+				}
+				playercount++;
 			}
-			else if (g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
-				g_Vars.antiplayers[playercount] = g_Vars.players[playercount];
-				g_Vars.anti = g_Vars.players[playercount];
-				g_Vars.currentantiplayernum = i;
-				// HACK: So functions that are coop / anti exclusive can still work
-				// these will be synced when the playernum changes during the level
-				g_Vars.coopplayernum = -1;
-			}
-			playercount++;
 		}
+
+		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
+
+		setCurrentPlayerNum(0); // don't think this needed for player loading but probably is there to restart the playerloop
+	} else if (playercount == 0) {
+		// game is starting?
+		playermgrAllocatePlayer(0);
+		setCurrentPlayerNum(0);
+		g_Vars.bond = g_Vars.players[0];
+	} else {
+		// we know the playercount so we can just allocate the players
+		for (s32 i = 0; i < playercount; i++) {
+			playermgrAllocatePlayer(i);
+		}
+
+		setCurrentPlayerNum(g_Vars.bondplayernum);
+		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
 	}
 
-	g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
-
-	setCurrentPlayerNum(0); // don't think this needed for player loading but probably is there to restart the playerloop
-
+	return playercount;
 }
 
 void playermgrAllocatePlayers(s32 count)

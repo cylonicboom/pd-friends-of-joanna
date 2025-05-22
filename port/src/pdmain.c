@@ -456,17 +456,16 @@ void mainLoop(void)
 
 		if (g_MissionConfig.isteam) {
 			playermgrResetTeamPlayers();
+			numplayers = playermgrAllocatePlayersFromRoles(-1);
+		} else {
+			playermgrAllocatePlayers(numplayers);
 		}
-
-
-		playermgrAllocatePlayersFromRoles();
 
 		if (argFindByPrefix(1, "-mpbots")) {
 			g_Vars.lvmpbotlevel = 1;
 		}
 
 		if (g_MissionConfig.isteam) {
-			g_MpSetup.chrslots = 0x0f;
 			mpReset();
 		}
 		else if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
