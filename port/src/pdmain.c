@@ -430,51 +430,24 @@ void mainLoop(void)
 		if (g_StageNum >= STAGE_TITLE) {
 			numplayers = 0;
 		} else {
-			if (argFindByPrefix(1, "-play")) {
-				numplayers = strtol(argFindByPrefix(1, "-play"), NULL, 0);
-			} else {
-				numplayers = 1;
-			}
-
-			if (getNumPlayers() >= 2) {
-				numplayers = getNumPlayers();
-			}
+			numplayers = getNumPlayers();
 		}
 
 		if (numplayers < 2) {
 			playermgrDisableTeamPlayers();
-		} else if (argFindByPrefix(1, "-coop")) {
-			g_Vars.bondplayernum = 0;
-			g_Vars.coopplayernum = 1;
-			g_Vars.antiplayernum = -1;
-		} else if (argFindByPrefix(1, "-anti")) {
-			g_Vars.bondplayernum = 0;
-		g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
-			g_Vars.coopplayernum = -1;
-			g_Vars.antiplayernum = 1;
 		}
 
 		if (g_MissionConfig.isteam) {
-			playermgrResetTeamPlayers();
-			numplayers = playermgrAllocatePlayersFromRoles(-1);
+			numplayers = playermgrAllocatePlayers(-1);
 		} else {
 			playermgrAllocatePlayers(numplayers);
 		}
 
-		if (argFindByPrefix(1, "-mpbots")) {
-			g_Vars.lvmpbotlevel = 1;
-		}
-
-		if (g_MissionConfig.isteam) {
+		if (g_MissionConfig.isteam || g_Vars.perfectbuddynum) {
 			mpReset();
 		}
-		else if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-			g_MpSetup.chrslots = 0x03;
-			mpReset();
-		} else if (g_Vars.perfectbuddynum) {
-			mpReset();
-		} else if (g_Vars.mplayerisrunning == false
-				&& (numplayers >= 2 || g_Vars.lvmpbotlevel || argFindByPrefix(1, "-play"))) {
+		else if (g_Vars.mplayerisrunning == false
+				&& (numplayers >= 2 || g_Vars.lvmpbotlevel)) {
 			g_MpSetup.chrslots = 1;
 
 			if (numplayers >= 2) {

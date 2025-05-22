@@ -106,7 +106,7 @@ void playermgrReset(void)
  * @param playercount The number of players to allocate, or negative to use roles.
  * @return The number of players allocated.
  */
-s32 playermgrAllocatePlayersFromRoles(s32 playercount)
+s32 playermgrAllocatePlayers(s32 playercount)
 {
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
@@ -164,65 +164,6 @@ s32 playermgrAllocatePlayersFromRoles(s32 playercount)
 	}
 
 	return playercount;
-}
-
-void playermgrAllocatePlayers(s32 count)
-{
-	g_Vars.players[0] = NULL;
-	g_Vars.players[1] = NULL;
-	g_Vars.players[2] = NULL;
-	g_Vars.players[3] = NULL;
-
-	// these hold references to coop / anti players
-	// NULL can mean either that slot is bond or no player is in that slot
-	clearCoopPlayers();
-	clearAntiPlayers();
-
-	if (count > 0) {
-		s32 i;
-
-		for (i = 0; i < count; i++) {
-			playermgrAllocatePlayer(i);
-		}
-
-		setCurrentPlayerNum(0);
-		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
-
-#ifndef PLATFORM_N64
-		for (i = 0; i < count; i++) {
-			if (i != g_Vars.bondplayernum && g_Vars.players[i] && g_Vars.playerroles[i] == PLAYERROLE_COOP) {
-				g_Vars.coopplayers[i] = g_Vars.players[i];
-				g_Vars.coop = g_Vars.players[i];
-			}
-			if (i != g_Vars.bondplayernum && g_Vars.players[i] && g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
-				g_Vars.antiplayers[i] = g_Vars.players[i];
-				g_Vars.anti = g_Vars.players[i];
-			}
-		}
-
-#else
-		if (g_Vars.coopplayernum >= 0) {
-			g_Vars.coop = g_Vars.players[g_Vars.coopplayernum];
-			clearAntiPlayers();
-		} else if (g_Vars.antiplayernum >= 0) {
-			clearCoopPlayers();
-			g_Vars.anti = g_Vars.players[g_Vars.antiplayernum];
-		}
-#endif
-	} else {
-		playermgrAllocatePlayer(0);
-		setCurrentPlayerNum(0);
-
-		if (g_Vars.fourmeg2player) {
-			playermgrSetViewSize(playerGetFbWidth(), playerGetFbHeight() * 2);
-		} else {
-			playermgrSetViewSize(playerGetFbWidth(), playerGetFbHeight());
-		}
-
-		clearCoopPlayers();
-		clearAntiPlayers();
-		g_Vars.bond = g_Vars.players[0];
-	}
 }
 
 void playermgrAllocatePlayer(s32 index)

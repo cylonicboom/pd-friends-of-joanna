@@ -6,7 +6,6 @@
 
 void playermgrInit(void);
 void playermgrReset(void);
-void playermgrAllocatePlayers(s32 count);
 void playermgrAllocatePlayer(s32 index);
 void playermgrCalculateAiBuddyNums(void);
 void setCurrentPlayerNum(s32 playernum);
@@ -25,6 +24,6 @@ s32 playermgrGetOrderOfPlayer(s32 playernum);
 s32 playermgrGetPlayerAtOrder(s32 ordernum);
 void playermgrResetTeamPlayers(void);
 void playermgrDisableTeamPlayers(void);
-s32 playermgrAllocatePlayersFromRoles(s32 playercount);
+s32 playermgrAllocatePlayers(s32 playercount);
 
 #endif
