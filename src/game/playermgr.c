@@ -749,6 +749,7 @@ void setCurrentAntiNum(s32 playernum)
 		g_Vars.currentantiplayernum = playernum;
 		g_Vars.anti = g_Vars.antiplayers[playernum];
 		g_Vars.coopplayernum = -1;
+		g_Vars.antiplayernum = playernum;
 		return;
 	}
 }
