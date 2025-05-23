@@ -891,7 +891,7 @@ void mainLoop(void)
 		}
 
 		if (numplayers < 2) {
-			playermgrDisableTeamPlayers();
+			playermgrDisableTeamPlayers(false);
 		} else if (argFindByPrefix(1, "-coop")) {
 			g_Vars.bondplayernum = 0;
 			g_Vars.coopplayernum = 1;

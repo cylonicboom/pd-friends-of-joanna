@@ -77,7 +77,7 @@ void fmbReset(void)
 			mpPlayerSetDefaults(i, true);
 		}
 
-		playermgrDisableTeamPlayers();
+		playermgrDisableTeamPlayers(false);
 
 		challengeDetermineUnlockedFeatures();
 

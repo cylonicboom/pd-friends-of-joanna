@@ -434,7 +434,7 @@ void mainLoop(void)
 		}
 
 		if (numplayers < 2) {
-			playermgrDisableTeamPlayers();
+			playermgrDisableTeamPlayers(false);
 		}
 
 		if (g_MissionConfig.isteam) {

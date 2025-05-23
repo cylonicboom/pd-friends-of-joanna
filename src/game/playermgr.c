@@ -33,16 +33,18 @@ void playermgrInit(void)
  *
  *  Sets bond player in playerroles array to PLAYERROLE_BOND
  */
-void playermgrDisableTeamPlayers(void)
+void playermgrDisableTeamPlayers(bool clearroles)
 {
 	g_Vars.bondplayernum = 0;
-	g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
 	g_Vars.coopplayernum = -1;
 	g_Vars.currentcoopplayernum = -1;
 	g_Vars.antiplayernum = -1;
-	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (i == g_Vars.bondplayernum) continue;
-		g_Vars.playerroles[i] = PLAYERROLE_NONE;
+	if (clearroles) {
+		g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			if (i == g_Vars.bondplayernum) continue;
+			g_Vars.playerroles[i] = PLAYERROLE_NONE;
+		}
 	}
 }
 /**
@@ -117,10 +119,10 @@ s32 playermgrAllocatePlayers(s32 playercount)
 	// NULL can mean either that slot is bond or no player is in that slot
 	clearCoopPlayers();
 	clearAntiPlayers();
-	playermgrResetTeamPlayers();
 
 	if (playercount < 0) {
 		playercount = 0;
+		g_MpSetup.chrslots = 0;
 		for (s32 i = 0; i < MAX_PLAYERS; i++) {
 			if (g_Vars.playerroles[i]) {
 				playermgrAllocatePlayer(playercount);

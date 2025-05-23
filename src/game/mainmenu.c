@@ -794,7 +794,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 
 		if (g_MissionConfig.isteam) {
 			playermgrResetTeamPlayers();
-			setNumPlayers(getNumTeamModePlayers());
+			setNumPlayers(getNumTeamPlayerRoleAssignments());
 		}
 		else if (g_MissionConfig.iscoop) {
 			if (g_Vars.numaibuddies == 0) {
@@ -805,7 +805,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 				setNumPlayers(2);
 			} else {
 				// Coop with AI buddies
-				playermgrDisableTeamPlayers();
+				playermgrDisableTeamPlayers(false);
 				setNumPlayers(1);
 			}
 		} else if (g_MissionConfig.isanti) {
@@ -821,7 +821,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 			setNumPlayers(4);
 		} else {
 			// Solo
-			playermgrDisableTeamPlayers();
+			playermgrDisableTeamPlayers(false);
 			setNumPlayers(1);
 		}
 
@@ -1390,7 +1390,7 @@ MenuItemHandlerResult menuhandlerTeamOptionsContinue(s32 operation, struct menui
 	}
 
 	if (operation == MENUOP_CHECKDISABLED) {
-	   return getNumTeamModePlayers() <= 1;
+	   return getNumTeamPlayerRoleAssignments() <= 1;
 	}
 
 	return 0;
@@ -5799,7 +5799,7 @@ MenuItemHandlerResult menuhandlerMainMenuSoloMissions(s32 operation, struct menu
 MenuItemHandlerResult menuhandlerMainMenuCombatSimulator(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		playermgrDisableTeamPlayers();
+		playermgrDisableTeamPlayers(false);
 		challengeDetermineUnlockedFeatures();
 		g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
 		func0f0f820c(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);

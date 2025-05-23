@@ -1910,7 +1910,7 @@ Gfx *creditsDraw(Gfx *gdl)
 		setNumPlayers(1);
 		mainChangeToStage(g_TitleNextStage);
 
-		playermgrDisableTeamPlayers();
+		playermgrDisableTeamPlayers(false);
 
 		lvSetDifficulty(DIFF_A);
 		viBlack(true);

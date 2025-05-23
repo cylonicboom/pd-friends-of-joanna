@@ -720,7 +720,7 @@ void titleTickPdLogo(void)
 			setNumPlayers(1);
 			mainChangeToStage(g_TitleNextStage);
 
-			playermgrDisableTeamPlayers();
+			playermgrDisableTeamPlayers(false);
 
 			lvSetDifficulty(DIFF_A);
 			viBlack(true);
@@ -2229,7 +2229,7 @@ s32 getNumAllyPlayers(void)
 	s32 i;
 
 	for (i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Vars.playerroles[i] && g_Vars.playerroles[i] != PLAYERROLE_ANTI) {
+		if (i == g_Vars.bondplayernum || g_Vars.coopplayers[i]) {
 			count++;
 		}
 	}
@@ -2238,7 +2238,7 @@ s32 getNumAllyPlayers(void)
 
 }
 
-s32 getNumTeamModePlayers(void)
+s32 getNumTeamPlayerRoleAssignments(void)
 {
 	s32 count = 0;
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
@@ -2285,7 +2285,7 @@ void titleInitSkip(void)
 
 	mainChangeToStage(g_TitleNextStage);
 
-	playermgrDisableTeamPlayers();
+	playermgrDisableTeamPlayers(false);
 
 	lvSetDifficulty(DIFF_A);
 	viBlack(true);

@@ -1764,7 +1764,7 @@ Gfx *lvRender(Gfx *gdl)
 			g_MissionConfig.pdmode = false;
 			g_Vars.mplayerisrunning = false;
 			g_Vars.normmplayerisrunning = false;
-			playermgrDisableTeamPlayers();
+			playermgrDisableTeamPlayers(false);
 			g_MissionConfig.isanti = false;
 			setNumPlayers(1);
 			titleSetNextMode(TITLEMODE_SKIP);

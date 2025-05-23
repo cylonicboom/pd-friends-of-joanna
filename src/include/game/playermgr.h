@@ -23,7 +23,7 @@ void playermgrShuffle(void);
 s32 playermgrGetOrderOfPlayer(s32 playernum);
 s32 playermgrGetPlayerAtOrder(s32 ordernum);
 void playermgrResetTeamPlayers(void);
-void playermgrDisableTeamPlayers(void);
+void playermgrDisableTeamPlayers(bool clearroles);
 s32 playermgrAllocatePlayers(s32 playercount);
 
 #endif

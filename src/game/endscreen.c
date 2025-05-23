@@ -628,7 +628,7 @@ void endscreenContinue(s32 context)
 
 						if (g_MissionConfig.isteam) {
 							playermgrResetTeamPlayers();
-							setNumPlayers(getNumTeamModePlayers());
+							setNumPlayers(getNumTeamPlayerRoleAssignments());
 						}
 						else if (g_MissionConfig.iscoop) {
 							if (g_Vars.numaibuddies == 0) {
@@ -637,11 +637,11 @@ void endscreenContinue(s32 context)
 								g_Vars.antiplayernum = -1;
 								setNumPlayers(2);
 							} else {
-								playermgrDisableTeamPlayers();
+								playermgrDisableTeamPlayers(false);
 								setNumPlayers(1);
 							}
 						} else {
-							playermgrDisableTeamPlayers();
+							playermgrDisableTeamPlayers(false);
 							setNumPlayers(1);
 						}
 
