@@ -1628,6 +1628,9 @@ void endscreenPrepare(void)
 		}
 
 		filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_000, 0);
+		if (g_MissionConfig.isteam) {
+			filemgrSaveMpPlayers();
+		}
 	}
 
 	if (g_MenuData.root == MENUROOT_ENDSCREEN) {
@@ -1727,6 +1730,9 @@ void endscreenPushCoop(void)
 
 	if (g_Vars.currentplayer == g_Vars.bond) {
 		filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_000, 0);
+		if (g_MissionConfig.isteam) {
+			filemgrSaveMpPlayers();
+		}
 	}
 
 	g_MpPlayerNum = prevplayernum;
@@ -1825,6 +1831,9 @@ void endscreenPushAnti(void)
 		}
 
 		filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_000, 0);
+		if (g_MissionConfig.isteam) {
+			filemgrSaveMpPlayers();
+		}
 	} else {
 #if VERSION >= VERSION_NTSC_1_0 && defined(DEBUG)
 		if (!g_Vars.anti->aborted && (g_Vars.bond->isdead || g_Vars.bond->aborted || !objectiveIsAllComplete()) && !debugIsSetCompleteEnabled())

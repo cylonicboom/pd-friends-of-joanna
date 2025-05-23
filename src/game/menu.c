@@ -1618,7 +1618,6 @@ void menuPushDialog(struct menudialogdef *dialogdef)
 	}
 }
 
-#if VERSION >= VERSION_NTSC_1_0
 bool func0f0f3220(s32 arg0)
 {
 	bool save = true;
@@ -1649,6 +1648,9 @@ bool func0f0f3220(s32 arg0)
 
 		if (save) {
 			filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_000, 0);
+			if (g_MissionConfig.isteam) {
+				filemgrSaveMpPlayers();
+			}
 		}
 
 		g_MpPlayerNum = prevplayernum;
@@ -1666,33 +1668,6 @@ bool func0f0f3220(s32 arg0)
 
 	return save;
 }
-#else
-void func0f0f3220(s32 arg0)
-{
-	s32 i;
-
-	if (g_MenuData.unk669[arg0] == 4) {
-		s32 prevplayernum = g_MpPlayerNum;
-
-		for (i = ARRAYCOUNT(g_Menus) - 1; i >= 0; i--) {
-			if (g_Menus[i].curdialog) {
-				g_MpPlayerNum = i;
-			}
-		}
-
-		filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_000, 0);
-
-		g_MpPlayerNum = prevplayernum;
-	} else if (g_MenuData.unk669[arg0] < 4) {
-		s32 prevplayernum = g_MpPlayerNum;
-		g_MpPlayerNum = g_MenuData.unk669[arg0];
-		filemgrSaveOrLoad(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, FILEOP_SAVE_MPPLAYER, g_MpPlayerNum);
-		g_MpPlayerNum = prevplayernum;
-	}
-
-	g_MenuData.unk66e--;
-}
-#endif
 
 void menuCloseDialog(void)
 {

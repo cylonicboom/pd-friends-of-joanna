@@ -80,6 +80,7 @@ MenuItemHandlerResult filemgrOpenDeleteFileMenuHandler(s32 operation, struct men
 MenuItemHandlerResult filemgrConfirmRenameMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult filemgrSaveElsewhereYesMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult filemgrSelectLocationMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data);
+void filemgrSaveMpPlayers(void);
 
 extern const char var7f1b3214[];
 extern const char var7f1b3218[];

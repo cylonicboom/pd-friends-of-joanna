@@ -949,6 +949,27 @@ bool filemgrSaveOrLoad(struct fileguid *guid, s32 fileop, uintptr_t playernum)
 	return true;
 }
 
+/**
+ * Saves multiplayer player profiles to storage.
+ *
+ * Iterates through all multiplayer player slots, temporarily setting the global
+ * player number to each index. For each player, if their file GUID is valid,
+ * invokes filemgrSaveOrLoad to save their profile data.
+ * Restores the previous global player number after completion.
+ */
+void filemgrSaveMpPlayers(void) {
+	struct fileguid *fileguid;
+	s32 prevplayernum = g_MpPlayerNum;
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+		g_MpPlayerNum = i;
+		fileguid = &g_PlayerConfigsArray[i].fileguid;
+		if (fileguid->deviceserial != 0xffff && fileguid->fileid != 0xff00) {
+			filemgrSaveOrLoad(&g_PlayerConfigsArray[i].fileguid, FILEOP_SAVE_MPPLAYER, i);
+		}
+	}
+	g_MpPlayerNum = prevplayernum;
+}
+
 void filemgrDeleteCurrentFile(void)
 {
 #if VERSION >= VERSION_JPN_FINAL
