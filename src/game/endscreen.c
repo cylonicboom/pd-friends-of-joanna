@@ -25,6 +25,7 @@
 #include "game/lang.h"
 #include "game/options.h"
 #include "game/mpstats.h"
+#include "game/mplayer/mplayer.h"
 #include "bss.h"
 #include "lib/vi.h"
 #include "lib/main.h"
@@ -37,6 +38,31 @@ MenuItemHandlerResult endscreenHandleDeclineMission(s32 operation, struct menuit
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
 		menuPopDialog();
+		mpSetPaused(MPPAUSEMODE_UNPAUSED);
+		if (!g_MissionConfig.isteam) return 0;
+		g_Vars.mplayerisrunning = false;
+		g_MissionConfig.iscoop = false;
+		g_MissionConfig.isanti = false;
+		g_MissionConfig.isteam = false;
+		g_MissionConfig.pdmode = false;
+		g_Vars.normmplayerisrunning = false;
+		g_Vars.lvmpbotlevel = 0;
+
+		if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
+			g_BossFile.locktype = MPLOCKTYPE_NONE;
+		}
+
+		if (IS8MB()) {
+			titleSetNextStage(STAGE_CITRAINING);
+			setNumPlayers(1);
+			titleSetNextMode(TITLEMODE_SKIP);
+			mainChangeToStage(STAGE_CITRAINING);
+		} else {
+			titleSetNextStage(STAGE_4MBMENU);
+			setNumPlayers(1);
+			titleSetNextMode(TITLEMODE_SKIP);
+			mainChangeToStage(STAGE_4MBMENU);
+		}
 	}
 
 	return 0;
@@ -64,6 +90,34 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 					if (inputs->back) {
 						menuPopDialog();
 						menuPopDialog();
+
+						if (g_MissionConfig.isteam) {
+							mpSetPaused(MPPAUSEMODE_UNPAUSED);
+							g_Vars.mplayerisrunning = false;
+							g_MissionConfig.iscoop = false;
+							g_MissionConfig.isanti = false;
+							g_MissionConfig.isteam = false;
+							g_MissionConfig.pdmode = false;
+							g_Vars.normmplayerisrunning = false;
+							g_Vars.lvmpbotlevel = 0;
+
+							if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
+								g_BossFile.locktype = MPLOCKTYPE_NONE;
+							}
+
+							if (IS8MB()) {
+								titleSetNextStage(STAGE_CITRAINING);
+								setNumPlayers(1);
+								titleSetNextMode(TITLEMODE_SKIP);
+								mainChangeToStage(STAGE_CITRAINING);
+							} else {
+								titleSetNextStage(STAGE_4MBMENU);
+								setNumPlayers(1);
+								titleSetNextMode(TITLEMODE_SKIP);
+								mainChangeToStage(STAGE_4MBMENU);
+							}
+
+						}
 					}
 
 					inputs->back = false;
@@ -299,35 +353,50 @@ char *endscreenMenuTextMissionStatus(struct menuitem *item)
 		return langGet(L_MPWEAPONS_135); // "Cheated"
 	}
 
-	if (g_Vars.coopplayernum >= 0) {
-		if (g_Vars.bond->aborted || g_Vars.coop->aborted) {
+	bool coopaborted = false;
+	bool antiaborted = false;
+
+	// HACK: need to better handle coop + bond dying
+	// for now we'll just roll with the existing
+	// behavior and fix it later when I
+	// implement the respawn logic
+	bool coopisdead = false;
+
+	// avoid wierd flickering of the status text
+	// during counter + co op endscreen scenarios
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
+			coopaborted = true;
+		}
+
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->isdead) {
+			coopisdead = true;
+		}
+
+		if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->aborted) {
+			antiaborted = true;
+		}
+	}
+
+	if (g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.currentplayernum == g_Vars.bondplayernum) {
+		if (g_Vars.bond->aborted || coopaborted || antiaborted) {
 			return langGet(L_OPTIONS_295); // "Aborted"
 		}
 
-		if (g_Vars.bond->isdead && g_Vars.coop->isdead) {
+		if (g_Vars.bond->isdead && coopisdead) {
 			return langGet(L_OPTIONS_293); // "Failed"
 		}
-	} else if (g_Vars.antiplayernum >= 0) {
-		if (g_Vars.currentplayer == g_Vars.bond) {
-			if (g_Vars.bond->aborted) {
-				return langGet(L_OPTIONS_295); // "Aborted"
-			}
+	} else if (g_Vars.antiplayers[g_Vars.currentplayernum]) {
+		if (g_Vars.bond->aborted || antiaborted || coopaborted) {
+			return langGet(L_OPTIONS_295); // "Aborted"
+		}
 
-			if (g_Vars.anti->aborted) {
-				return langGet(L_OPTIONS_295); // "Aborted"
-			}
+		if (g_Vars.bond->isdead) {
+			return langGet(L_OPTIONS_293); // "Failed"
+		}
 
-			if (g_Vars.bond->isdead) {
-				return langGet(L_OPTIONS_293); // "Failed"
-			}
-		} else {
-			if (g_Vars.anti->aborted) {
-				return langGet(L_OPTIONS_295); // "Aborted"
-			}
-
-			if (!g_Vars.bond->aborted && !g_Vars.bond->isdead) {
-				return langGet(L_OPTIONS_293); // "Failed"
-			}
+		if (!g_Vars.bond->aborted && !g_Vars.bond->isdead) {
+			return langGet(L_OPTIONS_293); // "Failed"
 		}
 	} else {
 		if (g_Vars.bond->aborted) {
@@ -1469,7 +1538,7 @@ void endscreenPrepare(void)
 		} else {
 			menuPushRootDialog(&g_SoloMissionEndscreenCompletedMenuDialog, MENUROOT_ENDSCREEN);
 
-			if (g_MissionConfig.iscoop) {
+			if (g_MissionConfig.isteam){
 				endscreenSetCoopCompleted();
 			}
 		}
@@ -1674,6 +1743,196 @@ struct menudialogdef g_2PMissionEndscreenFailedVMenuDialog = {
 	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
 	&g_2PMissionEndscreenObjectivesFailedVMenuDialog,
 };
+
+/**
+ * chooseEndScreenFailedDialog - Selects and pushes the appropriate end screen dialog
+ * when a mission is failed, based on the current player's anti status and the
+ * desired dialog orientation (vertical or horizontal).
+ *
+ * If the current player is not an anti-player, the function pushes the "failed"
+ * dialog. If the player is an anti-player, it treats the mission as completed
+ * and pushes the "completed" dialog instead.
+ *
+ * @param usevertical: If true, selects the vertical dialog; otherwise, selects the horizontal dialog.
+ */
+static void chooseEndScreenFailedDialog(bool usevertical){
+	if (usevertical) {
+		menuPushRootDialog(&g_2PMissionEndscreenFailedVMenuDialog, MENUROOT_MPENDSCREEN);
+	} else {
+		menuPushRootDialog(&g_2PMissionEndscreenFailedHMenuDialog, MENUROOT_MPENDSCREEN);
+	}
+}
+
+/**
+ * chooseEndScreenCompletedDialog - Selects and pushes the appropriate end screen dialog
+ * when a mission is completed, based on the current player's anti status and the
+ * desired dialog orientation (vertical or horizontal).
+ *
+ * If the current player is not an anti-player, the function treats the mission as
+ * completed and pushes the "completed" dialog. If the player is an anti-player,
+ * it treats the mission as failed and pushes the "failed" dialog instead.
+ *
+ * @param usevertical: If true, selects the vertical dialog; otherwise, selects the horizontal dialog.
+ */
+static void chooseEndScreenCompletedDialog(bool usevertical){
+	if (usevertical) {
+		menuPushRootDialog(&g_2PMissionEndscreenCompletedVMenuDialog, MENUROOT_MPENDSCREEN);
+	} else {
+		menuPushRootDialog(&g_2PMissionEndscreenCompletedHMenuDialog, MENUROOT_MPENDSCREEN);
+	}
+}
+
+/**
+ * endscreenPushTeam - Handles the logic for displaying the end screen in team-based
+ * cooperative or multiplayer missions. This function determines the mission outcome
+ * (completed, failed, or aborted) for the current player, selects the appropriate
+ * end screen dialog, and manages saving game or multiplayer player data as needed.
+ *
+ * The function consolidates the logic for both Coop and Anti missions:
+ * - Pauses the game.
+ * - Sets up end screen state for the current multiplayer player.
+ * - Checks if Bond or any coop player is dead or has aborted.
+ * - Determines if all objectives are complete.
+ * - Chooses and displays the appropriate end screen dialog (failed or completed),
+ *   handling both Coop and Anti mission types.
+ * - Saves game or multiplayer player data.
+ * - Restores the previous multiplayer player number.
+ */
+void endscreenPushTeam(void)
+{
+	u32 prevplayernum = g_MpPlayerNum;
+
+	printf("endscreenPushTeam\n");
+	printf("g_Vars.currentplayer: %p\n", g_Vars.currentplayer);
+
+	lvSetPaused(true);
+
+	g_MpPlayerNum = g_Vars.currentplayerstats->mpindex;
+	printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+
+	g_Menus[g_MpPlayerNum].endscreen.cheatinfo = 0;
+	g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = false;
+	g_Menus[g_MpPlayerNum].endscreen.stageindex = g_MissionConfig.stageindex;
+
+	bool bondisdead = 0, coopisdead = 0, bondaborted = 0, coopaborted = 0, antiaborted = 0, allcomplete = 0;
+
+	bondisdead = g_Vars.bond->isdead;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->isdead) {
+			coopisdead = true;
+		}
+	}
+
+	bondaborted = g_Vars.bond->aborted;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
+			coopaborted = true;
+		}
+	}
+
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->aborted) {
+			antiaborted = true;
+		}
+	}
+
+	allcomplete = objectiveIsAllComplete();
+
+	g_Menus[g_MpPlayerNum].playernum = g_Vars.currentplayernum;
+
+	bool usevertical = optionsGetScreenSplit() == SCREENSPLIT_VERTICAL
+		|| PLAYERCOUNT() >= 3;
+
+
+	if (antiaborted && g_Vars.antiplayers[g_Vars.currentplayernum]) {
+		printf("anti aborted and currently anti\n");
+		printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+		printf("playernum: %d\n", g_Vars.currentplayernum);
+		chooseEndScreenFailedDialog(usevertical);
+	}
+	else if (antiaborted && g_Vars.players[g_Vars.currentplayernum]) {
+		// anti aborted: bond or coop
+		printf("anti aborted and currently bond or coop\n");
+		printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+		printf("playernum: %d\n", g_Vars.currentplayernum);
+		chooseEndScreenCompletedDialog(usevertical);
+	}
+	else if (g_Vars.antiplayers[g_Vars.currentplayernum]){
+		// currentplayer: is currently anti
+		//
+		// bond or coop dead, failed or aborted
+		bool p1p2failed = false;
+		if (bondaborted || coopaborted) {
+			printf("bond or coop aborted and currently anti\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenCompletedDialog(usevertical);
+			p1p2failed = true;
+		}
+		if (bondisdead && coopisdead) {
+			printf("bond and coop dead and currently anti\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenCompletedDialog(usevertical);
+			p1p2failed = true;
+		}
+		if (!allcomplete && !antiaborted) {
+			printf("not all objectives complete and currently anti\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenCompletedDialog(usevertical);
+			p1p2failed = true;
+		}
+
+		if (!p1p2failed) {
+			printf("anti did not fail, showing failed dialog\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenFailedDialog(usevertical);
+		}
+
+	} else if (!g_Vars.antiplayers[g_Vars.currentplayernum] && g_Vars.players[g_Vars.currentplayernum]) {
+		// currentplayer: is currently bond or coop and p1p2 failed
+		bool p1p2failed = false;
+		if (bondaborted || coopaborted) {
+			printf("bond or coop aborted and currently bond/coop\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenFailedDialog(usevertical);
+			p1p2failed = true;
+		}
+		if (bondisdead && coopisdead) {
+			printf("bond and coop dead and currently bond/coop\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenFailedDialog(usevertical);
+			p1p2failed = true;
+		}
+		if (!allcomplete && !antiaborted) {
+			printf("not all objectives complete and currently bond/coop\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenFailedDialog(usevertical);
+			p1p2failed = true;
+		}
+		if (!p1p2failed) {
+			printf("bond/coop did not fail, showing completed dialog\n");
+			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			printf("playernum: %d\n", g_Vars.currentplayernum);
+			chooseEndScreenCompletedDialog(usevertical);
+			endscreenSetCoopCompleted();
+		}
+	}
+
+	if (g_Vars.currentplayer == g_Vars.bond) {
+		filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_000, 0);
+		if (g_MissionConfig.isteam) {
+			filemgrSaveMpPlayers();
+		}
+	}
+
+	g_MpPlayerNum = prevplayernum;
+}
 
 void endscreenPushCoop(void)
 {

@@ -1121,7 +1121,7 @@ void mainEndStage(void)
 
 			for (i = 0; i < PLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
-				endscreenPushCoop();
+				endscreenPushTeam();
 			}
 
 			setCurrentPlayerNum(prevplayernum);
@@ -1132,7 +1132,7 @@ void mainEndStage(void)
 
 			for (i = 0; i < PLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
-				endscreenPushAnti();
+				endscreenPushTeam();
 			}
 
 			setCurrentPlayerNum(prevplayernum);

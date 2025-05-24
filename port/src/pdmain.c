@@ -566,29 +566,19 @@ void mainEndStage(void)
 		pak0f11c6d0();
 		joyDisableTemporarily();
 
-		if (g_Vars.coopplayernum >= 0) {
+		if (g_MissionConfig.isteam) {
 			s32 prevplayernum = g_Vars.currentplayernum;
 			s32 i;
 
 			for (i = 0; i < PLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
-				endscreenPushCoop();
+				endscreenPushTeam();
 			}
 
 			setCurrentPlayerNum(prevplayernum);
 			musicStartMenu();
-		} else if (g_Vars.antiplayernum >= 0) {
-			s32 prevplayernum = g_Vars.currentplayernum;
-			s32 i;
-
-			for (i = 0; i < PLAYERCOUNT(); i++) {
-				setCurrentPlayerNum(i);
-				endscreenPushAnti();
-			}
-
-			setCurrentPlayerNum(prevplayernum);
-			musicStartMenu();
-		} else if (g_Vars.normmplayerisrunning) {
+		}
+		else if (g_Vars.normmplayerisrunning) {
 			mpEndMatch();
 		} else {
 			endscreenPrepare();

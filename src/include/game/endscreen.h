@@ -38,5 +38,6 @@ void endscreenPrepare(void);
 void endscreenPushCoop(void);
 void endscreenPushSolo(void);
 void endscreenPushAnti(void);
+void endscreenPushTeam(void);
 
 #endif

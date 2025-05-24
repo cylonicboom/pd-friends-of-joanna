@@ -1128,7 +1128,7 @@ bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty)
 				return true;
 			}
 
-			if ((g_MissionConfig.iscoop || g_MissionConfig.isanti)
+			if ((g_MissionConfig.isteam)
 					&& (g_GameFile.coopcompletions[d] & (1 << stageindex))) {
 				return true;
 			}
@@ -1143,7 +1143,7 @@ bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty)
 						return true;
 					}
 
-					if ((g_MissionConfig.iscoop || g_MissionConfig.isanti)
+					if ((g_MissionConfig.isteam)
 							&& (g_GameFile.coopcompletions[d] & (1 << (stageindex - 1)))) {
 						return true;
 					}
@@ -1157,7 +1157,7 @@ bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty)
 							break;
 						}
 
-						if ((g_MissionConfig.iscoop || g_MissionConfig.isanti)
+						if ((g_MissionConfig.isteam)
 								&& (g_GameFile.coopcompletions[d] & (1 << s)) != 0) {
 							break;
 						}
@@ -1187,7 +1187,7 @@ bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty)
 							break;
 						}
 
-						if ((g_MissionConfig.iscoop || g_MissionConfig.isanti)
+						if ((g_MissionConfig.isteam)
 								&& (g_GameFile.coopcompletions[d] & (1 << s)) != 0) {
 							break;
 						}
@@ -1205,7 +1205,7 @@ bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty)
 							return true;
 						}
 
-						if ((g_MissionConfig.iscoop || g_MissionConfig.isanti)
+						if ((g_MissionConfig.isteam)
 								&& (g_GameFile.coopcompletions[d] & (1 << stageindex)) != 0) {
 							return true;
 						}
@@ -2675,7 +2675,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 					stageiscomplete = true;
 				}
 
-				if ((g_MissionConfig.iscoop || g_MissionConfig.isanti)
+				if ((g_MissionConfig.isteam)
 						&& (g_GameFile.coopcompletions[j] & (1 << i))) {
 					stageiscomplete = true;
 				}
@@ -2826,9 +2826,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 
 		}
 
-		if (g_MissionConfig.isanti || g_MissionConfig.isteam) {
-			// No stars
-		} else if (g_MissionConfig.iscoop) {
+		if (g_MissionConfig.isteam) {
 			texSelect(&gdl, &g_TexGeneralConfigs[36], 2, 0, 2, true, NULL);
 
 			gDPSetCycleType(gdl++, G_CYC_1CYCLE);
