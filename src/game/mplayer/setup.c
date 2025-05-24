@@ -5748,14 +5748,17 @@ struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
 	// 	0,
 	// 	(void *)&g_MpPlayerOptionsMenuDialog,
 	// },
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_MPMENU_035, // "Statistics"
-		0,
-		(void *)&g_MpPlayerStatsMenuDialog,
-	},
+	// // also removing stats for now
+	// // until I implement the stats system
+	// // in team missions
+	// {
+	// 	MENUITEMTYPE_SELECTABLE,
+	// 	0,
+	// 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+	// 	L_MPMENU_035, // "Statistics"
+	// 	0,
+	// 	(void *)&g_MpPlayerStatsMenuDialog,
+	// },
 	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
