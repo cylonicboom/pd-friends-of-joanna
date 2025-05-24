@@ -484,17 +484,6 @@ char *endscreenMenuTextMissionTime(struct menuitem *item)
 
 struct menudialogdef *endscreenAdvance(void)
 {
-#if VERSION < VERSION_NTSC_1_0
-	if (g_MissionConfig.stagenum == STAGE_SKEDARRUINS) {
-		g_MissionConfig.stagenum = STAGE_CREDITS;
-		titleSetNextStage(g_MissionConfig.stagenum);
-		lvSetDifficulty(g_MissionConfig.difficulty);
-		titleSetNextMode(TITLEMODE_SKIP);
-		mainChangeToStage(g_MissionConfig.stagenum);
-
-		return NULL;
-	}
-#endif
 
 	g_MissionConfig.stageindex++;
 	g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
@@ -807,7 +796,8 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 								titleSetNextMode(TITLEMODE_SKIP);
 								mainChangeToStage(g_MissionConfig.stagenum);
 							}
-						} else if (g_Vars.antiplayernum >= 0
+						}
+						else if (g_Vars.antiplayernum >= 0
 								|| (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2)
 								|| (stageGetIndex(g_MissionConfig.stagenum) < 0
 									|| g_Vars.stagenum == STAGE_CITRAINING
@@ -815,7 +805,8 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 									|| ((g_CheatsActiveBank0 || g_CheatsActiveBank1)
 										&& !isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty)))) {
 							menuPopDialog();
-						} else {
+						}
+						else {
 							endscreenResetModels();
 							menuPushDialog(endscreenAdvance());
 						}
@@ -2011,33 +2002,33 @@ void endscreenPushSolo(void)
 	g_MpPlayerNum = 0;
 	g_Menus[g_MpPlayerNum].playernum = 0;
 
-#if VERSION >= VERSION_NTSC_1_0 && defined(DEBUG)
-	if (((g_Vars.bond->isdead && g_Vars.coop->isdead)
+	bool coopisdead = false, coopaborted = false;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->isdead) {
+			coopisdead = true;
+		}
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
+			coopaborted = true;
+		}
+	}
+
+	if ((g_Vars.bond->isdead && coopisdead)
 			|| g_Vars.bond->aborted
-			|| g_Vars.coop->aborted
-			|| !objectiveIsAllComplete()) && !debugIsSetCompleteEnabled())
-#else
-	if ((g_Vars.bond->isdead && g_Vars.coop->isdead)
-			|| g_Vars.bond->aborted
-			|| g_Vars.coop->aborted
+			|| coopaborted
 			|| !objectiveIsAllComplete())
-#endif
 	{
 		// Failed or aborted
 		endscreenResetModels();
 		menuPushRootDialog(&g_RetryMissionMenuDialog, MENUROOT_COOPCONTINUE);
 	} else {
 		// Completed
-#if VERSION >= VERSION_NTSC_1_0
 		endscreenContinue(1);
-#else
 		struct menudialogdef *definition = endscreenAdvance();
 
 		if (definition) {
 			endscreenResetModels();
 			menuPushRootDialog(definition, MENUROOT_COOPCONTINUE);
 		}
-#endif
 	}
 
 	g_MpPlayerNum = prevplayernum;

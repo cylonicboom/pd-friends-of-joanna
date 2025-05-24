@@ -4813,7 +4813,7 @@ struct menudata {
 	/*0x5d5*/ u8 usezbuf : 1;
 	/*0x5d5*/ u8 unk5d5_04 : 1;
 	/*0x5d5*/ u8 unk5d5_05 : 1;
-	/*0x5d5*/ u8 unk5d5_06 : 1;
+	/*0x5d5*/ u8 isdialogopen : 1;
 	/*0x5d5*/ u8 unk5d5_07 : 1;
 	/*0x5d5*/ u8 unk5d5_08 : 1;
 	/*0x5d8*/ struct menudata_5d8 unk5d8[12];
