@@ -552,6 +552,8 @@ bool aiIfChrDead(void)
 				if (isdead) break;
 				// here we can check everyone but bond
 				if (!playerpool[g_Vars.playerorder[i]]) continue;
+				// p1p2 is a special case, it can be anti or coop, but not anti
+				if (chrId == CHR_P1P2 && isChrPropAnti(playerpool[g_Vars.playerorder[i]]->prop)) continue;
 				if ((chrId == CHR_ANTI || chrId == CHR_COOP) && !playerpool[g_Vars.playerorder[i]] == g_Vars.bond) continue;
 
 				isdead = ((struct player*)playerpool[g_Vars.playerorder[i]])->isdead;
