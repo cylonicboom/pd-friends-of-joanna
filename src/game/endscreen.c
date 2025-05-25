@@ -485,9 +485,13 @@ char *endscreenMenuTextMissionTime(struct menuitem *item)
 struct menudialogdef *endscreenAdvance(void)
 {
 
+	if (g_Vars.currentplayer->advancedendscreen) {
+		return &g_NextMissionMenuDialog;
+	}
+
 	g_MissionConfig.stageindex++;
 	g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
-
+	g_Vars.currentplayer->advancedendscreen = true;
 	return &g_NextMissionMenuDialog;
 }
 
@@ -655,7 +659,6 @@ struct menudialogdef g_MissionContinueOrReplyMenuDialog = {
 };
 #endif
 
-#if VERSION >= VERSION_NTSC_1_0
 /**
  * Context is:
  *
@@ -665,9 +668,7 @@ struct menudialogdef g_MissionContinueOrReplyMenuDialog = {
  */
 void endscreenContinue(s32 context)
 {
-	if (g_Vars.antiplayernum >= 0) {
-		menuPopDialog();
-	} else if (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2 && context == 0) {
+	if (g_MissionConfig.isteam && context == 0) {
 		menuPopDialog();
 	} else {
 		if (g_Vars.stagenum == STAGE_DEEPSEA || g_Vars.stagenum == STAGE_SKEDARRUINS) {
@@ -688,17 +689,7 @@ void endscreenContinue(s32 context)
 							playermgrResetTeamPlayers();
 							setNumPlayers(getNumTeamPlayerRoleAssignments());
 						}
-						else if (g_MissionConfig.iscoop) {
-							if (g_Vars.numaibuddies == 0) {
-								g_Vars.bondplayernum = 0;
-								g_Vars.coopplayernum = 1;
-								g_Vars.antiplayernum = -1;
-								setNumPlayers(2);
-							} else {
-								playermgrDisableTeamPlayers(false);
-								setNumPlayers(1);
-							}
-						} else {
+						else {
 							playermgrDisableTeamPlayers(false);
 							setNumPlayers(1);
 						}
@@ -757,7 +748,6 @@ void endscreenContinue(s32 context)
 		}
 	}
 }
-#endif
 
 MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
@@ -781,13 +771,12 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 					}
 
 					if (g_Menus[g_MpPlayerNum].endscreen.unke1c == 0) {
-#if VERSION >= VERSION_NTSC_1_0
 						endscreenContinue(0);
-#else
 						if (g_Vars.stagenum == STAGE_DEEPSEA) {
-							if (g_Vars.antiplayernum >= 0 || (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2)) {
-								menuPopDialog();
-							} else {
+							// if (g_Vars.antiplayernum >= 0 || (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2)) {
+							// 	menuPopDialog();
+							// } else
+							{
 								g_MissionConfig.stageindex++;
 								g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
 
@@ -810,7 +799,6 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 							endscreenResetModels();
 							menuPushDialog(endscreenAdvance());
 						}
-#endif
 					}
 				}
 
@@ -1627,7 +1615,6 @@ void endscreenPrepare(void)
 				}
 #endif
 
-#if VERSION >= VERSION_NTSC_1_0
 				// Recalculate thumbnail for file select screen
 				if (g_MissionConfig.stageindex <= SOLOSTAGEINDEX_SKEDARRUINS) {
 					g_GameFile.autostageindex = g_MissionConfig.stageindex + 1;
@@ -1660,18 +1647,6 @@ void endscreenPrepare(void)
 						g_Menus[g_MpPlayerNum].endscreen.cheatinfo |= 0x0800;
 					}
 				}
-#else
-				// 154
-				if (g_MissionConfig.stageindex <= SOLOSTAGEINDEX_SKEDARRUINS) {
-					g_GameFile.autostageindex = g_MissionConfig.stageindex + 1;
-
-					if (g_GameFile.autostageindex > SOLOSTAGEINDEX_SKEDARRUINS) {
-						g_GameFile.autostageindex = SOLOSTAGEINDEX_SKEDARRUINS;
-					}
-
-					g_GameFile.thumbnail = g_MissionConfig.stageindex + 1;
-				}
-#endif
 
 				challengeDetermineUnlockedFeatures();
 

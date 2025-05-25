@@ -160,6 +160,7 @@ void playerReset(void)
 	var80070738 = 0;
 	var8007073c = 0;
 
+	g_Vars.currentplayer->advancedendscreen = false;
 	g_CurrentGeCreditsData = NULL;
 	g_Vars.currentplayer->bondexploding = false;
 	g_NumSpawnPoints = 0;

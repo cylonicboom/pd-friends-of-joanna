@@ -534,28 +534,22 @@ void menuTick(void)
 
 				for (i = 0; i < MAX_PLAYERS; i++) {
 					if (g_MpSetup.chrslots & (1 << i)) {
-						if (g_Vars.coopplayernum >= 0) {
-							if (g_Vars.stagenum == STAGE_DEEPSEA) {
-								g_MissionConfig.stageindex++;
-								g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
-								titleSetNextStage(g_MissionConfig.stagenum);
-								lvSetDifficulty(g_MissionConfig.difficulty);
-								titleSetNextMode(TITLEMODE_SKIP);
-								mainChangeToStage(g_MissionConfig.stagenum);
-							} else {
-								s32 prevplayernum = g_Vars.currentplayernum;
-								setCurrentPlayerNum(playernum);
-								endscreenPushTeam();
-								setCurrentPlayerNum(prevplayernum);
-								isdialogopen = true;
-							}
-						} else if (g_Vars.antiplayernum >= 0) {
+						if (g_Vars.stagenum == STAGE_DEEPSEA) {
+							g_MissionConfig.stageindex++;
+							g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+							titleSetNextStage(g_MissionConfig.stagenum);
+							lvSetDifficulty(g_MissionConfig.difficulty);
+							titleSetNextMode(TITLEMODE_SKIP);
+							mainChangeToStage(g_MissionConfig.stagenum);
+						} else {
 							s32 prevplayernum = g_Vars.currentplayernum;
 							setCurrentPlayerNum(playernum);
 							endscreenPushTeam();
 							setCurrentPlayerNum(prevplayernum);
 							isdialogopen = true;
-						} else {
+						}
+
+						if (g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
 							mpPushEndscreenDialog(playernum, i);
 							isdialogopen = true;
 
