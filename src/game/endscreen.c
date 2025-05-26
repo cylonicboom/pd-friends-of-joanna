@@ -752,7 +752,7 @@ void endscreenContinue(s32 context)
 MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
 	if (operation == MENUOP_OPEN) {
-		g_Menus[g_MpPlayerNum].endscreen.unke1c = 0;
+		g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = 0;
 	}
 
 	if (operation == MENUOP_TICK) {
@@ -762,20 +762,18 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 				struct menuinputs *inputs = data->dialog2.inputs;
 
 				if (inputs->select || inputs->back || inputs->start) {
-					g_Menus[g_MpPlayerNum].endscreen.unke1c = VERSION >= VERSION_NTSC_1_0 ? 6 : 3;
+					g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = VERSION >= VERSION_NTSC_1_0 ? 6 : 3;
 				}
 
-				if (g_Menus[g_MpPlayerNum].endscreen.unke1c) {
-					if (var8009dfc0) {
-						g_Menus[g_MpPlayerNum].endscreen.unke1c--;
+				if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer) {
+					// decrement the timer
+					if (g_IsModalMenuMode) {
+						g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer--;
 					}
 
-					if (g_Menus[g_MpPlayerNum].endscreen.unke1c == 0) {
+					if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer == 0) {
 						endscreenContinue(0);
 						if (g_Vars.stagenum == STAGE_DEEPSEA) {
-							// if (g_Vars.antiplayernum >= 0 || (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2)) {
-							// 	menuPopDialog();
-							// } else
 							{
 								g_MissionConfig.stageindex++;
 								g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
@@ -813,7 +811,7 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 MenuDialogHandlerResult endscreenHandle2PFailed(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
 	if (operation == MENUOP_OPEN) {
-		g_Menus[g_MpPlayerNum].endscreen.unke1c = 0;
+		g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = 0;
 	}
 
 	if (operation == MENUOP_TICK) {
@@ -823,15 +821,17 @@ MenuDialogHandlerResult endscreenHandle2PFailed(s32 operation, struct menudialog
 				struct menuinputs *inputs = data->dialog2.inputs;
 
 				if (inputs->select || inputs->back || inputs->start) {
-					g_Menus[g_MpPlayerNum].endscreen.unke1c = VERSION >= VERSION_NTSC_1_0 ? 6 : 3;
+					g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = VERSION >= VERSION_NTSC_1_0 ? 6 : 3;
 				}
 
-				if (g_Menus[g_MpPlayerNum].endscreen.unke1c) {
-					if (var8009dfc0) {
-						g_Menus[g_MpPlayerNum].endscreen.unke1c--;
+				if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer) {
+					// decrement the timer
+					if (g_IsModalMenuMode) {
+						g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer--;
 					}
 
-					if (g_Menus[g_MpPlayerNum].endscreen.unke1c == 0) {
+					// if the timer has reached zero, do the handling here
+					if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer == 0) {
 						if (g_Vars.antiplayernum >= 0
 								|| (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2)
 								|| stageGetIndex(g_MissionConfig.stagenum) < 0

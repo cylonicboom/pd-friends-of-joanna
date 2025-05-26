@@ -3759,7 +3759,7 @@ struct menudfc {
 };
 
 struct menudata_endscreen {
-	u32 unke1c;
+	u32 dialogbouncebacktimer;
 
 	// ......xx = timed cheat ID
 	// .....1.. = this stage + difficulty has a timed cheat
