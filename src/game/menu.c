@@ -4144,7 +4144,37 @@ void dialogTick(struct menudialog *dialog, struct menuinputs *inputs, u32 tickfl
 					transitiontotype = MENUDIALOGTYPE_DEFAULT;
 				}
 
+				// Defense white endscreen dialog
+				// filter out all the special cases
+				// where we want the dialog type to not be changed
+				// Basically, never  for anti
+				// and never for coop or bond when there's some kind of fail condition
+				bool progress = true;
+				for (i = 0; i < MAX_PLAYERS; i++) {
+					if (g_Vars.bond->aborted) {
+						progress = false;
+						break;
+					}
+
+					if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->aborted) {
+						progress = false;
+						break;
+					}
+
+					if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
+						progress = false;
+						break;
+					}
+				}
+				if (progress && g_Vars.bond->isdead) {
+					progress = false;
+				}
+				if (progress && !objectiveIsAllComplete()) {
+					progress = false;
+				}
+
 				if (g_StageIndex == STAGEINDEX_DEFENSE
+						&& progress
 						&& !g_Vars.antiplayers[g_MpPlayerNum]
 						&& g_MenuData.bg != MENUBG_FAILURE
 						&& g_MenuData.nextbg != MENUBG_FAILURE) {
