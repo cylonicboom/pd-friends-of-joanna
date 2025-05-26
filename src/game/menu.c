@@ -4139,12 +4139,13 @@ void dialogTick(struct menudialog *dialog, struct menuinputs *inputs, u32 tickfl
 				transitiontotype = MENUDIALOGTYPE_DANGER;
 			}
 
-			if (g_MenuData.root == MENUROOT_ENDSCREEN) {
+			if (g_MenuData.root == MENUROOT_ENDSCREEN || g_MenuData.root == MENUROOT_MPENDSCREEN) {
 				if (g_MenuData.bg == MENUBG_8 || g_MenuData.bg == MENUBG_SUCCESS) {
 					transitiontotype = MENUDIALOGTYPE_DEFAULT;
 				}
 
 				if (g_StageIndex == STAGEINDEX_DEFENSE
+						&& !g_Vars.antiplayers[g_MpPlayerNum]
 						&& g_MenuData.bg != MENUBG_FAILURE
 						&& g_MenuData.nextbg != MENUBG_FAILURE) {
 					transitiontotype = MENUDIALOGTYPE_WHITE;
