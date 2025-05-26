@@ -1817,7 +1817,10 @@ Gfx *menuitemObjectivesRenderOne(Gfx *gdl, struct menudialog *dialog, s32 index,
 		gdl = textRenderProjected(gdl, &x, &y, buffer, g_CharsHandelGothicSm, g_FontHandelGothicSm, sp12c, width, height, 0, 0);
 	}
 
-	if (withstatus) {
+	// HACK: the right way is to do this in the dialog
+	// this is to prevent the "Incomplete" text from being rendered
+	// in the briefing menu in Team Missions
+	if (withstatus && g_MenuData.root != MENUROOT_TEAMMISSIONS) {
 		switch (objectiveCheck(index)) {
 		case OBJECTIVE_INCOMPLETE:
 			spcc = langGet(L_OPTIONS_001); // "Incomplete"
@@ -2388,7 +2391,7 @@ Gfx *menuitemSelectableRender(Gfx *gdl, struct menurendercontext *context)
 			x += 36;
 		}
 		y += 6;
-	} 
+	}
 
 	gdl = text0f153628(gdl);
 	gdl = textRenderProjected(gdl, &x, &y, text, font1, font2,
