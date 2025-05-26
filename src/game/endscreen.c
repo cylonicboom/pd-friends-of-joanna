@@ -852,15 +852,12 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 						else if (!g_Vars.antiplayers[g_MpPlayerNum] && progress && isspecialstage) {
 							menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
 						}
-						// else if (!g_Vars.antiplayers[g_MpPlayerNum] && g_MissionConfig.stageindex > SOLOSTAGEINDEX_SKEDARRUINS) {
-						// 	menuPopDialog();
-						// }
 						else if (g_Vars.antiplayers[g_MpPlayerNum]) {
 							menuPopDialog();
 						}
 						else {
 							endscreenResetModels();
-							menuPushDialog(endscreenAdvance());
+							menuPopDialog();
 						}
 					}
 				}
