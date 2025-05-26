@@ -3754,7 +3754,7 @@ bool bgunChangeGunMem(s32 newowner)
 				unlock = true;
 			}
 
-			if (newowner == GUNMEMOWNER_INVMENU && var8009dfc0 != 0) {
+			if (newowner == GUNMEMOWNER_INVMENU && g_IsModalMenuMode != 0) {
 				unlock = true;
 				playerRemoveChrBody();
 			}

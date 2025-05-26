@@ -1394,14 +1394,14 @@ void playerTickChrBody(void)
 		if (!g_Vars.mplayerisrunning || (IS4MB() && PLAYERCOUNT() == 1)) {
 			// 1 player
 			if (g_Vars.currentplayer->gunmem2 == NULL) {
-				if (!var8009dfc0 && bgunChangeGunMem(GUNMEMOWNER_CHRBODY)) {
+				if (!g_IsModalMenuMode && bgunChangeGunMem(GUNMEMOWNER_CHRBODY)) {
 					g_Vars.currentplayer->gunmem2 = bgunGetGunMem();
 				} else {
-					if (var8009dfc0);
+					if (g_IsModalMenuMode);
 
 					g_Vars.currentplayer->haschrbody = false;
 
-					if (!var8009dfc0) {
+					if (!g_IsModalMenuMode) {
 						g_Vars.lockscreen = true;
 					}
 					return;
@@ -2886,7 +2886,7 @@ bool playerHasSharedViewport(void)
 {
 	if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 			&& menuGetRoot() == MENUROOT_MPENDSCREEN
-			&& var8009dfc0 == 0) {
+			&& g_IsModalMenuMode == 0) {
 		return true;
 	}
 
@@ -3006,7 +3006,7 @@ s16 playerGetViewportHeight(void)
 			height = g_ViModes[g_ViRes].wideheight;
 		} else if (optionsGetEffectiveScreenSize() == SCREENSIZE_CINEMA) {
 			height = g_ViModes[g_ViRes].cinemaheight;
-		} else if (g_InCutscene && !var8009dfc0) {
+		} else if (g_InCutscene && !g_IsModalMenuMode) {
 			if (g_CutsceneTweenDuration60 >= 1) {
 				f32 a = g_ViModes[g_ViRes].wideheight;
 				f32 b = g_ViModes[g_ViRes].fullheight;
@@ -3073,7 +3073,7 @@ s16 playerGetViewportTop(void)
 		} else if (optionsGetEffectiveScreenSize() == SCREENSIZE_CINEMA) {
 			top = g_ViModes[g_ViRes].cinematop;
 		} else {
-			if (g_InCutscene && !var8009dfc0
+			if (g_InCutscene && !g_IsModalMenuMode
 					&& (!optionsGetCutsceneSubtitles() || g_Vars.stagenum == STAGE_CITRAINING)) {
 				if (g_CutsceneTweenDuration60 >= 1) {
 					f32 a = g_ViModes[g_ViRes].widetop;

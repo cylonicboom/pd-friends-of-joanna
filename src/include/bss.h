@@ -172,7 +172,7 @@ extern s32 g_MenuProjectFromY;
 extern u8 g_MpSelectedPlayersForStats[MAX_PLAYERS];
 extern char g_CheatMarqueeString[];
 extern u8 *g_BlurBuffer;
-extern s32 var8009dfc0;
+extern s32 g_IsModalMenuMode;
 extern struct briefing g_Briefing;
 extern struct missionconfig g_MissionConfig;
 extern struct menu g_Menus[MAX_PLAYERS];

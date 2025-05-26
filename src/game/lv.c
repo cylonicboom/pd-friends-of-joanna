@@ -1213,14 +1213,14 @@ Gfx *lvRender(Gfx *gdl)
 					&& var80075d60 == 2
 					&& g_Vars.currentplayer->cameramode != CAMERAMODE_THIRDPERSON
 					&& g_Vars.currentplayer->cameramode != CAMERAMODE_EYESPY
-					&& var8009dfc0 == 0) {
+					&& g_IsModalMenuMode == 0) {
 				g_Vars.currentplayer->gunctrl.loadall = bgunLoadAll();
 			}
 
 			if (g_Vars.lockscreen) {
 				gdl = bviewDrawMotionBlur(gdl, 0xffffffff, 255);
 				g_Vars.lockscreen--;
-			} else if (var8009dfc0) {
+			} else if (g_IsModalMenuMode) {
 				gdl = viRenderViewportEdges(gdl);
 				gdl = bgScissorToViewport(gdl);
 				mtx00016748(1);

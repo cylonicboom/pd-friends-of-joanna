@@ -67,7 +67,12 @@ char g_StringPointer2[100];
 #endif
 
 u8 *g_BlurBuffer;
-s32 var8009dfc0;
+
+// this seems to be related to states like
+// endscreens or maybe solo pause but I'm not sure
+// when this is set the chrBody and gunmem is unloaded
+// (so the it can be used for dialog models?)
+s32 g_IsModalMenuMode;
 u32 var8009dfc4;
 struct briefing g_Briefing;
 u32 var8009dfe4;
@@ -2613,7 +2618,7 @@ Gfx *dialogRender(Gfx *gdl, struct menudialog *dialog, struct menu *menu, bool l
 #if VERSION >= VERSION_NTSC_1_0
 	if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 			&& menuGetRoot() == MENUROOT_MPENDSCREEN
-			&& !var8009dfc0) {
+			&& !g_IsModalMenuMode) {
 		return gdl;
 	}
 #endif
@@ -3891,7 +3896,7 @@ void menuReset(void)
 
 	func0f110bf0();
 
-	var8009dfc0 = 0;
+	g_IsModalMenuMode = 0;
 
 	if (IS8MB()) {
 		g_BlurBuffer = mempAlloc(0x4b00, MEMPOOL_STAGE);
@@ -4269,7 +4274,7 @@ void dialogTick(struct menudialog *dialog, struct menuinputs *inputs, u32 tickfl
 				dialog->statefrac = 0.5f;
 			}
 		} else if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) && menuGetRoot() == MENUROOT_MPENDSCREEN) {
-			if (var8009dfc0) {
+			if (g_IsModalMenuMode) {
 #if VERSION >= VERSION_PAL_BETA
 				dialog->statefrac += g_Vars.diffframe240freal / 60.0f;
 #else

@@ -95,7 +95,7 @@ void menuTick(void)
 		g_MenuData.nextbg = 0;
 	}
 
-	if (anyopen && g_MenuData.unk66e > 0 && var8009dfc0) {
+	if (anyopen && g_MenuData.unk66e > 0 && g_IsModalMenuMode) {
 		s32 bVar12 = 50;
 		s32 bVar11 = false;
 
@@ -147,7 +147,7 @@ void menuTick(void)
 			}
 
 			if (g_MenuData.nextbg == 0) {
-				var8009dfc0 = false;
+				g_IsModalMenuMode = false;
 
 				if (g_Vars.currentplayer->gunctrl.gunmemowner != GUNMEMOWNER_BONDGUN) {
 					g_Vars.currentplayer->gunctrl.loadall = true;
@@ -170,7 +170,7 @@ void menuTick(void)
 
 			if (g_MenuData.unk010 > 1) {
 				if (g_MenuData.nextbg) {
-					var8009dfc0 = true;
+					g_IsModalMenuMode = true;
 				}
 
 				g_MenuData.unk010 = 0;
@@ -199,10 +199,10 @@ void menuTick(void)
 			}
 
 			if (g_MenuData.nextbg == MENUBG_FAILURE) {
-				var8009dfc0 = true;
+				g_IsModalMenuMode = true;
 			}
 
-			if (var8009dfc0 && g_Vars.currentplayer->gunmem2) {
+			if (g_IsModalMenuMode && g_Vars.currentplayer->gunmem2) {
 				playerRemoveChrBody();
 
 				if (g_Vars.currentplayer->gunmem2);
@@ -210,7 +210,7 @@ void menuTick(void)
 		}
 	} else {
 		g_MenuData.unk010 = 0;
-		var8009dfc0 = g_MenuData.bg == 0 ? false : true;
+		g_IsModalMenuMode = g_MenuData.bg == 0 ? false : true;
 	}
 
 	// Check if returning from a multiplayer match
