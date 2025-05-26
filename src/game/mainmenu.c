@@ -2826,76 +2826,78 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 
 		}
 
-		if (g_MissionConfig.isteam) {
-			texSelect(&gdl, &g_TexGeneralConfigs[36], 2, 0, 2, true, NULL);
+		if (menuGetNumDialogs() < 2) {
+			if (g_MissionConfig.isteam) {
+				texSelect(&gdl, &g_TexGeneralConfigs[36], 2, 0, 2, true, NULL);
 
-			gDPSetCycleType(gdl++, G_CYC_1CYCLE);
-			gDPSetTextureFilter(gdl++, G_TF_POINT);
+				gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+				gDPSetTextureFilter(gdl++, G_TF_POINT);
 
-			for (k = 0; k < 3; k++) {
-				s32 relx = 63 + k * 17;
+				for (k = 0; k < 3; k++) {
+					s32 relx = 63 + k * 17;
 
-				if ((g_GameFile.coopcompletions[k] & (1 << stageindex)) == 0) {
+					if ((g_GameFile.coopcompletions[k] & (1 << stageindex)) == 0) {
 #if VERSION >= VERSION_NTSC_1_0
-					gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 63 / 256));
+						gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 63 / 256));
 #else
-					gDPSetEnvColorViaWord(gdl++, 0xffffff3f);
+						gDPSetEnvColorViaWord(gdl++, 0xffffff3f);
 #endif
-					gDPSetCombineLERP(gdl++,
-							TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0,
-							TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
-				} else {
+						gDPSetCombineLERP(gdl++,
+								TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0,
+								TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
+					} else {
 #if VERSION >= VERSION_NTSC_1_0
-					gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 207 / 256));
+						gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 207 / 256));
 #else
-					gDPSetEnvColorViaWord(gdl++, 0xffffffcf);
+						gDPSetEnvColorViaWord(gdl++, 0xffffffcf);
 #endif
-					gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+						gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+					}
+
+					gSPTextureRectangle(gdl++,
+							((renderdata->x + relx) << 2) * g_ScaleX, (renderdata->y + 25) << 2,
+							((renderdata->x + relx + 14) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
+							G_TX_RENDERTILE, 0x0010, 0x01c0, 1024 / g_ScaleX, -1024);
+				}
+			} else {
+				texSelect(&gdl, &g_TexGeneralConfigs[34], 2, 0, 2, true, NULL);
+
+				gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+				gDPSetTextureFilter(gdl++, G_TF_POINT);
+				gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+
+#if VERSION >= VERSION_NTSC_1_0
+				gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 175 / 256));
+#else
+				gDPSetEnvColorViaWord(gdl++, 0xffffffaf);
+#endif
+
+				for (k = 0; k < 3; k++) {
+					if (g_GameFile.besttimes[stageindex][k] != 0) {
+						incompleteindex = k + 1;
+					}
 				}
 
-				gSPTextureRectangle(gdl++,
-						((renderdata->x + relx) << 2) * g_ScaleX, (renderdata->y + 25) << 2,
-						((renderdata->x + relx + 14) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
-						G_TX_RENDERTILE, 0x0010, 0x01c0, 1024 / g_ScaleX, -1024);
-			}
-		} else {
-			texSelect(&gdl, &g_TexGeneralConfigs[34], 2, 0, 2, true, NULL);
+				for (k = 0; k < 3; k++) {
+					s32 relx = 63 + k * 17;
 
-			gDPSetCycleType(gdl++, G_CYC_1CYCLE);
-			gDPSetTextureFilter(gdl++, G_TF_POINT);
-			gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
-
+					if (k == incompleteindex) {
+						// Set transparency
 #if VERSION >= VERSION_NTSC_1_0
-			gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 175 / 256));
+						gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 63 / 256));
 #else
-			gDPSetEnvColorViaWord(gdl++, 0xffffffaf);
+						gDPSetEnvColorViaWord(gdl++, 0xffffff3f);
 #endif
+						gDPSetCombineLERP(gdl++,
+								TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0,
+								TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
+					}
 
-			for (k = 0; k < 3; k++) {
-				if (g_GameFile.besttimes[stageindex][k] != 0) {
-					incompleteindex = k + 1;
+					gSPTextureRectangle(gdl++,
+							((renderdata->x + relx) << 2) * g_ScaleX, (renderdata->y + 25) << 2,
+							((renderdata->x + relx + 14) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
+							G_TX_RENDERTILE, 0x0010, 0x01c0, 1024 / g_ScaleX, -1024);
 				}
-			}
-
-			for (k = 0; k < 3; k++) {
-				s32 relx = 63 + k * 17;
-
-				if (k == incompleteindex) {
-					// Set transparency
-#if VERSION >= VERSION_NTSC_1_0
-					gDPSetEnvColorViaWord(gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 63 / 256));
-#else
-					gDPSetEnvColorViaWord(gdl++, 0xffffff3f);
-#endif
-					gDPSetCombineLERP(gdl++,
-							TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0,
-							TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0);
-				}
-
-				gSPTextureRectangle(gdl++,
-						((renderdata->x + relx) << 2) * g_ScaleX, (renderdata->y + 25) << 2,
-						((renderdata->x + relx + 14) << 2) * g_ScaleX, (renderdata->y + 39) << 2,
-						G_TX_RENDERTILE, 0x0010, 0x01c0, 1024 / g_ScaleX, -1024);
 			}
 		}
 
