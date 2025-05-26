@@ -798,13 +798,10 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 								mainChangeToStage(g_MissionConfig.stagenum);
 							}
 						}
-						else if (g_Vars.antiplayernum >= 0
-								|| (g_Vars.coopplayernum >= 0 && PLAYERCOUNT() >= 2)
-								|| (stageGetIndex(g_MissionConfig.stagenum) < 0
-									|| g_Vars.stagenum == STAGE_CITRAINING
-									|| g_MissionConfig.stageindex > SOLOSTAGEINDEX_SKEDARRUINS
-									|| ((g_CheatsActiveBank0 || g_CheatsActiveBank1)
-										&& !isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty)))) {
+						else if (g_MissionConfig.stageindex == SOLOSTAGEINDEX_SKEDARRUINS) {
+							menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
+						}
+						else if (g_MissionConfig.stageindex > SOLOSTAGEINDEX_SKEDARRUINS) {
 							menuPopDialog();
 						}
 						else {
