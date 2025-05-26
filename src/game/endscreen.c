@@ -485,8 +485,12 @@ char *endscreenMenuTextMissionTime(struct menuitem *item)
 struct menudialogdef *endscreenAdvance(void)
 {
 
-	if (g_Vars.currentplayer->advancedendscreen) {
-		return &g_NextMissionMenuDialog;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (!g_Vars.antiplayers[i] && g_Vars.players[i] && g_Vars.players[i]->advancedendscreen) {
+			// If any player has already advanced the endscreen, just return
+			// the next mission dialog.
+			return &g_NextMissionMenuDialog;
+		}
 	}
 
 	g_MissionConfig.stageindex++;
@@ -787,7 +791,50 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 
 					if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer == 0) {
 						endscreenContinue(0);
-						if (g_Vars.stagenum == STAGE_DEEPSEA) {
+						bool antiaborted = false;
+						for (s32 i = 0; i < MAX_PLAYERS; i++) {
+							if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->aborted) {
+								antiaborted = true;
+								break;
+							}
+						}
+
+						bool p1p2aborted = false;
+						for (s32 i = 0; i < MAX_PLAYERS; i++) {
+							if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
+								p1p2aborted = true;
+								break;
+							}
+							if (g_Vars.bond->aborted) {
+								p1p2aborted = true;
+								break;
+							}
+						}
+
+						bool objectivescomplete = objectiveIsAllComplete();
+
+						// special endscreen logic: don't progress if anyone aborted or objectives not complete
+						bool progress = !antiaborted && !p1p2aborted && objectivescomplete;
+
+						// these stages have special endscreen logic
+						// they should show a contunue or retry dialog
+						// when completed
+						// or advance after closing the dialogs
+						// when the level was completed normally
+						// because we might be in a p1p2 dialog
+						// and anti aborted, we could have a green completed
+						// dialog without actually beating the level
+						// we need to treat it like a failed level for the purposes of
+						// endscreen flow logic
+						bool isspecialstage = g_Vars.stagenum == STAGE_DEEPSEA
+												|| g_Vars.stagenum == STAGE_MBR
+												|| g_Vars.stagenum == STAGE_WAR
+												|| g_Vars.stagenum == STAGE_MAIANSOS
+												|| g_Vars.stagenum == STAGE_SKEDARRUINS;
+
+						// Deep Sea: just advance to next stage
+						// TODO: check for completion and throw up a contiue/retry dialog
+						if (!g_Vars.antiplayers[g_MpPlayerNum] && progress && g_Vars.stagenum == STAGE_DEEPSEA) {
 							{
 								g_MissionConfig.stageindex++;
 								g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
@@ -798,10 +845,17 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 								mainChangeToStage(g_MissionConfig.stagenum);
 							}
 						}
-						else if (g_MissionConfig.stageindex == SOLOSTAGEINDEX_SKEDARRUINS) {
+						// for any special stage and not-progress, just pop the dialog
+						else if (!g_Vars.antiplayers[g_MpPlayerNum] && !progress && isspecialstage) {
+							menuPopDialog();
+						}
+						else if (!g_Vars.antiplayers[g_MpPlayerNum] && progress && isspecialstage) {
 							menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
 						}
-						else if (g_MissionConfig.stageindex > SOLOSTAGEINDEX_SKEDARRUINS) {
+						// else if (!g_Vars.antiplayers[g_MpPlayerNum] && g_MissionConfig.stageindex > SOLOSTAGEINDEX_SKEDARRUINS) {
+						// 	menuPopDialog();
+						// }
+						else if (g_Vars.antiplayers[g_MpPlayerNum]) {
 							menuPopDialog();
 						}
 						else {

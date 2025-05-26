@@ -534,20 +534,11 @@ void menuTick(void)
 
 				for (i = 0; i < MAX_PLAYERS; i++) {
 					if (g_MpSetup.chrslots & (1 << i)) {
-						if (g_Vars.stagenum == STAGE_DEEPSEA) {
-							g_MissionConfig.stageindex++;
-							g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
-							titleSetNextStage(g_MissionConfig.stagenum);
-							lvSetDifficulty(g_MissionConfig.difficulty);
-							titleSetNextMode(TITLEMODE_SKIP);
-							mainChangeToStage(g_MissionConfig.stagenum);
-						} else {
-							s32 prevplayernum = g_Vars.currentplayernum;
-							setCurrentPlayerNum(playernum);
-							endscreenPushTeam();
-							setCurrentPlayerNum(prevplayernum);
-							isdialogopen = true;
-						}
+						s32 prevplayernum = g_Vars.currentplayernum;
+						setCurrentPlayerNum(playernum);
+						endscreenPushTeam();
+						setCurrentPlayerNum(prevplayernum);
+						isdialogopen = true;
 
 						if (g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
 							mpPushEndscreenDialog(playernum, i);
@@ -610,6 +601,8 @@ void menuTick(void)
 				break;
 			case MENUROOT_MPPAUSE:
 				break;
+			// HACK: Friends of Joanna: lets treat these as the same
+			case MENUROOT_COOPCONTINUE:
 			case MENUROOT_MPENDSCREEN:
 				if (g_Vars.normmplayerisrunning) {
 					var80087260 = 3;
@@ -647,8 +640,6 @@ void menuTick(void)
 						mainChangeToStage(STAGE_4MBMENU);
 					}
 				}
-				break;
-			case MENUROOT_COOPCONTINUE:
 				break;
 			}
 		}
