@@ -668,8 +668,22 @@ struct menudialogdef g_MissionContinueOrReplyMenuDialog = {
  */
 void endscreenContinue(s32 context)
 {
-	if (g_MissionConfig.isteam && context == 0) {
-		menuPopDialog();
+	if (context == 0 || context == 1) {
+		switch (g_Vars.stagenum) {
+			case STAGE_DEEPSEA:
+			case STAGE_MBR:
+			case STAGE_WAR:
+			case STAGE_MAIANSOS:
+			case STAGE_SKEDARRUINS:
+				// If we are on Deep Sea or Skedar Ruins, we need to push the continue/reply dialog
+				// so that the player can choose to continue or reply.
+				menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
+				break;
+			default:
+				// If we are not on Deep Sea or Skedar Ruins, we just pop the dialog.
+				menuPopDialog();
+				break;
+		}
 	} else {
 		if (g_Vars.stagenum == STAGE_DEEPSEA || g_Vars.stagenum == STAGE_SKEDARRUINS) {
 			if (context == 2 || g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion) {
@@ -708,13 +722,13 @@ void endscreenContinue(s32 context)
 					mainChangeToStage(g_MissionConfig.stagenum);
 					viBlack(true);
 				}
-			} else {
-				if (context == 1) {
-					menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_COOPCONTINUE);
-				} else {
-					menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
-				}
 			}
+			if (context == 1) {
+				menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
+			} else {
+				menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
+			}
+
 		} else {
 			if (context == 2) {
 				menuPopDialog();
