@@ -1461,8 +1461,8 @@ u8 func1008_hangar_lifts[] = {
 
 	// Jo has entered the lift, or Jo dead in co-op
 	label(0x2c)
-	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2c)
-	if_chr_in_room(CHR_COOP, 0x00, 0x0018, /*goto*/ 0x2c)
+	if_chr_death_animation_finished(CHR_P1P2, /*goto*/ 0x2c)
+	if_chr_in_room(CHR_P1P2, 0x00, 0x0018, /*goto*/ 0x2c)
 	goto_first(LABEL_67)
 
 	// Jo or Velvet is in the lift - activate it
