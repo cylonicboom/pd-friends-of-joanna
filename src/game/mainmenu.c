@@ -940,7 +940,7 @@ struct menudialogdef g_4PAcceptMissionMenuDialog = {
 	(uintptr_t)&soloMenuTitleStageOverview,
 	g_4PAcceptMissionMenuItems,
 	menudialog00103608,
-	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_DISABLEITEMSCROLL,
+	MENUDIALOGFLAG_STARTSELECTS,
 	&g_2PMissionBriefingVMenuDialog,
 };
 
