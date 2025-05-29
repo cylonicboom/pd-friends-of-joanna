@@ -3671,7 +3671,7 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 	g_Menus[g_MpPlayerNum].unk820 = 1;
 
 	g_MenuData.root = root;
-	g_MenuData.prevmenuroot = -1;
+	g_MenuData.prevmenuroot = MENUROOT_RESET;
 	g_MenuData.unk5d5_02 = false;
 
 	if (root == MENUROOT_MAINMENU
@@ -3998,7 +3998,7 @@ void menuReset(void)
 
 	g_MenuData.unk668 = -1;
 	g_MenuData.prevmenudialog = 0;
-	g_MenuData.prevmenuroot = -1;
+	g_MenuData.prevmenuroot = MENUROOT_RESET;
 	g_MenuData.count = 0;
 	g_MenuData.root = 0;
 	g_MenuData.unk010 = 0;

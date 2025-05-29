@@ -287,7 +287,7 @@ void menuTick(void)
 		var8006294c = 1;
 
 		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || g_MenuData.root == MENUROOT_TEAMMISSIONS) {
-			if (g_MenuData.prevmenuroot == -1) {
+			if (g_MenuData.prevmenuroot == MENUROOT_RESET) {
 				g_MpSetup.chrslots &= 0xfff0;
 			}
 
@@ -297,7 +297,7 @@ void menuTick(void)
 				if (g_Menus[i].curdialog) {
 					g_Menus[i].playernum = g_MpNumJoined++;
 
-					if (g_MenuData.prevmenuroot == -1) {
+					if (g_MenuData.prevmenuroot ==  MENUROOT_RESET) {
 						g_MpSetup.chrslots |= (1 << i);
 					}
 				}
@@ -495,9 +495,9 @@ void menuTick(void)
 
 	// if there's a dialog open that was opened in the previous frame,
 	// handle it here
-	if ((g_MenuData.isdialogopen || g_MenuData.prevmenuroot != -1) && isdialogopen == false) {
+	if ((g_MenuData.isdialogopen || g_MenuData.prevmenuroot != MENUROOT_RESET) && isdialogopen == false) {
 		if ((g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU)
-				&& g_MenuData.prevmenuroot == -1) {
+				&& g_MenuData.prevmenuroot == MENUROOT_RESET) {
 			if (g_Vars.mpsetupmenu == MPSETUPMENU_GENERAL) {
 				g_MenuData.prevmenuroot = MENUROOT_MAINMENU;
 				g_MenuData.prevmenudialog = IS4MB() ? &g_CiMenuViaPauseMenuDialog : &g_CiMenuViaPcMenuDialog;
@@ -509,13 +509,13 @@ void menuTick(void)
 				g_MenuData.prevmenudialog = &g_CombatSimulatorMenuDialog;
 			}
 		}
-		if (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_MenuData.prevmenuroot == -1) {
+		if (g_MenuData.root == MENUROOT_TEAMMISSIONS && g_MenuData.prevmenuroot == MENUROOT_RESET) {
 			g_MenuData.prevmenuroot = MENUROOT_MAINMENU;
 			g_MenuData.prevmenudialog = IS4MB() ? &g_CiMenuViaPauseMenuDialog : &g_CiMenuViaPcMenuDialog;
 		}
 
-		if (g_MenuData.prevmenuroot != -1) {
-			if (g_MenuData.prevmenuroot == -5) {
+		if (g_MenuData.prevmenuroot != MENUROOT_RESET) {
+			if (g_MenuData.prevmenuroot == MENUROOT_MPMATCHSTARTING) {
 				// Match is beginning
 				mpStartMatch();
 				menuStop();
@@ -524,7 +524,7 @@ void menuTick(void)
 					bossfileSave();
 					g_Vars.modifiedfiles &= ~MODFILE_MPSETUP;
 				}
-			} else if (g_MenuData.prevmenuroot == -6) {
+			} else if (g_MenuData.prevmenuroot == MENUROOT_MPMATCHENDING) {
 				// Match is ending
 				s32 playernum = 0;
 
@@ -589,7 +589,7 @@ void menuTick(void)
 			}
 
 			g_MenuData.prevmenudialog = NULL;
-			g_MenuData.prevmenuroot = -1;
+			g_MenuData.prevmenuroot = MENUROOT_RESET;
 		} else {
 			switch (g_MenuData.root) {
 			case MENUROOT_ENDSCREEN:

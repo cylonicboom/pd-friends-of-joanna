@@ -1776,6 +1776,7 @@
 #define  MENUROOT_CHANGINGAGENT    -7
 #define  MENUROOT_MPMATCHENDING    -6
 #define  MENUROOT_MPMATCHSTARTING  -5
+#define  MENUROOT_RESET            -1
 #define  MENUROOT_ENDSCREEN        1
 #define  MENUROOT_MAINMENU         2
 #define  MENUROOT_MPSETUP          3
