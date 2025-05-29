@@ -554,9 +554,9 @@ void filemgrHandleSuccess(void)
 		bossfileSave();
 
 		if (IS4MB()) {
-			func0f0f820c(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
+			menuSaveAndRecordPrevMenuRoot(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
 		} else {
-			func0f0f820c(&g_CiMenuViaPcMenuDialog, MENUROOT_MAINMENU);
+			menuSaveAndRecordPrevMenuRoot(&g_CiMenuViaPcMenuDialog, MENUROOT_MAINMENU);
 		}
 		break;
 	case FILEOP_READ_GAME:

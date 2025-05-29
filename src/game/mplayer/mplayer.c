@@ -2760,7 +2760,7 @@ void mpEndMatch(void)
 	}
 #endif
 
-	func0f0f820c(NULL, -6);
+	menuSaveAndRecordPrevMenuRoot(NULL, MENUROOT_MPMATCHENDING);
 }
 
 s32 mpGetNumHeads2(void)

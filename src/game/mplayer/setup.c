@@ -2287,9 +2287,9 @@ MenuItemHandlerResult mpLoadSettingsMenuHandler(s32 operation, struct menuitem *
 
 		if (item->param == 1) {
 			if (IS4MB()) {
-				func0f0f820c(&g_MpQuickGo4MbMenuDialog, MENUROOT_4MBMAINMENU);
+				menuSaveAndRecordPrevMenuRoot(&g_MpQuickGo4MbMenuDialog, MENUROOT_4MBMAINMENU);
 			} else {
-				func0f0f820c(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
+				menuSaveAndRecordPrevMenuRoot(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
 			}
 		}
 		break;
@@ -4999,7 +4999,7 @@ MenuItemHandlerResult menuhandler0017ec64(s32 operation, struct menuitem *item, 
 {
 	if (operation == MENUOP_SET) {
 		challengeSetCurrentBySlot(g_Menus[g_MpPlayerNum].mpsetup.slotindex);
-		func0f0f820c(&g_MpQuickGoMenuDialog, 3);
+		menuSaveAndRecordPrevMenuRoot(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
 	}
 
 	return 0;
@@ -5091,12 +5091,12 @@ MenuItemHandlerResult menuhandler0017ef30(s32 operation, struct menuitem *item, 
 	if (operation == MENUOP_SET) {
 		if (g_Vars.stagenum == STAGE_CITRAINING) {
 			if (IS4MB()) {
-				func0f0f820c(&g_CiMenuViaPauseMenuDialog, 2);
+				menuSaveAndRecordPrevMenuRoot(&g_CiMenuViaPauseMenuDialog, MENUROOT_MAINMENU);
 			} else {
-				func0f0f820c(&g_CiMenuViaPcMenuDialog, 2);
+				menuSaveAndRecordPrevMenuRoot(&g_CiMenuViaPcMenuDialog, MENUROOT_MAINMENU);
 			}
 		} else {
-			func0f0f820c(&g_SoloMissionPauseMenuDialog, 2);
+			menuSaveAndRecordPrevMenuRoot(&g_SoloMissionPauseMenuDialog, MENUROOT_MAINMENU);
 		}
 	}
 
@@ -5263,9 +5263,9 @@ void func0f17f428(void)
 	mpConfigureQuickTeamPlayers();
 
 	if (IS4MB()) {
-		func0f0f820c(&g_MpQuickGo4MbMenuDialog, MENUROOT_4MBMAINMENU);
+		menuSaveAndRecordPrevMenuRoot(&g_MpQuickGo4MbMenuDialog, MENUROOT_4MBMAINMENU);
 	} else {
-		func0f0f820c(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
+		menuSaveAndRecordPrevMenuRoot(&g_MpQuickGoMenuDialog, MENUROOT_MPSETUP);
 	}
 }
 
@@ -5474,7 +5474,7 @@ MenuDialogHandlerResult menudialogCombatSimulator(s32 operation, struct menudial
 MenuItemHandlerResult menuhandlerMpAdvancedSetup(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		func0f0f820c(&g_MpAdvancedSetupMenuDialog, 3);
+		menuSaveAndRecordPrevMenuRoot(&g_MpAdvancedSetupMenuDialog, MENUROOT_MPSETUP);
 	}
 
 	return 0;

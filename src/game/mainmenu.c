@@ -407,9 +407,9 @@ MenuItemHandlerResult menuhandlerScreenSplit(s32 operation, struct menuitem *ite
 			if (PLAYERCOUNT() > 1) {
 				u32 prevplayernum = g_MpPlayerNum;
 				g_MpPlayerNum = 0;
-				func0f0f8120();
+				menuPlayerCloseDialogsAndSave();
 				g_MpPlayerNum = 1;
-				func0f0f8120();
+				menuPlayerCloseDialogsAndSave();
 				g_MpPlayerNum = prevplayernum;
 			}
 		}
@@ -3079,7 +3079,7 @@ MenuItemHandlerResult menuhandler001057ec(s32 operation, struct menuitem *item, 
 MenuItemHandlerResult menuhandlerChangeAgent(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		func0f0f820c(NULL, -7);
+		menuSaveAndRecordPrevMenuRoot(NULL, MENUROOT_CHANGINGAGENT);
 	}
 
 	return 0;
@@ -5802,7 +5802,7 @@ MenuItemHandlerResult menuhandlerMainMenuCombatSimulator(s32 operation, struct m
 		playermgrDisableTeamPlayers(false);
 		challengeDetermineUnlockedFeatures();
 		g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
-		func0f0f820c(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);
+		menuSaveAndRecordPrevMenuRoot(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);
 		menuResetJoinFadeAlpha();
 	}
 

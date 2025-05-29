@@ -4969,7 +4969,7 @@ void playerDieByShooter(u32 shooter, bool force)
 	{
 		u32 prevplayernum = g_MpPlayerNum;
 		g_MpPlayerNum = g_Vars.currentplayerstats->mpindex;
-		func0f0f8120();
+		menuPlayerCloseDialogsAndSave();
 		g_MpPlayerNum = prevplayernum;
 
 		hudmsgsRemoveForDeadPlayer(g_Vars.currentplayernum);

@@ -1623,7 +1623,7 @@ void menuPushDialog(struct menudialogdef *dialogdef)
 	}
 }
 
-bool func0f0f3220(s32 arg0)
+bool menuTrySave(s32 arg0)
 {
 	bool save = true;
 	s32 i;
@@ -1715,7 +1715,7 @@ void menuCloseDialog(void)
 		s32 value = g_MenuData.unk66e;
 
 		while (value >= 0) {
-			func0f0f3220(value);
+			menuTrySave(value);
 			value--;
 		}
 	}
@@ -3546,7 +3546,7 @@ void menuClose(void)
 	}
 }
 
-void func0f0f8120(void)
+void menuPlayerCloseDialogsAndSave(void)
 {
 #ifdef AVOID_UB
 	u32 mpindex = g_MpPlayerNum % MAX_PLAYERS;
@@ -3559,7 +3559,7 @@ void func0f0f8120(void)
 
 	if (g_MenuData.unk66e > 0) {
 		for (i = g_MenuData.unk66e; i >= 0; i--) {
-			func0f0f3220(i);
+			menuTrySave(i);
 		}
 	}
 
@@ -3581,7 +3581,7 @@ void func0f0f8120(void)
 #endif
 }
 
-void func0f0f820c(struct menudialogdef *dialogdef, s32 root)
+void menuSaveAndRecordPrevMenuRoot(struct menudialogdef *dialogdef, s32 root)
 {
 	s32 i;
 	s32 prevplayernum = g_MpPlayerNum;
@@ -3589,7 +3589,7 @@ void func0f0f820c(struct menudialogdef *dialogdef, s32 root)
 	for (i = 0; i < ARRAYCOUNT(g_Menus); i++) {
 		if (g_Menus[i].curdialog) {
 			g_MpPlayerNum = i;
-			func0f0f8120();
+			menuPlayerCloseDialogsAndSave();
 		}
 	}
 
@@ -5279,7 +5279,7 @@ void menuProcessInput(void)
 			break;
 		case MENUROOT_MPPAUSE:
 			if (g_InCutscene) {
-				func0f0f8120();
+				menuPlayerCloseDialogsAndSave();
 			}
 			g_Menus[g_MpPlayerNum].openinhibit = 10;
 			// fall-through
@@ -5289,7 +5289,7 @@ void menuProcessInput(void)
 		case MENUROOT_TRAINING:
 			if (inputs.start && !starttoselect && g_Menus[g_MpPlayerNum].curdialog
 					&& (dialog->definition->flags & MENUDIALOGFLAG_IGNOREBACK) == 0) {
-				func0f0f8120();
+				menuPlayerCloseDialogsAndSave();
 			}
 			break;
 		}

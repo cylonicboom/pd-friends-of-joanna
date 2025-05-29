@@ -1770,20 +1770,26 @@
 #define MENUREPEATMODE_SLOW     0
 #define MENUREPEATMODE_FAST     1
 
-#define MENUROOT_ENDSCREEN    1
-#define MENUROOT_MAINMENU     2
-#define MENUROOT_MPSETUP      3
-#define MENUROOT_MPPAUSE      4
-#define MENUROOT_MPENDSCREEN  5
-#define MENUROOT_FILEMGR      6
-#define MENUROOT_BOOTPAKMGR   7
-#define MENUROOT_PICKTARGET   8
-#define MENUROOT_COOPCONTINUE 9
-#define MENUROOT_4MBFILEMGR   10
-#define MENUROOT_4MBMAINMENU  11
-#define MENUROOT_12           12
-#define MENUROOT_TRAINING     13
-#define MENUROOT_TEAMMISSIONS 14
+// negative numberes are used for liminal menu states
+// naming guide: liminal menu states refer to a game state transition that is happening (ie changing agent, starting match, etc)
+// actual menu roots are nouns
+#define  MENUROOT_CHANGINGAGENT    -7
+#define  MENUROOT_MPMATCHENDING    -6
+#define  MENUROOT_MPMATCHSTARTING  -5
+#define  MENUROOT_ENDSCREEN        1
+#define  MENUROOT_MAINMENU         2
+#define  MENUROOT_MPSETUP          3
+#define  MENUROOT_MPPAUSE          4
+#define  MENUROOT_MPENDSCREEN      5
+#define  MENUROOT_FILEMGR          6
+#define  MENUROOT_BOOTPAKMGR       7
+#define  MENUROOT_PICKTARGET       8
+#define  MENUROOT_COOPCONTINUE     9
+#define  MENUROOT_4MBFILEMGR       10
+#define  MENUROOT_4MBMAINMENU      11
+#define  MENUROOT_12               12
+#define  MENUROOT_TRAINING         13
+#define  MENUROOT_TEAMMISSIONS     14
 
 #define MENUSOUND_SWIPE          0x00 // Navigating to left/right dialog
 #define MENUSOUND_OPENDIALOG     0x01

@@ -114,7 +114,7 @@ void menuTick(void)
 		}
 
 		if (g_MenuData.unk66f > bVar12 || !bVar11) {
-			func0f0f3220(g_MenuData.unk66e - 1);
+			menuTrySave(g_MenuData.unk66e - 1);
 		} else {
 			g_MenuData.unk66f++;
 		}
@@ -462,7 +462,7 @@ void menuTick(void)
 
 		if (sp340 &&
 				(g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU)) {
-			func0f0f820c(NULL, -5);
+			menuSaveAndRecordPrevMenuRoot(NULL, MENUROOT_MPMATCHSTARTING);
 		}
 	} else {
 		var8006294c = 0;
@@ -552,7 +552,7 @@ void menuTick(void)
 						playernum++;
 					}
 				}
-			} else if (g_MenuData.prevmenuroot == -7) {
+			} else if (g_MenuData.prevmenuroot == MENUROOT_CHANGINGAGENT) {
 				menuStop();
 				g_FileState = FILESTATE_CHANGINGAGENT;
 				gamefileLoadDefaults(&g_GameFile);

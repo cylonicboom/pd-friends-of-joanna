@@ -51,9 +51,9 @@ void menuOpenDialog(struct menudialogdef *dialogdef, struct menudialog *arg1, st
 void menuPushDialog(struct menudialogdef *dialogdef);
 
 #if VERSION >= VERSION_NTSC_1_0
-bool func0f0f3220(s32 arg0);
+bool menuTrySave(s32 arg0);
 #else
-void func0f0f3220(s32 arg0);
+void menuTrySave(s32 arg0);
 #endif
 
 void menuCloseDialog(void);
@@ -77,8 +77,8 @@ void menuFindAvailableSize(s32 *xmin, s32 *ymin, s32 *xmax, s32 *ymax);
 
 void dialogCalculatePosition(struct menudialog *dialog);
 void menuClose(void);
-void func0f0f8120(void);
-void func0f0f820c(struct menudialogdef *dialogdef, s32 root);
+void menuPlayerCloseDialogsAndSave(void);
+void menuSaveAndRecordPrevMenuRoot(struct menudialogdef *dialogdef, s32 root);
 void menuSetBackground(s32 bg);
 void menuResetJoinFadeAlpha(void);
 void menuPushRootDialog(struct menudialogdef *dialogdef, s32 arg1);

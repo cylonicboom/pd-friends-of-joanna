@@ -20,7 +20,7 @@ MenuItemHandlerResult fmbHandleDropOut(s32 operation, struct menuitem *item, uni
 		menuPopDialog();
 
 		if (mpGetNumChrs() == 1) {
-			func0f0f820c(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
+			menuSaveAndRecordPrevMenuRoot(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
 		}
 	}
 
@@ -31,9 +31,9 @@ MenuItemHandlerResult fmdHandleAbortGame(s32 operation, struct menuitem *item, u
 {
 	if (operation == MENUOP_SET) {
 		if (g_Vars.stagenum == STAGE_4MBMENU) {
-			func0f0f820c(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
+			menuSaveAndRecordPrevMenuRoot(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
 		} else {
-			func0f0f820c(&g_SoloMissionPauseMenuDialog, MENUROOT_MAINMENU);
+			menuSaveAndRecordPrevMenuRoot(&g_SoloMissionPauseMenuDialog, MENUROOT_MAINMENU);
 		}
 	}
 
@@ -43,7 +43,7 @@ MenuItemHandlerResult fmdHandleAbortGame(s32 operation, struct menuitem *item, u
 MenuItemHandlerResult fmbHandleAdvancedSetup(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		func0f0f820c(&g_AdvancedSetup4MbMenuDialog, MENUROOT_4MBMAINMENU);
+		menuSaveAndRecordPrevMenuRoot(&g_AdvancedSetup4MbMenuDialog, MENUROOT_4MBMAINMENU);
 	}
 
 	return 0;
@@ -53,7 +53,7 @@ MenuItemHandlerResult fmbHandleAcceptChallenge(s32 operation, struct menuitem *i
 {
 	if (operation == MENUOP_SET) {
 		challengeSetCurrentBySlot(g_Menus[g_MpPlayerNum].main4mb.slotindex);
-		func0f0f820c(&g_MpQuickGo4MbMenuDialog, MENUROOT_4MBMAINMENU);
+		menuSaveAndRecordPrevMenuRoot(&g_MpQuickGo4MbMenuDialog, MENUROOT_4MBMAINMENU);
 	}
 
 	return 0;

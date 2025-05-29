@@ -68,7 +68,7 @@ MenuItemHandlerResult frDetailsOkMenuHandler(s32 operation, struct menuitem *ite
 			frBeginSession(weapon);
 		}
 
-		func0f0f8120();
+		menuPlayerCloseDialogsAndSave();
 		break;
 	}
 
@@ -1764,7 +1764,7 @@ MenuItemHandlerResult menuhandlerDtOkOrResume(s32 operation, struct menuitem *it
 		// @bug: dtBegin() should not be called if training is already in
 		// progress. Doing this resets the training timer.
 		dtBegin();
-		func0f0f8120();
+		menuPlayerCloseDialogsAndSave();
 	}
 
 	return 0;
@@ -2116,7 +2116,7 @@ MenuItemHandlerResult menuhandler001a6a34(s32 operation, struct menuitem *item, 
 {
 	if (operation == MENUOP_SET) {
 		htBegin();
-		func0f0f8120();
+		menuPlayerCloseDialogsAndSave();
 	}
 
 	return 0;
