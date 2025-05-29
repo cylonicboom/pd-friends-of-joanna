@@ -4790,6 +4790,10 @@ enum weaponnum {
 #define CHRNUM_MATCHLEVEL_ANY     2
 #define CHRNUM_MATCHLEVEL_ALL     3
 
+
+#define MENU_TRANSITIONFLAG_MATCHENDING 0x0001 // Match is ending
+#define MENU_TRANSITIONFLAG_SETUPSCREEN 0x0002 // ... and we want to drop to our setup screen
+
 // if controller pak-like support was added and everyone had 4 profiles, this is twice the max
 #define CONFIG_MAX_PROFILES ((MAX_PLAYERS * 4) * 2)
 

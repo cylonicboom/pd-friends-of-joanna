@@ -498,7 +498,7 @@ extern struct menudialogdef g_HtmOptionsMenuDialog;
 extern struct menudialogdef g_PacOptionsMenuDialog;
 extern struct menudialogdef g_MpScenarioMenuDialog;
 extern struct menudialogdef g_MpQuickTeamScenarioMenuDialog;
-extern s32 var80087260;
+extern u32 g_MenuTransitionFlags;
 extern bool g_MpEnableMusicSwitching;
 extern struct mpweapon g_MpWeapons[NUM_MPWEAPONS];
 extern struct mphead g_MpHeads[VERSION == VERSION_JPN_FINAL ? 74 : 75];

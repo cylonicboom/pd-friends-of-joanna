@@ -64,7 +64,7 @@ s32 g_MpWeaponRandomFilterNum;
 const char var7f1b8a00[] = "||||||||||||| Starting game... players %d\n";
 #endif
 
-s32 var80087260 = 0x00000000;
+u32 g_MenuTransitionFlags = 0;
 bool g_MpEnableMusicSwitching = false;
 
 struct mpweapon g_MpWeapons[NUM_MPWEAPONS] = {

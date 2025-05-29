@@ -214,7 +214,7 @@ void menuTick(void)
 	}
 
 	// Check if returning from a multiplayer match
-	if (var80087260 > 0) {
+	if (g_MenuTransitionFlags > 0) {
 		if (g_Vars.lvframenum >= 4) {
 			if (g_Vars.stagenum == STAGE_CITRAINING || g_Vars.stagenum == STAGE_4MBMENU) {
 				viBlack(false);
@@ -258,7 +258,7 @@ void menuTick(void)
 				}
 			}
 
-			var80087260 = 0;
+			g_MenuTransitionFlags = 0;
 		} else {
 			viBlack(true);
 			g_PlayersWithControl[0] = false;
@@ -605,7 +605,7 @@ void menuTick(void)
 			case MENUROOT_COOPCONTINUE:
 			case MENUROOT_MPENDSCREEN:
 				if (g_Vars.normmplayerisrunning) {
-					var80087260 = 3;
+					g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_SETUPSCREEN);
 				}
 
 				if (g_MissionConfig.isteam

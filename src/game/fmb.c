@@ -66,7 +66,7 @@ void fmbReset(void)
 	g_MpPlayerNum = 0;
 
 	if (g_FileState != FILESTATE_UNSELECTED) {
-		if (var80087260 == 0) {
+		if (g_MenuTransitionFlags == 0) {
 			g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
 			menuPushRootDialog(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
 		}
