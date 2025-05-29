@@ -784,8 +784,8 @@ void chraiExecute(void *entity, s32 proptype)
 			s32 type = (cmd[0] << 8) + cmd[1];
 
 			if (type >= 0 && type < ARRAYCOUNT(g_CommandPointers)) {
-				// this is where I'm considering adding a check for the chrnummach mode
-				// no, should use cmds to set it back to default
+				// TODO: Consider adding a check for the chrnummach mode here.
+				// Ensure that commands are used to reset it to the default state if necessary.
 				if (g_CommandPointers[type]()) {
 					break;
 				}
