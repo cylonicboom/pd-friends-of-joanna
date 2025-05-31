@@ -126,7 +126,7 @@ u32 g_MiscSfxSounds[] = {
 	SFX_SLAYER_BEEP,
 };
 
-s32 var80084050 = 0;
+s32 g_LvLockScreenTimer = 0;
 
 s16 g_FadeNumFrames = 0;
 f32 g_FadeFrac = -1;
@@ -263,7 +263,7 @@ void lvReset(s32 stagenum)
 
 	var80084040 = true;
 	g_Vars.lvframenum = 0;
-	var80084050 = 0;
+	g_LvLockScreenTimer = 0;
 
 	g_Vars.lvframe60 = 0;
 	g_Vars.lvupdate240 = 4;
@@ -1200,15 +1200,33 @@ Gfx *lvRender(Gfx *gdl)
 			gdl = bgScissorToViewport(gdl);
 			artifactsClear();
 
+			// if we're not in training,
+			// or we're not transitioning back to the MP setup menu,
+			// and we're past the first four frames of the level,
+			// and we're not in the combat simulator
+			// //and we're not in a cutscene,
+			//
+			// do a check to see if the screen should be locked
+			// based on g_LvLockScreenTimer.
+			//
+			//  and increment g_LvLockScreenTimer
+			//  it's probably a timer for something
 			if ((g_Vars.stagenum != STAGE_CITRAINING || (g_MenuTransitionFlags == 0 && g_MenuData.root != MENUROOT_MPSETUP))
 					&& g_Vars.lvframenum <= 5
 					&& !g_Vars.normmplayerisrunning
 					&& g_Vars.tickmode != TICKMODE_CUTSCENE) {
-				if (var80084050 < 6) {
+				if (g_LvLockScreenTimer < 6) {
 					g_Vars.lockscreen = 1;
 				}
 
-				var80084050++;
+				g_LvLockScreenTimer++;
+				// otherwise:
+				// if currentplayer needs to load their guns
+				// and var80075d60 is 2
+				//  and we're not in third person or eyespy mode
+				//  and there's no modal menu open
+				//  // then call bgunLoadAll()
+				//  This probably does something with gunmem?
 			} else if (g_Vars.currentplayer->gunctrl.loadall
 					&& var80075d60 == 2
 					&& g_Vars.currentplayer->cameramode != CAMERAMODE_THIRDPERSON
