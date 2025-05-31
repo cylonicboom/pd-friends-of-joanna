@@ -4791,8 +4791,12 @@ enum weaponnum {
 #define CHRNUM_MATCHLEVEL_ALL     3
 
 
-#define MENU_TRANSITIONFLAG_MATCHENDING 0x0001 // Match is ending
-#define MENU_TRANSITIONFLAG_SETUPSCREEN 0x0002 // ... and we want to drop to our setup screen
+// 0: Match is ending
+// 1:  and we want to drop to our setup screen
+// 2:  want to drop to team missions menu
+#define  MENU_TRANSITIONFLAG_MATCHENDING   0x0001
+#define  MENU_TRANSITIONFLAG_SETUPSCREEN   0x0002
+#define  MENU_TRANSITIONFLAG_TEAMMISSIONS  0x0004
 
 // if controller pak-like support was added and everyone had 4 profiles, this is twice the max
 #define CONFIG_MAX_PROFILES ((MAX_PLAYERS * 4) * 2)
