@@ -5441,9 +5441,7 @@ s32 playerTickThirdPerson(struct prop *prop)
 	}
 
 	if (player->haschrbody && player->model00d4) {
-		if (var80075d60 == 0
-				|| var80075d60 == 1
-				|| (player->cameramode == CAMERAMODE_THIRDPERSON && player->visionmode != VISIONMODE_SLAYERROCKET)) {
+		if ((player->cameramode == CAMERAMODE_THIRDPERSON && player->visionmode != VISIONMODE_SLAYERROCKET)) {
 			chr->chrflags |= CHRCFLAG_FORCETOGROUND;
 
 			player->bondperimenabled = false;

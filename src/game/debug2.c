@@ -44,7 +44,6 @@
 #endif
 
 #if VERSION == VERSION_PAL_BETA
-s32 var80075d60 = 2;
 s32 var80075d64 = 2;
 s32 var80075d68 = 2;
 s32 var800786f4nb = 2;
@@ -350,7 +349,6 @@ s32 g_DebugSelectedOptionsByMenu[2] = {0, 0};
 #endif
 
 #if VERSION != VERSION_PAL_BETA
-s32 var80075d60 = 2;
 s32 var80075d64 = 2;
 s32 var80075d68 = 2;
 s32 var800786f4nb = 2;
@@ -523,7 +521,7 @@ void debug0f1193ecnb(void) // not called
 
 void debug0f1193f4nb(void) // not called
 {
-	var80075d60 = var80075d64 = var800786f4nb = 2;
+	var80075d64 = var800786f4nb = 2;
 }
 
 void debug0f11941cnb(void) // not called

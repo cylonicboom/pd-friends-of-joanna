@@ -311,7 +311,6 @@ extern struct menudialogdef g_AdvancedSetup4MbMenuDialog;
 extern struct filelist *g_FileLists[MAX_PLAYERS];
 extern bool var80075bd0[];
 extern struct headanim g_HeadAnims[2];
-extern s32 var80075d60;
 extern s32 var80075d64;
 extern s32 var80075d68;
 extern s32 g_DebugScreenshotRgb;

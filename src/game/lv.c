@@ -1222,23 +1222,25 @@ Gfx *lvRender(Gfx *gdl)
 				g_LvLockScreenTimer++;
 				// otherwise:
 				// if currentplayer needs to load their guns
-				// and var80075d60 is 2
 				//  and we're not in third person or eyespy mode
 				//  and there's no modal menu open
 				//  // then call bgunLoadAll()
 				//  This probably does something with gunmem?
 			} else if (g_Vars.currentplayer->gunctrl.loadall
-					&& var80075d60 == 2
 					&& g_Vars.currentplayer->cameramode != CAMERAMODE_THIRDPERSON
 					&& g_Vars.currentplayer->cameramode != CAMERAMODE_EYESPY
 					&& g_IsModalMenuMode == 0) {
 				g_Vars.currentplayer->gunctrl.loadall = bgunLoadAll();
 			}
 
+			// if lockscreen, draw motiong blur
+			// and decrement lockscreen counter
 			if (g_Vars.lockscreen) {
 				gdl = bviewDrawMotionBlur(gdl, 0xffffffff, 255);
 				g_Vars.lockscreen--;
 			} else if (g_IsModalMenuMode) {
+				// if there's a modal menu open,
+				// render it
 				gdl = viRenderViewportEdges(gdl);
 				gdl = bgScissorToViewport(gdl);
 				mtx00016748(1);
@@ -1247,9 +1249,8 @@ Gfx *lvRender(Gfx *gdl)
 					gdl = menuRender(gdl);
 				}
 			} else {
-				if (var80075d60 == 2) {
-					gdl = playerUpdateShootRot(gdl);
-				}
+				// call playerUpdateShootRot()
+				gdl = playerUpdateShootRot(gdl);
 
 				gdl = viRenderViewportEdges(gdl);
 				gdl = skyRender(gdl);
@@ -1398,19 +1399,11 @@ Gfx *lvRender(Gfx *gdl)
 					gdl = nbombsRender(gdl);
 				}
 
-				if (var80075d60 == 2) {
-					gdl = playerRenderHud(gdl);
+				gdl = playerRenderHud(gdl);
 
 #ifdef DEBUG
-					gdl = lvRenderManPosIfEnabled(gdl);
+				gdl = lvRenderManPosIfEnabled(gdl);
 #endif
-				} else {
-					gdl = boltbeamsRender(gdl);
-
-					if (g_Vars.currentplayer->visionmode != VISIONMODE_XRAY) {
-						gdl = bgRenderArtifacts(gdl);
-					}
-				}
 
 				if (g_DebugScreenshotRgb <= 0) {
 					static struct sndstate *g_CutsceneStaticAudioHandle = NULL;
