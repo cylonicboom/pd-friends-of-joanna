@@ -214,6 +214,7 @@ void menuTick(void)
 	}
 
 	// Check if returning from a multiplayer match
+	// TODO: Add Team Missions awareness
 	if (g_MenuTransitionFlags > 0) {
 		if (g_Vars.lvframenum >= 4) {
 			if (g_Vars.stagenum == STAGE_CITRAINING || g_Vars.stagenum == STAGE_4MBMENU) {
@@ -251,6 +252,8 @@ void menuTick(void)
 
 				g_MpPlayerNum = 0;
 
+				// if there is four players,
+				// play an explosion sound
 				if (g_MpSetup.chrslots & 0xf) {
 					sndStart(var80095200, SFX_EXPLOSION_8098, 0, -1, -1, -1, -1, -1);
 
@@ -725,4 +728,8 @@ void menuTick(void)
 
 	g_ScaleX = 1;
 	g_MenuData.isdialogopen = isdialogopen ? true : false;
+}
+
+void menuHandleReturningFromMPMatch(void) {
+
 }
