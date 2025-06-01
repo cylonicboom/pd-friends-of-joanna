@@ -33,6 +33,10 @@ u8 var80062944 = 0;
 u8 var80062948 = 0;
 u8 var8006294c = 0;
 
+
+extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
+extern struct menudialogdef g_TeamMissionsHubMenuDialog;
+
 void menuTickHandleTeamMissionsDoneJoining(void) {
 	// Future: handle Team Missions Done Joining
 }
@@ -40,7 +44,22 @@ void menuTickHandleTeamMissionsDoneJoining(void) {
 void menuTickHandleTeamMissionsJoin(s32 playernum)
 {
 	s32 i = playernum;
-	// Future: handle Team Missions Player Joining
+	g_Vars.waitingtojoin[i] = false;
+
+	if (g_MpSetup.chrslots & (1 << i)) {
+		g_MpPlayerNum = i;
+
+		if (g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS) {
+			g_MpNumJoined++;
+			mpDecidePlayerMenuAndPush(true, i);
+		} else if (g_MpNumJoined == 0) {
+			g_MpNumJoined++;
+
+			menuPushRootDialog(&g_TeamMissionsHubMenuDialog, MENUROOT_TEAMMISSIONS);
+		} else {
+			g_Vars.waitingtojoin[i] = true;
+		}
+	}
 }
 
 void menuTickHandleTeamMissionsBeforeJoining(void)
@@ -103,8 +122,6 @@ const char var7f1a85e0[] = "Live: %d\n";
 const char var7f1a85ec[] = "current:";
 const char var7f1a85f8[] = " numactive %d ";
 
-extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
-extern struct menudialogdef g_TeamMissionsHubMenuDialog;
 void menuCountDialogs(void)
 {
 	s32 i;

@@ -6274,26 +6274,21 @@ extern struct menudialogdef g_TeamMissionsHubMenuDialog;
 void mpDecidePlayerMenuAndPush(s32 silent, s32 playernum)
 {
 	g_Menus[g_MpPlayerNum].playernum = g_MpPlayerNum;
-		updateGuids();
-		updatePlayerNames();
-		registerExtendedProfile(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
+	updateGuids();
+	updatePlayerNames();
+	registerExtendedProfile(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
 
-	if (IS4MB()) {
-		menuPushRootDialog(&g_AdvancedSetup4MbMenuDialog, MENUROOT_4MBMAINMENU);
-		menuResetJoinFadeAlpha();
-	} else {
-		if (g_MenuData.root == MENUROOT_TEAMMISSIONS) {
-			if (g_Vars.bondplayernum != playernum) menuPushRootDialog(&g_TeamMissionPlayerProfilesHubMenu, MENUROOT_TEAMMISSIONS);
-			else menuPushRootDialog(&g_TeamMissionsHubMenuDialog, MENUROOT_TEAMMISSIONS);
-		}
-		else if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
-			menuPushRootDialog(&g_MpChallengeListOrDetailsViaAdvChallengeMenuDialog, MENUROOT_MPSETUP);
-		} else {
-			menuPushRootDialog(&g_MpAdvancedSetupMenuDialog, MENUROOT_MPSETUP);
-		}
-
-		menuResetJoinFadeAlpha();
+	if (g_MenuData.root == MENUROOT_TEAMMISSIONS || g_Vars.mpsetupmenu == MPSETUPMENU_TEAMMISSIONS) {
+		if (g_Vars.bondplayernum != playernum) menuPushRootDialog(&g_TeamMissionPlayerProfilesHubMenu, MENUROOT_TEAMMISSIONS);
+		else menuPushRootDialog(&g_TeamMissionsHubMenuDialog, MENUROOT_TEAMMISSIONS);
 	}
+	else if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
+		menuPushRootDialog(&g_MpChallengeListOrDetailsViaAdvChallengeMenuDialog, MENUROOT_MPSETUP);
+	} else {
+		menuPushRootDialog(&g_MpAdvancedSetupMenuDialog, MENUROOT_MPSETUP);
+	}
+
+	menuResetJoinFadeAlpha();
 
 	if (!silent) {
 		// Explosion sound
