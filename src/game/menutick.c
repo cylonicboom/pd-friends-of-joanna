@@ -33,6 +33,67 @@ u8 var80062944 = 0;
 u8 var80062948 = 0;
 u8 var8006294c = 0;
 
+void menuTickHandleTeamMissionsDoneJoining(void) {
+	// Future: handle Team Missions Done Joining
+}
+
+void menuTickHandleTeamMissionsJoin(s32 playernum)
+{
+	s32 i = playernum;
+	// Future: handle Team Missions Player Joining
+}
+
+void menuTickHandleTeamMissionsBeforeJoining(void)
+{
+	// TODO: idk maybe handle some sanity checks here?
+	// change Jo's body to Velvet depending on the circumstances
+	g_Vars.mpsetupmenu = MPSETUPMENU_TEAMMISSIONS;
+}
+
+void menuTickHandleCsPlayersBeforeJoining(void)
+{
+	if (g_Vars.usingadvsetup) {
+		g_Vars.mpsetupmenu = MPSETUPMENU_ADVSETUP;
+	} else {
+		g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
+	}
+}
+
+void menuTickHandleCsPlayersDoneJoining(void)
+{
+	// If there is a 4MB setup, play an explosion sound
+	if (g_MpSetup.chrslots & 0xf) {
+		sndStart(var80095200, SFX_EXPLOSION_8098, 0, -1, -1, -1, -1, -1);
+		playerPause(IS4MB() ? MENUROOT_4MBMAINMENU : MENUROOT_MPSETUP);
+	}
+}
+
+
+
+void menuTickHandleCsPlayerJoin(s32 i)
+{
+	g_Vars.waitingtojoin[i] = false;
+
+	if (g_MpSetup.chrslots & (1 << i)) {
+		g_MpPlayerNum = i;
+
+		if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
+			g_MpNumJoined++;
+			mpDecidePlayerMenuAndPush(true, i);
+		} else if (g_MpNumJoined == 0) {
+			g_MpNumJoined++;
+
+			if (IS4MB()) {
+				menuPushRootDialog(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
+			} else {
+				menuPushRootDialog(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);
+			}
+		} else {
+			g_Vars.waitingtojoin[i] = true;
+		}
+	}
+}
+
 const char var7f1a85b0[] = "lvup: %d\n";
 const char var7f1a85bc[] = "file id %x-%x";
 const char var7f1a85cc[] = " ticking: ";
@@ -221,44 +282,28 @@ void menuTick(void)
 				viBlack(false);
 				g_MpNumJoined = 0;
 
-				if (g_Vars.usingadvsetup) {
-					g_Vars.mpsetupmenu = MPSETUPMENU_ADVSETUP;
-				} else {
-					g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
+				if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
+					menuTickHandleCsPlayersBeforeJoining();
+				} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
+					menuTickHandleTeamMissionsBeforeJoining();
 				}
 
 				for (i = 0; i < MAX_PLAYERS; i++) {
-					g_Vars.waitingtojoin[i] = false;
-
-					if (g_MpSetup.chrslots & (1 << i)) {
-						g_MpPlayerNum = i;
-
-						if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
-							g_MpNumJoined++;
-							mpDecidePlayerMenuAndPush(true, i);
-						} else if (g_MpNumJoined == 0) {
-							g_MpNumJoined++;
-
-							if (IS4MB()) {
-								menuPushRootDialog(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
-							} else {
-								menuPushRootDialog(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);
-							}
-						} else {
-							g_Vars.waitingtojoin[i] = true;
-						}
+					if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
+						menuTickHandleCsPlayerJoin(i);
+					} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
+						menuTickHandleTeamMissionsJoin(i);
 					}
 				}
 
 				g_MpPlayerNum = 0;
 
-				// if there is four players,
-				// play an explosion sound
-				if (g_MpSetup.chrslots & 0xf) {
-					sndStart(var80095200, SFX_EXPLOSION_8098, 0, -1, -1, -1, -1, -1);
-
-					playerPause(IS4MB() ? MENUROOT_4MBMAINMENU : MENUROOT_MPSETUP);
+				if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
+					menuTickHandleCsPlayersDoneJoining();
+				} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
+					menuTickHandleTeamMissionsDoneJoining();
 				}
+
 			}
 
 			g_MenuTransitionFlags = 0;
@@ -609,6 +654,9 @@ void menuTick(void)
 			case MENUROOT_MPENDSCREEN:
 				if (g_Vars.normmplayerisrunning) {
 					g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_SETUPSCREEN);
+				}
+				if (g_MissionConfig.isteam) {
+					g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_TEAMMISSIONS);
 				}
 
 				if (g_MissionConfig.isteam
