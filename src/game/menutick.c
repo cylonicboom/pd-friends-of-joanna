@@ -274,8 +274,10 @@ void menuTick(void)
 		g_IsModalMenuMode = g_MenuData.bg == 0 ? false : true;
 	}
 
+	// Logic for special return to menu sequence (ie team missions or combat simulator)
+	// that deviates from the camera swiveling behind Jo's head at her computer
+	// and going to 'Perfect Menu':
 	// Check if returning from a multiplayer match
-	// TODO: Add Team Missions awareness
 	if (g_MenuTransitionFlags > 0) {
 		if (g_Vars.lvframenum >= 4) {
 			if (g_Vars.stagenum == STAGE_CITRAINING || g_Vars.stagenum == STAGE_4MBMENU) {
