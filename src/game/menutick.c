@@ -303,14 +303,14 @@ void menuTick(void)
 				if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
 					menuTickHandleCsPlayersBeforeJoining();
 				} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
-					menuTickHandleTeamMissionsBeforeJoining();
+					// menuTickHandleTeamMissionsBeforeJoining();
 				}
 
 				for (i = 0; i < MAX_PLAYERS; i++) {
 					if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
 						menuTickHandleCsPlayerJoin(i);
 					} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
-						menuTickHandleTeamMissionsJoin(i);
+						// menuTickHandleTeamMissionsJoin(i);
 					}
 				}
 
@@ -319,7 +319,7 @@ void menuTick(void)
 				if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
 					menuTickHandleCsPlayersDoneJoining();
 				} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
-					menuTickHandleTeamMissionsDoneJoining();
+					// menuTickHandleTeamMissionsDoneJoining();
 				}
 
 			}
@@ -674,7 +674,7 @@ void menuTick(void)
 					g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_SETUPSCREEN);
 				}
 				if (g_MissionConfig.isteam) {
-					g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_TEAMMISSIONS);
+					// g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_TEAMMISSIONS);
 				}
 
 				if (g_MissionConfig.isteam
