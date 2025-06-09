@@ -818,6 +818,7 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 						// we need to treat it like a failed level for the purposes of
 						// endscreen flow logic
 						bool isspecialstage = g_Vars.stagenum == STAGE_DEEPSEA
+												|| g_Vars.stagenum == STAGE_DUEL
 												|| g_Vars.stagenum == STAGE_MBR
 												|| g_Vars.stagenum == STAGE_WAR
 												|| g_Vars.stagenum == STAGE_MAIANSOS
@@ -827,7 +828,7 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 							menuPopDialog();
 						}
 						else if (PLAYERCOUNT() == 1 && progress && isspecialstage) {
-							menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, g_MenuData.root);
+							menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
 						}
 						else if (g_Vars.antiplayers[g_MpPlayerNum]) {
 							menuPopDialog();
