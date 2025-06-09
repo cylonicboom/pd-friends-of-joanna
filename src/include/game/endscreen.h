@@ -36,7 +36,7 @@ char *endscreenMenuTextTargetTime(struct menuitem *item);
 void endscreenSetCoopCompleted(void);
 void endscreenPrepare(void);
 void endscreenPushCoop(void);
-void endscreenPushSolo(void);
+void endscreenDecideAndPushNextTeam(void);
 void endscreenPushAnti(void);
 void endscreenPushTeam(void);
 

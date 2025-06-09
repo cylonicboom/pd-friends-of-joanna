@@ -666,9 +666,9 @@ struct menudialogdef g_MissionContinueOrReplyMenuDialog = {
 /**
  * Context is:
  *
- * 0 when closing a completed endscreen
- * 1 unsure - is invoked directly by menuTick
- * 2 when pressing continue
+ * 0 when closing a completed endscreen. This is called when the dialogbouncebacktimer reaches 0 within endScreenHandle2PCompleted's tick handler.
+ * 1 is invoked directlly by endscreenDecideAndPushNextTeam
+ * 2 when pressing continue. This is invoked by endscreenHandleContinueMission.
  */
 void endscreenContinue(s32 context)
 {
@@ -681,88 +681,79 @@ void endscreenContinue(s32 context)
 			case STAGE_SKEDARRUINS:
 				// If we are on Deep Sea or Skedar Ruins, we need to push the continue/reply dialog
 				// so that the player can choose to continue or reply.
-				menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
+				if (context == 1) {
+					menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_COOPCONTINUE);
+				}
 				break;
 			default:
 				// If we are not on Deep Sea or Skedar Ruins, we just pop the dialog.
 				menuPopDialog();
+				if (context == 1)  {
+					struct menudialogdef *definition = endscreenAdvance();
+
+					if (definition) {
+						endscreenResetModels();
+						menuPushRootDialog(definition, MENUROOT_COOPCONTINUE);
+					}
+				}
 				break;
 		}
+	// we pressed continue. ie context is 2
 	} else {
-		if (g_Vars.stagenum == STAGE_DEEPSEA || g_Vars.stagenum == STAGE_SKEDARRUINS) {
-			if (context == 2 || g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion) {
-				// Pressed continue
-				if (g_Vars.stagenum == STAGE_DEEPSEA) {
-					if (!isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty)) {
-						menuPopDialog();
-						menuPopDialog();
-					} else {
-						// Commit to starting next stage
-						g_MissionConfig.stageindex++;
-						g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+		switch (g_Vars.stagenum) {
+			case STAGE_DEEPSEA:
+				if (!isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty)) {
+					menuPopDialog();
+					menuPopDialog();
+				} else {
+					// Commit to starting next stage
+					g_MissionConfig.stageindex++;
+					g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
 
-						titleSetNextStage(g_MissionConfig.stagenum);
-
-						if (g_MissionConfig.isteam) {
-							playermgrResetTeamPlayers();
-							setNumPlayers(getNumTeamPlayerRoleAssignments());
-						}
-						else {
-							playermgrDisableTeamPlayers(false);
-							setNumPlayers(1);
-						}
-
-						lvSetDifficulty(g_MissionConfig.difficulty);
-						titleSetNextMode(TITLEMODE_SKIP);
-						mainChangeToStage(g_MissionConfig.stagenum);
-						viBlack(true);
-					}
-				} else if (g_Vars.stagenum == STAGE_SKEDARRUINS) {
-					// Commit to starting credits
-					g_MissionConfig.stagenum = STAGE_CREDITS;
 					titleSetNextStage(g_MissionConfig.stagenum);
+
+					if (g_MissionConfig.isteam) {
+						playermgrResetTeamPlayers();
+						setNumPlayers(getNumTeamPlayerRoleAssignments());
+					}
+					else {
+						playermgrDisableTeamPlayers(false);
+						setNumPlayers(1);
+					}
+
 					lvSetDifficulty(g_MissionConfig.difficulty);
 					titleSetNextMode(TITLEMODE_SKIP);
 					mainChangeToStage(g_MissionConfig.stagenum);
 					viBlack(true);
 				}
-			}
-			if (context == 1) {
-				menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
-			} else {
-				menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
-			}
-
-		} else {
-			if (context == 2) {
+				break;
+			case STAGE_SKEDARRUINS:
+				// Commit to starting credits
+				g_MissionConfig.stagenum = STAGE_CREDITS;
+				titleSetNextStage(g_MissionConfig.stagenum);
+				lvSetDifficulty(g_MissionConfig.difficulty);
+				titleSetNextMode(TITLEMODE_SKIP);
+				mainChangeToStage(g_MissionConfig.stagenum);
+				viBlack(true);
+				break;
+			default:
 				menuPopDialog();
-			}
 
-			if (isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty) == 0) {
-				if (context == 2) {
+				if (isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty) == 0) {
 					menuPopDialog();
 					menuPopDialog();
-				} else {
-					menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
-				}
-			} else if (stageGetIndex(g_MissionConfig.stagenum) < 0
+					menuResetToTraining();
+				} else if (stageGetIndex(g_MissionConfig.stagenum) < 0
 						|| g_Vars.stagenum == STAGE_CITRAINING
 						|| g_MissionConfig.stageindex >= SOLOSTAGEINDEX_MBR) {
-				if (context == 2) {
 					menuPopDialog();
 					menuPopDialog();
+					menuResetToTraining();
 				} else {
-					menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
-				}
-			} else {
-				endscreenResetModels();
-
-				if (context == 1) {
-					menuPushRootDialog(endscreenAdvance(), MENUROOT_COOPCONTINUE);
-				} else {
+					endscreenResetModels();
 					menuPushDialog(endscreenAdvance());
 				}
-			}
+				break;
 		}
 	}
 }
@@ -832,25 +823,11 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 												|| g_Vars.stagenum == STAGE_MAIANSOS
 												|| g_Vars.stagenum == STAGE_SKEDARRUINS;
 
-						// Deep Sea: just advance to next stage
-						// TODO: check for completion and throw up a contiue/retry dialog
-						if (!g_Vars.antiplayers[g_MpPlayerNum] && progress && g_Vars.stagenum == STAGE_DEEPSEA) {
-							{
-								g_MissionConfig.stageindex++;
-								g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
-
-								titleSetNextStage(g_MissionConfig.stagenum);
-								lvSetDifficulty(g_MissionConfig.difficulty);
-								titleSetNextMode(TITLEMODE_SKIP);
-								mainChangeToStage(g_MissionConfig.stagenum);
-							}
-						}
-						// for any special stage and not-progress, just pop the dialog
-						else if (!g_Vars.antiplayers[g_MpPlayerNum] && !progress && isspecialstage) {
+						if (!g_Vars.antiplayers[g_MpPlayerNum] && !progress && isspecialstage) {
 							menuPopDialog();
 						}
-						else if (!g_Vars.antiplayers[g_MpPlayerNum] && progress && isspecialstage) {
-							menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_MPENDSCREEN);
+						else if (PLAYERCOUNT() == 1 && progress && isspecialstage) {
+							menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, g_MenuData.root);
 						}
 						else if (g_Vars.antiplayers[g_MpPlayerNum]) {
 							menuPopDialog();
@@ -1962,14 +1939,12 @@ void endscreenPushTeam(void)
 	g_MpPlayerNum = prevplayernum;
 }
 
-/**
- * This function is misnamed. It pushes the menu after the endscreen
- * (ie. retry, next mission or continue), and it looks like it might be for coop
- * only but I'm not 100% sure.
+/* This funciton pushes the menu after the endscreen
+ * (ie. retry, next mission or continue), for team missions only
  *
  * This function is only called from menuTick, which is a bit weird...
  */
-void endscreenPushSolo(void)
+void endscreenDecideAndPushNextTeam(void)
 {
 	u32 prevplayernum = g_MpPlayerNum;
 
@@ -1997,12 +1972,6 @@ void endscreenPushSolo(void)
 	} else {
 		// Completed
 		endscreenContinue(1);
-		struct menudialogdef *definition = endscreenAdvance();
-
-		if (definition) {
-			endscreenResetModels();
-			menuPushRootDialog(definition, MENUROOT_COOPCONTINUE);
-		}
 	}
 
 	g_MpPlayerNum = prevplayernum;

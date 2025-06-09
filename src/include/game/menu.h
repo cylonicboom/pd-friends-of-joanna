@@ -122,4 +122,6 @@ extern const char var7f1b265c[];
 extern const char var7f1b2660[];
 extern const char var7f1b2664[];
 
+void menuResetToTraining(void);
+
 #endif

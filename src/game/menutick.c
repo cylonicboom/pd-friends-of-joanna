@@ -37,6 +37,9 @@ u8 var8006294c = 0;
 extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
 extern struct menudialogdef g_TeamMissionsHubMenuDialog;
 
+
+
+
 void menuTickHandleTeamMissionsDoneJoining(void) {
 	// Future: handle Team Missions Done Joining
 }
@@ -678,36 +681,14 @@ void menuTick(void)
 				}
 
 				if (g_MissionConfig.isteam
-						&& g_MissionConfig.stageindex <= SOLOSTAGEINDEX_SKEDARRUINS
+						// && g_MissionConfig.stageindex <= SOLOSTAGEINDEX_SKEDARRUINS
 						&& ((!g_CheatsActiveBank0 && !g_CheatsActiveBank1) || isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty))) {
-					endscreenPushSolo();
+					endscreenDecideAndPushNextTeam();
 				} else if (g_Vars.restartlevel) {
 					mainChangeToStage(mainGetStageNum());
 				} else {
 					mpSetPaused(MPPAUSEMODE_UNPAUSED);
-					g_Vars.mplayerisrunning = false;
-					g_MissionConfig.iscoop = false;
-					g_MissionConfig.isanti = false;
-					g_MissionConfig.isteam = false;
-					g_MissionConfig.pdmode = false;
-					g_Vars.normmplayerisrunning = false;
-					g_Vars.lvmpbotlevel = 0;
-
-					if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
-						g_BossFile.locktype = MPLOCKTYPE_NONE;
-					}
-
-					if (IS8MB()) {
-						titleSetNextStage(STAGE_CITRAINING);
-						setNumPlayers(1);
-						titleSetNextMode(TITLEMODE_SKIP);
-						mainChangeToStage(STAGE_CITRAINING);
-					} else {
-						titleSetNextStage(STAGE_4MBMENU);
-						setNumPlayers(1);
-						titleSetNextMode(TITLEMODE_SKIP);
-						mainChangeToStage(STAGE_4MBMENU);
-					}
+					menuResetToTraining();
 				}
 				break;
 			}

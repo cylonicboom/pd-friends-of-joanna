@@ -15,6 +15,8 @@
 #include "game/menugfx.h"
 #include "game/menuitem.h"
 #include "game/menu.h"
+#include "game/title.h"
+#include "game/pdmode.h"
 #include "game/filelist.h"
 #include "game/filemgr.h"
 #include "game/credits.h"
@@ -156,6 +158,25 @@ s32 g_AllowMouseHeld = true;
 s32 g_MouseDimmedMode = false;
 s32 g_MouseEndDeferredSlider = false;
 #endif
+
+void menuResetToTraining(void) {
+		g_Vars.mplayerisrunning = false;
+		g_MissionConfig.iscoop = false;
+		g_MissionConfig.isanti = false;
+		g_MissionConfig.isteam = false;
+		g_MissionConfig.pdmode = false;
+		g_Vars.normmplayerisrunning = false;
+		g_Vars.lvmpbotlevel = 0;
+
+		if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
+			g_BossFile.locktype = MPLOCKTYPE_NONE;
+		}
+
+		titleSetNextStage(STAGE_CITRAINING);
+		setNumPlayers(1);
+		titleSetNextMode(TITLEMODE_SKIP);
+		mainChangeToStage(STAGE_CITRAINING);
+}
 
 s32 menuAlt1Pressed(s32 playerNum)
 {
