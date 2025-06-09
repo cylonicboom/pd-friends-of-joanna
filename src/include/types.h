@@ -3788,8 +3788,10 @@ struct menudata_main {
 struct menudata_mpsetup {
 	u32 slotindex;
 	u32 slotcount;
-	u8 showpresets;
 	u32 unke24;
+	u32 unke28;
+	u32 unke2c;
+	u8 showpresets;
 };
 
 struct menudata_mppause {
@@ -4002,9 +4004,9 @@ struct menu {
 		struct menudata_filemgr fm;
 		struct menudata_main4mb main4mb;
 		struct menudata_training training;
+		struct menudata_mpsetup mpsetup;
 	};
 
-	struct menudata_mpsetup mpsetup;
 };
 
 struct gamefile {

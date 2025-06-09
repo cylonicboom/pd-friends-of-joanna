@@ -5452,10 +5452,6 @@ MenuDialogHandlerResult menudialogCombatSimulator(s32 operation, struct menudial
 		g_Vars.waitingtojoin[1] = false;
 		g_Vars.waitingtojoin[2] = false;
 		g_Vars.waitingtojoin[3] = false;
-
-		// load the setup file when entering the Combat Simulator
-		mpsetupCopyAllFromPak();
-		mpsetupLoadCurrentFile();
 	}
 
 	if (g_Menus[g_MpPlayerNum].curdialog
