@@ -6291,3 +6291,56 @@ void mpDecidePlayerMenuAndPush(s32 silent, s32 playernum)
 		sndStart(var80095200, SFX_EXPLOSION_809A, NULL, -1, -1, -1, -1, -1);
 	}
 }
+
+struct menuitem g_MpExtGameOptionsMenuItems[] = {
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Start Armed",
+		MPOPTION_SPAWNWITHWEAPON,
+		menuhandlerMpCheckboxOption,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"No Drug Blur",
+		MPOPTION_NODRUGBLUR,
+		menuhandlerMpCheckboxOption,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LOCKABLEMINOR,
+		L_OPTIONS_257, // "Friendly Fire"
+		MPOPTION_FRIENDLYFIRE,
+		menuhandlerMpDisplayTeam,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"No Player on Radar",
+		MPOPTION_NOPLAYERONRADAR,
+		menuhandlerMpCheckboxOption,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"No Doors",
+		MPOPTION_NODOORS,
+		menuhandlerMpCheckboxOption,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menudialogdef g_ExtGameOptionsMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t) "More Options\n",
+	g_MpExtGameOptionsMenuItems,
+	NULL,
+	MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
