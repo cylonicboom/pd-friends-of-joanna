@@ -18,7 +18,6 @@
 #define MAX_CHRSPERSQUADRON    16
 #define MAX_CHRSPERTEAM        32
 #define MAX_CHRWAYPOINTS       6
-#define MAX_EXPLOSIONS         6
 #define MAX_EYESPYDARTS        8
 #ifdef PLATFORM_N64
 #define MAX_COOPCHRS           2
@@ -35,6 +34,7 @@
 #define MAX_SQUADRONS          16
 #define MAX_TEAMS              8
 #define MAX_PLAYERNAME         15
+#define MAX_EXPLOSIONS_DEFAULT 6
 
 #define NUM_BOTDIFFS          6
 #define NUM_CYCLEABLE_WEAPONS 45
@@ -2922,6 +2922,7 @@
 #define MPOPTION_AUTORANDOMWEAPON_END   0x01000000
 #define MPOPTION_FRIENDLYFIRE           0x02000000
 #define MPOPTION_NOPLAYERONRADAR        0x04000000
+#define MPOPTION_NODOORS                0x08000000
 
 #define MPPAUSEMODE_UNPAUSED 0
 #define MPPAUSEMODE_PAUSED   1

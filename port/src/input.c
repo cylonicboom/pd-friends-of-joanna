@@ -693,6 +693,7 @@ s32 inputInit(void)
 		// the two hints below enable Rumble and Motion Sensor for PS4/5 pads connected via bluetooth
 		SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
 		SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
+		SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM, "1");
 #endif
 #if SDL_VERSION_ATLEAST(2, 23, 2)
 		SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS, "1");
@@ -702,6 +703,9 @@ s32 inputInit(void)
 #endif
 #if SDL_VERSION_ATLEAST(2, 26, 0)
 		SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_WII, "1");
+#endif
+#if SDL_VERSION_ATLEAST(2, 30, 0)
+		SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK, "1");
 #endif
 	}
 	if (useRawInput) {
@@ -1241,26 +1245,24 @@ void inputMouseGetRawDelta(s32 *dx, s32 *dy)
 
 void inputMouseGetScaledDelta(f32* dx, f32* dy)
 {
-		f32 mdx = 0.f, mdy = 0.f;
-
-		if (mouseLocked) {
-				mdx = mouseSensX * ((f32)mouseDX / 3.5f) * 0.022f;
-				mdy = mouseSensY * ((f32)mouseDY / 3.5f) * 0.022f;
-		}
-		if (dx) *dx = mdx;
-		if (dy) *dy = mdy;
+	f32 mdx = 0.f, mdy = 0.f;
+	if (mouseLocked) {
+		mdx = mouseDX * (0.022f / 3.5f) * mouseSensX;
+		mdy = mouseDY * (0.022f / 3.5f) * mouseSensY;
+	}
+	if (dx) *dx = mdx;
+	if (dy) *dy = mdy;
 }
 
 void inputMouseGetAbsScaledDelta(f32* dx, f32* dy)
 {
-		f32 mdx = 0.f, mdy = 0.f;
-
-		if (mouseLocked) {
-				mdx = fabsf(mouseSensX) * ((f32)mouseDX / 3.5f) * 0.022f;
-				mdy = fabsf(mouseSensY) * ((f32)mouseDY / 3.5f) * 0.022f;
-		}
-		if (dx) *dx = mdx;
-		if (dy) *dy = mdy;
+	f32 mdx = 0.f, mdy = 0.f;
+	if (mouseLocked) {
+		mdx = mouseDX * (0.022f / 3.5f) * fabsf(mouseSensX);
+		mdy = mouseDY * (0.022f / 3.5f) * fabsf(mouseSensY);
+	}
+	if (dx) *dx = mdx;
+	if (dy) *dy = mdy;
 }
 
 void inputMouseGetSpeed(f32 *x, f32 *y)
@@ -1509,8 +1511,8 @@ PD_CONSTRUCTOR static void inputConfigInit(void)
 {
 	configRegisterInt("Input.MouseEnabled", &mouseEnabled, 0, 1);
 	configRegisterInt("Input.MouseLockMode", &mouseLockMode, MLOCK_OFF, MLOCK_AUTO);
-	configRegisterFloat("Input.MouseSpeedX", &mouseSensX, -10.f, 10.f);
-	configRegisterFloat("Input.MouseSpeedY", &mouseSensY, -10.f, 10.f);
+	configRegisterFloat("Input.MouseSpeedX", &mouseSensX, -30.f, 30.f);
+	configRegisterFloat("Input.MouseSpeedY", &mouseSensY, -30.f, 30.f);
 	configRegisterInt("Input.FakeGamepads", &fakeControllers, 0, 4);
 	configRegisterInt("Input.FirstGamepadNum", &firstController, 0, 3);
 	configRegisterInt("Input.UseHIDAPI", &useHIDAPI, 0, 1);

@@ -186,6 +186,7 @@ PD_CONSTRUCTOR static void gameConfigInit(void)
 	configRegisterInt("Game.GEMuzzleFlashes", &g_BgunGeMuzzleFlashes, 0, 1);
 	for (s32 j = 0; j < MAX_LOCAL_PLAYERS; ++j) {
 		const s32 i = j + 1;
+		configRegisterInt("Game.MaxExplosions", &g_MaxExplosions, 6, 96);
 		configRegisterFloat(strFmt("Game.Player%d.FovY", i), &g_PlayerExtCfg[j].fovy, 5.f, 175.f);
 		configRegisterInt(strFmt("Game.Player%d.FovAffectsZoom", i), &g_PlayerExtCfg[j].fovzoom, 0, 1);
 		configRegisterInt(strFmt("Game.Player%d.MouseAimMode", i), &g_PlayerExtCfg[j].mouseaimmode, 0, 1);
