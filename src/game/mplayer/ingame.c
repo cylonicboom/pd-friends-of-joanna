@@ -800,11 +800,7 @@ void mpPushPauseDialog(void)
 					menuPushRootDialog(&g_MpPausePlayerRankingMenuDialog, MENUROOT_MPPAUSE);
 				}
 			} else {
-				if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL
-#ifndef PLATFORM_N64
-					|| LOCALPLAYERCOUNT() >= 3
-#endif
-				) {
+				if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL) {
 					menuPushRootDialog(&g_2PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
 				} else {
 					menuPushRootDialog(&g_2PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);

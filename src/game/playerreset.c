@@ -186,8 +186,7 @@ void playerReset(void)
 				cmd = (struct cmd32 *)((uintptr_t)cmd + 8);
 				break;
 			case INTROCMD_WEAPON:
-				if (cmd->param3 == 0 && PLAYER_IS_NOT_ANTI(g_Vars.currentplayer)) {
-
+				if (cmd->param3 == 0 && g_Vars.currentplayer != g_Vars.anti) {
 					modelmgrLoadProjectileModeldefs(cmd->param1);
 
 					if (cmd->param2 >= 0) {
@@ -214,7 +213,7 @@ void playerReset(void)
 				cmd = (struct cmd32 *)((uintptr_t)cmd + 16);
 				break;
 			case INTROCMD_AMMO:
-				if (cmd->param3 == 0 && PLAYER_IS_NOT_ANTI(g_Vars.currentplayer)) {
+				if (cmd->param3 == 0 && g_Vars.currentplayer != g_Vars.anti) {
 					bgunSetAmmoQuantity(cmd->param1, cmd->param2);
 				}
 				cmd = (struct cmd32 *)((uintptr_t)cmd + 16);

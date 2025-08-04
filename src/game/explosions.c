@@ -847,7 +847,7 @@ void explosionInflictDamage(struct prop *expprop)
 						minfrac = (minfrac * 0.7f + 0.3f) * type->damage;
 
 						if (g_Vars.antiplayernum >= 0
-								&& EXPLOSION_OWNER_IS_ANTI_PLAYER(exp->owner)
+								&& g_Vars.antiplayernum == exp->owner
 								&& (obj->flags2 & OBJFLAG2_IMMUNETOANTI)) {
 							// anti cannot damage this obj
 						} else if (isfirstframe) {
@@ -997,16 +997,8 @@ void explosionInflictDamage(struct prop *expprop)
 						ownerprop = g_Vars.bond->prop;
 					} else if (g_Vars.coopplayernum >= 0 && exp->owner == g_Vars.coopplayernum) {
 						ownerprop = g_Vars.coop->prop;
-					} else if (g_Vars.antiplayernum >= 0 && EXPLOSION_OWNER_IS_ANTI_PLAYER(exp->owner)) {
-#if PLATFORM_N64
+					} else if (g_Vars.antiplayernum >= 0 && exp->owner == g_Vars.antiplayernum) {
 						ownerprop = g_Vars.anti->prop;
-#else
-						struct chrdata *ownerchr = mpGetChrFromPlayerIndex(exp->owner);
-
-						if (ownerchr) {
-							ownerprop = ownerchr->prop;
-						}
-#endif
 					}
 
 					chrDamageByExplosion(chr, minfrac, &spa0, ownerprop, &expprop->pos);
@@ -1220,12 +1212,8 @@ u32 explosionTick(struct prop *prop)
 
 			if (g_Vars.normmplayerisrunning) {
 				chr = mpGetChrFromPlayerIndex(exp->owner);
-			} else if (g_Vars.antiplayernum >= 0 && EXPLOSION_OWNER_IS_ANTI_PLAYER(exp->owner)) {
-#if PLATFORM_N64
+			} else if (g_Vars.antiplayernum >= 0 && exp->owner == g_Vars.antiplayernum) {
 				chr = g_Vars.anti->prop->chr;
-#else
-				chr = mpGetChrFromPlayerIndex(exp->owner);
-#endif
 			} else if (g_Vars.coopplayernum >= 0 && exp->owner == g_Vars.coopplayernum) {
 				chr = g_Vars.coop->prop->chr;
 			} else {

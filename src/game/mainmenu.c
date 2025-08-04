@@ -748,7 +748,6 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 				setNumPlayers(1);
 			}
 		} else if (g_MissionConfig.isanti) {
-#ifdef PLATFORM_N64
 			if (g_Vars.pendingantiplayernum == 1) {
 				g_Vars.bondplayernum = 0;
 				g_Vars.antiplayernum = 1;
@@ -758,27 +757,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 			}
 
 			g_Vars.coopplayernum = -1;
-
 			setNumPlayers(2);
-#else
-			u32 contmask = joyGetConnectedControllers();
-			u32 plrcount = 0;
-			u32 tmpmask;
-
-			// Count all players
-			tmpmask = contmask;
-			while (tmpmask) {
-				plrcount += (tmpmask & 0x1);
-				tmpmask >>= 1;
-			}
-
-			g_Vars.bondplayernum = g_Vars.pendingantiplayernum ^ 1;
-			g_Vars.antiplayernum = (g_Vars.bondplayernum == 0 ? 1 : 0);
-			g_Vars.coopplayernum = -1;
-
-			setNumPlayers(plrcount);
-			g_MpSetup.chrslots = contmask;
-#endif
 		} else {
 			// Solo
 			g_Vars.bondplayernum = 0;
@@ -1566,8 +1545,6 @@ MenuItemHandlerResult menuhandlerAntiRadar(s32 operation, struct menuitem *item,
 	return 0;
 }
 
-#ifdef PLATFORM_N64
-
 MenuItemHandlerResult menuhandlerAntiPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	const u16 labels[] = {L_OPTIONS_271, L_OPTIONS_272};
@@ -1633,100 +1610,6 @@ struct menuitem g_AntiOptionsMenuItems[] = {
 	},
 	{ MENUITEMTYPE_END },
 };
-
-#else
-
-MenuItemHandlerResult menuhandlerAntiMainPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	static const char *labels[] = {
-		"Player 1",
-		"Player 2",
-		"Player 3",
-		"Player 4",
-	};
-
-	// For consistency with the main save format,
-	// the main player is (pendingantiplayernum XOR 1)
-
-	// g_Vars.(bond|anti|coop)playernum is based on the n'th player slot, not the n'th controller;
-	// that is, it's not based on g_MpSetup.chrslots.
-	// Because of this, it's easier just to change the label.
-
-	u32 tmpmask = joyGetConnectedControllers();
-	u32 plrcount = 0;
-	u32 labelidx = 0;
-	while (tmpmask) {
-		plrcount += (tmpmask & 0x1);
-		if (plrcount <= data->dropdown.value) {
-			labelidx += 1;
-		}
-		tmpmask >>= 1;
-	}
-
-	switch (operation) {
-	case MENUOP_GETOPTIONCOUNT:
-		data->dropdown.value = plrcount;
-		break;
-	case MENUOP_GETOPTIONTEXT:
-		return (s32) (labels[labelidx]);
-	case MENUOP_SET:
-		g_Vars.pendingantiplayernum = data->dropdown.value ^ 1;
-		g_Vars.modifiedfiles |= MODFILE_GAME;
-		break;
-	case MENUOP_GETSELECTEDINDEX:
-		data->dropdown.value = g_Vars.pendingantiplayernum ^ 1;
-		break;
-	}
-
-	return 0;
-}
-
-struct menuitem g_AntiOptionsMenuItems[] = {
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_267, // "Radar On"
-		0,
-		menuhandlerAntiRadar,
-	},
-	{
-		MENUITEMTYPE_DROPDOWN,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Main Player",
-		0,
-		menuhandlerAntiMainPlayer,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		0,
-		L_OPTIONS_269, // "Continue"
-		0,
-		menuhandlerBuddyOptionsContinue,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_270, // "Cancel"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-#endif
-
 
 struct menudialogdef g_AntiOptionsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
@@ -4971,7 +4854,7 @@ MenuItemHandlerResult menuhandlerMainMenuCooperative(s32 operation, struct menui
 MenuItemHandlerResult menuhandlerMainMenuCounterOperative(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_CHECKDISABLED) {
-		if ((joyGetConnectedControllers() & ~0x1) == 0) {
+		if ((joyGetConnectedControllers() & 2) == 0) {
 			return true;
 		}
 	}

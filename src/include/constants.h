@@ -19,13 +19,8 @@
 #define MAX_CHRSPERTEAM        32
 #define MAX_CHRWAYPOINTS       6
 #define MAX_EYESPYDARTS        8
-#ifdef PLATFORM_N64
-#define MAX_COOPCHRS           2
-#else
-#define MAX_COOPCHRS           MAX_PLAYERS
-#endif
 #define MAX_MPCHRS             (MAX_PLAYERS + MAX_BOTS)
-#define MAX_MPPLAYERCONFIGS    (MAX_PLAYERS + MAX_COOPCHRS)
+#define MAX_MPPLAYERCONFIGS    (MAX_PLAYERS + 2)
 #define MAX_OBJECTIVES         10
 #define MAX_LOCAL_PLAYERS      4
 #define MAX_PLAYERS            8
@@ -85,20 +80,6 @@
 #define PLAYERCOUNT()       ((g_Vars.players[0] ? 1 : 0) + (g_Vars.players[1] ? 1 : 0))
 #else
 #define PLAYERCOUNT()       1
-#endif
-
-#if MAX_COOPCHRS > 2
-#define PLAYER_IS_ANTI(plr) (g_Vars.antiplayernum >= 0 && (plr) != g_Vars.bond)
-#define PLAYER_IS_NOT_ANTI(plr) (g_Vars.antiplayernum < 0 || (plr) == g_Vars.bond)
-#define PLAYERNUM_IS_ANTI(plrnum) (g_Vars.antiplayernum >= 0 && (plrnum) != g_Vars.bondplayernum)
-#define PROP_IS_FOR_ANTI_PLAYER(plrprop) (g_Vars.antiplayernum >= 0 && g_Vars.anti && (plrprop)->type == PROPTYPE_PLAYER && (plrprop) != g_Vars.bond->prop)
-#define EXPLOSION_OWNER_IS_ANTI_PLAYER(expowner) (g_Vars.antiplayernum >= 0 && (expowner) != g_Vars.bondplayernum && mpGetChrFromPlayerIndex((expowner)) != NULL)
-#else
-#define PLAYER_IS_ANTI(plr) ((plr) == g_Vars.anti)
-#define PLAYER_IS_NOT_ANTI(plr) ((plr) != g_Vars.anti)
-//define PLAYERNUM_IS_ANTI(plrnum) ((plrnum) == g_Vars.antiplayernum)
-#define PROP_IS_FOR_ANTI_PLAYER(plrprop) ((plrprop) == g_Vars.anti->prop)
-#define EXPLOSION_OWNER_IS_ANTI_PLAYER(expowner) ((expowner) == g_Vars.antiplayernum)
 #endif
 
 #define VALIDWEAPON()       (g_Vars.currentplayer->gunctrl.weaponnum >= WEAPON_UNARMED && g_Vars.currentplayer->gunctrl.weaponnum <= WEAPON_COMBATBOOST)
