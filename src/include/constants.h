@@ -23,11 +23,13 @@
 #define MAX_MPCHRS             (MAX_PLAYERS + MAX_BOTS)
 #define MAX_MPPLAYERCONFIGS    (MAX_PLAYERS + MAX_COOPCHRS)
 #define MAX_OBJECTIVES         10
-#define MAX_PLAYERS            4
+#define MAX_LOCAL_PLAYERS      4
+#define MAX_PLAYERS            8
 #define MAX_PROPSPERROOMCHUNK  7
 #define MAX_ROOMPROPLISTCHUNKS 256
 #define MAX_SQUADRONS          16
 #define MAX_TEAMS              8
+#define MAX_PLAYERNAME         15
 #define MAX_EXPLOSIONS_DEFAULT 6
 
 #define NUM_BOTDIFFS          6
@@ -69,7 +71,9 @@
 #define SECSTOTIME60(secs)  (secs * 60)
 #define PFS(device)         (device == SAVEDEVICE_GAMEPAK ? NULL : &g_Pfses[device])
 
-#if MAX_PLAYERS >= 4
+#if MAX_PLAYERS > 4
+#define PLAYERCOUNT()       playerGetCount()
+#elif MAX_PLAYERS == 4
 #define PLAYERCOUNT()       ((g_Vars.players[0] ? 1 : 0) + (g_Vars.players[1] ? 1 : 0) + (g_Vars.players[2] ? 1 : 0) + (g_Vars.players[3] ? 1 : 0))
 #elif MAX_PLAYERS >= 3
 #define PLAYERCOUNT()       ((g_Vars.players[0] ? 1 : 0) + (g_Vars.players[1] ? 1 : 0) + (g_Vars.players[2] ? 1 : 0))
@@ -704,6 +708,7 @@
 #define CONTROLMODE_23 6
 #define CONTROLMODE_24 7
 #define CONTROLMODE_PC 8 // "pc port" controls; enabled in the .ini file
+#define CONTROLMODE_NA 9 // dummy controls for remote players
 
 #define COUNTDOWNTIMERREASON_AI        0x01
 #define COUNTDOWNTIMERREASON_NOCONTROL 0x10
@@ -4733,6 +4738,8 @@ enum weaponnum {
 #define BUTTON_UI_ACCEPT BUTTON_ACCEPT_WPNFORWARD
 #define BUTTON_UI_CANCEL BUTTON_CANCEL_USE
 
+#define LOCALPLAYERCOUNT() PLAYERCOUNT()
+
 #else
 
 // xbla behavior
@@ -4801,6 +4808,11 @@ enum weaponnum {
 
 // if controller pak-like support was added and everyone had 4 profiles, this is twice the max
 #define CONFIG_MAX_PROFILES ((MAX_PLAYERS * 4) * 2)
+#define NETMODE_NONE 0
+#define NETMODE_SERVER 1
+#define NETMODE_CLIENT 2
+
+#define LOCALPLAYERCOUNT() playerGetLocalCount()
 
 #endif
 

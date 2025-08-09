@@ -27,6 +27,9 @@
 #include "lib/snd.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 u8 g_FileState = 0;
 u8 var80062944 = 0;
@@ -102,6 +105,11 @@ void menuTickHandleCsPlayerJoin(s32 i)
 		if (g_Vars.mpsetupmenu == MPSETUPMENU_ADVSETUP) {
 			g_MpNumJoined++;
 			mpDecidePlayerMenuAndPush(true, i);
+			if (g_NetMode == NETMODE_CLIENT) {
+				// autodump client into waiting screen while host is changing settings
+				extern struct menudialogdef g_NetJoiningDialog;
+				menuPushDialog(&g_NetJoiningDialog);
+			}
 		} else if (g_MpNumJoined == 0) {
 			g_MpNumJoined++;
 
@@ -309,11 +317,16 @@ void menuTick(void)
 					// menuTickHandleTeamMissionsBeforeJoining();
 				}
 
-				for (i = 0; i < MAX_PLAYERS; i++) {
-					if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
-						menuTickHandleCsPlayerJoin(i);
-					} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
-						// menuTickHandleTeamMissionsJoin(i);
+				if (g_NetMode) {
+					g_Vars.mpsetupmenu = MPSETUPMENU_ADVSETUP;
+					g_MpSetup.chrslots = 1;
+				} else {
+					for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
+						if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_SETUPSCREEN) {
+							menuTickHandleCsPlayerJoin(i);
+						} else if (g_MenuTransitionFlags & MENU_TRANSITIONFLAG_TEAMMISSIONS) {
+							// menuTickHandleTeamMissionsJoin(i);
+						}
 					}
 				}
 
@@ -357,7 +370,11 @@ void menuTick(void)
 
 		if (g_MenuData.root == MENUROOT_MPSETUP || g_MenuData.root == MENUROOT_4MBMAINMENU || g_MenuData.root == MENUROOT_TEAMMISSIONS) {
 			if (g_MenuData.prevmenuroot == MENUROOT_RESET) {
+#if MAX_PLAYERS > 4
+				g_MpSetup.chrslots &= 0xff00;
+#else
 				g_MpSetup.chrslots &= 0xfff0;
+#endif
 			}
 
 			g_MpNumJoined = 0;
@@ -372,11 +389,23 @@ void menuTick(void)
 				}
 			}
 
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_SERVER && g_MenuData.prevmenuroot == -1) {
+				s32 slot = 1;
+				for (i = 1; i < g_NetMaxClients; ++i) {
+					if (g_NetClients[i].state >= CLSTATE_LOBBY) {
+						g_MpSetup.chrslots |= (1 << slot);
+						++slot;
+					}
+				}
+			}
+#endif
+
 			mpCalculateLockIfLastWinnerOrLoser();
 			challengePerformSanityChecks();
 		}
 
-		for (i = 0; i < MAX_PLAYERS; i++) {
+		for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
 			g_MpPlayerNum = i;
 
 			if (g_Menus[g_MpPlayerNum].curdialog) {
@@ -388,7 +417,7 @@ void menuTick(void)
 			}
 		}
 
-		for (i = 0; i < MAX_PLAYERS; i++) {
+		for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
 			g_MpPlayerNum = i;
 
 			if (g_Menus[g_MpPlayerNum].curdialog) {
@@ -412,7 +441,7 @@ void menuTick(void)
 							// Limit to 2 players? But in a roundabout kind of way
 							canjoin = true;
 
-							for (j = 0; j < MAX_PLAYERS; j++) {
+							for (j = 0; j < MAX_LOCAL_PLAYERS; j++) {
 								if (g_Vars.waitingtojoin[j]) {
 									canjoin = false;
 								}
@@ -425,6 +454,12 @@ void menuTick(void)
 						// 8MB - no restrictions on joining
 						canjoin = true;
 					}
+
+#ifndef PLATFORM_N64
+					if (g_NetMode) {
+						canjoin = false;
+					}
+#endif
 
 					if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
 						g_PlayerConfigsArray[i].base.team = 0;
@@ -601,7 +636,12 @@ void menuTick(void)
 					func0f0fd548(4);
 				}
 
-				for (i = 0; i < MAX_PLAYERS; i++) {
+#ifdef PLATFORM_N64
+				for (i = 0; i < MAX_LOCAL_PLAYERS; i++) {
+#else
+				const s32 maxplayers = g_NetMode ? 1 : MAX_LOCAL_PLAYERS;
+				for (i = 0; i < maxplayers; i++) {
+#endif
 					if (g_MpSetup.chrslots & (1 << i)) {
 						s32 prevplayernum = g_Vars.currentplayernum;
 						setCurrentPlayerNum(playernum);

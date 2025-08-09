@@ -89,7 +89,7 @@ s32 hudmsgIsZoomRangeVisible(void)
 		return false;
 	}
 	return optionsGetShowZoomRange(g_Vars.currentplayerstats->mpindex)
-		&& (PLAYERCOUNT() == 1
+		&& (LOCALPLAYERCOUNT() == 1
 				|| !g_Vars.mplayerisrunning
 				|| g_Vars.coopplayernum >= 0
 				|| g_Vars.antiplayernum >= 0)
@@ -133,7 +133,7 @@ Gfx *hudmsgRenderMissionTimer(Gfx *gdl, u32 alpha)
 	viewleft = viGetViewLeft() / g_ScaleX;
 	viewtop = viGetViewTop();
 	viewheight = viGetViewHeight();
-	playercount = PLAYERCOUNT();
+	playercount = LOCALPLAYERCOUNT();
 	playernum = g_Vars.currentplayernum;
 
 	timery = viewheight;
@@ -236,7 +236,7 @@ Gfx *hudmsgRenderZoomRange(Gfx *gdl, u32 alpha)
 	texty = viewheight + viewtop - 1;
 	maxzoom = 1.0f;
 	weaponnum = g_Vars.currentplayer->hands[0].gset.weaponnum;
-	playercount = PLAYERCOUNT();
+	playercount = LOCALPLAYERCOUNT();
 
 	texty -= 17;
 
@@ -376,7 +376,7 @@ s32 hudmsg0f0ddb1c(s32 *arg0, s32 arg1)
 
 	*arg0 = 24;
 
-	if (PLAYERCOUNT() == 2
+	if (LOCALPLAYERCOUNT() == 2
 			&& optionsGetScreenSplit() == SCREENSPLIT_VERTICAL
 			&& (!g_InCutscene || g_MainIsEndscreen)) {
 		result -= *arg0 * 2 / 3;
@@ -390,7 +390,7 @@ s32 hudmsg0f0ddb1c(s32 *arg0, s32 arg1)
 
 	result = result + viewwidth - *arg0 - arg1 - 11;
 
-	if (PLAYERCOUNT() == 1 || (PLAYERCOUNT() == 2 && g_InCutscene && !g_MainIsEndscreen)) {
+	if (LOCALPLAYERCOUNT() == 1 || (LOCALPLAYERCOUNT() == 2 && g_InCutscene && !g_MainIsEndscreen)) {
 		result -= 16;
 
 #if VERSION < VERSION_JPN_FINAL
@@ -405,7 +405,7 @@ s32 hudmsg0f0ddb1c(s32 *arg0, s32 arg1)
 
 	*arg0 = 24;
 
-	if (PLAYERCOUNT() == 2 && optionsGetScreenSplit() == SCREENSPLIT_VERTICAL) {
+	if (LOCALPLAYERCOUNT() == 2 && optionsGetScreenSplit() == SCREENSPLIT_VERTICAL) {
 		result -= *arg0 * 2 / 3;
 
 		if (g_Vars.currentplayernum == 0) {
@@ -417,7 +417,7 @@ s32 hudmsg0f0ddb1c(s32 *arg0, s32 arg1)
 
 	result = result + viewwidth - *arg0 - arg1 - 11;
 
-	if (PLAYERCOUNT() == 1) {
+	if (LOCALPLAYERCOUNT() == 1) {
 		result -= 16;
 	}
 #endif
@@ -859,7 +859,7 @@ void hudmsgCalculatePosition(struct hudmessage *msg)
 #if VERSION >= VERSION_NTSC_1_0
 	s32 offset = (msg->alignh == HUDMSGALIGN_XMIDDLE) ? 10 : 0;
 
-	if (PLAYERCOUNT() >= 3) {
+	if (LOCALPLAYERCOUNT() >= 3) {
 		viewwidth -= offset;
 
 		if (g_Vars.currentplayernum == 0 || g_Vars.currentplayernum == 2) {
@@ -867,7 +867,7 @@ void hudmsgCalculatePosition(struct hudmessage *msg)
 		}
 	}
 
-	if (PLAYERCOUNT() == 2 && (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || IS4MB())) {
+	if (LOCALPLAYERCOUNT() == 2 && (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || IS4MB())) {
 #if VERSION >= VERSION_PAL_FINAL
 		if (!g_InCutscene || g_MainIsEndscreen)
 #endif
@@ -890,7 +890,7 @@ void hudmsgCalculatePosition(struct hudmessage *msg)
 
 		x = viewleft + v0 + msg->xmargin + 3;
 
-		if (PLAYERCOUNT() == 2
+		if (LOCALPLAYERCOUNT() == 2
 				&& (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || IS4MB())
 				&& (!g_InCutscene || g_MainIsEndscreen)) {
 			if (IS4MB()) {
@@ -906,7 +906,7 @@ void hudmsgCalculatePosition(struct hudmessage *msg)
 					x += 4;
 				}
 			}
-		} else if (PLAYERCOUNT() >= 3) {
+		} else if (LOCALPLAYERCOUNT() >= 3) {
 			if ((msg->playernum % 2) == 0) {
 				x--;
 			} else {
@@ -935,13 +935,13 @@ void hudmsgCalculatePosition(struct hudmessage *msg)
 	case HUDMSGALIGN_BOTTOM:
 		y = viewtop + viewheight - msg->height - msg->ymargin - 14;
 
-		if (PLAYERCOUNT() == 2 && (g_InCutscene == 0 || g_MainIsEndscreen)) {
+		if (LOCALPLAYERCOUNT() == 2 && (g_InCutscene == 0 || g_MainIsEndscreen)) {
 			if (IS4MB() || (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL && msg->playernum == 0)) {
 				y += 8;
 			} else {
 				y += 3;
 			}
-		} else if (PLAYERCOUNT() >= 3) {
+		} else if (LOCALPLAYERCOUNT() >= 3) {
 			if (msg->playernum <= 1) {
 				y += 8;
 			} else {
@@ -988,6 +988,13 @@ void hudmsgCreateFromArgs(char *text, s32 type, s32 conf00, s32 conf01, s32 conf
 	if (type == HUDMSGTYPE_INGAMESUBTITLE && !optionsGetInGameSubtitles()) {
 		return;
 	}
+
+#ifndef PLATFORM_N64
+	if (g_NetMode && g_Vars.currentplayernum != 0) {
+		// do not create hudmsgs for other net players
+		return;
+	}
+#endif
 
 	for (j = 0; text[j] != '\0'; j++) {
 		hash = hash + text[j];
@@ -1286,7 +1293,7 @@ void hudmsgsTick(void)
 						&& msg->type != HUDMSGTYPE_CUTSCENESUBTITLE
 						&& msg->type != HUDMSGTYPE_INGAMESUBTITLE
 #endif
-						&& PLAYERCOUNT() == 1) {
+						&& LOCALPLAYERCOUNT() == 1) {
 #if VERSION >= VERSION_NTSC_1_0
 					sndStart(var80095200, SFX_HUDMSG, NULL, -1, -1, -1, -1, -1);
 #else
@@ -1385,7 +1392,7 @@ Gfx *hudmsgsRender(Gfx *gdl)
 	s32 timerthing = 255;
 	s32 spdc = true;
 #ifndef PLATFORM_N64
-	const s32 playercount = PLAYERCOUNT();
+	const s32 playercount = LOCALPLAYERCOUNT();
 #endif
 
 #if PAL

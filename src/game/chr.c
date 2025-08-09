@@ -49,6 +49,8 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "net/net.h"
+#include "net/netmsg.h"
 #endif
 
 void rng2SetSeed(u32 seed);
@@ -4691,9 +4693,17 @@ void chrHit(struct shotdata *shotdata, struct hit *hit)
 						|| weapon->weaponnum == WEAPON_TIMEDMINE
 						|| weapon->weaponnum == WEAPON_REMOTEMINE
 						|| weapon->weaponnum == WEAPON_PROXIMITYMINE) {
-					objSetDropped(hit->prop, DROPTYPE_DEFAULT);
-					chr->hidden |= CHRHFLAG_DROPPINGITEM;
-					objDamage(&weapon->base, gsetGetDamage(&shotdata->gset), &sp98, shotdata->gset.weaponnum, g_Vars.currentplayernum);
+#ifndef PLATFORM_N64
+					if (g_NetMode == NETMODE_SERVER) {
+						netmsgSvcChrDisarmWrite(&g_NetMsgRel, chr, g_Vars.currentplayer->prop, weapon->weaponnum, gsetGetDamage(&shotdata->gset), &sp98);
+					}
+					if (g_NetMode != NETMODE_CLIENT)
+#endif
+					{
+						objSetDropped(hit->prop, DROPTYPE_DEFAULT);
+						chr->hidden |= CHRHFLAG_DROPPINGITEM;
+						objDamage(&weapon->base, gsetGetDamage(&shotdata->gset), &sp98, shotdata->gset.weaponnum, g_Vars.currentplayernum);
+					}
 					return;
 				}
 
