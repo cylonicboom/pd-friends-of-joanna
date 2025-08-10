@@ -3308,6 +3308,9 @@ void chrGetBloodColour(s16 bodynum, u8 *colour1, u32 *colour2)
 	case BODY_DRCAROLL:
 	case BODY_EYESPY:
 	case BODY_CHICROB:
+#ifndef PLATFORM_N64 // PD Plus Mod
+	case BODY_TESTCHR: // Dr. Caroll
+#endif
 		if (colour1) {
 			colour1[0] = 10;
 			colour1[1] = 10;
@@ -3323,6 +3326,9 @@ void chrGetBloodColour(s16 bodynum, u8 *colour1, u32 *colour2)
 	case BODY_SKEDAR:
 	case BODY_MINISKEDAR:
 	case BODY_SKEDARKING:
+#ifndef PLATFORM_N64 // PD Plus Mod
+	case BODY_PRESIDENT_CLONE: // Skedar
+#endif
 		if (colour1) {
 			colour1[0] = 0x40;
 			colour1[1] = 0x19;
@@ -3390,7 +3396,9 @@ Gfx *chrRender(struct prop *prop, Gfx *gdl, bool xlupass)
 
 	chrGetBloodColour(chr->bodynum, spec, NULL);
 	chr0f0246e4(spec);
+#ifdef PLATFORM_N64 // All in One Mod
 	alpha *= objCalculateFadeDistOpacityFrac(prop, modelGetEffectiveScale(model));
+#endif
 
 	if (g_Vars.currentplayer->visionmode == VISIONMODE_XRAY) {
 		f32 fadedist;
