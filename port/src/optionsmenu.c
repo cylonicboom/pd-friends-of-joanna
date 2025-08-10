@@ -980,6 +980,20 @@ static MenuItemHandlerResult menuhandlerCenterHUD(s32 operation, struct menuitem
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerSetPausingEnabled(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GET:
+		return g_PausingEnabled;
+		break;
+	case MENUOP_SET:
+		g_PausingEnabled = data->checkbox.value;
+		break;
+	}
+
+	return 0;
+}
+
 static MenuItemHandlerResult menuhandlerScreenShake(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	switch (operation) {
@@ -1138,6 +1152,14 @@ struct menuitem g_ExtendedVideoMenuItems[] = {
 		(uintptr_t)"Explosion Shake",
 		20,
 		menuhandlerScreenShake,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Enable Local Pausing",
+		20,
+		menuhandlerSetPausingEnabled,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -1646,7 +1668,10 @@ static const struct menubind menuBinds[] = {
 	{ CK_8000,   "Cycle Crouch [+]\n",  "N64 Ext 8000\n" },
 	{ CK_4000,   "Half Crouch [+]\n",   "N64 Ext 4000\n" },
 	{ CK_2000,   "Full Crouch [+]\n",   "N64 Ext 2000\n" },
-	{ CK_0040,   "Toggle Eyelids [+]\n", "N64 Ext 0040\n" },
+	{ CK_0080,   "Moon Jump [+]\n",     "N64 Ext 0080\n" }, // TODO: gate this behind a cheat
+	{ CK_0100,   "Toggle Gravity [+]\n","N64 Ext 0100\n" }, // TODO: gate this behind a cheat
+	{ CK_0040,   "Toggle Eyelids [+]\n","N64 Ext 0040\n" },
+	{ CK_0200,   "Toggle Gangsta [+]\n","N64 Ext 0200\n" },
 	{ CK_ACCEPT, "UI Accept [+]\n",     "EXT UI Accept\n" },
 	{ CK_CANCEL, "UI Cancel [+]\n",     "EXT UI Cancel\n" },
 };
@@ -1667,6 +1692,10 @@ static MenuItemHandlerResult menuhandlerResetBindsN64(s32 operation, struct menu
 	}
 
 struct menuitem g_ExtendedBindsMenuItems[] = {
+	DEFINE_MENU_BIND(),
+	DEFINE_MENU_BIND(),
+	DEFINE_MENU_BIND(),
+	DEFINE_MENU_BIND(),
 	DEFINE_MENU_BIND(),
 	DEFINE_MENU_BIND(),
 	DEFINE_MENU_BIND(),
