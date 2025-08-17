@@ -220,13 +220,7 @@ Gfx *starsRender(Gfx *gdl)
 		return gdl;
 	}
 
-#ifdef PLATFORM_N64
 	if (g_Vars.stagenum == STAGE_DEFECTION || g_Vars.stagenum == STAGE_EXTRACTION) {
-#else // Suburb Mod
-	if (g_Vars.stagenum == STAGE_DEFECTION
-			|| g_Vars.stagenum == STAGE_EXTRACTION
-			|| g_Vars.stagenum == STAGE_TEST_ARCH) {
-#endif
 		isddtower = true;
 	}
 
