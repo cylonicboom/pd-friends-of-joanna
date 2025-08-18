@@ -9,7 +9,6 @@
 #include "game/player.h"
 #include "game/hudmsg.h"
 #include "game/inv.h"
-#include "game/lv.h"
 #include "game/mplayer/ingame.h"
 #include "game/playermgr.h"
 #include "game/stagetable.h"
@@ -703,9 +702,7 @@ void eyespyProcessInput(bool allowbuttons)
 	s8 c1sticky = joyGetStickY(contpad1);
 	s8 c2sticky;
 	u32 c1buttons = allowbuttons ? joyGetButtons(contpad1, 0xffffffff) : 0;
-	u32 c1buttonsthisframe = allowbuttons ? joyGetButtonsPressedThisFrame(contpad1, 0xffffffff): 0;
 	u32 c2buttons;
-	u32 c2buttonsthisframe;
 	bool domovecentre = true;
 	s32 controlmode = optionsGetControlMode(g_Vars.currentplayerstats->mpindex);
 
@@ -725,7 +722,6 @@ void eyespyProcessInput(bool allowbuttons)
 	f32 tmp;
 	u32 umask, dmask, lmask, rmask;
 
-	bool pausepressed;
 	if (controlmode == CONTROLMODE_PC) {
 		umask = U_CBUTTONS;
 		dmask = D_CBUTTONS;
@@ -744,7 +740,6 @@ void eyespyProcessInput(bool allowbuttons)
 		c2sticky = joyGetStickY(contpad2);
 
 		c2buttons = allowbuttons ? joyGetButtons(contpad2, 0xffffffff) : 0;
-		c2buttonsthisframe = allowbuttons ? joyGetButtonsPressedThisFrame(contpad2, 0xffffffff) : 0;
 	} else {
 #ifndef PLATFORM_N64
 		if (controlmode == CONTROLMODE_PC) {
@@ -758,27 +753,25 @@ void eyespyProcessInput(bool allowbuttons)
 		}
 #endif
 		c2buttons = c1buttons;
-		c2buttonsthisframe = c1buttonsthisframe;
 	}
 
-	pausepressed = c1buttonsthisframe & START_BUTTON;
 	if (controlmode == CONTROLMODE_13 || controlmode == CONTROLMODE_14) {
 		aimpressed = c1buttons & Z_TRIG;
 		shootpressed = c1buttons & A_BUTTON;
-		exitpressed = c1buttonsthisframe & R_TRIG;
-		activatepressed = c1buttonsthisframe & B_BUTTON;
+		exitpressed = c1buttons & R_TRIG;
+		activatepressed = c1buttons & B_BUTTON;
 	} else if (controlmode <= CONTROLMODE_14 || controlmode == CONTROLMODE_PC) {
 		aimpressed = c1buttons & (R_TRIG);
 		shootpressed = c1buttons & Z_TRIG;
 #ifndef PLATFORM_N64
 		if (controlmode == CONTROLMODE_PC) {
-			exitpressed = c1buttonsthisframe & (BUTTON_WPNBACK | BUTTON_RADIAL);
-			activatepressed = c1buttonsthisframe & (BUTTON_CANCEL_USE | BUTTON_ACCEPT_USE);
+			exitpressed = c1buttons & (BUTTON_WPNBACK | BUTTON_RADIAL);
+			activatepressed = c1buttons & (BUTTON_CANCEL_USE | BUTTON_ACCEPT_USE);
 		} else
 #endif
 		{
-			exitpressed = (c1buttonsthisframe | c2buttonsthisframe) & A_BUTTON;
-			activatepressed = (c1buttonsthisframe | c2buttonsthisframe) & B_BUTTON;
+			exitpressed = (c1buttons | c2buttons) & A_BUTTON;
+			activatepressed = (c1buttons | c2buttons) & B_BUTTON;
 		}
 	} else {
 		if (controlmode >= CONTROLMODE_23) {
@@ -789,8 +782,8 @@ void eyespyProcessInput(bool allowbuttons)
 			shootpressed = c1buttons & Z_TRIG;
 		}
 
-		exitpressed = (c1buttonsthisframe | c2buttonsthisframe) & A_BUTTON;
-		activatepressed = (c1buttonsthisframe | c2buttonsthisframe) & B_BUTTON;
+		exitpressed = (c1buttons | c2buttons) & A_BUTTON;
+		activatepressed = (c1buttons | c2buttons) & B_BUTTON;
 	}
 
 	// Apply safe zone for c1stickx
@@ -939,7 +932,7 @@ void eyespyProcessInput(bool allowbuttons)
 				&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED
 				&& (c1buttons & START_BUTTON)) {
 			if (!g_Vars.mplayerisrunning) {
-				playerStartPause(MENUROOT_MAINMENU);
+				playerPause(MENUROOT_MAINMENU);
 			} else {
 				mpPushPauseDialog();
 			}
@@ -1194,49 +1187,33 @@ void eyespyProcessInput(bool allowbuttons)
 		return;
 	}
 
-	// handle pause menu
-	if (!g_Vars.currentplayer->pausemode) {
-		if (g_Vars.currentplayer->eyespy->active && !g_Vars.currentplayer->isdead) {
-			if (!( g_Vars.currentplayer->pausemode & (PAUSEMODE_PAUSED | PAUSEMODE_PAUSING) ) && (pausepressed)) {
-				if (g_Vars.mplayerisrunning == false) {
-					if (g_Vars.lvframenum > 15) {
-						playerStartPause(MENUROOT_MAINMENU);
-					}
-				} else {
-					mpPushPauseDialog();
-				}
-			}
-
+	// Handle trigger
+	if (g_Vars.currentplayer->eyespy->camerashuttertime <= 0 && shootpressed && g_Vars.currentplayer->eyespy->active) {
+		if (g_Vars.currentplayer->eyespy->camerabuttonheld == false) {
+			g_Vars.currentplayer->eyespy->camerabuttonheld = true;
+			g_Vars.currentplayer->eyespy->camerashuttertime = TICKS(24);
 		}
-		// Handle trigger
-		if (g_Vars.currentplayer->eyespy->camerashuttertime <= 0 && shootpressed && g_Vars.currentplayer->eyespy->active) {
-			if (g_Vars.currentplayer->eyespy->camerabuttonheld == false) {
-				g_Vars.currentplayer->eyespy->camerabuttonheld = true;
-				g_Vars.currentplayer->eyespy->camerashuttertime = TICKS(24);
-			}
-		} else {
-			g_Vars.currentplayer->eyespy->camerabuttonheld = false;
-		}
+	} else {
+		g_Vars.currentplayer->eyespy->camerabuttonheld = false;
+	}
 
-		// Handle exit
-		if (exitpressed && g_Vars.currentplayer->eyespy->active) {
-			g_Vars.currentplayer->eyespy->active = false;
-			g_Vars.currentplayer->devicesactive &= ~DEVICE_EYESPY;
-		}
+	// Handle exit
+	if (exitpressed && g_Vars.currentplayer->eyespy->active) {
+		g_Vars.currentplayer->eyespy->active = false;
+		g_Vars.currentplayer->devicesactive &= ~DEVICE_EYESPY;
+	}
 
-		// Handle B button activation
-		// but only if not in a pause-like state
-		if (activatepressed && g_Vars.currentplayer->eyespy->active) {
-			if (g_Vars.currentplayer->eyespy->buttonheld == false) {
-				g_Vars.currentplayer->eyespy->buttonheld = true;
-				g_Vars.currentplayer->eyespy->opendoor = true;
-			} else {
-				g_Vars.currentplayer->eyespy->opendoor = false;
-			}
+	// Handle B button activation
+	if (activatepressed && g_Vars.currentplayer->eyespy->active) {
+		if (g_Vars.currentplayer->eyespy->buttonheld == false) {
+			g_Vars.currentplayer->eyespy->buttonheld = true;
+			g_Vars.currentplayer->eyespy->opendoor = true;
 		} else {
 			g_Vars.currentplayer->eyespy->opendoor = false;
-			g_Vars.currentplayer->eyespy->buttonheld = false;
 		}
+	} else {
+		g_Vars.currentplayer->eyespy->opendoor = false;
+		g_Vars.currentplayer->eyespy->buttonheld = false;
 	}
 
 	g_Vars.currentplayer->eyespy->hit = g_EyespyHit;

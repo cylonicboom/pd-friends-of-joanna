@@ -209,7 +209,7 @@ void bbikeApplyMoveData(struct movedata *data)
 				|| contmode == CONTROLMODE_13
 				|| contmode == CONTROLMODE_11
 				|| contmode == CONTROLMODE_PC)
-			&& !g_Vars.currentplayer->pausemode) {
+			&& !lvIsPaused()) {
 		u32 lmask, rmask;
 		if (contmode == CONTROLMODE_PC) {
 			lmask = L_CBUTTONS;
@@ -218,10 +218,8 @@ void bbikeApplyMoveData(struct movedata *data)
 			lmask = L_JPAD | L_CBUTTONS;
 			rmask = R_JPAD | R_CBUTTONS;
 		}
-		if (g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED) {
-			data->digitalstepleft = joyCountButtonsOnSpecificSamples(0, contnum, lmask);
-			data->digitalstepright = joyCountButtonsOnSpecificSamples(0, contnum, rmask);
-		}
+		data->digitalstepleft = joyCountButtonsOnSpecificSamples(0, contnum, lmask);
+		data->digitalstepright = joyCountButtonsOnSpecificSamples(0, contnum, rmask);
 	}
 
 	// Forward/back

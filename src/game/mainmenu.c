@@ -4423,7 +4423,7 @@ struct menuitem g_2PMissionOptionsHMenuItems[] = {
 		0,
 		0x00000064,
 		0,
-		menuhandlerMpPauseSeparator,
+		NULL,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -4489,7 +4489,7 @@ struct menuitem g_2PMissionOptionsVMenuItems[] = {
 		0,
 		0x00000064,
 		0,
-		menuhandlerMpPauseSeparator,
+		NULL,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,

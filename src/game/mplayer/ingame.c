@@ -162,20 +162,6 @@ MenuItemHandlerResult menuhandlerMpInGameLimitLabel(s32 operation, struct menuit
 	return 0;
 }
 
-MenuItemHandlerResult menuhandlerMpPauseSeparator(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	if (operation == MENUOP_CHECKHIDDEN) {
-		if (PLAYERCOUNT() == 1) {
-			return true;
-		}
-
-		if (!g_PausingEnabled && !g_MpSetup.paused == MPPAUSEMODE_PAUSED) {
-			return true;
-		}
-	}
-	return 0;
-}
-
 MenuItemHandlerResult menuhandlerMpPause(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -193,10 +179,6 @@ MenuItemHandlerResult menuhandlerMpPause(s32 operation, struct menuitem *item, u
 		}
 #endif
 		if (PLAYERCOUNT() == 1) {
-			return true;
-		}
-
-		if (!g_PausingEnabled && !g_MpSetup.paused == MPPAUSEMODE_PAUSED) {
 			return true;
 		}
 	}

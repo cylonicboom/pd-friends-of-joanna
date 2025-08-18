@@ -3645,13 +3645,6 @@ u8 *bgunGetGunMem(void)
 	return g_Vars.currentplayer->gunctrl.gunmem;
 }
 
-#ifndef PLATFORM_N64
-u8 *bgunGetInvMem(void)
-{
-	return g_Vars.currentplayer->gunctrl.invmem;
-}
-#endif
-
 u32 bgunCalculateGunMemCapacity(void)
 {
 	if (IS4MB() && PLAYERCOUNT() == 2) {
@@ -3669,8 +3662,7 @@ u32 bgunCalculateGunMemCapacity(void)
 			 return g_BgunGunMemBaseSizeDefault + 25 * 1024;
 		}
 #else
-		// extra space to store invmen
-		return (g_BgunGunMemBaseSizeDefault * 2) + stageGetCurrent()->extragunmem;
+		return g_BgunGunMemBaseSizeDefault + stageGetCurrent()->extragunmem;
 #endif
 	}
 
