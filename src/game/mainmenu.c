@@ -35,9 +35,6 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
-#ifndef PLATFORM_N64
-#include "net/net.h"
-#endif
 
 u8 g_InventoryWeapon;
 extern struct menuitem g_MpPlayerSetup4MbMenuItems[];
@@ -104,11 +101,6 @@ struct menudialogdef g_CiControlPlayer2MenuDialog;
 struct menudialogdef g_CinemaMenuDialog;
 #ifndef PLATFORM_N64
 extern struct menudialogdef g_ExtendedMenuDialog;
-extern struct menudialogdef g_NetMenuDialog;
-extern MenuItemHandlerResult menuhandlerJoinGame(s32 operation, struct menuitem *item, union handlerdata *data);
-extern MenuItemHandlerResult menuhandlerJoinStart(s32 operation, struct menuitem *item, union handlerdata *data);
-extern MenuItemHandlerResult menuhandlerHostGame(s32 operation, struct menuitem *item, union handlerdata *data);
-extern MenuItemHandlerResult menuhandlerHostStart(s32 operation, struct menuitem *item, union handlerdata *data);
 #endif
 
 extern const uintptr_t g_PlayerRoleNames[] = {
@@ -3524,7 +3516,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_205, // "Sight on Screen"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerSightOnScreen,
 	},
 	{
@@ -3532,7 +3524,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_206, // "Always Show Target"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAlwaysShowTarget,
 	},
 	{
@@ -3540,7 +3532,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_207, // "Show Zoom Range"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowZoomRange,
 	},
 	{
@@ -3548,7 +3540,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_208, // "Ammo on Screen"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAmmoOnScreen,
 	},
 	{
@@ -3556,7 +3548,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_209, // "Show Gun Function"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowGunFunction,
 	},
 	{
@@ -3564,7 +3556,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_210, // "Paintball"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerPaintball,
 	},
 	{
@@ -3572,7 +3564,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_169, // "In-Game Subtitles"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerInGameSubtitles,
 	},
 	{
@@ -3580,7 +3572,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_168, // "Cutscene Subtitles"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerCutsceneSubtitles,
 	},
 	{
@@ -3588,7 +3580,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_212, // "Show Mission Time"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowMissionTime,
 	},
 	{
@@ -3625,7 +3617,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_145, // "Sight on Screen"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerSightOnScreen,
 	},
 	{
@@ -3633,7 +3625,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_146, // "Target"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAlwaysShowTarget,
 	},
 	{
@@ -3641,7 +3633,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_147, // "Zoom Range"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowZoomRange,
 	},
 	{
@@ -3649,7 +3641,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_148, // "Show Ammo"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAmmoOnScreen,
 	},
 	{
@@ -3657,7 +3649,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_149, // "Gun Function"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowGunFunction,
 	},
 	{
@@ -3665,7 +3657,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_150, // "Paintball"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerPaintball,
 	},
 	{
@@ -3677,7 +3669,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 #else
 		L_MPWEAPONS_169, // "In-Game Subtitles"
 #endif
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerInGameSubtitles,
 	},
 	{
@@ -3689,7 +3681,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 #else
 		L_MPWEAPONS_168, // "Cutscene Subtitles"
 #endif
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerCutsceneSubtitles,
 	},
 	{
@@ -3697,7 +3689,7 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_152, // "Mission Time"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowMissionTime,
 	},
 	{
@@ -3734,7 +3726,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_205, // "Sight on Screen"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerSightOnScreen,
 	},
 	{
@@ -3742,7 +3734,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_206, // "Always Show Target"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAlwaysShowTarget,
 	},
 	{
@@ -3750,7 +3742,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_207, // "Show Zoom Range"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowZoomRange,
 	},
 	{
@@ -3758,7 +3750,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_208, // "Ammo on Screen"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAmmoOnScreen,
 	},
 	{
@@ -3766,7 +3758,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_209, // "Show Gun Function"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowGunFunction,
 	},
 	{
@@ -3774,7 +3766,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_210, // "Paintball"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerPaintball,
 	},
 	{
@@ -3782,7 +3774,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_169, // "In-Game Subtitles"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerInGameSubtitles,
 	},
 	{
@@ -3790,7 +3782,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_168, // "Cutscene Subtitles"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerCutsceneSubtitles,
 	},
 	{
@@ -3798,7 +3790,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_212, // "Show Mission Time"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerShowMissionTime,
 	},
 	{
@@ -3837,7 +3829,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_205, // "Sight on Screen"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerSightOnScreen,
 	},
 	{
@@ -3845,7 +3837,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_206, // "Always Show Target"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerAlwaysShowTarget,
 	},
 	{
@@ -3853,7 +3845,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_207, // "Show Zoom Range"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerShowZoomRange,
 	},
 	{
@@ -3861,7 +3853,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_208, // "Ammo on Screen"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerAmmoOnScreen,
 	},
 	{
@@ -3869,7 +3861,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_209, // "Show Gun Function"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerShowGunFunction,
 	},
 	{
@@ -3877,7 +3869,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_210, // "Paintball"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerPaintball,
 	},
 	{
@@ -3885,7 +3877,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_169, // "In-Game Subtitles"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerInGameSubtitles,
 	},
 	{
@@ -3893,7 +3885,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_168, // "Cutscene Subtitles"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerCutsceneSubtitles,
 	},
 	{
@@ -3901,7 +3893,7 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_212, // "Show Mission Time"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerShowMissionTime,
 	},
 	{
@@ -3946,7 +3938,7 @@ struct menuitem g_MissionControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_195, // "Reverse Pitch"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerReversePitch,
 	},
 	{
@@ -3954,7 +3946,7 @@ struct menuitem g_MissionControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_196, // "Look Ahead"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerLookAhead,
 	},
 	{
@@ -3962,7 +3954,7 @@ struct menuitem g_MissionControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_197, // "Head Roll"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerHeadRoll,
 	},
 	{
@@ -3970,7 +3962,7 @@ struct menuitem g_MissionControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_198, // "Auto-Aim"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAutoAim,
 	},
 	{
@@ -3978,7 +3970,7 @@ struct menuitem g_MissionControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_199, // "Aim Control"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAimControl,
 	},
 	{
@@ -4024,7 +4016,7 @@ struct menuitem g_CiControlOptionsMenuItems2[] = {
 		0,
 		0,
 		L_MPWEAPONS_271, // ""
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerReversePitch,
 	},
 	{
@@ -4032,7 +4024,7 @@ struct menuitem g_CiControlOptionsMenuItems2[] = {
 		0,
 		0,
 		L_MPWEAPONS_272, // ""
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerLookAhead,
 	},
 	{
@@ -4040,7 +4032,7 @@ struct menuitem g_CiControlOptionsMenuItems2[] = {
 		0,
 		0,
 		L_MPWEAPONS_273, // ""
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerHeadRoll,
 	},
 	{
@@ -4048,7 +4040,7 @@ struct menuitem g_CiControlOptionsMenuItems2[] = {
 		0,
 		0,
 		L_MPWEAPONS_274, // ""
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAutoAim,
 	},
 	{
@@ -4056,7 +4048,7 @@ struct menuitem g_CiControlOptionsMenuItems2[] = {
 		0,
 		0,
 		L_MPWEAPONS_275, // ""
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAimControl,
 	},
 	{
@@ -4102,7 +4094,7 @@ struct menuitem g_CiControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_195, // "Reverse Pitch"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerReversePitch,
 	},
 	{
@@ -4110,7 +4102,7 @@ struct menuitem g_CiControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_196, // "Look Ahead"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerLookAhead,
 	},
 	{
@@ -4118,7 +4110,7 @@ struct menuitem g_CiControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_197, // "Head Roll"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerHeadRoll,
 	},
 	{
@@ -4126,7 +4118,7 @@ struct menuitem g_CiControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_198, // "Auto-Aim"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAutoAim,
 	},
 	{
@@ -4134,7 +4126,7 @@ struct menuitem g_CiControlOptionsMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_199, // "Aim Control"
-		MAX_PLAYERS,
+		0x00000004,
 		menuhandlerAimControl,
 	},
 	{
@@ -4179,7 +4171,7 @@ struct menuitem g_CiControlPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_195, // "Reverse Pitch"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerReversePitch,
 	},
 	{
@@ -4187,7 +4179,7 @@ struct menuitem g_CiControlPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_196, // "Look Ahead"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerLookAhead,
 	},
 	{
@@ -4195,7 +4187,7 @@ struct menuitem g_CiControlPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_197, // "Head Roll"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerHeadRoll,
 	},
 	{
@@ -4203,7 +4195,7 @@ struct menuitem g_CiControlPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_198, // "Auto-Aim"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerAutoAim,
 	},
 	{
@@ -4211,7 +4203,7 @@ struct menuitem g_CiControlPlayer2MenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_199, // "Aim Control"
-		MAX_PLAYERS + 1,
+		0x00000005,
 		menuhandlerAimControl,
 	},
 	{
@@ -5872,11 +5864,6 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 			registerExtendedProfile(&g_PlayerConfigsArray[i].fileguid, 1, i);
 		}
 		g_Menus[g_MpPlayerNum].main.unke2c = 0;
-#ifndef PLATFORM_N64
-		if (g_NetMode) {
-			netDisconnect();
-		}
-#endif
 		break;
 	case MENUOP_TICK:
 		if (g_Menus[g_MpPlayerNum].curdialog &&
@@ -5886,17 +5873,6 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation, struct menudialogdef *
 			g_MissionConfig.isanti = false;
 			g_MissionConfig.pdmode = false;
 		}
-#ifndef PLATFORM_N64
-		if (g_NetJoinLatch) {
-			menuhandlerJoinGame(MENUOP_SET, NULL, NULL);
-			menuhandlerJoinStart(MENUOP_SET, NULL, NULL);
-			g_NetJoinLatch = false;
-		} else if (g_NetHostLatch) {
-			menuhandlerHostGame(MENUOP_SET, NULL, NULL);
-			menuhandlerHostStart(MENUOP_SET, NULL, NULL);
-			g_NetHostLatch = false;
-		}
-#endif
 		break;
 	}
 
@@ -5951,37 +5927,38 @@ struct menuitem g_MainMenuMenuItems[] = {
 		0x00000003,
 		menuhandlerMainMenuCombatSimulator,
 	},
+#ifndef PLATFORM_N64
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Team Operations",
-		0x00000004,
+		0x00000005,
 		menuhandlerMainMenuTeamMissions,
 	},
+#endif
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT| MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT,
 		(uintptr_t)"Change Reality...", // "Change Agent..."
-		0x00000005,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		4,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Network Game",
+#ifndef PLATFORM_N64
+		0x00000007,
+#else
 		0x00000006,
-		(void *)&g_NetMenuDialog,
+#endif
+		(void *)&g_ChangeAgentMenuDialog,
 	},
+#ifndef PLATFORM_N64
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
 		(uintptr_t)"Exit Game",
-		0x00000007,
+		0x00000008,
 		(void *)&g_ExitGameMenuDialog,
 	},
+#endif
 	{ MENUITEMTYPE_END },
 };
 

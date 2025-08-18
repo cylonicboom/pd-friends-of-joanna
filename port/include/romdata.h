@@ -5,7 +5,6 @@
 
 extern u8 *g_RomFile;
 extern u32 g_RomFileSize;
-extern const char *g_RomName;
 
 s32 romdataInit(void);
 
