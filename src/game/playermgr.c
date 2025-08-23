@@ -12,6 +12,9 @@
 #include "data.h"
 #include "types.h"
 #include "game/playerreset.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 void playermgrInit(void)
 {
@@ -73,10 +76,16 @@ void playermgrResetTeamPlayers(void)
 
 void playermgrReset(void)
 {
+#if MAX_PLAYERS > 4
+	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+		g_Vars.players[i] = NULL;
+	}
+#else
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
 	g_Vars.players[2] = NULL;
 	g_Vars.players[3] = NULL;
+#endif
 
 	g_Vars.currentplayer = NULL;
 	g_Vars.currentplayerindex = 0;
@@ -110,10 +119,16 @@ void playermgrReset(void)
  */
 s32 playermgrAllocatePlayers(s32 playercount)
 {
+#if MAX_PLAYERS > 4
+	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+		g_Vars.players[i] = NULL;
+	}
+#else
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
 	g_Vars.players[2] = NULL;
 	g_Vars.players[3] = NULL;
+#endif
 
 	// these hold references to coop / anti players
 	// NULL can mean either that slot is bond or no player is in that slot
@@ -162,6 +177,11 @@ s32 playermgrAllocatePlayers(s32 playercount)
 		}
 
 		setCurrentPlayerNum(g_Vars.bondplayernum);
+#ifndef PLATFORM_N64
+		if (g_NetMode && g_StageNum != STAGE_TITLE && g_StageNum != STAGE_CITRAINING) {
+			netPlayersAllocate();
+		}
+#endif
 		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
 	}
 
@@ -673,7 +693,7 @@ void playermgrAllocatePlayer(s32 index)
 	g_Vars.players[index]->introanimnum = 0;
 	g_Vars.players[index]->lastsighton = 0;
 
-	for (i = 0; i < MAX_PLAYERS; i++) {
+	for (i = 0; i < ARRAYCOUNT(g_Vars.players[index]->targetset); i++) {
 		g_Vars.players[index]->targetset[i] = 0;
 	}
 
@@ -724,6 +744,12 @@ void playermgrAllocatePlayer(s32 index)
 
 	g_Vars.players[index]->disguised = false;
 	g_Vars.players[index]->dostartnewlife = false;
+
+#ifndef PLATFORM_N64
+	g_Vars.players[index]->client = NULL;
+	g_Vars.players[index]->ucmd = (g_NetMode == NETMODE_SERVER) ? UCMD_FL_FORCEMASK : 0;
+	g_Vars.players[index]->isremote = false;
+#endif
 
 	g_Vars.bondvisible = true;
 	g_Vars.bondcollisions = true;
@@ -919,6 +945,14 @@ void playermgrShuffle(void)
 	for (i = 0; i < MAX_PLAYERS; i++) {
 		g_Vars.playerorder[i] = i;
 	}
+
+#ifndef PLATFORM_N64
+	if (g_NetMode) {
+		// don't shuffle in netgames
+		// why is this a thing anyway?
+		return;
+	}
+#endif
 
 	// Randomly swap numbers with later elements
 	for (i = 0; i < MAX_PLAYERS - 1; i++) {
