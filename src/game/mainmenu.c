@@ -39,6 +39,10 @@
 #include "net/net.h"
 #endif
 
+#ifndef PLATFORM_N64 // All Solos in Multi Mod
+#include "romdata.h"
+#endif
+
 u8 g_InventoryWeapon;
 extern struct menuitem g_MpPlayerSetup4MbMenuItems[];
 
@@ -125,6 +129,9 @@ extern const uintptr_t g_PlayerRoleNames[] = {
 	(uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
 	(uintptr_t)"Operative",      // PLAYERROLE_BOND
 };
+#ifndef PLATFORM_N64 // All Solos in Multi Mod
+bool g_NotLoadMod;
+#endif
 
 char *menuTextCurrentStageName(struct menuitem *item)
 {
@@ -801,6 +808,11 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 {
 	if (operation == MENUOP_SET) {
 		menuStop();
+
+#ifndef PLATFORM_N64 // All Solos in Multi Mod
+		g_NotLoadMod = true;
+		romdataFileFreeForSolo();
+#endif
 
 		if (g_Vars.stagenum == g_MissionConfig.stagenum) {
 			g_Vars.restartlevel = true;
@@ -5820,6 +5832,10 @@ MenuItemHandlerResult menuhandlerMainMenuCombatSimulator(s32 operation, struct m
 		g_Vars.mpsetupmenu = MPSETUPMENU_GENERAL;
 		menuSaveAndRecordPrevMenuRoot(&g_CombatSimulatorMenuDialog, MENUROOT_MPSETUP);
 		menuResetJoinFadeAlpha();
+#ifndef PLATFORM_N64 // All Solos in Multi Mod
+		g_NotLoadMod = false;
+		romdataFileFreeForSolo();
+#endif
 	}
 
 	return 0;
