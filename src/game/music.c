@@ -359,7 +359,7 @@ bool musicIsAnyPlayerInAmbientRoom(void)
 		return false;
 	}
 
-	for (i = 0; i < LOCALPLAYERCOUNT(); i++) {
+	for (i = 0; i < PLAYERCOUNT(); i++) {
 		if (g_Vars.players[i]->prop
 				&& g_Vars.players[i]->prop->rooms
 				&& g_Vars.players[i]->prop->rooms[0] != -1) {
@@ -537,7 +537,7 @@ void _musicStartMpDeath(f32 arg0)
 void musicStartMpDeath(void)
 {
 #ifndef PLATFORM_N64
-	if (g_MusicDisableMpDeath || (g_NetMode && g_Vars.currentplayernum != 0)) {
+	if (g_MusicDisableMpDeath) {
 		return;
 	}
 #endif

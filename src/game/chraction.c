@@ -57,10 +57,6 @@
 #include "lib/vi.h"
 #include "data.h"
 #include "types.h"
-#ifndef PLATFORM_N64
-#include "net/net.h"
-#include "net/netmsg.h"
-#endif
 
 s32 g_RecentQuipsPlayed[5];
 u32 var8009cd84;
@@ -4074,7 +4070,7 @@ void chrChoke(struct chrdata *chr, s32 choketype)
 	if (soundnum >= 0) {
 		if (chr->prop->type == PROPTYPE_PLAYER) {
 			if (g_Vars.players[playernum]->chokehandle == NULL) {
-				playerSndStart(var80095200, soundnum, &g_Vars.players[playernum]->chokehandle, playernum, -1, -1, -1);
+				sndStart(var80095200, soundnum, &g_Vars.players[playernum]->chokehandle, -1, -1, -1, -1, -1);
 			}
 		} else {
 			psStopSound(chr->prop, PSTYPE_CHRTALK, 0);
@@ -4137,12 +4133,6 @@ bool func0f034080(struct chrdata *chr, struct modelnode *node, struct prop *prop
  */
 void chrDamageByMisc(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop)
 {
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
-	}
-#endif
 	chrDamage(chr, damage, vector, gset, prop, HITPART_GENERAL,
 			false,     // damageshield
 			NULL,      // prop2
@@ -4156,12 +4146,6 @@ void chrDamageByMisc(struct chrdata *chr, f32 damage, struct coord *vector, stru
 
 void chrDamageByLaser(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop)
 {
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
-	}
-#endif
 	chrDamage(chr, damage, vector, gset, prop, HITPART_GENERAL,
 			true,      // damageshield
 			chr->prop, // prop2
@@ -4175,12 +4159,6 @@ void chrDamageByLaser(struct chrdata *chr, f32 damage, struct coord *vector, str
 
 void func0f0341dc(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop, s32 hitpart, struct prop *prop2, struct modelnode *node, struct model *model, s32 side, s16 *arg10)
 {
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
-	}
-#endif
 	chrDamage(chr, damage, vector, gset, prop, hitpart,
 			true,      // damageshield
 			prop2,     // prop2
@@ -4201,13 +4179,6 @@ void func0f034248(struct chrdata *chr, f32 damage, struct coord *vector, struct 
 	struct model *model = NULL;
 	s32 side = 0;
 	s32 hitpart = HITPART_GENERAL;
-
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
-	}
-#endif
 
 	if (chrGetShield(chr) >= 0 && chr->model) {
 		chrCalculateShieldHit(chr, &chr->prop->pos, vector, &node, &hitpart, &model, &side);
@@ -4233,13 +4204,6 @@ void chrDamageByImpact(struct chrdata *chr, f32 damage, struct coord *vector, st
 	struct model *model = NULL;
 	s32 side = 0;
 
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
-	}
-#endif
-
 	if (chrGetShield(chr) >= 0 && chr->model) {
 		chrCalculateShieldHit(chr, &chr->prop->pos, vector, &node, &hitpart, &model, &side);
 	}
@@ -4257,12 +4221,6 @@ void chrDamageByImpact(struct chrdata *chr, f32 damage, struct coord *vector, st
 
 void chrDamageByExplosion(struct chrdata *chr, f32 damage, struct coord *vector, struct prop *prop, struct coord *explosionpos)
 {
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		// don't do anything if we're not the authority
-		return;
-	}
-#endif
 	chrDamage(chr, damage, vector, NULL, prop, HITPART_GENERAL,
 			true,      // damageshield
 			chr->prop, // prop2
@@ -4345,13 +4303,6 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 	bool canchoke = true;
 	s32 aplayernum = -1;
 	s32 choketype = CHOKETYPE_NONE;
-
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_SERVER) {
-		netmsgSvcChrDamageWrite(&g_NetMsgRel, chr, damage, vector, gset, aprop, hitpart,
-				damageshield, prop2, side, arg11, explosion, explosionpos);
-	}
-#endif
 
 	if (hitpart == HITPART_HEAD) {
 		choketype = CHOKETYPE_GURGLE;
@@ -4935,12 +4886,6 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 					playerCheckIfShotInBack(prevplayernum, vector->x, vector->z);
 				}
 			}
-
-#ifndef PLATFORM_N64
-			if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
-				netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
-			}
-#endif
 
 			setCurrentPlayerNum(prevplayernum);
 			return;
@@ -15388,68 +15333,6 @@ void func0f04b740(void)
 	// empty
 }
 
-bool chrSetPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 theta, bool findground)
-{
-	const f32 angle = BADDEG2RAD(360.f - theta);
-
-	if (findground) {
-		const u32 oldhidden = chr->hidden;
-		chr->hidden |= CHRHFLAG_WARPONSCREEN;
-		const bool ret = chrMoveToPos(chr, pos, rooms, angle, true);
-		if ((oldhidden & CHRHFLAG_WARPONSCREEN) == 0) {
-			chr->hidden &= ~CHRHFLAG_WARPONSCREEN;
-		}
-	}
-
-	bool newrooms = false;
-	for (s32 i = 0; i < ARRAYCOUNT(chr->prop->rooms) && rooms[i] >= 0; ++i) {
-		if (chr->prop->rooms[i] != rooms[i]) {
-			newrooms = true;
-			break;
-		}
-	}
-
-	propSetPerimEnabled(chr->prop, false);
-
-	chr->prop->pos = *pos;
-
-	const f32 ground = cdFindGroundInfoAtCyl(pos, chr->radius, rooms, &chr->floorcol,
-			&chr->floortype, NULL, &chr->floorroom, NULL, NULL);
-
-	chr->ground = ground;
-	chr->manground = ground;
-	chr->sumground = ground * (PAL ? 8.4175090789795f : 9.999998f);
-
-	if (newrooms) {
-		propDeregisterRooms(chr->prop);
-		roomsCopy(rooms, chr->prop->rooms);
-		chr0f0220ac(chr);
-	}
-
-	modelSetRootPosition(chr->model, pos);
-
-	const u16 nodetype = chr->model->definition->rootnode->type;
-
-	if ((nodetype & 0xff) == MODELNODETYPE_CHRINFO) {
-		union modelrwdata *rwdata = modelGetNodeRwData(chr->model, chr->model->definition->rootnode);
-		rwdata->chrinfo.ground = ground;
-	}
-
-	chrSetLookAngle(chr, angle);
-
-	if (chr->prop->type == PROPTYPE_PLAYER) {
-		struct player *player = g_Vars.players[playermgrGetPlayerNumByProp(chr->prop)];
-		player->vv_manground = ground;
-		player->vv_ground = ground;
-		player->vv_theta = theta;
-		player->unk1c64 = 1;
-	}
-
-	propSetPerimEnabled(chr->prop, true);
-
-	return true;
-}
-
 bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 angle, bool force)
 {
 	struct coord pos2;
@@ -15457,7 +15340,7 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 	bool result = false;
 	u32 nodetype;
 	union modelrwdata *rwdata;
-	struct player *player = NULL;
+	struct player *player;
 	f32 ground;
 
 	pos2.x = pos->x;
@@ -15506,12 +15389,6 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 			player->vv_verta = 0;
 			player->unk1c64 = 1;
 		}
-
-#ifndef PLATFORM_N64
-		if (g_NetMode == NETMODE_SERVER && player && player->isremote) {
-			player->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
-		}
-#endif
 
 		result = true;
 	}

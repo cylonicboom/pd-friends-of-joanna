@@ -71,11 +71,9 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
-#include "platform.h"
 #include "video.h"
 #include "input.h"
-#include "net/net.h"
-#include "net/netmsg.h"
+#include "platform.h"
 #endif
 
 s32 g_DefaultWeapons[2];
@@ -185,10 +183,7 @@ u32 var80070748 = 0;
 u32 var8007074c = 0;
 
 bool g_PlayersWithControl[] = {
-	true, true, true, true,
-#if MAX_PLAYERS > 4
 	true, true, true, true
-#endif
 };
 
 bool g_PlayerInvincible = false;
@@ -1161,12 +1156,6 @@ void playerSpawn(void)
 	}
 
 	playerUpdatePerimInfo();
-
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
-		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
-	}
-#endif
 }
 
 void playerResetBond(struct playerbond *pb, struct coord *pos)
@@ -2118,15 +2107,6 @@ void playerTickCutscene(bool arg0)
 		}
 	}
 #endif
-
-#ifndef PLATFORM_N64
-	if (g_Vars.stagenum == STAGE_CITRAINING) {
-		if (g_CutsceneCurTotalFrame60f > 10 && (g_NetHostLatch || g_NetJoinLatch)) {
-			// just booted up and host/join was requested from command line, skip the intro cutscene
-			g_CutsceneSkipRequested = true;
-		}
-	}
-#endif
 }
 
 f32 playerGetCutsceneBlurFrac(void)
@@ -2924,12 +2904,6 @@ s16 playerGetFbHeight(void)
 #if VERSION >= VERSION_NTSC_1_0
 bool playerHasSharedViewport(void)
 {
-#ifndef PLATFORM_N64
-	if (g_NetMode) {
-		return true;
-	}
-#endif
-
 	if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 			&& menuGetRoot() == MENUROOT_MPENDSCREEN
 			&& g_IsModalMenuMode == 0) {
@@ -2950,14 +2924,14 @@ s16 playerGetViewportWidth(void)
 	if ((!g_InCutscene || g_MainIsEndscreen) && menuGetRoot() != MENUROOT_COOPCONTINUE)
 #endif
 	{
-		if (LOCALPLAYERCOUNT() >= 3) {
+		if (PLAYERCOUNT() >= 3) {
 			// 3/4 players
 			width = g_ViModes[g_ViRes].width / 2;
 
 			if (g_Vars.currentplayernum == 0 || g_Vars.currentplayernum == 2) {
 				width--;
 			}
-		} else if (LOCALPLAYERCOUNT() == 2) {
+		} else if (PLAYERCOUNT() == 2) {
 			if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || g_Vars.fourmeg2player) {
 				// 2 players vsplit
 				width = g_ViModes[g_ViRes].width / 2;
@@ -2990,7 +2964,7 @@ s16 playerGetViewportLeft(void)
 #endif
 	s16 left;
 
-	if (LOCALPLAYERCOUNT() >= 3 && something != 0) {
+	if (PLAYERCOUNT() >= 3 && something != 0) {
 		if (g_Vars.currentplayernum == 1 || g_Vars.currentplayernum == 3) {
 			// 3/4 players - right side
 			left = g_ViModes[g_ViRes].width / 2 + g_ViModes[g_ViRes].fbwidth - g_ViModes[g_ViRes].width;
@@ -2998,7 +2972,7 @@ s16 playerGetViewportLeft(void)
 			// 3/4 players - left side
 			left = g_ViModes[g_ViRes].fbwidth - g_ViModes[g_ViRes].width;
 		}
-	} else if (LOCALPLAYERCOUNT() == 2 && something != 0) {
+	} else if (PLAYERCOUNT() == 2 && something != 0) {
 		if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || g_Vars.fourmeg2player) {
 			if (g_Vars.currentplayernum == 1) {
 				// 2 players vsplit - right side
@@ -3023,7 +2997,7 @@ s16 playerGetViewportHeight(void)
 {
 	s16 height;
 
-	if (LOCALPLAYERCOUNT() >= 2
+	if (PLAYERCOUNT() >= 2
 #if VERSION >= VERSION_NTSC_1_0
 			&& !playerHasSharedViewport()
 #else
@@ -3038,7 +3012,7 @@ s16 playerGetViewportHeight(void)
 			height = tmp / 2;
 		}
 
-		if (LOCALPLAYERCOUNT() == 2) {
+		if (PLAYERCOUNT() == 2) {
 			if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL) {
 				height = tmp;
 			} else if (g_Vars.currentplayernum == 0 && IS8MB()) {
@@ -3074,7 +3048,7 @@ s16 playerGetViewportTop(void)
 {
 	s16 top;
 
-	if (LOCALPLAYERCOUNT() >= 2
+	if (PLAYERCOUNT() >= 2
 #if VERSION >= VERSION_NTSC_1_0
 			&& !playerHasSharedViewport()
 #else
@@ -3085,12 +3059,12 @@ s16 playerGetViewportTop(void)
 		top = g_ViModes[g_ViRes].fulltop;
 
 #if VERSION >= VERSION_NTSC_1_0
-		if (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL || LOCALPLAYERCOUNT() != 2)
+		if (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL || PLAYERCOUNT() != 2)
 #else
 		if (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL)
 #endif
 		{
-			if (LOCALPLAYERCOUNT() == 2
+			if (PLAYERCOUNT() == 2
 					&& g_Vars.currentplayernum == 1
 					&& optionsGetScreenSplit() != SCREENSPLIT_VERTICAL
 					&& !g_Vars.fourmeg2player) {
@@ -3621,11 +3595,6 @@ void playerTick(bool arg0)
 				bool pause = false;
 				f32 newspeed;
 
-#ifndef PLATFORM_N64
-				if (mode == CONTROLMODE_NA) {
-					// TODO
-				} else
-#endif
 				if (mode == CONTROLMODE_23
 						|| mode == CONTROLMODE_24
 						|| mode == CONTROLMODE_22
@@ -4802,13 +4771,6 @@ Gfx *playerRenderHud(Gfx *gdl)
 
 						if (g_Vars.antiplayernum >= 0 && g_Vars.currentplayer == g_Vars.anti) {
 							// Anti
-#ifndef PLATFORM_N64
-							if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
-								if (g_Vars.currentplayer->client->inmove[0].ucmd & UCMD_RESPAWN) {
-									g_Vars.currentplayer->dostartnewlife = true;
-								}
-							} else if (g_NetMode != NETMODE_CLIENT)
-#endif
 							if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused()) {
 								g_Vars.currentplayer->dostartnewlife = true;
 							}
@@ -4822,12 +4784,8 @@ Gfx *playerRenderHud(Gfx *gdl)
 								f32 stealhealth;
 								f32 shield;
 
-#ifndef PLATFORM_N64
-								if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
-									canrestart =  (g_Vars.currentplayer->client->inmove[0].ucmd & UCMD_RESPAWN) != 0;
-								} else if (g_NetMode != NETMODE_CLIENT)
-#endif
-								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
+								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)
+									&& !mpIsPaused();
 
 								// Get ready to respawn.
 								// The other player's health will be halved.
@@ -4933,13 +4891,6 @@ Gfx *playerRenderHud(Gfx *gdl)
 							}
 						}
 
-#ifndef PLATFORM_N64
-						if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
-							if (!mpIsPaused() && g_NumReasonsToEndMpMatch == 0 && (g_Vars.currentplayer->client->inmove[0].ucmd & UCMD_RESPAWN)) {
-								canrestart = true;
-							}
-						} else if (g_NetMode != NETMODE_CLIENT)
-#endif
 						if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)
 								&& !mpIsPaused()
 								&& g_NumReasonsToEndMpMatch == 0) {
@@ -5023,12 +4974,6 @@ void playerDie(bool force)
 	struct chrdata *chr = g_Vars.currentplayer->prop->chr;
 	s32 shooter;
 
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_CLIENT) {
-		return;
-	}
-#endif
-
 	if (chr->lastshooter >= 0 && chr->timeshooter > 0) {
 		shooter = chr->lastshooter;
 	} else {
@@ -5036,12 +4981,6 @@ void playerDie(bool force)
 	}
 
 	playerDieByShooter(shooter, force);
-
-#ifndef PLATFORM_N64
-	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
-		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
-	}
-#endif
 }
 
 void playerDieByShooter(u32 shooter, bool force)
@@ -5962,64 +5901,3 @@ void player0f0c3320(Mtxf *matrices, s32 count)
 		mtxF2L(&sp40, matrices + i);
 	}
 }
-
-struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s32 playernum, f32 pitch, s32 fxbus, s32 fxmix)
-{
-	s32 vol = -1;
-	s32 pan = -1;
-#ifndef PLATFORM_N64
-	const struct player *pl = g_Vars.players[playernum];
-	if (g_NetMode && playernum != 0 && pl && pl->prop) {
-		// auto attenuate sounds for remote players
-		psGetTheoreticalVolPan(&pl->prop->pos, pl->prop->rooms, sound, &vol, &pan);
-	}
-#endif
-	return sndStart(arg0, sound, handle, vol, pan, pitch, fxbus, fxmix);
-}
-
-#ifndef PLATFORM_N64
-
-f32 playerGetDefaultFovY(s32 playernum)
-{
-	if (g_NetMode) {
-		const struct player *pl = g_Vars.players[playernum % MAX_PLAYERS];
-		if (pl && pl->client) {
-			return pl->client->settings.fovy;
-		}
-	}
-	return g_PlayerExtCfg[playernum % MAX_LOCAL_PLAYERS].fovy;
-}
-
-f32 playerGetZoomFovMult(s32 playernum)
-{
-	if (g_NetMode) {
-		const struct player *pl = g_Vars.players[playernum % MAX_PLAYERS];
-		if (pl && pl->client) {
-			return pl->client->settings.fovzoommult;
-		}
-	}
-	return g_PlayerExtCfg[playernum % MAX_LOCAL_PLAYERS].fovzoommult;
-}
-
-s32 playerGetCount(void)
-{
-	s32 count = 0;
-	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
-		count += (g_Vars.players[i] != NULL);
-	}
-	return count;
-}
-
-s32 playerGetLocalCount(void)
-{
-	if (g_NetMode) {
-		return 1;
-	}
-	const s32 playercount = playerGetCount();
-	if (playercount > MAX_LOCAL_PLAYERS) {
-		return MAX_LOCAL_PLAYERS;
-	}
-	return playercount;
-}
-
-#endif

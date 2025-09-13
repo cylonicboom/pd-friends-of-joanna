@@ -1039,7 +1039,7 @@ struct prop *scenarioCreateObj(s32 modelnum, s16 padnum, f32 arg2, u32 flags, u3
  */
 void scenarioCreateHudmsg(s32 playernum, char *message)
 {
-	if (playernum >= 0 && playernum < LOCALPLAYERCOUNT()) {
+	if (playernum >= 0 && playernum < PLAYERCOUNT()) {
 		s32 prevplayernum = g_Vars.currentplayernum;
 
 		setCurrentPlayerNum(playernum);

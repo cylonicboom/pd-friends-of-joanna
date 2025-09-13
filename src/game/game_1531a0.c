@@ -2183,7 +2183,7 @@ Gfx *text0f156a24(Gfx *gdl, s32 x, s32 y, struct fontchar *char1, s32 arg4, s32 
 		if (y + char1->baseline >= arg5) {
 			if (arg5 + arg7 >= y + char1->baseline + char1->height + 2) {
 				if (g_TextRotated90) {
-					gSPTextureRectangleFlipEXT(gdl++,
+					gSPTextureRectangleFlip(gdl++,
 							((y - char1->baseline) - ((char1->height + 2) * var8007fad0)) * 4,
 							x * 4,
 							(y - char1->baseline) * 4,
@@ -2194,7 +2194,7 @@ Gfx *text0f156a24(Gfx *gdl, s32 x, s32 y, struct fontchar *char1, s32 arg4, s32 
 							1024 / var8007fad0,
 							-1024);
 				} else {
-					gSPTextureRectangleEXT(gdl++,
+					gSPTextureRectangle(gdl++,
 							x * 4,
 							(y + char1->baseline) * 4,
 							(x + char1->width * var8007fad0 + 2) * 4,
@@ -2207,7 +2207,7 @@ Gfx *text0f156a24(Gfx *gdl, s32 x, s32 y, struct fontchar *char1, s32 arg4, s32 
 				}
 			} else {
 				if (arg5 + arg7 >= y + char1->baseline) {
-					gSPTextureRectangleEXT(gdl++,
+					gSPTextureRectangle(gdl++,
 							x * 4,
 							(y + char1->baseline) * 4,
 							(x + char1->width * var8007fad0 + 2) * 4,
@@ -2221,7 +2221,7 @@ Gfx *text0f156a24(Gfx *gdl, s32 x, s32 y, struct fontchar *char1, s32 arg4, s32 
 			}
 		} else {
 			if (y + char1->baseline + char1->height + 2 >= arg5) {
-				gSPTextureRectangleEXT(gdl++,
+				gSPTextureRectangle(gdl++,
 						x * 4,
 						arg5 * 4,
 						(x + char1->width * var8007fad0 + 2) * 4,

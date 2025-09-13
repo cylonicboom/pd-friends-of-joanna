@@ -55,10 +55,10 @@
 
 u8 *g_RomFile;
 u32 g_RomFileSize;
-const char *g_RomName = ROMDATA_ROM_NAME;
 
 static u8 *romDataSeg;
 static u32 romDataSegSize;
+static const char *romName = ROMDATA_ROM_NAME;
 
 enum loadsource {
 	SRC_UNLOADED = 0,
@@ -195,12 +195,12 @@ static inline void romdataWrongRomError(const char *fmt, ...)
 
 static inline void romdataLoadRom(void)
 {
-	sysLogPrintf(LOG_NOTE, "ROM file: %s", g_RomName);
+	sysLogPrintf(LOG_NOTE, "ROM file: %s", romName);
 
-	g_RomFile = fsFileLoad(g_RomName, &g_RomFileSize);
+	g_RomFile = fsFileLoad(romName, &g_RomFileSize);
 
 	if (!g_RomFile) {
-		sysFatalError("Could not open ROM file %s.\nEnsure that it is in the %s directory.", g_RomName, fsFullPath(""));
+		sysFatalError("Could not open ROM file %s.\nEnsure that it is in the %s directory.", romName, fsFullPath(""));
 	}
 
 	// zips are not guaranteed to start with PK, but might as well at least try
@@ -469,7 +469,7 @@ s32 romdataInit(void)
 {
 	const char *altRomName = sysArgGetString("--rom-file");
 	if (altRomName) {
-		g_RomName = altRomName;
+		romName = altRomName;
 	}
 
 	romdataLoadRom();

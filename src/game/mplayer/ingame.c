@@ -19,9 +19,6 @@
 #include "lib/main.h"
 #include "data.h"
 #include "types.h"
-#ifndef PLATFORM_N64
-#include "net/net.h"
-#endif
 
 struct menudialogdef g_MpEndscreenChallengeCompletedMenuDialog;
 struct menudialogdef g_MpEndscreenIndGameOverMenuDialog;
@@ -105,11 +102,6 @@ MenuItemHandlerResult menuhandlerMpEndGame(s32 operation, struct menuitem *item,
 {
 	if (operation == MENUOP_SET) {
 		g_Vars.currentplayer->aborted = true;
-#ifndef PLATFORM_N64
-		if (g_NetMode == NETMODE_CLIENT) {
-			netDisconnect();
-		} else
-#endif
 		mainEndStage();
 	}
 
@@ -187,11 +179,6 @@ MenuItemHandlerResult menuhandlerMpPause(s32 operation, struct menuitem *item, u
 	}
 
 	if (operation == MENUOP_CHECKHIDDEN) {
-#ifndef PLATFORM_N64
-		if (g_NetMode) {
-			return true;
-		}
-#endif
 		if (PLAYERCOUNT() == 1) {
 			return true;
 		}
@@ -892,9 +879,6 @@ void mpPushEndscreenDialog(u32 arg0, u32 playernum)
 				&& g_PlayerConfigsArray[g_MpPlayerNum].fileguid.fileid == 0
 				&& g_PlayerConfigsArray[g_MpPlayerNum].fileguid.deviceserial == 0) {
 			g_PlayerConfigsArray[g_MpPlayerNum].options |= OPTION_ASKEDSAVEPLAYER;
-#ifndef PLATFORM_N64
-			if (!g_NetMode)
-#endif
 			menuPushDialog(&g_MpEndscreenSavePlayerMenuDialog);
 		}
 	}
