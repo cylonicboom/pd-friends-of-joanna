@@ -40,6 +40,6 @@ void menuStop(void)
 		var80062944 = 0;
 		var80062948 = 0;
 		joySetDefaultPfsPollInterval();
-		func0f110bf8();
+		fileListFreeAll();
 	}
 }

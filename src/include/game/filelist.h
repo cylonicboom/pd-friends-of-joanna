@@ -5,7 +5,7 @@
 #include "types.h"
 
 void func0f110bf0(void);
-void func0f110bf8(void);
+void fileListFreeAll(void);
 void filelistCreate(s32 listnum, u8 filetype);
 s32 filelistFindOrCreate(u8 filetype);
 void filelistInvalidatePak(s32 device);

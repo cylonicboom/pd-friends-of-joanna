@@ -2802,7 +2802,7 @@ MenuDialogHandlerResult filemgrMainMenuDialog(s32 operation, struct menudialogde
 		}
 		break;
 	case MENUOP_CLOSE:
-		func0f110bf8();
+		fileListFreeAll();
 		break;
 #if VERSION < VERSION_NTSC_1_0
 	case MENUOP_TICK:

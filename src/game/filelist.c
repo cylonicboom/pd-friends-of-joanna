@@ -34,7 +34,7 @@ void func0f110bf0(void)
 	// empty
 }
 
-void func0f110bf8(void)
+void fileListFreeAll(void)
 {
 	s32 i;
 
