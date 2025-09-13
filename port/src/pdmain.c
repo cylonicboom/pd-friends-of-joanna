@@ -73,6 +73,8 @@
 #include "data.h"
 #include "types.h"
 #include "system.h"
+#include "mod.h"
+#include "fs.h"
 
 extern u8 *g_MempHeap;
 extern u32 g_MempHeapSize;
@@ -252,6 +254,11 @@ void mainInit(void)
 	dmaInit();
 	amgrInit();
 	varsInit();
+	// stagenum init for mod loading
+	for (s32 i = 0; i < ARRAYCOUNT(g_ModStageNums); ++i) {
+		// Assume any mod-specific stages use the master mod (AIO)'s ssettings
+		g_ModStageNums[i] = MOD_NORMAL;
+	}
 	mempInit();
 	memaInit();
 	joyInit();
@@ -282,6 +289,22 @@ void mainInit(void)
 	challengesInit();
 	utilsInit();
 	texInit();
+	// capture vanilla surface types
+	// so we can restore them later if needed
+	extern struct texturesurfaceconfig g_VanillaTextures[NUM_TEXTURES];
+	for (s32 i = 0; i < NUM_TEXTURES; i++) {
+		g_VanillaTextures[i].surfacetype = g_Textures[i].surfacetype;
+		g_VanillaTextures[i].soundsurfacetype = g_Textures[i].soundsurfacetype;
+	}
+	if (fsGetModDir()) {
+		// load all mods, then load MOD_AIO (0) again
+		for (s32 i = 0; i < MOD_FOJO; ++i) {
+			g_ModNum = i;
+			modConfigLoad(MOD_CONFIG_FNAME);
+		}
+			g_ModNum = 0;
+			modConfigLoad(MOD_CONFIG_FNAME);
+	}
 	langInit();
 	lvInit();
 	cheatsInit();
@@ -308,6 +331,10 @@ void mainInit(void)
 void mainProc(void)
 {
 	mainInit();
+	for (s32 i = 0; i <= MOD_FOJO; i++) {
+		modSwitch(i, -1);
+	}
+	modSwitch(MOD_NORMAL, -1);
 	rdpInit();
 	sndInit();
 

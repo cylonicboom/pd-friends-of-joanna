@@ -63,65 +63,51 @@ s32 fsPathIsCwdRelative(const char *path)
 	// ., .., ./, ../
 	return (path[0] == '.' && (path[1] == '.' || path[1] == '/' || path[1] == '\\' || path[1] == '\0'));
 }
+static inline const bool fsModFullPathCheck(const char *relPath, const char *modDir, char *pathBuf)
+{
+	if (modDir[0]) {
+		if (!fsPathIsAbsolute(relPath)) {
+			snprintf(pathBuf, FS_MAXPATH, "%s/%s", modDir, relPath);
+		}
+		if (fsFileSize(pathBuf) >= 0) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static inline const bool fsModFullPath(char *pathBuf, const char *relPath)
 {
+	// if relPath doesn't contain textures/ or files/ subdir, don't even try to look in mod dirs
+	// and return false
+	// sysLogPrintf(LOG_NOTE, "fsModFullPath: relPath=%s\n", relPath);
+	if (!strstr(relPath, "textures") && !strstr(relPath, "files") && !strstr(relPath, "modconfig.txt") && !strstr(relPath, "sequences")) {
+		printf("fsModFullPath ret false: relPath=%s\n", relPath);
+		return false;
+	}
+	// sysLogPrintf(LOG_NOTE, "fsModFullPath: relPath=%s. Switch on g_ModNum\n", relPath, g_ModNum);
 	switch (g_ModNum) {
 		case MOD_GEX:
-			if (gexModDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", gexModDir, relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return fsModFullPathCheck(relPath, gexModDir, pathBuf);
 			break;
 		case MOD_KAKARIKO:
-			if (kakarikoModDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", kakarikoModDir, relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return fsModFullPathCheck(relPath, kakarikoModDir, pathBuf);
 			break;
 		case MOD_DARKNOON:
-			if (darknoonModDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", darknoonModDir, relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return fsModFullPathCheck(relPath, darknoonModDir, pathBuf);
 			break;
 		case MOD_GOLDFINGER_64:
-			if (goldfinger64ModDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", goldfinger64ModDir, relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return fsModFullPathCheck(relPath, goldfinger64ModDir, pathBuf);
 			break;
 		case MOD_FOJO:
-			if (fojoModDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", fojoModDir,
-					relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return fsModFullPathCheck(relPath, fojoModDir, pathBuf);
 			break;
 		case MOD_NORMAL:
-			if (aioModDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", aioModDir, relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return fsModFullPathCheck(relPath, aioModDir, pathBuf);
 			break;
 		default:
-			if (modDir[0]) {
-				snprintf(pathBuf, FS_MAXPATH, "%s/%s", modDir, relPath);
-				if (fsFileSize(pathBuf) >= 0) {
-					return true;
-				}
-			}
+			return false;
 			break;
 	}
 }
@@ -157,7 +143,7 @@ const char *fsFullPath(const char *relPath)
 	}
 
 	// path relative to mod or base dir; this will be a read request, so check where the file actually is
-	if (fsModFullPath(&pathBuf, relPath)) {
+	if (fsModFullPath(pathBuf, relPath)) {
 		// found in mod dir
 		return pathBuf;
 	}
@@ -169,7 +155,7 @@ const char *fsFullPath(const char *relPath)
 
 
 
-static inline void modInit(char* path, char* outModDir, s32 portable){
+static inline void modDirInit(char* path, char* outModDir, s32 portable){
 	if (path) {
 		if (fsPathIsAbsolute(path) || fsPathIsCwdRelative(path) || path[0] == '$') {
 			// path is explicit; check as-is
@@ -225,31 +211,31 @@ s32 fsInit(void)
 	// get path to mod dir and expand it if needed
 	// mod directory is overlaid on top of base directory
 	path = sysArgGetString("--moddir");
-	modInit(path, &modDir, portable);
+	modDirInit(path, modDir, portable);
 
 	// All in One Mod Dir
 	path = sysArgGetString("--aiomoddir");
-	modInit(path, &aioModDir, portable);
+	modDirInit(path, aioModDir, portable);
 
 	// Friends of Joanna Mod Dir
 	path = sysArgGetString("--fojomoddir");
-	modInit(path, &fojoModDir, portable);
+	modDirInit(path, fojoModDir, portable);
 
 	// GoldenEye X Mod Dir
 	path = sysArgGetString("--gexmoddir");
-	modInit(path, &gexModDir, portable);
+	modDirInit(path, gexModDir, portable);
 
 	// Kakariko Village Mod Dir
 	path = sysArgGetString("--kakarikomoddir");
-	modInit(path, &kakarikoModDir, portable);
+	modDirInit(path, kakarikoModDir, portable);
 
 	// Dark Moon Mod Dir
 	path = sysArgGetString("--darknoonmoddir");
-	modInit(path, &darknoonModDir, portable);
+	modDirInit(path, darknoonModDir, portable);
 
 	// Goldfinger 64 Mod Dir
 	path = sysArgGetString("--goldfinger64moddir");
-	modInit(path, &goldfinger64ModDir, portable);
+	modDirInit(path, goldfinger64ModDir, portable);
 
 	// get path to save dir and expand it if needed
 	path = sysArgGetString("--savedir");
@@ -278,6 +264,7 @@ s32 fsInit(void)
 
 	strncpy(saveDir, fsFullPath(path), FS_MAXPATH);
 	sysLogPrintf(LOG_NOTE, " mod dir: %s", modDir);
+	sysLogPrintf(LOG_NOTE, " aio mod dir: %s", aioModDir);
 	sysLogPrintf(LOG_NOTE, " gex mod dir: %s", gexModDir);
 	sysLogPrintf(LOG_NOTE, " kakariko mod dir: %s", kakarikoModDir);
 	sysLogPrintf(LOG_NOTE, " darknoon mod dir: %s", darknoonModDir);
@@ -310,6 +297,7 @@ s32 fsFileLoadTo(const char *name, void *dst, u32 dstSize)
 
 	FILE *f = fopen(fullName, "rb");
 	if (!f) {
+		// sysLogPrintf(LOG_ERROR, "fsFileLoadTo: could not find file: %s", fullName);
 		return -1;
 	}
 

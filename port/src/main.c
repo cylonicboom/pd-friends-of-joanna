@@ -113,9 +113,6 @@ int main(int argc, const char **argv)
 
 	gameInit();
 
-	if (fsGetModDir()) {
-		modConfigLoad(MOD_CONFIG_FNAME);
-	}
 
 	atexit(cleanup);
 
