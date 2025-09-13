@@ -38,6 +38,7 @@
 
 #ifndef PLATFORM_N64 // All Solos in Multi Mod
 #include "romdata.h"
+#include "game/filelist.h"
 #endif
 
 u8 g_InventoryWeapon;
@@ -1514,7 +1515,10 @@ MenuDialogHandlerResult menudialogTeamPlayerProfiles(s32 operation, struct menud
 // 	}
 // #endif
 
-	if (operation == MENUOP_TICK) {
+	s32 i;
+
+	switch (operation) {
+	case MENUOP_TICK:
 		if (g_Menus[g_MpPlayerNum].curdialog && g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef) {
 			struct menuinputs *inputs = data->dialog2.inputs;
 
@@ -1523,6 +1527,26 @@ MenuDialogHandlerResult menudialogTeamPlayerProfiles(s32 operation, struct menud
 			}
 
 		}
+		break;
+	case MENUOP_OPEN:
+		g_Menus[g_MpPlayerNum].fm.filetypeplusone = 0;
+
+		filelistCreate(0, FILETYPE_MPPLAYER);
+		mpInit(true);
+
+		// Set MP player names to "Player 1" through 4 if blank
+		for (i = 0; i < MAX_PLAYERS; i++) {
+			if (g_PlayerConfigsArray[i].base.name[0] == '\0') {
+				sprintf(g_PlayerConfigsArray[i].base.name, "%s %d\n", langGet(L_MISC_437), i + 1);
+			}
+		}
+		break;
+	case MENUOP_CLOSE:
+		fileListFreeAll();
+		if (g_MenuData.root == MENUROOT_FILEMGR) {
+			filelistCreate(0, FILETYPE_GAME);
+		}
+		break;
 	}
 
 	return 0;

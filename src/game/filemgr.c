@@ -2814,11 +2814,13 @@ MenuDialogHandlerResult filemgrMainMenuDialog(s32 operation, struct menudialogde
 	return 0;
 }
 
+extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
 bool filemgrConsiderPushingFileSelectDialog(void)
 {
 	if (g_Menus[g_MpPlayerNum].openinhibit == 0) {
 		g_Menus[g_MpPlayerNum].playernum = 0;
 		menuPushRootDialog(&g_FilemgrFileSelectMenuDialog, MENUROOT_FILEMGR);
+		menuPushDialog(&g_TeamMissionPlayerProfilesHubMenu);
 
 #if PAL
 		if (g_Vars.language >= 6) {
