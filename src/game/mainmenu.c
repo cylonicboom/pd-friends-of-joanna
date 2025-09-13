@@ -65,26 +65,18 @@ u32 menuGetNumDialogs() {
 }
 
 // HACK: this is terrible and should go in g_PlayerConfigsArray[playernum].base.name2 or something like that
-extern char g_PlayerNames[MAX_PLAYERS][32] = {
+extern char g_PlayerNames[4][32] = {
 	"Player 1",
 	"Player 2",
 	"Player 3",
 	"Player 4",
-	"Player 5",
-	"Player 6",
-	"Player 7",
-	"Player 8",
 };
 
-extern char g_PlayerNamesHP[MAX_PLAYERS][35] = {
+extern char g_PlayerNamesHP[4][35] = {
 	"Player 1 HP",
 	"Player 2 HP",
 	"Player 3 HP",
 	"Player 4 HP",
-	"Player 5 HP",
-	"Player 6 HP",
-	"Player 7 HP",
-	"Player 8 HP",
 };
 
 void updatePlayerName(u32 playernum)
