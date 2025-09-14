@@ -1532,7 +1532,7 @@ MenuDialogHandlerResult menudialogTeamPlayerProfiles(s32 operation, struct menud
 		g_Menus[g_MpPlayerNum].fm.filetypeplusone = 0;
 
 		filelistCreate(0, FILETYPE_MPPLAYER);
-		mpInit(true);
+		mpInit(false);
 
 		// Set MP player names to "Player 1" through 4 if blank
 		for (i = 0; i < MAX_PLAYERS; i++) {
@@ -4663,7 +4663,7 @@ struct menuitem g_CiOptionsMenuItems[] = {
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT,
 		L_OPTIONS_183, // "Control"
 		3,
-		(void *)&g_CiControlOptionsMenuDialog,
+		(void *)&g_MpControlMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,

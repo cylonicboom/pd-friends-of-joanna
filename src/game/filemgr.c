@@ -2792,7 +2792,7 @@ MenuDialogHandlerResult filemgrMainMenuDialog(s32 operation, struct menudialogde
 		g_Menus[g_MpPlayerNum].fm.filetypeplusone = 0;
 
 		filelistCreate(0, FILETYPE_GAME);
-		mpInit(true);
+		mpInit(false);
 
 		// Set MP player names to "Player 1" through 4 if blank
 		for (i = 0; i < MAX_PLAYERS; i++) {

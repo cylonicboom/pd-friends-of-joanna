@@ -294,8 +294,8 @@ const char var7f1b399c[] = "pdoptions.c";
 
 s32 gamefileLoad(s32 device)
 {
-	s32 p1index;
-	s32 p2index;
+	// s32 p1index;
+	// s32 p2index;
 	u32 volume;
 	s32 i;
 	s32 j;
@@ -303,8 +303,8 @@ s32 gamefileLoad(s32 device)
 	s32 ret;
 	u32 stack;
 
-	p1index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 0 : 4;
-	p2index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 1 : 5;
+	// p1index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 0 : 4;
+	// p2index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 1 : 5;
 
 	if (device >= 0) {
 		savebufferClear(&buffer);
@@ -336,17 +336,18 @@ s32 gamefileLoad(s32 device)
 			optionsSetMusicVolume((volume & 0x1ff) * 128);
 
 			sndSetSoundMode(savebufferReadBits(&buffer, 2));
-			optionsSetControlMode(p1index, savebufferReadBits(&buffer, 3));
-			optionsSetControlMode(p2index, savebufferReadBits(&buffer, 3));
+			// preserve alignment of save file
+			// previously used for p1 and p2 data
+			savebufferReadBits(&buffer, 3);
+			savebufferReadBits(&buffer, 3);
 
 #ifndef PLATFORM_N64
 			// override with PC controls if enabled in the config
-			if (g_PlayerExtCfg[0].extcontrols) {
-				optionsSetControlMode(p1index, CONTROLMODE_PC);
-			}
-			if (g_PlayerExtCfg[1].extcontrols) {
-				optionsSetControlMode(p2index, CONTROLMODE_PC);
-			}
+			// for (int i = 0; i < MAX_PLAYERS; i++) {
+			// 	if (g_PlayerExtCfg[i].extcontrols) {
+			// 		optionsSetControlMode(g_Vars.playerstats[i].mpindex, CONTROLMODE_PC);
+			// 	}
+			// }
 #endif
 
 			for (i = 0; i < ARRAYCOUNT(g_GameFile.flags); i++) {
@@ -413,40 +414,40 @@ s32 gamefileSave(s32 device, s32 fileid, u16 deviceserial)
 	s32 ret;
 	s32 i;
 	s32 j;
-	s32 p1index;
-	s32 p2index;
+	// s32 p1index;
+	// s32 p2index;
 	struct savebuffer buffer;
 
-	p1index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 0 : 4;
-	p2index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 1 : 5;
+	// p1index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 0 : 4;
+	// p2index = g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 ? 1 : 5;
 
 	var80075bd0[0] = 1;
 
-	pakSetBitflag(GAMEFILEFLAG_P1_FORWARDPITCH, g_GameFile.flags, optionsGetForwardPitch(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_AUTOAIM, g_GameFile.flags, optionsGetAutoAim(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_AIMCONTROL, g_GameFile.flags, optionsGetAimControl(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_SIGHTONSCREEN, g_GameFile.flags, optionsGetSightOnScreen(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_LOOKAHEAD, g_GameFile.flags, optionsGetLookAhead(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_AMMOONSCREEN, g_GameFile.flags, optionsGetAmmoOnScreen(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_HEADROLL, g_GameFile.flags, optionsGetHeadRoll(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_SHOWGUNFUNCTION, g_GameFile.flags, optionsGetShowGunFunction(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_ALWAYSSHOWTARGET, g_GameFile.flags, optionsGetAlwaysShowTarget(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_SHOWZOOMRANGE, g_GameFile.flags, optionsGetShowZoomRange(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_SHOWMISSIONTIME, g_GameFile.flags, optionsGetShowMissionTime(p1index));
-	pakSetBitflag(GAMEFILEFLAG_P1_PAINTBALL, g_GameFile.flags, optionsGetPaintball(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_FORWARDPITCH, g_GameFile.flags, optionsGetForwardPitch(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_AUTOAIM, g_GameFile.flags, optionsGetAutoAim(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_AIMCONTROL, g_GameFile.flags, optionsGetAimControl(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_SIGHTONSCREEN, g_GameFile.flags, optionsGetSightOnScreen(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_LOOKAHEAD, g_GameFile.flags, optionsGetLookAhead(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_AMMOONSCREEN, g_GameFile.flags, optionsGetAmmoOnScreen(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_HEADROLL, g_GameFile.flags, optionsGetHeadRoll(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_SHOWGUNFUNCTION, g_GameFile.flags, optionsGetShowGunFunction(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_ALWAYSSHOWTARGET, g_GameFile.flags, optionsGetAlwaysShowTarget(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_SHOWZOOMRANGE, g_GameFile.flags, optionsGetShowZoomRange(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_SHOWMISSIONTIME, g_GameFile.flags, optionsGetShowMissionTime(p1index));
+	// pakSetBitflag(GAMEFILEFLAG_P1_PAINTBALL, g_GameFile.flags, optionsGetPaintball(p1index));
 
-	pakSetBitflag(GAMEFILEFLAG_P2_FORWARDPITCH, g_GameFile.flags, optionsGetForwardPitch(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_AUTOAIM, g_GameFile.flags, optionsGetAutoAim(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_AIMCONTROL, g_GameFile.flags, optionsGetAimControl(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_SIGHTONSCREEN, g_GameFile.flags, optionsGetSightOnScreen(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_LOOKAHEAD, g_GameFile.flags, optionsGetLookAhead(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_AMMOONSCREEN, g_GameFile.flags, optionsGetAmmoOnScreen(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_HEADROLL, g_GameFile.flags, optionsGetHeadRoll(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_SHOWGUNFUNCTION, g_GameFile.flags, optionsGetShowGunFunction(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_ALWAYSSHOWTARGET, g_GameFile.flags, optionsGetAlwaysShowTarget(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_SHOWZOOMRANGE, g_GameFile.flags, optionsGetShowZoomRange(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_SHOWMISSIONTIME, g_GameFile.flags, optionsGetShowMissionTime(p2index));
-	pakSetBitflag(GAMEFILEFLAG_P2_PAINTBALL, g_GameFile.flags, optionsGetPaintball(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_FORWARDPITCH, g_GameFile.flags, optionsGetForwardPitch(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_AUTOAIM, g_GameFile.flags, optionsGetAutoAim(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_AIMCONTROL, g_GameFile.flags, optionsGetAimControl(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_SIGHTONSCREEN, g_GameFile.flags, optionsGetSightOnScreen(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_LOOKAHEAD, g_GameFile.flags, optionsGetLookAhead(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_AMMOONSCREEN, g_GameFile.flags, optionsGetAmmoOnScreen(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_HEADROLL, g_GameFile.flags, optionsGetHeadRoll(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_SHOWGUNFUNCTION, g_GameFile.flags, optionsGetShowGunFunction(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_ALWAYSSHOWTARGET, g_GameFile.flags, optionsGetAlwaysShowTarget(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_SHOWZOOMRANGE, g_GameFile.flags, optionsGetShowZoomRange(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_SHOWMISSIONTIME, g_GameFile.flags, optionsGetShowMissionTime(p2index));
+	// pakSetBitflag(GAMEFILEFLAG_P2_PAINTBALL, g_GameFile.flags, optionsGetPaintball(p2index));
 
 	pakSetBitflag(GAMEFILEFLAG_SCREENSPLIT, g_GameFile.flags, optionsGetScreenSplit());
 	pakSetBitflag(GAMEFILEFLAG_SCREENRATIO, g_GameFile.flags, optionsGetScreenRatio());
@@ -513,16 +514,16 @@ s32 gamefileSave(s32 device, s32 fileid, u16 deviceserial)
 		value = g_SoundMode;
 		savebufferOr(&buffer, value, 2);
 
-#ifdef PLATFORM_N64
-		savebufferOr(&buffer, optionsGetControlMode(p1index), 3);
-		savebufferOr(&buffer, optionsGetControlMode(p2index), 3);
-#else
 		// PC control mode is enabled in the .ini to avoid changing the save structure
-		s32 controlmode = optionsGetControlMode(p1index);
+		// s32 controlmode = optionsGetControlMode(p1index);
+		// savebufferOr(&buffer, ((controlmode == CONTROLMODE_PC) ? CONTROLMODE_11 : controlmode), 3);
+		// controlmode = optionsGetControlMode(p2index);
+		// savebufferOr(&buffer, ((controlmode == CONTROLMODE_PC) ? CONTROLMODE_11 : controlmode), 3);
+		s32 controlmode = optionsGetControlMode(g_Vars.playerstats[0].mpindex);
 		savebufferOr(&buffer, ((controlmode == CONTROLMODE_PC) ? CONTROLMODE_11 : controlmode), 3);
-		controlmode = optionsGetControlMode(p2index);
+		controlmode = optionsGetControlMode(g_Vars.playerstats[1].mpindex);
 		savebufferOr(&buffer, ((controlmode == CONTROLMODE_PC) ? CONTROLMODE_11 : controlmode), 3);
-#endif
+
 
 		for (i = 0; i < ARRAYCOUNT(g_GameFile.flags); i++) {
 			savebufferOr(&buffer, g_GameFile.flags[i], 8);

@@ -796,6 +796,11 @@ void mpInit(bool resetplayers)
 		for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
 			mpPlayerSetDefaults(i, false);
 		}
+		for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
+			for (j = 0; j < ARRAYCOUNT(g_PlayerConfigsArray[i].gunfuncs); j++) {
+				g_PlayerConfigsArray[i].gunfuncs[j] = 0;
+			}
+		}
 	}
 
 	for (i = 0; i < MAX_BOTS; i++) {
@@ -821,11 +826,6 @@ void mpInit(bool resetplayers)
 
 	challengeForceUnlockBotFeatures();
 
-	for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
-		for (j = 0; j < ARRAYCOUNT(g_PlayerConfigsArray[i].gunfuncs); j++) {
-			g_PlayerConfigsArray[i].gunfuncs[j] = 0;
-		}
-	}
 
 	g_MpSetup.chrslots = 0;
 
