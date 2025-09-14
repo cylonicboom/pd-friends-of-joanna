@@ -129,9 +129,9 @@ void bmoveSetAutoAimY(bool enabled)
 
 bool bmoveIsAutoAimYEnabled(void)
 {
-	if (!g_Vars.normmplayerisrunning) {
-		return g_Vars.currentplayer->autoyaimenabled;
-	}
+	// if (!g_Vars.normmplayerisrunning) {
+	// 	return g_Vars.currentplayer->autoyaimenabled;
+	// }
 
 	if (g_MpSetup.options & MPOPTION_NOAUTOAIM) {
 		return false;
@@ -187,9 +187,9 @@ void bmoveSetAutoAimX(bool enabled)
 
 bool bmoveIsAutoAimXEnabled(void)
 {
-	if (!g_Vars.normmplayerisrunning) {
-		return g_Vars.currentplayer->autoxaimenabled;
-	}
+	// if (!g_Vars.normmplayerisrunning) {
+	// 	return g_Vars.currentplayer->autoxaimenabled;
+	// }
 
 	if (g_MpSetup.options & MPOPTION_NOAUTOAIM) {
 		return false;
