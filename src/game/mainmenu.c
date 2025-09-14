@@ -3096,9 +3096,11 @@ MenuItemHandlerResult menuhandlerControlStyle(s32 operation, struct menuitem *it
 {
 	if (operation == MENUOP_SET) {
 		if (PLAYERCOUNT() >= 2) {
-			menuPushDialog(&g_2PMissionControlStyleMenuDialog);
+			// menuPushDialog(&g_2PMissionControlStyleMenuDialog);
+			menuPushDialog(&g_MpControlMenuDialog);
 		} else {
-			menuPushDialog(&g_SoloMissionControlStyleMenuDialog);
+			menuPushDialog(&g_MpControlMenuDialog);
+			// menuPushDialog(&g_SoloMissionControlStyleMenuDialog);
 		}
 	}
 
