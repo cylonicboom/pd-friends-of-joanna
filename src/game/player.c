@@ -2281,7 +2281,7 @@ void playerTickPauseMenu(void)
 
 		if (opened) {
 			struct trainingdata *data = dtGetData();
-			lvSetPaused(g_PausingEnabled);
+			lvSetPaused(true);
 			g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
 
 			if ((g_GlobalMenuRoot == MENUROOT_MAINMENU || g_GlobalMenuRoot == MENUROOT_TRAINING)
@@ -2298,7 +2298,6 @@ void playerTickPauseMenu(void)
 
 			musicStartMenu();
 		}
-		playerPause();
 		break;
 	case PAUSEMODE_PAUSED:
 		// Pause menu is fully open
@@ -2309,13 +2308,14 @@ void playerTickPauseMenu(void)
 
 		if (g_Vars.currentplayer->pausetime60 >= 20) {
 			lvSetPaused(false);
-			playerUnpause();
+			g_Vars.currentplayer->pausemode = PAUSEMODE_UNPAUSED;
+			musicEndMenu();
 		}
 		break;
 	}
 }
 
-void playerStartPause(s32 root)
+void playerPause(s32 root)
 {
 	g_GlobalMenuRoot = root;
 
@@ -2324,21 +2324,11 @@ void playerStartPause(s32 root)
 	}
 }
 
-void playerPause(void) {
-	g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
-}
-
-void playerStartUnpause(void)
-{
-	if (g_Vars.currentplayer->pausemode == PAUSEMODE_PAUSED) {
-		g_Vars.currentplayer->pausemode = PAUSEMODE_UNPAUSING;
-	}
-}
-
 void playerUnpause(void)
 {
-	if (g_Vars.stagenum != STAGE_CREDITS) {
-		if (!g_MenuData.count) musicEndMenu();
+	if (g_Vars.currentplayer->pausemode == PAUSEMODE_PAUSED) {
+		lvSetPaused(false);
+		musicEndMenu();
 		g_Vars.currentplayer->pausemode = PAUSEMODE_UNPAUSED;
 	}
 }
@@ -3366,7 +3356,7 @@ void playerTick(bool arg0)
 		} else {
 			if (eyespy->held == false) {
 				// Eyespy is deployed
-#if defined(PLATFORM_N64) && VERSION >= VERSION_NTSC_1_0
+#if VERSION >= VERSION_NTSC_1_0
 				if (g_Vars.currentplayer->eyespy->active) {
 					// And is being controlled
 					s8 contpad1 = optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex);
@@ -3389,6 +3379,7 @@ void playerTick(bool arg0)
 					}
 				}
 #endif
+
 				if (g_Vars.lvupdate240) {
 					eyespyProcessInput(arg0);
 				}
@@ -3468,10 +3459,8 @@ void playerTick(bool arg0)
 			&& g_Vars.currentplayer->eyespy->active) {
 		// Controlling an eyespy
 		struct coord sp308;
-		#ifdef PLATFORM_N64
 		playermgrSetFovY(120);
 		viSetFovY(120);
-		#endif
 		sp308.x = g_Vars.currentplayer->eyespy->prop->pos.x;
 		sp308.y = g_Vars.currentplayer->eyespy->prop->pos.y;
 		sp308.z = g_Vars.currentplayer->eyespy->prop->pos.z;
@@ -3568,11 +3557,8 @@ void playerTick(bool arg0)
 				s8 contpad2 = optionsGetContpadNum2(g_Vars.currentplayerstats->mpindex);
 				s8 stickx = 0;
 				s8 sticky = 0;
-				s8 rsticky = 0;
 #ifndef PLATFORM_N64
-				if (g_PlayersWithControl[g_Vars.currentplayernum]) {
-					rsticky = joyGetRStickY(contpad1);
-				}
+				s8 rsticky = joyGetRStickY(contpad1);
 #endif
 				Mtxf sp1fc;
 				Mtxf sp1bc;
@@ -3670,7 +3656,7 @@ void playerTick(bool arg0)
 
 				if (pause) {
 					if (g_Vars.mplayerisrunning == false) {
-						playerStartPause(MENUROOT_MAINMENU);
+						playerPause(MENUROOT_MAINMENU);
 					} else {
 						mpPushPauseDialog();
 					}

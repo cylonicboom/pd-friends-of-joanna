@@ -288,27 +288,11 @@ void musicRestoreInterval(void)
 #define PRIMARYTRACK() (g_TemporaryPrimaryTrack != -1 ? g_TemporaryPrimaryTrack : stageGetPrimaryTrack(g_MusicStageNum))
 #define AMBIENTTRACK() (g_TemporaryAmbientTrack != -1 ? g_TemporaryAmbientTrack : stageGetAmbientTrack(g_MusicStageNum))
 
-void musicStartPrimaryWithReason(f32 arg0, s8 reason)
-{
-	/*
-	 * reason: 0 - vanilla behavior
-	 * reason: 1 - return from training
-	*/
-	if (reason == 1) {
-		musicQueueStartEvent(TRACKTYPE_PRIMARY, PRIMARYTRACK(), arg0, musicGetVolume());
-		return;
-	}
-	if (g_Vars.stagenum == STAGE_CITRAINING) {
-		if (g_StageFlags & ~STAGEFLAG_CI_IN_TRAINING) return;
-	}
-	if (PRIMARYTRACK() >= 0 && !menuGetRoot()) {
-		musicQueueStartEvent(TRACKTYPE_PRIMARY, PRIMARYTRACK(), arg0, musicGetVolume());
-	}
-	return;
-}
 void musicStartPrimary(f32 arg0)
 {
-	musicStartPrimaryWithReason(arg0, 0);
+	if (PRIMARYTRACK() >= 0) {
+		musicQueueStartEvent(TRACKTYPE_PRIMARY, PRIMARYTRACK(), arg0, musicGetVolume());
+	}
 }
 
 void musicStartAmbient(f32 arg0)
@@ -615,7 +599,7 @@ void musicPlayDefaultTracks(void)
 {
 	musicQueueStopEvent(TRACKTYPE_PRIMARY);
 	musicQueueStopEvent(TRACKTYPE_AMBIENT);
-	musicStartPrimaryWithReason(0.5f, 1);
+	musicStartPrimary(0.5f);
 }
 
 /**

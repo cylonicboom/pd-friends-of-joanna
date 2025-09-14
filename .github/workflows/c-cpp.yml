@@ -2,9 +2,9 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [  ]
+    branches: [ "port", "port-friends-of-joanna" ]
   pull_request:
-    branches: [  ]
+    branches: [ "port" ]
   workflow_dispatch:
 
 jobs:
@@ -284,6 +284,13 @@ jobs:
         cache-key: flatpak-builder-${{ github.sha }}
         upload-artifact: false
 
+    # - name: Build Flatpak bundle
+    #   run: |
+    #     cd dist/linux/
+    #     flatpak-builder build --force-clean io.github.fgsfdsfgs.perfect_dark.yaml
+    #     flatpak build-export export build
+    #     flatpak build-bundle export io.github.fgsfdsfgs.perfect_dark.flatpak io.github.fgsfdsfgs.perfect_dark
+
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
@@ -291,9 +298,10 @@ jobs:
         path: io.github.fgsfdsfgs.perfect_dark.flatpak
         retention-days: 0
 
+
   publish-latest-build:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/coup' || startsWith(github.ref, 'refs/heads/mod/') || startsWith(github.ref, 'refs/heads/builds/')
+    if: github.ref == 'refs/heads/port'
     needs: [build-i686-windows, build-i686-linux, build-x86_64-windows, build-x86_64-linux, build-arm64-nswitch, build-x86_64-osx, build-arm64-osx, build-flatpak-bundle]
     permissions:
       contents: write
@@ -315,6 +323,7 @@ jobs:
           zip -r ../ci-release/pd-i686-windows.zip pd-i686-windows
           zip -r ../ci-release/pd-x86_64-windows.zip pd-x86_64-windows
           zip -r ../ci-release/pd-arm64-nswitch.zip pd-arm64-nswitch
+          mv io.github.fgsfdsfgs.perfect_dark.flatpak/io.github.fgsfdsfgs.perfect_dark.flatpak ../ci-release/
           popd
           git tag --force ci-dev-build port
           git push --force origin ci-dev-build

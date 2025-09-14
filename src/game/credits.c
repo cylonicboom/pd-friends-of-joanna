@@ -1347,7 +1347,7 @@ void creditsTickSlide(void)
 				g_CreditsData->unk4208 = 0;
 
 				musicEndMenu();
-				musicStartPrimaryWithReason(0,1);
+				musicStartPrimary(0);
 			}
 		} while (credit && credit->more && g_CreditsData->numthisslide < 4);
 

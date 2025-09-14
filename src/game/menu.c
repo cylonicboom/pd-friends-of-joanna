@@ -1867,20 +1867,14 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 			return gdl;
 		}
 
-	}
-
-	if (menumodel->allocstart == NULL) {
-		#ifdef PLATFORM_N64
-		if (bgunChangeGunMem(GUNMEMOWNER_INVMENU)) {
-			menumodel->allocstart = bgunGetGunMem();
-			menumodel->alloclen = bgunCalculateGunMemCapacity();
-		} else {
-			return gdl;
+		if (menumodel->allocstart == NULL) {
+			if (bgunChangeGunMem(GUNMEMOWNER_INVMENU)) {
+				menumodel->allocstart = bgunGetGunMem();
+				menumodel->alloclen = bgunCalculateGunMemCapacity();
+			} else {
+				return gdl;
+			}
 		}
-		#else
-			menumodel->allocstart = bgunGetInvMem();
-			menumodel->alloclen = g_BgunGunMemBaseSize4Mb2P;// default from g_BgunGunMemBaseSizeDefault
-		#endif
 	}
 
 	if (menumodel->allocstart == NULL) {
@@ -2019,13 +2013,13 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 
 		// Most models use the z-buffer and a scissor.
 		// Types 2 and 3 are unused. Type 4 is the credits scrolling logo.
-		if (modeltype == MENUMODELTYPE_HUDPIECE || modeltype < MENUMODELTYPE_3 && g_MenuData.usezbuf) {
+		if (modeltype < MENUMODELTYPE_3 && g_MenuData.usezbuf) {
 			gdl = viPrepareZbuf(gdl);
 			gdl = vi0000b1d0(gdl);
 
 			g_MenuData.usezbuf = false;
 
-			if (modeltype != MENUMODELTYPE_2 && modeltype != MENUMODELTYPE_HUDPIECE) {
+			if (modeltype != MENUMODELTYPE_2) {
 				gdl = menuApplyScissor(gdl);
 			}
 
@@ -2899,14 +2893,11 @@ Gfx *dialogRender(Gfx *gdl, struct menudialog *dialog, struct menu *menu, bool l
 		if (g_Menus[g_MpPlayerNum].curdialog == dialog
 				&& (dialog->definition->flags & MENUDIALOGFLAG_0002)
 				&& !lightweight
-				&& !g_Menus[g_MpPlayerNum].menumodel.drawbehinddialog)
-		{
-			g_MenuData.usezbuf = true;
+				&& !g_Menus[g_MpPlayerNum].menumodel.drawbehinddialog) {
 			gSPSetGeometryMode(gdl++, G_ZBUFFER);
 
-
 			gdl = menuRenderModel(gdl, &g_Menus[g_MpPlayerNum].menumodel, MENUMODELTYPE_DEFAULT);
-			g_MenuData.usezbuf = true;
+
 			gSPClearGeometryMode(gdl++, G_ZBUFFER);
 
 			viSetViewPosition(g_Vars.currentplayer->viewleft, g_Vars.currentplayer->viewtop);
@@ -3568,9 +3559,6 @@ void menuClose(void)
 	}
 
 	g_MenuData.count--;
-	if (g_MenuData.count == 0) {
-		g_Vars.currentplayer->pausemode = PAUSEMODE_UNPAUSING;
-	}
 
 	if (g_MenuData.root == MENUROOT_MPPAUSE && g_Vars.currentplayer->activemenumode == AMMODE_EDIT) {
 		g_Vars.currentplayer->activemenumode = AMMODE_VIEW;
@@ -3691,7 +3679,6 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 
 	switch (root) {
 	case MENUROOT_ENDSCREEN:
-		menuSetBackground(MENUBG_BLUR);
 	case MENUROOT_MAINMENU:
 	case MENUROOT_FILEMGR:
 	case MENUROOT_BOOTPAKMGR:
@@ -3748,15 +3735,11 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 		// g_MenuData.bg = MENUBG_SUCCESS;
 		// break;
 	case MENUROOT_MAINMENU:
-	case MENUROOT_FILEMGR:
-	case MENUROOT_TRAINING:
-		if (g_PausingEnabled) {
-			 menuSetBackground(MENUBG_BLUR);
-		}
-		break;
 	case MENUROOT_MPENDSCREEN:
+	case MENUROOT_FILEMGR:
 	case MENUROOT_COOPCONTINUE:
-		 menuSetBackground(MENUBG_BLUR);
+	case MENUROOT_TRAINING:
+		menuSetBackground(MENUBG_BLUR);
 		break;
 	case MENUROOT_BOOTPAKMGR:
 		musicStartMenu();
@@ -3776,7 +3759,7 @@ void func0f0f85e0(struct menudialogdef *dialogdef, s32 root)
 	}
 
 	menuPushRootDialog(dialogdef, root);
-	lvSetPaused(g_PausingEnabled);
+	lvSetPaused(true);
 	g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
 }
 
@@ -4741,19 +4724,17 @@ void dialogInitItems(struct menudialog *dialog)
 	}
 }
 
-void handleMenuClose(void)
+void func0f0fa6ac(void)
 {
 	switch (g_MenuData.root) {
 	case MENUROOT_MAINMENU:
-		playerStartUnpause();
-		g_PlayersWithControl[g_MpPlayerNum] = true;
 	case MENUROOT_MPSETUP:
 	case MENUROOT_FILEMGR:
 	case MENUROOT_4MBMAINMENU:
 	case MENUROOT_TEAMMISSIONS:
 	case MENUROOT_TRAINING:
-		playerStartUnpause();
-		g_PlayersWithControl[g_MpPlayerNum] = true;
+		playerUnpause();
+		g_PlayersWithControl[0] = true;
 	}
 }
 
@@ -5562,9 +5543,11 @@ Gfx *menuRender(Gfx *gdl)
 			}
 		}
 
+		mainOverrideVariable("usePiece", &usepiece);
+
 		if (usepiece) {
 			g_MenuData.usezbuf = false;
-			g_MenuData.hudpiece.drawbehinddialog = true;
+
 			gdl = menuRenderModel(gdl, &g_MenuData.hudpiece, MENUMODELTYPE_HUDPIECE);
 			gSPClearGeometryMode(gdl++, G_ZBUFFER);
 
@@ -6002,7 +5985,7 @@ void menuPushPakDialogForPlayer(struct menudialogdef *dialogdef, s32 playernum, 
 	if (g_Menus[g_MpPlayerNum].curdialog == NULL) {
 		if (PLAYERCOUNT() == 1) {
 			menuPushRootDialog(dialogdef, MENUROOT_MAINMENU);
-			lvSetPaused(g_PausingEnabled);
+			lvSetPaused(true);
 			g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
 		} else {
 			menuPushRootDialog(dialogdef, MENUROOT_MPPAUSE);

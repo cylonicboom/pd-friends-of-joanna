@@ -8,41 +8,6 @@ Counter-op is highly experimental and mostly untested.
 
 [Setup instructions below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building--setup-friends-of-joanna)
 
-# Catherine's Opinionated Unofficial Patches
-
-## `port` + Catherine's mods
-
-This is a collection of all my port mods merged together:
-
-![Screenshot 2025-03-16 at 03 35 29](https://github.com/user-attachments/assets/f479809d-e91f-4869-8c8b-c478ad5af590)
-
-
-# Mod: Moon Jump
-
-Reimplements the classic Moon Jump Gameshark code, with some differences: changing the player's elevation is not required to jump, and I added a seperate button for toggling gravity.
-
-![image](https://github.com/user-attachments/assets/09d3ef02-be38-4d54-921c-79cb9f6cf0f4)
-
-[Perfect Dark PC Port - Moon Jump [nRP5k1Zn1mc].webm](https://github.com/user-attachments/assets/52401da4-d36b-4e70-a66b-eff8815e889e)
-
-# Mod: Toggle Gangsta
-
-Adds a bindable button for toggling gangsta mode.
-
-![Screenshot 2025-02-21 at 19 23 56](https://github.com/user-attachments/assets/8de027b9-f40b-40da-913a-d15c9c41dcf5)
-![Screenshot 2025-02-21 at 19 24 38](https://github.com/user-attachments/assets/dc6b5a8f-5601-41d0-a273-f8f65c043c78)
-
-# Mod: Perfect Dark without Pausing
-
-[![](http://img.youtube.com/vi/MHwGS0cP-3g/0.jpg)](https://www.youtube.com/watch?v=MHwGS0cP-3g)
-
-
-The pausing-blur effect can now be disabled via an in-game option. Leave it off for an extra challenge. 
-
-To toggle: `Options -> Extended -> Video -> Enable Local Pausing`
-
-This branch closely follows `fgsfdsfgs/perfect_dark`@`port`
-
 # Perfect Dark port
 
 This repository contains a work-in-progress port of the [Perfect Dark decompilation](https://github.com/n64decomp/perfect_dark) to modern platforms.
