@@ -1151,7 +1151,7 @@ bool bgun0f099008(s32 handnum)
 	return false;
 }
 
-bool bgun0f0990b0(struct weaponfunc *basefunc, struct weapon *weapon)
+bool bgunIsWeaponFuncUnusable(struct weaponfunc *basefunc, struct weapon *weapon)
 {
 	if (!basefunc) {
 		return true;
@@ -1190,7 +1190,7 @@ bool bgun0f0990b0(struct weaponfunc *basefunc, struct weapon *weapon)
 	return false;
 }
 
-bool bgun0f099188(struct hand *hand, s32 gunfunc)
+bool bgunCanUseWeaponFunc(struct hand *hand, s32 gunfunc)
 {
 	struct weaponfunc *func = weaponGetFunction(&hand->gset, gunfunc);
 	struct weapon *weapon = weaponFindById(hand->gset.weaponnum);
@@ -1199,7 +1199,7 @@ bool bgun0f099188(struct hand *hand, s32 gunfunc)
 		return false;
 	}
 
-	return bgun0f0990b0(func, weapon);
+	return bgunIsWeaponFuncUnusable(func, weapon);
 }
 
 s32 bgunTickIncIdle(struct handweaponinfo *info, s32 handnum, struct hand *hand, s32 lvupdate)
@@ -1283,7 +1283,7 @@ s32 bgunTickIncIdle(struct handweaponinfo *info, s32 handnum, struct hand *hand,
 			if (usesec == gunfunc) {
 				sp30 = bgun0f098ca0(1 - hand->gset.weaponfunc, info, hand);
 
-				if (bgun0f099188(hand, 1 - hand->gset.weaponfunc)
+				if (bgunCanUseWeaponFunc(hand, 1 - hand->gset.weaponfunc)
 						&& info->weaponnum != WEAPON_REAPER) {
 					if (info->gunctrl->wantammo) {
 						func = weaponGetFunction(&hand->gset, 1 - hand->gset.weaponfunc);
@@ -1467,7 +1467,7 @@ s32 bgunTickIncAutoSwitch(struct handweaponinfo *info, s32 handnum, struct hand 
 						ready = false;
 					}
 
-					if (bgun0f099188(otherhand, otherhand->gset.weaponfunc)) {
+					if (bgunCanUseWeaponFunc(otherhand, otherhand->gset.weaponfunc)) {
 						ready = true;
 					}
 				}
@@ -5936,7 +5936,7 @@ void bgunAutoSwitchWeapon(void)
 			weapon = weaponFindById(weaponnum);
 			func = weaponGetFunctionById(weaponnum, FUNC_PRIMARY);
 
-			if (!bgun0f0990b0(func, weapon) && (func->flags & FUNCFLAG_AUTOSWITCHUNSELECTABLE) == 0) {
+			if (!bgunIsWeaponFuncUnusable(func, weapon) && (func->flags & FUNCFLAG_AUTOSWITCHUNSELECTABLE) == 0) {
 				usable = true;
 			}
 
@@ -5945,7 +5945,7 @@ void bgunAutoSwitchWeapon(void)
 			} else {
 				func = weaponGetFunctionById(weaponnum, FUNC_SECONDARY);
 
-				if (!bgun0f0990b0(func, weapon) && (func->flags & FUNCFLAG_AUTOSWITCHUNSELECTABLE) == 0) {
+				if (!bgunIsWeaponFuncUnusable(func, weapon) && (func->flags & FUNCFLAG_AUTOSWITCHUNSELECTABLE) == 0) {
 					usable = true;
 				}
 			}
