@@ -1731,6 +1731,113 @@ struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
 	NULL,
 };
 
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer1(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer2(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer3(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer4(s32 operation, struct menuitem *item, union handlerdata *data);
+
+struct menuitem g_TeamOperativeModelMenuItems[] = {
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[0],
+		0,
+		menuhandlerTeamOperativeModelPlayer1,
+	}, // ""
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[1],
+		0,
+		menuhandlerTeamOperativeModelPlayer2,
+	}, // ""
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[2],
+		0,
+		menuhandlerTeamOperativeModelPlayer3,
+	}, // ""
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)g_PlayerNames[3],
+		0,
+		menuhandlerTeamOperativeModelPlayer4,
+	}, // ""
+	{ MENUITEMTYPE_END }, // ""
+};
+
+
+struct menudialogdef g_TeamMissionsOperativeModelMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Operative Model", // "Operative Model
+	g_TeamOperativeModelMenuItems,
+	menudialogTeamCoopAntiOptions, // technically reloads the player names so okay
+	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
+// enum for g_TeamOperativeModelNames
+enum fojo_models{
+	TEAMOPERATIVEMODEL_JOANNA,
+	TEAMOPERATIVEMODEL_VELVET,
+	TEAMOPERATIVEMODEL_MIKADO,
+	TEAMOPERATIVEMODEL_POPLIN,
+};
+
+// TODO: display in dropdown as "Joanna-(number of deaths) / Velvet-(number of deaths) / Mikado-(number of deaths) / Poplin-(number of deaths)"
+char *g_TeamOperativeModelNames[] = {
+	"Joanna\0", // N64 Jo
+	"Velvet\0", // Velvet
+	"Mikado\0", // Japanese Jo
+	"Poplin\0"  // Gbc / beta Jo (unimplemented - needs head + tall jo body)
+};
+
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum)
+{
+	switch (operation) {
+	case MENUOP_GETOPTIONCOUNT:
+		data->dropdown.value = 4; // Joanna, Velvet, Mikado, Poplin (unimplemented)
+		break;
+	case MENUOP_GETOPTIONTEXT:
+		return (uintptr_t)g_TeamOperativeModelNames[playernum];
+		break;
+	case MENUOP_SET:
+		// g_MissionConfig.teamoperativemodel = data->dropdown.value;
+		break;
+	case MENUOP_GETSELECTEDINDEX:
+		break;
+	}
+
+	return 0;
+}
+
+
+
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer1(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 0);
+}
+
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer2(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 1);
+}
+
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer3(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 2);
+}
+
+MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer4(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 3);
+}
 
 MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct menuitem *item, union handlerdata *data)
 {
@@ -2205,6 +2312,7 @@ void teamMissionConfigStrUpdateMarquee()
 	// printf("Marquee: %s\n", g_TeamMissionConfig_marqueestring);
 }
 
+struct menudialogdef g_TeamMissionPlayerSetupMenuDialog;
 struct menuitem g_TeamMissionsHubMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -2229,6 +2337,14 @@ struct menuitem g_TeamMissionsHubMenuItems[] = {
 		(uintptr_t)"Operative Profile",
 		0,
 		menuhandlerBuddyOptionsPlayerMenuHub,
+	}, // ""
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Operative Model",
+		0,
+		(void *)&g_TeamMissionsOperativeModelMenuDialog,
 	}, // ""
 	{
 		MENUITEMTYPE_SELECTABLE,
