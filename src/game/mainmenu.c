@@ -1801,6 +1801,11 @@ char *g_TeamOperativeModelNames[] = {
 MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum)
 {
 	switch (operation) {
+	case MENUOP_CHECKDISABLED:
+		if (!g_Vars.playerroles[playernum]) {
+			return true;
+		}
+		break;
 	case MENUOP_GETOPTIONCOUNT:
 		data->dropdown.value = 4; // Joanna, Velvet, Mikado, Poplin (unimplemented)
 		break;
