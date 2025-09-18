@@ -1813,7 +1813,7 @@ MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer(s32 operation, struct 
 		return (uintptr_t)g_TeamOperativeModelNames[playernum];
 		break;
 	case MENUOP_SET:
-		// g_MissionConfig.teamoperativemodel = data->dropdown.value;
+		g_PlayerConfigsArray[playernum].teamagentindex = data->dropdown.value;
 		break;
 	case MENUOP_GETSELECTEDINDEX:
 		break;

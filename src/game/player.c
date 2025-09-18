@@ -1241,11 +1241,21 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		}
 	}
 
+	u32 coophead = HEAD_VD;
+
+	switch (g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].teamagentindex) {
+		case 0: coophead = HEAD_DARK_COMBAT; break; //Joanna
+		case 1: coophead = HEAD_VD; break; // Velvet Dark
+		case 2: coophead = HEAD_GREY; break; // PD+ Japanese Jo
+		case 3: coophead = HEAD_ANKA; break; // stub in Anka
+		default: break;
+	}
+
 	switch (outfit) {
 	default:
 	case OUTFIT_DEFAULT:
 		*bodynum = BODY_DARK_COMBAT;
-		*headnum = solo ? HEAD_DARK_COMBAT : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
 		break;
 	case OUTFIT_ELVIS:
 		*bodynum = BODY_THEKING;
@@ -1257,43 +1267,43 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		break;
 	case OUTFIT_TRENCH:
 		*bodynum = BODY_DARK_TRENCH;
-		*headnum = solo ? HEAD_DARK_COMBAT : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
 		break;
 	case OUTFIT_FROCK_RIPPED:
 		*bodynum = BODY_DARK_RIPPED;
-		*headnum = solo ? HEAD_DARK_FROCK : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_FROCK : coophead;
 		break;
 	case OUTFIT_FROCK:
 		*bodynum = BODY_DARK_FROCK;
-		*headnum = solo ? HEAD_DARK_FROCK : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_FROCK : coophead;
 		break;
 	case OUTFIT_LEATHER:
 		*bodynum = BODY_DARK_LEATHER;
-		*headnum = solo ? HEAD_DARK_COMBAT : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
 		break;
 	case OUTFIT_DEEPSEA:
 		*bodynum = BODY_DARKWET;
-		*headnum = solo ? HEAD_DARK_COMBAT : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
 		break;
 	case OUTFIT_WETSUIT:
 		*bodynum = BODY_DARKAQUALUNG;
-		*headnum = solo ? HEAD_DARKAQUA : HEAD_VD;
+		*headnum = solo ? HEAD_DARKAQUA : coophead;
 		break;
 	case OUTFIT_SNOW:
 		*bodynum = BODY_DARKSNOW;
-		*headnum = solo ? HEAD_DARK_SNOW : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_SNOW : coophead;
 		break;
 	case OUTFIT_LAB:
 		*bodynum = BODY_DARKLAB;
-		*headnum = solo ? HEAD_DARK_COMBAT : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
 		break;
 	case OUTFIT_STEWARDESS:
 		*bodynum = BODY_DARK_AF1;
-		*headnum = solo ? HEAD_DARK_FROCK : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_FROCK : coophead;
 		break;
 	case OUTFIT_NEGOTIATOR:
 		*bodynum = BODY_DARK_NEGOTIATOR;
-		*headnum = solo ? HEAD_DARK_FROCK : HEAD_VD;
+		*headnum = solo ? HEAD_DARK_FROCK : coophead;
 		break;
 	case OUTFIT_MRBLONDE:
 		*bodynum = BODY_MRBLONDE;

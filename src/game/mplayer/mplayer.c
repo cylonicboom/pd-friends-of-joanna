@@ -748,6 +748,8 @@ void mpPlayerSetDefaults(s32 playernum, bool autonames)
 	for (i = 0; i < ARRAYCOUNT(g_PlayerConfigsArray); i++) {
 		g_PlayerConfigsArray[playernum].gunfuncs[i] = 0;
 	}
+
+	g_PlayerConfigsArray[playernum].teamagentindex = playernum;
 }
 
 void func0f1881d4(s32 index)

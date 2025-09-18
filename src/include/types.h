@@ -4068,6 +4068,7 @@ struct mpplayerconfig {
 	/*0x96*/ u8 newtitle;
 	/*0x97*/ u8 gunfuncs[6];
 	/*0x9d*/ u8* handicap;
+	s32 teamagentindex;
 	s32 configindex;
 };
 
