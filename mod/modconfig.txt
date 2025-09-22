@@ -1,3 +1,12 @@
+# Modconfig.txt for
+# Friends of Joanna (FoJo) mod for Perfect Dark PC Port
+
+
+# CI Training
+stage 0x26 {
+  setupfile "UsetupdishZ"
+}
+
 # investigation
 stage 0x33 {
   setupfile "UsetupearZ"
