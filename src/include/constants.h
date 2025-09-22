@@ -4718,6 +4718,7 @@ enum weaponnum {
 #define HEAD_CHRIST           0x13
 #define HEAD_RUSS             0x14
 #define HEAD_GREY             0x15
+#define HEAD_MIKADO					  0x15
 #define HEAD_DARLING          0x16
 #define HEAD_ROBERT           0x17
 #define HEAD_BEAU1            0x18
