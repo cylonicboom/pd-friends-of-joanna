@@ -4504,7 +4504,7 @@ struct menuitem g_SoloMissionOptionsMenuItems[] = {
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT,
 		L_OPTIONS_183, // "Control"
 		0,
-		(void *)&g_MissionControlOptionsMenuDialog,
+		(void *)&g_MpControlMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
