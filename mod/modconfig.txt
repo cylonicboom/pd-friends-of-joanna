@@ -1,6 +1,9 @@
-# Modconfig.txt for
-# Friends of Joanna (FoJo) mod for Perfect Dark PC Port
+# Mod: Friends of Joanna
+# stage fixes for Friends of Joanna
+# Author: Catherine Reprobate
 
+
+# Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)
 
 # CI Training
 stage 0x26 {
@@ -10,6 +13,11 @@ stage 0x26 {
 # investigation
 stage 0x33 {
   setupfile "UsetupearZ"
+}
+
+# villa
+stage 0x2c {
+  setupFile "UsetupeldZ"
 }
 
 # chicago
