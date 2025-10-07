@@ -10294,3 +10294,39 @@ bool aiSetHiddenElseMask(void)
 
 	return false;
 }
+
+/**
+ * @cmd 01e3
+ */
+bool aiIfPlayerNumIsCoop(void)
+{
+	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+	u8 playernum = cmd[2];
+
+	if (g_Vars.coopplayers[playernum]) {
+		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[3]);
+	} else {
+		g_Vars.aioffset += 4;
+	}
+
+	return false;
+}
+
+/**
+ * @cmd 01e4
+ */
+bool aiSetCoopPlayerNum(void)
+{
+	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+	s32 playernum = cmd[2];
+
+	if (playernum >= 0 && playernum < MAX_PLAYERS && g_Vars.coopplayers[playernum]) {
+		g_Vars.chrdata->coopplayernum = playernum;
+	} else {
+		g_Vars.chrdata->coopplayernum = -1;
+	}
+
+	g_Vars.aioffset += 3;
+
+	return false;
+}

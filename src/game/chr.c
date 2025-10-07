@@ -1294,7 +1294,7 @@ void chrInit(struct prop *prop, u8 *ailist)
 	chr->goposhitcount = 0;
 #endif
 	chr->hiddenelsemask = 0;
-
+	chr->coopplayernum = -1;
 	splatResetChr(chr);
 }
 

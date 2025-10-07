@@ -1356,6 +1356,7 @@ struct chrdata {
 	/*0x362*/ u8 drcarollimage_right : 4;
 	/*0x364*/ struct prop *lift;
 	/*ext*/   s32 hiddenelsemask; // used by aiSetHiddenElseMask and aiIfChrActivatedObject
+	/*ext*/   s32 coopplayernum; // used to lock onto specific coop partner in team missions
 };
 
 // This appears to be misnamed. Not only is it projectiles such as grenades and

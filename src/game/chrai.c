@@ -499,6 +499,8 @@ bool (*g_CommandPointers[])(void) = {
 	/*0x01e0*/ aiRemoveReferencesToChr,
 	/*0x01e1*/ aiSetChrnumMatchlevel,
 	/*0x01e2*/ aiSetHiddenElseMask,
+	/*0x01e3*/ aiIfPlayerNumIsCoop,
+	/*0x01e4*/ aiSetCoopPlayerNum,
 #endif
 };
 
@@ -628,6 +630,8 @@ u16 g_CommandLengths[] = {
 	/*0x01e0*/ 2,
 	/*0x01e1*/ 3,
 	/*0x01e2*/ 3,
+	/*0x01e3*/ 4,
+	/*0x01e4*/ 3,
 #endif
 };
 

@@ -448,6 +448,8 @@ struct player** getPlayerPool(u32 chrId);
 /*0x01e0*/ bool aiRemoveReferencesToChr(void);
 /*0x01e1*/ bool aiSetChrnumMatchlevel(void);
 /*0x01e2*/ bool aiSetHiddenElseMask(void);
+/*0x01e3*/ bool aiIfPlayerNumIsCoop(void);
+/*0x01e4*/ bool aiSetCoopPlayerNum(void);
 
 void propDecrementSoundCount(struct prop *prop);
 
