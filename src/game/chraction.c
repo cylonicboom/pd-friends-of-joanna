@@ -14247,8 +14247,10 @@ s32 chrResolveId(struct chrdata *ref, s32 id)
 			}
 			break;
 		case CHR_COOP:
-			if (ref->coopplayernum >= 0){
-				id = ref->coopplayernum;
+			if (g_Vars.coopplayers[ref->coopplayernum]
+					&& g_Vars.coopplayers[ref->coopplayernum]->prop
+					&& g_Vars.coopplayers[ref->coopplayernum]->prop->chr) {
+				id = g_Vars.coopplayers[ref->coopplayernum]->prop->chr->chrnum;
 			}
 			else if (g_Vars.coop && g_Vars.coop->prop && g_Vars.coop->prop->chr) {
 				id = g_Vars.coop->prop->chr->chrnum;
