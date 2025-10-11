@@ -2715,6 +2715,7 @@ u8 func0416_teleport_bond_to_a_pa_drcaroll[] = {
  */
 u8 func100b_coop_teleports[] = {
 	label(0x2e)
+	dprint 'c','o','o','p',' ','t','e','l','e','p','o','r','t',' ','1','0','0','b','\n',0,
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
 	goto_next(0x1f)
 
@@ -2870,6 +2871,57 @@ u8 func100b_coop_teleports[] = {
 	goto_first(0x2e)
 	endlist
 };
+
+u8 func1035_coop2_teleports[] = {
+	if_playernum_is_coop(1, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	set_coop_playernum(1)
+	set_ailist(CHR_SELF, 0x100b)
+	goto_next(0x2f)
+
+	label(0x2e)
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
+u8 func1036_coop3_teleports[] = {
+	if_playernum_is_coop(2, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	dprint 'p','l','a','y','e','r','3',' ','i','s',' ','c','o','o','p','\n',0,
+	set_coop_playernum(2)
+	set_ailist(CHR_SELF, 0x100b)
+	goto_next(0x2f)
+
+	label(0x2e)
+	dprint 'p','l','a','y','e','r','3',' ','t','e','l','e','p','o','r','t',' ','i','d','l','e','\n',0,
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
+u8 func1037_coop4_teleports[] = {
+	if_playernum_is_coop(3, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	set_coop_playernum(3)
+	set_ailist(CHR_SELF, 0x100b)
+	goto_next(0x2f)
+
+	label(0x2e)
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
 
 u8 func0417_teleport_coop_to_sapa[] = {
 	if_stage_flag_eq(STAGEFLAG_ELVIS_FOLLOWING_COOP, TRUE, /*goto*/ 0x61)
@@ -4886,6 +4938,9 @@ struct ailist ailists[] = {
 	{ func1032_setup_rtracker,                        0x1032 },
 	{ func1433_setup_environment,                     0x1433 },
 	{ func1034_enable_blondes,                        0x1034 },
+	{ func1035_coop2_teleports,                       0x1035 },
+	{ func1036_coop3_teleports,                       0x1036 },
+	{ func1037_coop4_teleports,                       0x1037 },
 	{ func1002_intro,                                 0x0c00 },
 	{ func0c01_midcutscene,                           0x0c01 },
 	{ func0c02_outro,                                 0x0c02 },

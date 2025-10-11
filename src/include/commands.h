@@ -4373,6 +4373,15 @@
 	mkshort(0x01e2), \
 	mask,
 
+#define if_playernum_is_coop(playernum, label) \
+	mkshort(0x01e3), \
+	playernum, \
+	label,
+
+#define set_coop_playernum(playernum) \
+	mkshort(0x01e4), \
+	playernum,
+
 /**
  * Clears references to the current chr.
  *
