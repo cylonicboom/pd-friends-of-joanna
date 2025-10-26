@@ -383,6 +383,7 @@ struct player** getPlayerPool(u32 chrId);
 /*0x0191*/ bool aiUnsetSavefileFlag(void);
 /*0x0192*/ bool aiIfSavefileFlagIsSet(void);
 /*0x0193*/ bool aiIfSavefileFlagIsUnset(void);
+/*0x0194*/ bool aiDetectAIO(void);
 /*0x019e*/ bool aiIfObjHealthLessThan(void);
 /*0x019f*/ bool aiSetObjHealth(void);
 /*0x01a0*/ bool aiSetChrSpecialDeathAnimation(void);

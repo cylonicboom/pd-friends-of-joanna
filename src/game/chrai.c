@@ -635,6 +635,8 @@ u16 g_CommandLengths[] = {
 #endif
 };
 
+s32 g_AIOPresent = 0;
+
 s32 chraiGetListIdByList(u8 *ailist, bool *is_global)
 {
 	s32 i;

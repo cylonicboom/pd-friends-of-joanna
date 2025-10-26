@@ -25,6 +25,7 @@
 #include "game/stubs/game_00b180.h"
 #include "game/stubs/game_00b200.h"
 #include "game/challenge.h"
+#include "game/chrai.h"
 #include "game/title.h"
 #include "game/pdmode.h"
 #include "game/objectives.h"

@@ -8923,6 +8923,23 @@ bool aiIfSavefileFlagIsUnset(void)
 }
 
 /**
+ * @cmd 0194
+ */
+bool aiDetectAIO(void)
+{
+	// this is is intended to be run early in the level
+	// because Mikado is pre-loaded in ci-training.
+	// going a gender check on HEAD_GREY is a quick and dirty way to detect if AIO is present
+
+	g_AIOPresent = 0; // Default to no AIO if HEAD_GREY is invalid for some stupid reason
+	if (HEAD_GREY >= 0 && HEAD_GREY < ARRAYCOUNT(g_HeadsAndBodies)) {
+		g_AIOPresent = g_HeadsAndBodies[HEAD_GREY].ismale ? 0 : 1;
+	}
+	g_Vars.aioffset += 2;
+	return false;
+}
+
+/**
  * @cmd 019e
  */
 bool aiIfObjHealthLessThan(void)
