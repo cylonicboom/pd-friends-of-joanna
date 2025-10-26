@@ -4382,6 +4382,9 @@
 	mkshort(0x01e4), \
 	playernum,
 
+#define detect_aio \
+	mkshort(0x0194),
+
 /**
  * Clears references to the current chr.
  *

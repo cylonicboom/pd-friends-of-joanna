@@ -5940,6 +5940,7 @@ u8 func103f_msg_fnp90[] = {
 };
 
 u8 func1000_jo_typing[] = {
+	detect_aio
 	set_chr_chrflag(CHR_COOP, CHRCFLAG_HIDDEN)
 	set_chr_chrflag(CHR_ANTI, CHRCFLAG_HIDDEN)
 	set_chr_chrflag(CHR_MIKADO, CHRCFLAG_HIDDEN)
