@@ -415,7 +415,7 @@ bool (*g_CommandPointers[])(void) = {
 	/*0x0191*/ aiUnsetSavefileFlag,
 	/*0x0192*/ aiIfSavefileFlagIsSet,
 	/*0x0193*/ aiIfSavefileFlagIsUnset,
-	/*0x0194*/ NULL,
+	/*0x0194*/ aiDetectAIO,
 	/*0x0195*/ NULL,
 	/*0x0196*/ NULL,
 	/*0x0197*/ NULL,
