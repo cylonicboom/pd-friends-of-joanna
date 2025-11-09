@@ -6,13 +6,14 @@
 # Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)
 
 # CI Training
+# pre-load Mikado Dark as a hidden character
 stage 0x26 {
   setupfile "UsetupdishZ"
 }
 
-# investigation
-stage 0x33 {
-  setupfile "UsetupearZ"
+# defection
+stage 0x30 {
+  setupfile "UsetupameZ"
 }
 
 # villa
