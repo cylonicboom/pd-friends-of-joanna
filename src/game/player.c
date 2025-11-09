@@ -250,6 +250,10 @@ f32 playerChooseSpawnLocation(f32 chrradius, struct coord *dstpos, RoomNum *dstr
 	RoomNum neighbours[20];
 #endif
 
+	u8 compare = COMPARE_ENEMIES;
+	if (g_MissionConfig.isteam) {
+		compare = COMPARE_ANY; // team missions: spawn away from all other players if at all possible
+	}
 	// Iterate all spawn pads and populate the category arrays
 	for (p = 0; p < numpads; p++) {
 		bestsqdist = U32_MAX;
@@ -263,7 +267,7 @@ f32 playerChooseSpawnLocation(f32 chrradius, struct coord *dstpos, RoomNum *dstr
 		for (i = 0; i < playercount; i++) {
 			if (g_Vars.players[i]->prop
 					&& g_Vars.players[i]->prop != prop
-					&& (!prop || chrCompareTeams(prop->chr, g_Vars.players[i]->prop->chr, COMPARE_ENEMIES))) {
+					&& (!prop || chrCompareTeams(prop->chr, g_Vars.players[i]->prop->chr, compare))) {
 				xdiff = g_Vars.players[i]->prop->pos.x - pad.pos.x;
 				ydiff = g_Vars.players[i]->prop->pos.y - pad.pos.y;
 				zdiff = g_Vars.players[i]->prop->pos.z - pad.pos.z;
@@ -293,7 +297,7 @@ f32 playerChooseSpawnLocation(f32 chrradius, struct coord *dstpos, RoomNum *dstr
 		for (i = 0; i < g_BotCount; i++) {
 			if (g_MpBotChrPtrs[i]->prop
 					&& g_MpBotChrPtrs[i]->prop != prop
-					&& (!prop || chrCompareTeams(prop->chr, g_MpBotChrPtrs[i], COMPARE_ENEMIES))) {
+					&& (!prop || chrCompareTeams(prop->chr, g_MpBotChrPtrs[i], compare))) {
 				xdiff = g_MpBotChrPtrs[i]->prop->pos.x - pad.pos.x;
 				ydiff = g_MpBotChrPtrs[i]->prop->pos.y - pad.pos.y;
 				zdiff = g_MpBotChrPtrs[i]->prop->pos.z - pad.pos.z;
