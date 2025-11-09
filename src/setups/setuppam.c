@@ -2713,7 +2713,7 @@ u8 func0416_teleport_bond_to_a_pa_drcaroll[] = {
  *   - calls 0418 teleport_coop_to_drcaroll
  * - calls 0418 teleport_coop_to_drcaroll
  */
-u8 func100b_coop_teleports[] = {
+u8 func0434_coop_teleports[] = {
 	label(0x2e)
 	dprint 'c','o','o','p',' ','t','e','l','e','p','o','r','t',' ','1','0','0','b','\n',0,
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
@@ -2878,7 +2878,7 @@ u8 func1035_coop2_teleports[] = {
 
 	label(0x2a)
 	set_coop_playernum(1)
-	set_ailist(CHR_SELF, 0x100b)
+	set_ailist(CHR_SELF, 0x0434)
 	goto_next(0x2f)
 
 	label(0x2e)
@@ -2895,7 +2895,7 @@ u8 func1036_coop3_teleports[] = {
 	label(0x2a)
 	dprint 'p','l','a','y','e','r','3',' ','i','s',' ','c','o','o','p','\n',0,
 	set_coop_playernum(2)
-	set_ailist(CHR_SELF, 0x100b)
+	set_ailist(CHR_SELF, 0x0434)
 	goto_next(0x2f)
 
 	label(0x2e)
@@ -2912,7 +2912,23 @@ u8 func1037_coop4_teleports[] = {
 
 	label(0x2a)
 	set_coop_playernum(3)
-	set_ailist(CHR_SELF, 0x100b)
+	set_ailist(CHR_SELF, 0x0434)
+	goto_next(0x2f)
+
+	label(0x2e)
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
+u8 func1038_coop1_teleports[] = {
+	if_playernum_is_coop(1, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	set_coop_playernum(1)
+	set_ailist(CHR_SELF, 0x0434)
 	goto_next(0x2f)
 
 	label(0x2e)
@@ -4899,7 +4915,6 @@ struct ailist ailists[] = {
 	{ func1008_msg_theresdrcaroll,                    0x1008 },
 	{ func1009_msg_getoutofhere,                      0x1009 },
 	{ func100a_bond_teleports,                        0x100a },
-	{ func100b_coop_teleports,                        0x100b },
 	{ func100c_countdown_timer,                       0x100c },
 	{ func100e_check_elvis_dead,                      0x100e },
 	{ func100f_check_drcaroll_dead,                   0x100f },
@@ -4941,6 +4956,7 @@ struct ailist ailists[] = {
 	{ func1035_coop2_teleports,                       0x1035 },
 	{ func1036_coop3_teleports,                       0x1036 },
 	{ func1037_coop4_teleports,                       0x1037 },
+	{ func1038_coop1_teleports,                       0x1038 },
 	{ func1002_intro,                                 0x0c00 },
 	{ func0c01_midcutscene,                           0x0c01 },
 	{ func0c02_outro,                                 0x0c02 },
@@ -4994,6 +5010,7 @@ struct ailist ailists[] = {
 	{ func0432_dead_skedar,                           0x0432 },
 	{ func0433_unused,                                0x0433 },
 	{ func042c_elvis_stop,                            0x042c },
+	{ func0434_coop_teleports,                        0x0434 },
 	{ NULL, 0 },
 };
 
