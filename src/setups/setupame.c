@@ -3374,9 +3374,9 @@ u8 func1011_check_hubs_activated[] = {
 u8 func1012_trigger_x_music[] = {
 	// Wait until arriving at bottom floor
 	beginloop(0x04)
+		chr_toggle_p1p2(CHR_SELF)
 		if_camera_animating(/*goto*/ 0x2c)
-		if_chr_y(CHR_BOND, -8000, OPERATOR_LESS_THAN, /*goto*/ 0x06)
-		if_chr_y(CHR_COOP, -8000, OPERATOR_LESS_THAN, /*goto*/ 0x06)
+		if_chr_y(CHR_P1P2, -8000, OPERATOR_LESS_THAN, /*goto*/ 0x06)
 		label(0x2c)
 	endloop(0x04)
 
@@ -3440,15 +3440,16 @@ u8 func1013_msg_commshubnearby[] = {
 	if_difficulty_lt(DIFF_SA, /*goto*/ 0x0d)
 
 	beginloop(0x04)
-		if_chr_y(CHR_BOND, -770, OPERATOR_LESS_THAN, /*goto*/ 0x2c)
+		chr_toggle_p1p2(CHR_SELF)
+		if_chr_y(CHR_P1P2, -770, OPERATOR_LESS_THAN, /*goto*/ 0x2c)
 		reloop(0x04)
 
 		label(0x2c)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0039, /*goto*/ 0x2c)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0039, /*goto*/ 0x2c)
 	endloop(0x04)
 
 	label(0x2c)
-	speak(CHR_BOND, L_AME_093, SFX_8170, CHANNEL_6, COLOR_09_BLUE) // "We're getting a positive reading - the internal co..."
+	speak(CHR_P1P2, L_AME_093, SFX_8170, CHANNEL_6, COLOR_09_BLUE) // "We're getting a positive reading - the internal co..."
 	label(0x0d)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
@@ -3458,8 +3459,9 @@ u8 func1014_msg_officefloor[] = {
 	if_difficulty_lt(DIFF_SA, /*goto*/ 0x0d)
 
 	beginloop(0x04)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0054, /*goto*/ 0x2c)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0064, /*goto*/ 0x0d)
+		chr_toggle_p1p2(CHR_SELF)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0054, /*goto*/ 0x2c)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0064, /*goto*/ 0x0d)
 	endloop(0x04)
 
 	label(0x2c)
