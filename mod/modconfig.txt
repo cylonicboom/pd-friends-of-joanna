@@ -16,6 +16,11 @@ stage 0x30 {
   setupfile "UsetupameZ"
 }
 
+# investigation
+stage 0x33 {
+  setupfile "UsetupearZ"
+}
+
 # villa
 stage 0x2c {
   setupFile "UsetupeldZ"
@@ -37,16 +42,19 @@ stage 0x38 {
 }
 
 # ci defense
+# extra spawns, QOL changes for coop mode
 stage 0x2d {
   setupfile "UsetupimpZ"
 }
 
 # attack ship
+# hangar elevator fixes
 stage 0x34 {
   setupfile "UsetupleeZ"
 }
 
 # war
+# extra spawns for coop characters
 stage 0x16 {
   setupfile "UsetupstatZ"
 }
