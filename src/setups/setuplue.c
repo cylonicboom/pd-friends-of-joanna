@@ -2896,12 +2896,15 @@ u8 func101a_check_mechanic_dead[] = {
 u8 func101b_msg_airinterceptradar[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
-		if_chr_in_room(CHR_P1P2, 0x00, 0x0001, /*goto*/ 0x2e)
+		if_objective_complete(0, /*goto*/ 0x2f)
+		if_chr_has_object(CHR_P1P2, OBJ_ROCKETLAUNCHER, 0x2e)
+		if_door_state(OBJ_MAINGATE1, (DOORSTATE_OPEN | DOORSTATE_OPENING), /*goto*/ 0x2e)
 	endloop(0x04)
 
 	label(0x2e)
 	speak(CHR_P1P2, L_LUE_053, SFX_817D, CHANNEL_6, COLOR_09_BLUE) // "The air intercept radar is controlled from that bu..."
 	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x2f)
 	endlist
 };
 
@@ -2932,7 +2935,7 @@ u8 func101d_msg_hangarlift[] = {
 		reloop(0x04)
 
 		label(0x2e)
-		if_chr_in_room(CHR_P1P2, 0x00, 0x0001, /*goto*/ 0x2e)
+		goto_next(0x2e)
 	endloop(0x04)
 
 	label(0x2e)
