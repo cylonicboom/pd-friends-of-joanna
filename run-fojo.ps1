@@ -23,9 +23,9 @@ function Get-OS {
 $platforms = @{
     "macos" = @{
         "arch"    = "arm64"
-        "moddir"  = "$HOME/Library/Application Support/perfectdark-friends-of-joanna/mods"
-        "savedir" = "$HOME/Library/Application Support/perfectdark-friends-of-joanna/"
-        "romfile" = "$HOME/Library/Application Support/perfectdark-friends-of-joanna/pd.ntsc-final.z64"
+        "moddir"  = (Join-Path $HOME 'Library/Application Support/perfectdark-friends-of-joanna/mods')
+        "savedir" = (Join-Path $HOME 'Library/Application Support/perfectdark-friends-of-joanna/')
+        "romfile" = (Join-Path $HOME 'Library/Application Support/perfectdark-friends-of-joanna/pd.ntsc-final.z64')
     }
     "linux" = @{
         "arch"    = "x86_64"
@@ -34,7 +34,7 @@ $platforms = @{
         "romfile" = "$HOME/.local/share/perfectdark-friends-of-joanna/pd.ntsc-final.z64"
     }
     "windows" = @{
-        "arch"    = "amd64"
+        "arch"    = "x86_64"
         "moddir"  = "$env:APPDATA\perfectdark-friends-of-joanna\mods"
         "savedir" = "$env:APPDATA\perfectdark-friends-of-joanna\"
         "romfile" = "$env:APPDATA\perfectdark-friends-of-joanna\pd.ntsc-final.z64"
@@ -66,7 +66,7 @@ if (!(Test-Path $env:PD_ROMFILE -PathType Leaf)) {
 }
 
 # Path to executable
-$PD_EXECUTABLE = Join-Path $PD "build/pd.x86_64"
+$PD_EXECUTABLE = Join-Path $PD "build/pd.$($platform['arch'])"
 
 if (!(Test-Path $PD_EXECUTABLE -PathType Leaf)) {
     Write-Error "Perfect Dark executable not found at $PD_EXECUTABLE"
@@ -74,21 +74,31 @@ if (!(Test-Path $PD_EXECUTABLE -PathType Leaf)) {
     exit 1
 }
 
+
+# fixes horrible pathing issues on macos
+function Wrap-PathIfNeeded($path) {
+    if ($os -eq "macos" -and $path -match '\s') {
+        return "'$path'"
+    }
+    return $path
+}
+
 # Default arguments
 $DEFAULT_ARGS = @(
-    "--moddir", "$($env:PD_MODDIR)/mod_aio",
-    "--moddir", "$($env:PD_MODDIR)/mod_gex",
-    "--moddir", "$($env:PD_MODDIR)/mod_kakariko",
-    "--moddir", "$($env:PD_MODDIR)/mod_dark_noon",
-    "--moddir", "$($env:PD_MODDIR)/mod_goldfinger_64",
-    "--moddir", "$($env:PD_MODDIR)/mod_fojo",
-    "--savedir", $env:PD_SAVEDIR,
-    "--basedir", $env:PD_BASEDIR,
-    "--rom-file", $env:PD_ROMFILE
+    "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_aio"),
+    "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_gex"),
+    "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_kakariko"),
+    "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_dark_noon"),
+    "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_goldfinger)_64"),
+    "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_fojo"),    
+    "--savedir",   $(Wrap-PathIfNeeded $env:PD_SAVEDIR),                 
+    "--basedir",   $(Wrap-PathIfNeeded $env:PD_BASEDIR),                 
+    "--rom-file",  $(Wrap-PathIfNeeded $env:PD_ROMFILE)
 )
 
 # Add any extra arguments
 $ARGS = $DEFAULT_ARGS + $args
+
 
 # Write-Host "Starting Perfect Dark with args: $($ARGS -join ' ')"
 Write-Host "Executable: $PD_EXECUTABLE"
