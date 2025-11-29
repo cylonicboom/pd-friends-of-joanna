@@ -244,7 +244,8 @@ void cheatsReset(void)
 		g_CheatsActiveBank0 = g_CheatsEnabledBank0;
 		g_CheatsActiveBank1 = g_CheatsEnabledBank1;
 
-		if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 || g_Vars.normmplayerisrunning) {
+		// if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0 || g_Vars.normmplayerisrunning) {
+		if (false) {
 			// Co-op/counter-op/multi - deactivate "Weapons for Jo in Solo" cheats
 			g_CheatsActiveBank0 &= ~(
 				(1 << CHEAT_TRENTSMAGNUM) |
@@ -1249,10 +1250,10 @@ struct menuitem g_CheatsSoloWeaponsMenuItems[] = {
 
 struct menudialogdef g_CheatsSoloWeaponsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
-	L_MPWEAPONS_122, // "Weapons for Jo in Solo"
+	(uintptr_t)"Weapons for Jo and Friends", // "Weapons for Jo in Solo"
 	g_CheatsSoloWeaponsMenuItems,
 	cheatMenuHandleDialog,
-	0,
+	MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
 
@@ -1358,10 +1359,10 @@ struct menuitem g_CheatsClassicWeaponsMenuItems[] = {
 
 struct menudialogdef g_CheatsClassicWeaponsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
-	L_MPWEAPONS_123, // "Classic Weapons for Jo in Solo"
+	(uintptr_t)"Classic Weapons for Jo and Friends", // "Classic Weapons for Jo in Solo"
 	g_CheatsClassicWeaponsMenuItems,
 	cheatMenuHandleDialog,
-	0,
+	MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
 
@@ -1579,16 +1580,16 @@ struct menuitem g_CheatsMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_MPWEAPONS_122, // "Weapons for Jo in Solo"
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		(uintptr_t)"Weapons for Jo and Friends", // "Weapons for Jo in Solo"
 		0,
 		(void *)&g_CheatsSoloWeaponsMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_MPWEAPONS_123, // "Classic Weapons for Jo in Solo"
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		(uintptr_t)"Classic Weapons for Jo and Friends", // "Classic Weapons for Jo in Solo"
 		0,
 		(void *)&g_CheatsClassicWeaponsMenuDialog,
 	},
