@@ -12,11 +12,7 @@ void invReset(void)
 {
 	s32 i;
 
-	if (PLAYERCOUNT() == 1 && g_Vars.normmplayerisrunning == false) {
-		g_Vars.currentplayer->equipallguns = cheatIsActive(CHEAT_ALLGUNS);
-	} else {
-		g_Vars.currentplayer->equipallguns = false;
-	}
+	g_Vars.currentplayer->equipallguns = cheatIsActive(CHEAT_ALLGUNS);
 
 	for (i = 0; i != ARRAYCOUNT(g_Vars.currentplayer->gunheldarr); i++) {
 		g_Vars.currentplayer->gunheldarr[i].totaltime240_60 = -1;

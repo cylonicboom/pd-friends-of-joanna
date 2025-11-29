@@ -16,6 +16,7 @@
 #define bool s32
 #define ubool u32
 
+extern s32 g_StageNum;
 extern u8 *g_StackLeftAddrs[NUM_THREADS];
 extern u8 *g_StackRightAddrs[NUM_THREADS];
 extern u8 *g_StackAllocatedPos;

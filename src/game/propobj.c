@@ -4463,7 +4463,7 @@ void weaponTick(struct prop *prop)
 			// If a player manages to throw a mine on themselves, it will not detonate.
 			// You can't throw a mine on yourself anyway, so this check always passes
 			if (prop->parent == NULL || parentchr == NULL || mpPlayerGetIndex(parentchr) != ownerplayernum) {
-				if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
+				if (g_Vars.currentcoopplayernum >= 0 || g_Vars.currentantiplayernum >= 0) {
 					if (ownerplayernum == 2) {
 						u32 mask = 0;
 
@@ -18214,7 +18214,12 @@ struct defaultobj *debrisAllocate(void)
 
 void playerActivateRemoteMineDetonator(s32 playernum)
 {
-	g_PlayersDetonatingMines |= 1 << playernum;
+
+	if (g_StageNum == STAGE_G5BUILDING) {
+		for (int i = 0; i < PLAYERCOUNT(); i++) {
+			g_PlayersDetonatingMines |= 1 << i;
+		}
+	} else g_PlayersDetonatingMines |= 1 << playernum;
 
 	sndStart(var80095200, SFX_DETONATE, 0, -1, -1, -1, -1, -1);
 

@@ -165,17 +165,13 @@ void cheatActivate(s32 cheat_id)
 		setCurrentPlayerNum(prevplayernum);
 		break;
 	case CHEAT_ALLGUNS:
-		// Give all guns if only one player playing
-		if (PLAYERCOUNT() == 1 && g_Vars.normmplayerisrunning == false) {
-			prevplayernum = g_Vars.currentplayernum;
-
-			for (playernum = 0; playernum < PLAYERCOUNT(); playernum++) {
-				setCurrentPlayerNum(playernum);
-				invSetAllGuns(true);
-			}
-
-			setCurrentPlayerNum(prevplayernum);
+		// Give all guns to everyone
+		prevplayernum = g_Vars.currentplayernum;
+		for (playernum = 0; playernum < PLAYERCOUNT(); playernum++) {
+			setCurrentPlayerNum(playernum);
+			invSetAllGuns(true);
 		}
+		setCurrentPlayerNum(prevplayernum);
 		break;
 	}
 
@@ -203,16 +199,14 @@ void cheatDeactivate(s32 cheat_id)
 		setCurrentPlayerNum(prevplayernum);
 		break;
 	case CHEAT_ALLGUNS:
-		if (PLAYERCOUNT() == 1 && g_Vars.normmplayerisrunning == false) {
-			prevplayernum = g_Vars.currentplayernum;
-
+		prevplayernum = g_Vars.currentplayernum;
+		for (playernum = 0; playernum < PLAYERCOUNT(); playernum++) {
 			for (playernum = 0; playernum < PLAYERCOUNT(); playernum++) {
 				setCurrentPlayerNum(playernum);
 				invSetAllGuns(false);
 			}
-
-			setCurrentPlayerNum(prevplayernum);
 		}
+			setCurrentPlayerNum(prevplayernum);
 		break;
 	}
 
