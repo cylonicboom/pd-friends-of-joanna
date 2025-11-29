@@ -597,6 +597,41 @@ void challengeForceUnlockConfigFeatures(struct mpconfig *config, u8 *array, s32 
 	}
 #endif
 
+	// Unlock stages progressively as challenges are completed
+	// These unlock regardless of what stage the challenge uses
+	if (challengeindex >= 0) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_RAVINE, array, index, len);
+	}
+	if (challengeindex >= 1) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_G5BUILDING, array, index, len);
+	}
+	if (challengeindex >= 2) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_SEWERS, array, index, len);
+	}
+	if (challengeindex >= 3) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_WAREHOUSE, array, index, len);
+	}
+	if (challengeindex >= 4) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_GRID, array, index, len);
+	}
+	if (challengeindex >= 5) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_RUINS, array, index, len);
+	}
+	if (challengeindex >= 10) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_BASE, array, index, len);
+	}
+	if (challengeindex >= 15) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_FORTRESS, array, index, len);
+	}
+	if (challengeindex >= 20) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_VILLA, array, index, len);
+	}
+	if (challengeindex >= 25) {
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_TEMPLE, array, index, len);
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_COMPLEX, array, index, len);
+		index = challengeForceUnlockFeature(MPFEATURE_STAGE_FELICITY, array, index, len);
+	}
+
 	// Clear the remainder of the array
 	for (i = index; i < len; i++) {
 		array[i] = 0;

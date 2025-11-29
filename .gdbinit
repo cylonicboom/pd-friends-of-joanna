@@ -16,6 +16,13 @@ define setup
 end
 
 set args \
+  --moddir $PD_MODDIR/mod_fojo \
+  --savedir $PD_SAVEDIR \
+  --basedir $PD_BASEDIR \
+  --rom-file $PD_ROMFILE \
+  --skip-intro
+
+set args \
   --moddir $PD_MODDIR/mod_aio \
   --moddir $PD_MODDIR/mod_gex \
   --moddir $PD_MODDIR/mod_kakariko \

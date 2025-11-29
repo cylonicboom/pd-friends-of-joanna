@@ -31,6 +31,7 @@
 #include "game/env.h"
 #include "game/lv.h"
 #include "game/music.h"
+#include "game/file.h"
 #include "game/training.h"
 #include "game/gamefile.h"
 #include "game/lang.h"
@@ -38,6 +39,7 @@
 #include "game/options.h"
 #include "game/propobj.h"
 #include "game/mpstats.h"
+#include "game/mplayer/setup.h"
 #include "bss.h"
 #include "lib/main.h"
 #include "lib/model.h"
@@ -8929,12 +8931,21 @@ bool aiDetectAIO(void)
 {
 	// this is is intended to be run early in the level
 	// because Mikado is pre-loaded in ci-training.
-	// going a gender check on HEAD_GREY is a quick and dirty way to detect if AIO is present
+	// Check the actual file size of FILE_CHEADGREY to detect if AIO is present
+	// (AIO replaces the alien head model with Japanese Jo)
 
-	g_AIOPresent = 0; // Default to no AIO if HEAD_GREY is invalid for some stupid reason
-	if (HEAD_GREY >= 0 && HEAD_GREY < ARRAYCOUNT(g_HeadsAndBodies)) {
-		g_AIOPresent = g_HeadsAndBodies[HEAD_GREY].ismale ? 0 : 1;
+	g_AIOPresent = 0; // Default to no AIO
+	
+	s32 fileSize = fileGetRomSize(FILE_CHEADGREY);
+	
+	// Vanilla alien head: 3,723 bytes
+	// AIO Japanese Jo head: 6,944 bytes
+	// Use 5,000 as threshold to distinguish them
+	if (fileSize > 5000) {
+		g_AIOPresent = 1;
 	}
+	
+	mpSetArenaMode(g_AIOPresent);
 	g_Vars.aioffset += 2;
 	return false;
 }

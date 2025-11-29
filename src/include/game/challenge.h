@@ -6,6 +6,7 @@
 
 extern u32 g_MpChallengeIndex;
 extern struct mpconfigfull *g_MpCurrentChallengeConfig;
+extern u8 g_MpFeaturesUnlocked[80];
 
 void challengesInit(void);
 

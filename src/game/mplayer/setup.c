@@ -106,7 +106,31 @@ struct menudialogdef g_MpDropOutMenuDialog = {
 	NULL,
 };
 
-struct mparena g_MpArenas[] = {
+
+// HACK: degrade to AIO if Japanese Jo doesn't malefail during typing sequence
+struct mparena g_MpArenas_Vanilla[] = {
+	// Stage, unlock, name
+	{ STAGE_MP_SKEDAR,     0,                          L_MPMENU_119 },
+	{ STAGE_MP_PIPES,      0,                          L_MPMENU_120 },
+	{ STAGE_MP_RAVINE,     MPFEATURE_STAGE_RAVINE,     L_MPMENU_121 },
+	{ STAGE_MP_G5BUILDING, MPFEATURE_STAGE_G5BUILDING, L_MPMENU_122 },
+	{ STAGE_MP_SEWERS,     MPFEATURE_STAGE_SEWERS,     L_MPMENU_123 },
+	{ STAGE_MP_WAREHOUSE,  MPFEATURE_STAGE_WAREHOUSE,  L_MPMENU_124 },
+	{ STAGE_MP_GRID,       MPFEATURE_STAGE_GRID,       L_MPMENU_125 },
+	{ STAGE_MP_RUINS,      MPFEATURE_STAGE_RUINS,      L_MPMENU_126 },
+	{ STAGE_MP_AREA52,     0,                          L_MPMENU_127 },
+	{ STAGE_MP_BASE,       MPFEATURE_STAGE_BASE,       L_MPMENU_128 },
+	{ STAGE_MP_FORTRESS,   MPFEATURE_STAGE_FORTRESS,   L_MPMENU_130 },
+	{ STAGE_MP_VILLA,      MPFEATURE_STAGE_VILLA,      L_MPMENU_131 },
+	{ STAGE_MP_CARPARK,    MPFEATURE_STAGE_CARPARK,    L_MPMENU_132 },
+	{ STAGE_MP_TEMPLE,     MPFEATURE_STAGE_TEMPLE,     L_MPMENU_133 },
+	{ STAGE_MP_COMPLEX,    MPFEATURE_STAGE_COMPLEX,    L_MPMENU_134 },
+	{ STAGE_MP_FELICITY,   MPFEATURE_STAGE_FELICITY,   L_MPMENU_135 },
+	{ 1,                   0,                          L_MPMENU_136 }, // "Random"
+};
+
+// HACK: full AIO list of stages
+struct mparena g_MpArenas_AIO[] = {
 	// Stage, unlock, name
 	{ STAGE_MP_SKEDAR,     0,                          L_MPMENU_119 },
 	{ STAGE_MP_PIPES,      0,                          L_MPMENU_120 },
@@ -205,8 +229,21 @@ struct mparena g_MpArenas[] = {
 	{ 1,                   0,                          L_MPMENU_136 }, // "Random"
 };
 
+struct mparena* g_MpArenas = g_MpArenas_AIO;
+
+// Helper function to switch between vanilla and AIO arena lists
+void mpSetArenaMode(bool useAIO)
+{
+	g_MpArenas = useAIO ? g_MpArenas_AIO : g_MpArenas_Vanilla;
+}
+
 s32 mpGetNumStages(void)
 {
+	// Determine which arena list is active
+	if (g_MpArenas == g_MpArenas_Vanilla) {
+		return ARRAYCOUNT(g_MpArenas_Vanilla);
+	}
+
 #ifdef PLATFORM_N64
 	return 17;
 #else // All Solos in Multi Mod (71 Stage + 4 Random)
@@ -337,20 +374,35 @@ s16 mpChooseRandomGexStage(void)
 
 MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	struct optiongroup groups[] = {
+	// Vanilla groups (17 arenas)
+	static struct optiongroup groups_vanilla[] = {
 		{ 0,  L_MPMENU_116 }, // "Dark"
-#ifdef PLATFORM_N64
 		{ 13, L_MPMENU_117 }, // "Classic"
 		{ 16, L_MPMENU_118 }, // "Random"
-#else // All Solos in Multi Mod
+	};
+
+	// AIO groups (75 arenas)
+	static struct optiongroup groups_aio[] = {
+		{ 0,  L_MPMENU_116  }, // "Dark"
 		{ 13, L_OPTIONS_117 }, // "Solo Missions"
 		{ 27, L_MPMENU_117  }, // "Classic"
 		{ 32, L_MPMENU_296  }, // "GoldenEye X"
 		{ 43, L_MPMENU_297  }, // "GoldenEye X Bonus"
 		{ 55, L_MPMENU_326  }, // "Bonus"
 		{ 71, L_MPMENU_118  }, // "Random"
-#endif
 	};
+
+	// Select which groups array to use based on active arena list
+	struct optiongroup *groups;
+	s32 numgroups;
+	
+	if (g_MpArenas == g_MpArenas_Vanilla) {
+		groups = groups_vanilla;
+		numgroups = ARRAYCOUNT(groups_vanilla);
+	} else {
+		groups = groups_aio;
+		numgroups = ARRAYCOUNT(groups_aio);
+	}
 
 	s32 i;
 	s32 count = 0;
@@ -358,7 +410,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
-		for (i = 0; i < ARRAYCOUNT(g_MpArenas); i++) {
+		for (i = 0; i < mpGetNumStages(); i++) {
 			if (challengeIsFeatureUnlocked(g_MpArenas[i].requirefeature)) {
 				count++;
 			}
@@ -367,7 +419,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 		data->list.value = count;
 		break;
 	case MENUOP_GETOPTIONTEXT:
-		for (i = 0; i < ARRAYCOUNT(g_MpArenas); i++) {
+		for (i = 0; i < mpGetNumStages(); i++) {
 			if (challengeIsFeatureUnlocked(g_MpArenas[i].requirefeature)) {
 				if (count == data->list.value) {
 					return (uintptr_t)langGet(g_MpArenas[i].name);
@@ -378,7 +430,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 		}
 		break;
 	case MENUOP_SET:
-		for (i = 0; i < ARRAYCOUNT(g_MpArenas); i++) {
+		for (i = 0; i < mpGetNumStages(); i++) {
 			if (challengeIsFeatureUnlocked(g_MpArenas[i].requirefeature)) {
 				if (count == data->list.value) {
 					break;
@@ -391,7 +443,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 		g_MpSetup.stagenum = g_MpArenas[i].stagenum;
 		break;
 	case MENUOP_GETSELECTEDINDEX:
-		for (i = 0; i < ARRAYCOUNT(g_MpArenas); i++) {
+		for (i = 0; i < mpGetNumStages(); i++) {
 			if (g_MpSetup.stagenum == g_MpArenas[i].stagenum) {
 				data->list.value = count;
 			}
@@ -402,31 +454,29 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 		}
 		break;
 	case MENUOP_GETOPTGROUPCOUNT:
-#ifdef PLATFORM_N64
-		data->list.value = 3;
-#else // All Solos in Multi Mod
-		data->list.value = 7;
-#endif
+		data->list.value = numgroups;
 
-#ifdef PLATFORM_N64 // All Solos in Multi Mod
-		if (!challengeIsFeatureUnlocked(MPFEATURE_STAGE_COMPLEX)
-				&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_TEMPLE)
-				&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_FELICITY)) {
-			data->list.value--;
+		// For vanilla mode, hide "Classic" group if all classic stages are locked
+		if (g_MpArenas == g_MpArenas_Vanilla) {
+			if (!challengeIsFeatureUnlocked(MPFEATURE_STAGE_COMPLEX)
+					&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_TEMPLE)
+					&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_FELICITY)) {
+				data->list.value--;
+			}
 		}
-#endif
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
 		count = data->list.value;
 
-#ifdef PLATFORM_N64 // All Solos in Multi Mod
-		if (!challengeIsFeatureUnlocked(MPFEATURE_STAGE_COMPLEX)
-				&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_TEMPLE)
-				&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_FELICITY)
-				&& count > 0) {
-			count++;
+		// For vanilla mode, adjust index if "Classic" group is hidden
+		if (g_MpArenas == g_MpArenas_Vanilla) {
+			if (!challengeIsFeatureUnlocked(MPFEATURE_STAGE_COMPLEX)
+					&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_TEMPLE)
+					&& !challengeIsFeatureUnlocked(MPFEATURE_STAGE_FELICITY)
+					&& count > 0) {
+				count++;
+			}
 		}
-#endif
 		return (uintptr_t)langGet(groups[count].name);
 	case MENUOP_GETGROUPSTARTINDEX:
 		groupindex = data->list.value;
@@ -2533,7 +2583,7 @@ char *mpMenuTextMpconfigMarquee(struct menuitem *item)
 		mpsetupfileGetOverview(g_MpSetupFile.setups[g_Menus[g_MpPlayerNum].mpsetup.slotindex].bytes,
 				filename, &numsims, &stagenum, &scenarionum);
 
-		for (i = 0; i < ARRAYCOUNT(g_MpArenas); i++) {
+		for (i = 0; i < mpGetNumStages(); i++) {
 			if (g_MpArenas[i].stagenum == stagenum) {
 				arenanum = i;
 			}
@@ -5316,7 +5366,7 @@ char *mpMenuTextArenaName(struct menuitem *item)
 {
 	s32 i;
 
-	for (i = 0; i != ARRAYCOUNT(g_MpArenas); i++) {
+	for (i = 0; i != mpGetNumStages(); i++) {
 		if (g_MpArenas[i].stagenum == g_MpSetup.stagenum) {
 			return langGet(g_MpArenas[i].name);
 		}
