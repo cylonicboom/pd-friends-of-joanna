@@ -1993,6 +1993,13 @@ s32 fojoHeadnumToMpheadnum(s32 headnum)
 s32 fojoGetPlayerHead(s32 playernum)
 {
 	s32 cshead = g_PlayerConfigsArray[playernum].base.mpheadnum;
+	s32 maxheads = mpGetNumHeads2();
+
+	// Clamp to valid range
+	if (cshead < 0 || cshead >= maxheads) {
+		cshead = 0; // Default to Joanna
+	}
+
 	s32 headnum = mpGetHeadId(cshead);
 
 	// If CS head is female, return it as-is
@@ -2077,7 +2084,23 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		break;
 
 	case MENUOP_SET:
-		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = data->carousel.value;
+		// Initialize head options if needed for bounds checking
+		if (g_FojoHeadCount == 0) {
+			fojoInitHeadOptions();
+		}
+
+		maxindex = g_FojoHeadCount + 1;
+		selectedindex = data->carousel.value;
+
+		// Handle wrapping: -1 wraps to last option
+		if (selectedindex < 0) {
+			selectedindex = maxindex - 1;
+		} else if (selectedindex >= maxindex) {
+			selectedindex = 0;
+		}
+
+		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = selectedindex;
+		data->carousel.value = selectedindex;
 		// Fall through to MENUOP_FOCUS
 	case MENUOP_FOCUS:
 		// Initialize head options if needed

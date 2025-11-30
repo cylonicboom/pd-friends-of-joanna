@@ -2375,7 +2375,11 @@ MenuItemHandlerResult mpCharacterHeadMenuHandler(s32 operation, struct menuitem 
 
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
+		// Filter HEAD_GREY (index 0x4b/75) when AIO not detected
 		data->carousel.value = mpGetNumHeads2();
+		if (!g_AIOPresent && data->carousel.value > 75) {
+			data->carousel.value = 75; // Exclude HEAD_GREY
+		}
 		break;
 	case MENUOP_11:
 #if VERSION >= VERSION_PAL_BETA
@@ -2405,6 +2409,10 @@ MenuItemHandlerResult mpCharacterHeadMenuHandler(s32 operation, struct menuitem 
 		g_Menus[g_MpPlayerNum].menumodel.zoom = 30;
 		break;
 	case MENUOP_21:
+		// Skip HEAD_GREY when AIO not present
+		if (!g_AIOPresent && data->carousel.value >= 75) {
+			return 1;
+		}
 		if (!challengeIsFeatureUnlocked(mpGetHeadRequiredFeature(data->carousel.value))) {
 			return 1;
 		}

@@ -327,6 +327,14 @@ static inline s32 mpExtendedProfileRegister(struct fileguid *fileguid, s32 arg0,
 		}
 		if (playerslug) configLoadKey(CONFIG_PATH, key);
 	}
+	
+	// Validate player head after profile load - filter HEAD_GREY if AIO not present
+	if (playernum >= 0 && playernum < MAX_PLAYERS) {
+		// If AIO not present and head is HEAD_GREY (index 75), clamp to previous head
+		if (!g_AIOPresent && g_PlayerConfigsArray[playernum].base.mpheadnum >= 75) {
+			g_PlayerConfigsArray[playernum].base.mpheadnum = 74; // WINNER head (last valid vanilla+MOTO head)
+		}
+	}
 
 	return configindex;
 }
