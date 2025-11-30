@@ -33,6 +33,7 @@
 #include "lib/main.h"
 #include "lib/snd.h"
 #include "lib/str.h"
+#include "lib/rng.h"
 #include "data.h"
 #include "types.h"
 
@@ -43,6 +44,13 @@
 
 u8 g_InventoryWeapon;
 extern struct menuitem g_MpPlayerSetup4MbMenuItems[];
+extern u32 g_MpFemaleHeads[];
+
+// Forward declarations for female head carousel
+MenuItemHandlerResult menuhandlerTeamOperativeHeadPlayer1(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamOperativeHeadPlayer2(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamOperativeHeadPlayer3(s32 operation, struct menuitem *item, union handlerdata *data);
+MenuItemHandlerResult menuhandlerTeamOperativeHeadPlayer4(s32 operation, struct menuitem *item, union handlerdata *data);
 
 void strTrimToFirstNewline(char* in, char* out, s32 len)
 {
@@ -1731,120 +1739,414 @@ struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
 	NULL,
 };
 
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer1(s32 operation, struct menuitem *item, union handlerdata *data);
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer2(s32 operation, struct menuitem *item, union handlerdata *data);
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer3(s32 operation, struct menuitem *item, union handlerdata *data);
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer4(s32 operation, struct menuitem *item, union handlerdata *data);
+// Forward declarations for Friends of Joanna carousel
+void fojoInitHeadOptions(void);
+s32 fojoGetPlayerHead(s32 playernum);
+char *fojoGetHeadName(s32 optionindex);
+char *fojoMenuTextHeadName(struct menuitem *item);
+char *fojoMenuTextDeathCount(struct menuitem *item);
+MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuitem *item, union handlerdata *data);
 
 struct menuitem g_TeamOperativeModelMenuItems[] = {
 	{
-		MENUITEMTYPE_DROPDOWN,
+		MENUITEMTYPE_LABEL,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)g_PlayerNames[0],
+		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_DARKERBG,
+		(uintptr_t)&fojoMenuTextHeadName,
 		0,
-		menuhandlerTeamOperativeModelPlayer1,
-	}, // ""
+		NULL,
+	},
 	{
-		MENUITEMTYPE_DROPDOWN,
+		MENUITEMTYPE_LABEL,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)g_PlayerNames[1],
+		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_DARKERBG,
+		(uintptr_t)&fojoMenuTextDeathCount,
 		0,
-		menuhandlerTeamOperativeModelPlayer2,
-	}, // ""
+		NULL,
+	},
 	{
-		MENUITEMTYPE_DROPDOWN,
+		MENUITEMTYPE_CAROUSEL,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)g_PlayerNames[2],
 		0,
-		menuhandlerTeamOperativeModelPlayer3,
-	}, // ""
-	{
-		MENUITEMTYPE_DROPDOWN,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)g_PlayerNames[3],
-		0,
-		menuhandlerTeamOperativeModelPlayer4,
-	}, // ""
-	{ MENUITEMTYPE_END }, // ""
+		0x00000022,
+		menuhandlerTeamOperativeHead,
+	},
+	{ MENUITEMTYPE_END },
 };
 
 
 struct menudialogdef g_TeamMissionsOperativeModelMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
-	(uintptr_t)"Operative Model", // "Operative Model
+	(uintptr_t)"Friend of Joanna",
 	g_TeamOperativeModelMenuItems,
-	menudialogTeamCoopAntiOptions, // technically reloads the player names so okay
-	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	menudialogTeamCoopAntiOptions,
+	MENUDIALOGFLAG_0002 | MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
 
-// enum for g_TeamOperativeModelNames
-enum fojo_models{
-	TEAMOPERATIVEMODEL_JOANNA,
-	TEAMOPERATIVEMODEL_VELVET,
-	TEAMOPERATIVEMODEL_MIKADO,
-	TEAMOPERATIVEMODEL_POPLIN,
-};
+// Female-only head indices for Friends of Joanna carousel
+// These map to mpheadnum values from Combat Simulator
+#define FOJO_HEAD_JOANNA    MPHEAD_DARK_COMBAT  // 0x00 - Joanna Dark
+#define FOJO_HEAD_VELVET    MPHEAD_VD           // 0x0b - Velvet Dark
+#define FOJO_HEAD_MIKADO    0x4b                // Japanese Jo (from AIO detection)
+#define FOJO_HEAD_POPLIN    MPHEAD_ANKA    // 0x03 - Poplin Dark (stub in Anka for now)
 
-// TODO: display in dropdown as "Joanna-(number of deaths) / Velvet-(number of deaths) / Mikado-(number of deaths) / Poplin-(number of deaths)"
-char *g_TeamOperativeModelNames[] = {
-	"Joanna\0", // N64 Jo
-	"Velvet\0", // Velvet
-	"Mikado\0", // Japanese Jo
-	"Poplin\0"  // Gbc / beta Jo (unimplemented - needs head + tall jo body)
-};
+// Array of female heads for the carousel (max 5 slots: up to 4 fixed + player's CS head)
+// Last slot is for player's CS head, Mikado slot is conditional on AIO
+u8 g_FojoHeadOptions[5] = {0};
+s32 g_FojoHeadCount = 0;
 
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum)
+// Cache for converted male->female heads per player
+s32 g_FojoPlayerHeadCache[MAX_PLAYERS] = {-1, -1, -1, -1};
+// Track which CS head was used to generate the cache
+s32 g_FojoPlayerHeadSource[MAX_PLAYERS] = {-1, -1, -1, -1};
+
+// Function for the second label to display serial number flavor text
+char *fojoMenuTextDeathCount(struct menuitem *item)
 {
+	static char buffer[64];
+
+	// Initialize if needed
+	if (g_FojoHeadCount == 0) {
+		fojoInitHeadOptions();
+	}
+
+	s32 selectedindex = g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex;
+	s32 maxindex = g_FojoHeadCount + 1;
+
+	// Ensure valid index
+	if (selectedindex < 0 || selectedindex >= maxindex) {
+		selectedindex = 0;
+	}
+
+	u32 deaths = g_PlayerConfigsArray[g_MpPlayerNum].deaths;
+
+	if (selectedindex == g_FojoHeadCount) {
+		// CS Profile: <first2+last2_hex>-<deviceid|fileid>-<deathcount>
+		char *profilename = g_PlayerConfigsArray[g_MpPlayerNum].base.name;
+		s32 fileid = g_PlayerConfigsArray[g_MpPlayerNum].fileguid.fileid;
+		u32 deviceserial = g_PlayerConfigsArray[g_MpPlayerNum].fileguid.deviceserial;
+
+		// Combine deviceserial and fileid
+		u64 combined = ((u64)deviceserial << 32) | (u32)fileid;
+
+		// Convert name to full hex, then extract first 2 and last 2 hex digits
+		char fullhex[9] = {0};
+		s32 namelen = 0;
+		for (s32 i = 0; i < 4 && profilename[i] != '\0' && profilename[i] != '\n'; i++) {
+			sprintf(&fullhex[i * 2], "%02x", (u8)profilename[i]);
+			namelen++;
+		}
+
+		// Build first field: first 2 + last 2 hex chars
+		char namefield[5] = {0};
+		if (namelen > 0) {
+			namefield[0] = fullhex[0];
+			namefield[1] = fullhex[1];
+			s32 hexlen = namelen * 2;
+			namefield[2] = fullhex[hexlen - 2];
+		namefield[3] = fullhex[hexlen - 1];
+	}
+
+	sprintf(buffer, "Employee #%s-%llx-%u", namefield, combined, deaths);		// Compress consecutive '00' to '0' in the middle field
+		char *src = buffer;
+		char *dst = buffer;
+		bool changed;
+		do {
+			changed = false;
+			src = dst = buffer;
+			while (*src) {
+				if (src[0] == '0' && src[1] == '0' && src > buffer && src[-1] != '-' && src[2] != '-' && src[2] != '\0') {
+					*dst++ = '0';
+					src += 2;
+					changed = true;
+				} else {
+					*dst++ = *src++;
+				}
+			}
+			*dst = '\0';
+		} while (changed);
+	} else {
+		// Fixed head: <mpheadnum_shifted>-<bodyindex>-<deathcount>
+		s32 mpheadnum = g_FojoHeadOptions[selectedindex];
+		u32 shifted = mpheadnum << selectedindex;
+	u8 bodynum = g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum;
+	s32 bodyindex = mpGetBodyId(bodynum);
+
+	sprintf(buffer, "CI Combat Unit #%04x-%x-%u", shifted, bodyindex, deaths);		// Compress consecutive '00' to '0' in the middle field
+		char *src = buffer;
+		char *dst = buffer;
+		bool changed;
+		do {
+			changed = false;
+			src = dst = buffer;
+			while (*src) {
+				if (src[0] == '0' && src[1] == '0' && src > buffer && src[-1] != '-' && src[2] != '-' && src[2] != '\0') {
+					*dst++ = '0';
+					src += 2;
+					changed = true;
+				} else {
+					*dst++ = *src++;
+				}
+			}
+			*dst = '\0';
+		} while (changed);
+	}
+
+	return buffer;
+}
+
+// Function for the label to display current head name
+char *fojoMenuTextHeadName(struct menuitem *item)
+{
+	// Initialize if needed
+	if (g_FojoHeadCount == 0) {
+		fojoInitHeadOptions();
+	}
+
+	// Update last slot
+	g_FojoHeadOptions[g_FojoHeadCount] = fojoGetPlayerHead(g_MpPlayerNum);
+
+	s32 selectedindex = g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex;
+	s32 maxindex = g_FojoHeadCount + 1;
+
+	// Ensure valid index
+	if (selectedindex < 0 || selectedindex >= maxindex) {
+		selectedindex = 0;
+		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = 0;
+	}
+
+	return fojoGetHeadName(selectedindex);
+}
+
+// Get the name for a head option in the carousel
+char *fojoGetHeadName(s32 optionindex)
+{
+	static char buffer[64];
+
+	if (optionindex < 0 || optionindex >= g_FojoHeadCount + 1) {
+		return "Unknown";
+	}
+
+	if (optionindex == g_FojoHeadCount) {
+		// Last slot is player's CS head - display profile name
+		char *profilename = g_PlayerConfigsArray[g_MpPlayerNum].base.name;
+
+		// Copy name without newline/null terminator issues
+		s32 i = 0;
+		while (i < 11 && profilename[i] != '\0' && profilename[i] != '\n') {
+			buffer[i] = profilename[i];
+			i++;
+		}
+		buffer[i] = '\0';
+
+		return buffer;
+	}
+
+	// Fixed heads
+	s32 mpheadnum = g_FojoHeadOptions[optionindex];
+
+	switch (mpheadnum) {
+	case FOJO_HEAD_JOANNA:
+		return "Joanna Dark";
+	case FOJO_HEAD_VELVET:
+		return "Velvet Dark";
+	case FOJO_HEAD_MIKADO:
+		return "Mikado Dark";
+	case FOJO_HEAD_POPLIN:
+		return "Poplin Dark";
+	default:
+		return "Unknown";
+	}
+}
+
+// Initialize the head options array based on AIO detection
+void fojoInitHeadOptions(void)
+{
+	g_FojoHeadCount = 0;
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_JOANNA;
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_VELVET;
+
+	// Only include Mikado if AIO is detected
+	if (g_AIOPresent) {
+		g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_MIKADO;
+	}
+
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_POPLIN;
+	// Last slot reserved for player's CS head (added in fojoGetPlayerHead)
+}
+
+// Convert a HEAD_ constant to mpheadnum by searching g_MpHeads
+s32 fojoHeadnumToMpheadnum(s32 headnum)
+{
+	for (s32 i = 0; i < mpGetNumHeads2(); i++) {
+		if (mpGetHeadId(i) == headnum) {
+			return i;
+		}
+	}
+	return 0; // Default to Joanna
+}
+
+// Get the appropriate female head for a player
+// If player's CS head is male, return a female alternative
+s32 fojoGetPlayerHead(s32 playernum)
+{
+	s32 cshead = g_PlayerConfigsArray[playernum].base.mpheadnum;
+	s32 headnum = mpGetHeadId(cshead);
+
+	// If CS head is female, return it as-is
+	if (headnum >= 0 && headnum < ARRAYCOUNT(g_HeadsAndBodies)) {
+		if (!g_HeadsAndBodies[headnum].ismale) {
+			return cshead;
+		}
+	}
+
+	// CS head is male, convert to female
+	// Invalidate cache if CS head changed
+	if (g_FojoPlayerHeadSource[playernum] != cshead) {
+		g_FojoPlayerHeadCache[playernum] = -1;
+		g_FojoPlayerHeadSource[playernum] = cshead;
+	}
+
+	// Use cached conversion if available
+	if (g_FojoPlayerHeadCache[playernum] < 0) {
+		// 🧀
+		if (cshead == (((1) << 5 ) + (2 << 1))) {
+			g_FojoPlayerHeadCache[playernum] = (1 << 3);
+		} else {
+			// Pick a random female head from all available female CS heads
+			// g_MpFemaleHeads contains 7 female HEAD_ constants, convert to mpheadnum
+			s32 randomIndex = rngRandom() % 7;
+			s32 femaleHeadnum = g_MpFemaleHeads[randomIndex];
+			g_FojoPlayerHeadCache[playernum] = fojoHeadnumToMpheadnum(femaleHeadnum);
+		}
+	}
+	return g_FojoPlayerHeadCache[playernum];
+}
+
+MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	f32 diffframe;
+	s32 headnum;
+	s32 maxindex;
+	s32 selectedindex;
+
+	static struct modelpartvisibility visibility[] = {
+		{ MODELPART_HEAD_SUNGLASSES, false },
+		{ MODELPART_HEAD_EYESCLOSED, false },
+		{ MODELPART_HEAD_HUDPIECE,   false },
+		{ 255, false },
+	};
+
 	switch (operation) {
-	case MENUOP_CHECKDISABLED:
-		if (!g_Vars.playerroles[playernum]) {
-			return true;
+	case MENUOP_GETOPTIONCOUNT:
+		// Initialize head options if not already done
+		if (g_FojoHeadCount == 0) {
+			fojoInitHeadOptions();
+		}
+		// Fixed options + 1 for player's CS profile head
+		data->carousel.value = g_FojoHeadCount + 1;
+		break;
+
+	case MENUOP_11:
+		// Update the last slot with player's appropriate head
+		g_FojoHeadOptions[g_FojoHeadCount] = fojoGetPlayerHead(g_MpPlayerNum);
+
+		// Rotate model and update head
+		diffframe = g_Menus[g_MpPlayerNum].menumodel.curroty + 0.01f * g_Vars.diffframe60freal;
+		g_Menus[g_MpPlayerNum].menumodel.newroty = diffframe;
+		g_Menus[g_MpPlayerNum].menumodel.curroty = diffframe;
+
+		// Get the carousel value being selected (passed via data parameter)
+		selectedindex = data->carousel.value;
+		maxindex = g_FojoHeadCount + 1;
+		if (selectedindex >= 0 && selectedindex < maxindex) {
+			s32 mpheadnum = g_FojoHeadOptions[selectedindex];
+			headnum = mpGetHeadId(mpheadnum);
+
+			if (headnum >= 0) {
+				g_Menus[g_MpPlayerNum].menumodel.newparams = MENUMODELPARAMS_SET_FILENUM(g_HeadsAndBodies[headnum].filenum);
+				g_Menus[g_MpPlayerNum].menumodel.isperfecthead = false;
+			}
+		}
+
+		g_Menus[g_MpPlayerNum].menumodel.zoomtimer60 = 0;
+		g_Menus[g_MpPlayerNum].menumodel.partvisibility = visibility;
+		g_Menus[g_MpPlayerNum].menumodel.zoom = 30;
+		break;
+
+	case MENUOP_SET:
+		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = data->carousel.value;
+		// Fall through to MENUOP_FOCUS
+	case MENUOP_FOCUS:
+		// Initialize head options if needed
+		if (g_FojoHeadCount == 0) {
+			fojoInitHeadOptions();
+		}
+
+		// Update last slot with converted head
+		g_FojoHeadOptions[g_FojoHeadCount] = fojoGetPlayerHead(g_MpPlayerNum);
+
+		g_Menus[g_MpPlayerNum].menumodel.loaddelay = 3;
+
+		menuConfigureModel(&g_Menus[g_MpPlayerNum].menumodel, 0, 0, 0, 0, 0, 0, 1, MENUMODELFLAG_HASSCALE);
+
+		g_Menus[g_MpPlayerNum].menumodel.curposx = 0;
+		g_Menus[g_MpPlayerNum].menumodel.curposy = 0;
+
+		g_Menus[g_MpPlayerNum].menumodel.newposx = 0;
+		g_Menus[g_MpPlayerNum].menumodel.newposy = -3;
+
+		g_Menus[g_MpPlayerNum].menumodel.curscale = 0.01f;
+
+		g_Menus[g_MpPlayerNum].menumodel.curroty = -0.3f;
+		g_Menus[g_MpPlayerNum].menumodel.newroty = -0.3f;
+
+		g_Menus[g_MpPlayerNum].menumodel.newscale = 1;
+		g_Menus[g_MpPlayerNum].menumodel.zoom = 30;
+
+		// Load the initial head model
+		selectedindex = g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex;
+		maxindex = g_FojoHeadCount + 1;
+		if (selectedindex >= 0 && selectedindex < maxindex) {
+			s32 mpheadnum = g_FojoHeadOptions[selectedindex];
+			headnum = mpGetHeadId(mpheadnum);
+
+			if (headnum >= 0) {
+				g_Menus[g_MpPlayerNum].menumodel.newparams = MENUMODELPARAMS_SET_FILENUM(g_HeadsAndBodies[headnum].filenum);
+				g_Menus[g_MpPlayerNum].menumodel.isperfecthead = false;
+			}
+		}
+
+		g_Menus[g_MpPlayerNum].menumodel.zoomtimer60 = 0;
+		g_Menus[g_MpPlayerNum].menumodel.partvisibility = visibility;
+		break;
+
+	case MENUOP_GETSELECTEDINDEX:
+		// Initialize head options if needed
+		if (g_FojoHeadCount == 0) {
+			fojoInitHeadOptions();
+		}
+
+		maxindex = g_FojoHeadCount + 1;
+		data->carousel.value = g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex;
+
+		// Initialize to 0 if invalid or unset
+		if (data->carousel.value < 0 || data->carousel.value >= maxindex) {
+			data->carousel.value = 0;
+			g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = 0;
 		}
 		break;
-	case MENUOP_GETOPTIONCOUNT:
-		data->dropdown.value = 4; // Joanna, Velvet, Mikado, Poplin (unimplemented)
-		break;
+
 	case MENUOP_GETOPTIONTEXT:
-		return (uintptr_t)g_TeamOperativeModelNames[playernum];
-		break;
-	case MENUOP_SET:
-		g_PlayerConfigsArray[playernum].teamagentindex = data->dropdown.value;
-		break;
-	case MENUOP_GETSELECTEDINDEX:
-		break;
+		// Update last slot before returning name
+		g_FojoHeadOptions[g_FojoHeadCount] = fojoGetPlayerHead(g_MpPlayerNum);
+		return (uintptr_t)fojoGetHeadName(data->carousel.value);
 	}
 
 	return 0;
-}
-
-
-
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer1(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 0);
-}
-
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer2(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 1);
-}
-
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer3(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 2);
-}
-
-MenuItemHandlerResult menuhandlerTeamOperativeModelPlayer4(s32 operation, struct menuitem *item, union handlerdata *data)
-{
-	 return menuhandlerTeamOperativeModelPlayer(operation, item, data, 3);
-}
-
-MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct menuitem *item, union handlerdata *data)
+}MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 
 	switch (operation) {

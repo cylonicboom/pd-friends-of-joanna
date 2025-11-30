@@ -2455,6 +2455,14 @@ char *mpMenuTextBodyName(struct menuitem *item)
 	return mpGetBodyName(g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum);
 }
 
+char *mpMenuTextHeadIndex(struct menuitem *item)
+{
+	static char buffer[16];
+	s32 mpheadnum = g_PlayerConfigsArray[g_MpPlayerNum].base.mpheadnum;
+	sprintf(buffer, "0x%02x", mpheadnum);
+	return buffer;
+}
+
 void func0f17b8f0(void)
 {
 	func0f0f139c(g_MpCharacterMenuItems, -0.4f);
@@ -2884,6 +2892,14 @@ struct menuitem g_MpCharacterMenuItems[] = {
 		0,
 		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_DARKERBG,
 		(uintptr_t)&mpMenuTextBodyName,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_LABEL,
+		0,
+		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_DARKERBG,
+		(uintptr_t)&mpMenuTextHeadIndex,
 		0,
 		NULL,
 	},
