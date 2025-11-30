@@ -38,6 +38,7 @@ struct menudialogdef g_MpSaveSetupNameMenuDialog;
 extern struct menudialogdef g_ManageSettingsDialog;
 extern struct menudialogdef g_FilemgrFileSavedMenuDialog;
 extern struct menudialogdef g_FilemgrErrorMenuDialog;
+extern struct menudialogdef g_TeamMissionsOperativeModelMenuDialog;
 
 #ifndef PLATFORM_N64
 extern s32 g_MpWeaponSetNum;
@@ -5960,6 +5961,14 @@ struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
 		L_MPMENU_030, // "Name"
 		(uintptr_t)&mpGetCurrentPlayerName,
 		(void *)&g_MpPlayerNameMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Operative Model",
+		0,
+		(void *)&g_TeamMissionsOperativeModelMenuDialog,
 	},
 	// tabling this for now
 	// becuase this is a rabbit hole of design decisions and work
