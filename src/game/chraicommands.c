@@ -28,7 +28,10 @@
 #include "game/weather.h"
 #include "game/bg.h"
 #include "game/stagetable.h"
+#include "mod.h"
+#include "fs.h"
 #include "game/env.h"
+#include <string.h>
 #include "game/lv.h"
 #include "game/music.h"
 #include "game/file.h"
@@ -8929,23 +8932,8 @@ bool aiIfSavefileFlagIsUnset(void)
  */
 bool aiDetectAIO(void)
 {
-	// this is is intended to be run early in the level
-	// because Mikado is pre-loaded in ci-training.
-	// Check the actual file size of FILE_CHEADGREY to detect if AIO is present
-	// (AIO replaces the alien head model with Japanese Jo)
-
-	g_AIOPresent = 0; // Default to no AIO
-	
-	s32 fileSize = fileGetRomSize(FILE_CHEADGREY);
-	
-	// Vanilla alien head: 3,723 bytes
-	// AIO Japanese Jo head: 6,944 bytes
-	// Use 5,000 as threshold to distinguish them
-	if (fileSize > 5000) {
-		g_AIOPresent = 1;
-	}
-	
-	mpSetArenaMode(g_AIOPresent);
+	// Detection is now done in mainInit/main
+	// Just advance the offset
 	g_Vars.aioffset += 2;
 	return false;
 }

@@ -13,7 +13,7 @@
 
 #include "preprocess/common.h"
 
-u8 *preprocessAnimations(u8* data, u32 size, u32* outSize)
+u8 *preprocessAnimations(u8* data, u32 size, u32* outSize, s32 modNum)
 {
 	// set the anim table pointers as well
 	extern u8 *_animationsTableRomStart;
@@ -42,7 +42,7 @@ u8 *preprocessAnimations(u8* data, u32 size, u32* outSize)
 	return NULL;
 }
 
-u8 *preprocessMpConfigs(u8* data, u32 size, u32* outSize)
+u8 *preprocessMpConfigs(u8* data, u32 size, u32* outSize, s32 modNum)
 {
 	const u32 count = size / sizeof(struct mpconfig);
 	struct mpconfig *cfg = (struct mpconfig *)data;
@@ -84,7 +84,7 @@ u8 *preprocessMpConfigs(u8* data, u32 size, u32* outSize)
 	return NULL;
 }
 
-u8 *preprocessTexturesList(u8* data, u32 size, u32* outSize)
+u8 *preprocessTexturesList(u8* data, u32 size, u32* outSize, s32 modNum)
 {
 	struct texture *tex = (struct texture *)data;
 	const u32 count = size / sizeof(*tex);

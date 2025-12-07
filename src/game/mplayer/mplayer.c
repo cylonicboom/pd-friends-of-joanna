@@ -327,7 +327,7 @@ static inline s32 mpExtendedProfileRegister(struct fileguid *fileguid, s32 arg0,
 		}
 		if (playerslug) configLoadKey(CONFIG_PATH, key);
 	}
-	
+
 	// Validate player head after profile load - filter HEAD_GREY if AIO not present
 	if (playernum >= 0 && playernum < MAX_PLAYERS) {
 		// If AIO not present and head is HEAD_GREY (index 75), clamp to previous head
@@ -427,7 +427,9 @@ void mpStartMatch(void)
 		stagenum = mpChooseRandomGexStage();
 	}
 
+	sysLogPrintf(LOG_NOTE, "mpStartMatch: calling modSwitch(-1, 0x%02x)", stagenum);
 	modSwitch(-1, stagenum);
+	g_NotLoadMod = false;
 	// Set textures surfacetype (Resets when multiplayer ends)
 #endif
 
@@ -972,7 +974,7 @@ s32 mpGetPlayerRankings(struct ranking *rankings)
 	struct mpchrconfig *mpchrs[MAX_MPCHRS];
 	s32 chrnums[MAX_MPCHRS];
 	s32 count = 0;
-	s32 numteams;
+	s32 numteams = 0;
 	struct ranking teamrankings[MAX_MPCHRS];
 	s32 winner;
 	s32 loser;
@@ -1625,13 +1627,15 @@ Gfx *mpRenderModalText(Gfx *gdl)
 #endif
 
 		gdl = text0f153780(gdl);
-	} else if (!g_MainIsEndscreen
+	}
+
+	if (!g_MainIsEndscreen
 			&& g_MpSetup.paused == MPPAUSEMODE_UNPAUSED
 			&& g_Vars.currentplayer->isdead
 			&& g_Vars.currentplayer->redbloodfinished
 			&& g_Vars.currentplayer->deathanimfinished
-			&& !(g_Vars.coopplayernum >= 0 && ((g_Vars.bond->isdead && g_Vars.coop->isdead) || !g_Vars.currentplayer->coopcanrestart || g_InCutscene))
-			&& !(g_Vars.antiplayernum >= 0 && ((g_Vars.currentplayer != g_Vars.anti || g_InCutscene)))
+			&& !(g_Vars.coopplayers[g_Vars.currentplayernum] && (!g_Vars.currentplayer->coopcanrestart || g_InCutscene))
+			&& !(g_Vars.antiplayers[g_Vars.currentplayernum] && g_InCutscene)
 			&& g_NumReasonsToEndMpMatch == 0) {
 		// Render "Press START" text
 		gdl = text0f153628(gdl);
@@ -1996,7 +2000,7 @@ struct mphead g_MpBeauHeads[] = {
 	{ HEAD_BEAU6, 0 },
 };
 
-struct mphead g_MpHeads[] = {
+struct mphead g_MpHeadsOriginal[] = {
 	// head, require feature
 	{ /*0x00*/ HEAD_DARK_COMBAT,  0                          },
 	{ /*0x01*/ HEAD_DARK_FROCK,   MPFEATURE_CHR_CI           },
@@ -2076,9 +2080,14 @@ struct mphead g_MpHeads[] = {
 #endif
 	{ /*0x4a*/ HEAD_WINNER,       0                          },
 #ifndef PLATFORM_N64 // PD Plus Mod
-	{ /*0x4b*/ HEAD_GREY,         0                          }, // Joanna (JP version)
+	// { /*0x4b*/ HEAD_GREY,         0                          }, // Joanna (JP version)
 #endif
 };
+
+struct mphead *g_MpHeads = g_MpHeadsOriginal;
+s32 g_NumMpHeads = ARRAYCOUNT(g_MpHeadsOriginal);
+const s32 g_NumMpHeads_Original = ARRAYCOUNT(g_MpHeadsOriginal);
+
 
 u32 g_BotHeads[] = {
 	MPHEAD_JON,
@@ -2160,7 +2169,7 @@ struct botprofile g_BotProfiles[] = {
 	{ BOTTYPE_VENGE,   BOTDIFF_NORMAL,  L_MISC_105, MPBODY_ALASKAN_GUARD, 0                         },
 };
 
-struct mpbody g_MpBodies[] = {
+struct mpbody g_MpBodiesOriginal[] = {
 	// global body ID,                name,            head,             require feature
 	/*0x00*/ { BODY_DARK_COMBAT,      L_OPTIONS_016,   HEAD_DARK_COMBAT, 0                          },
 	/*0x01*/ { BODY_DARK_TRENCH,      L_OPTIONS_017,   HEAD_DARK_COMBAT, MPFEATURE_CHR_JOTRENCH     },
@@ -2228,6 +2237,11 @@ struct mpbody g_MpBodies[] = {
 	/*0x3b*/ { BODY_DALTON,           L_OPTIONS_070,   1000,             MPFEATURE_8BOTS            },
 	/*0x3c*/ { BODY_DJBOND,           L_OPTIONS_070,   1000,             MPFEATURE_8BOTS            },
 };
+
+struct mpbody *g_MpBodies = g_MpBodiesOriginal;
+s32 g_NumMpBodies = ARRAYCOUNT(g_MpBodiesOriginal);
+const s32 g_NumMpBodies_Original = ARRAYCOUNT(g_MpBodiesOriginal);
+
 
 u32 g_MpMaleHeads[] = {
 	HEAD_JON,
@@ -2799,12 +2813,12 @@ void mpEndMatch(void)
 
 s32 mpGetNumHeads2(void)
 {
-	return ARRAYCOUNT(g_MpHeads);
+	return g_NumMpHeads;
 }
 
 s32 mpGetNumHeads(void)
 {
-	return ARRAYCOUNT(g_MpHeads);
+	return g_NumMpHeads;
 }
 
 s32 mpGetHeadId(u8 headnum)
@@ -2829,7 +2843,7 @@ s32 mpGetNumBeauHeads(void)
 
 u32 mpGetNumBodies(void)
 {
-	return ARRAYCOUNT(g_MpBodies);
+	return g_NumMpBodies;
 }
 
 s32 mpGetBodyId(u8 bodynum)
@@ -2838,8 +2852,8 @@ s32 mpGetBodyId(u8 bodynum)
 	 * @bug: bodynum 61 (0x3d) would cause an array overflow.
 	 * ARRAYCOUNT(g_MpBodies) is 61.
 	 */
-	if (bodynum > ARRAYCOUNT(g_MpBodies)) {
-		if (bodynum == ARRAYCOUNT(g_MpBodies) + 1) {
+	if (bodynum > g_NumMpBodies) {
+		if (bodynum == g_NumMpBodies + 1) {
 			return BODY_DRCAROLL;
 		}
 
@@ -2854,10 +2868,10 @@ s32 mpGetMpbodynumByBodynum(u16 bodynum)
 	s32 i;
 
 	if (bodynum == BODY_DRCAROLL) {
-		return ARRAYCOUNT(g_MpBodies) + 1;
+		return g_NumMpBodies + 1;
 	}
 
-	for (i = 0; i < ARRAYCOUNT(g_MpBodies); i++) {
+	for (i = 0; i < g_NumMpBodies; i++) {
 		if (g_MpBodies[i].bodynum == bodynum) {
 			return i;
 		}
@@ -2869,7 +2883,7 @@ s32 mpGetMpbodynumByBodynum(u16 bodynum)
 char *mpGetBodyName(u8 mpbodynum)
 {
 	// @bug: This should be >=
-	if (mpbodynum > ARRAYCOUNT(g_MpBodies)) {
+	if (mpbodynum > g_NumMpBodies) {
 		mpbodynum = 0;
 	}
 
@@ -2879,7 +2893,7 @@ char *mpGetBodyName(u8 mpbodynum)
 u8 mpGetBodyRequiredFeature(u8 mpbodynum)
 {
 	// @bug: This should be >=
-	if (mpbodynum > ARRAYCOUNT(g_MpBodies)) {
+	if (mpbodynum > g_NumMpBodies) {
 		mpbodynum = 0;
 	}
 
@@ -2906,7 +2920,7 @@ s32 mpGetMpheadnumByMpbodynum(s32 mpbodynum)
 		}
 	}
 
-	for (i = 0; i != ARRAYCOUNT(g_MpHeads); i++) {
+	for (i = 0; i != g_NumMpHeads; i++) {
 		if (g_MpHeads[i].headnum == headnum) {
 			index = i;
 		}
@@ -2925,8 +2939,8 @@ void mpFindUnusedHeadAndBody(u8 *mpheadnum, u8 *mpbodynum)
 
 	do {
 		available = true;
-		trympheadnum = rngRandom() % ARRAYCOUNT(g_MpHeads);
-		trympbodynum = rngRandom() % ARRAYCOUNT(g_MpBodies);
+		trympheadnum = rngRandom() % g_NumMpHeads;
+		trympbodynum = rngRandom() % g_NumMpBodies;
 
 		for (i = 0; i < MAX_MPCHRS; i++) {
 			if (g_MpSetup.chrslots & (1 << i)) {

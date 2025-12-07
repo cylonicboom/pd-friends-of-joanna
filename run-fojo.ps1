@@ -85,11 +85,6 @@ function Wrap-PathIfNeeded($path) {
 
 # Default arguments
 $DEFAULT_ARGS = @(
-    # "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_aio"),
-    # "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_gex"),
-    # "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_kakariko"),
-    # "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_dark_noon"),
-    # "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_goldfinger_64"),
     "--moddir",    $(Wrap-PathIfNeeded "$($env:PD_MODDIR)/mod_fojo"),    
     "--savedir",   $(Wrap-PathIfNeeded $env:PD_SAVEDIR),                 
     "--basedir",   $(Wrap-PathIfNeeded $env:PD_BASEDIR),                 

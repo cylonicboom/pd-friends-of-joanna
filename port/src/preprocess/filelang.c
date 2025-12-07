@@ -73,7 +73,7 @@ static u32 convertLangFile(u8 *dst, u8 *src, size_t srclen)
 	return ALIGN16(cur_dst_offset);
 }
 
-u8 *preprocessLangFile(u8 *data, u32 size, u32 *outSize) {
+u8 *preprocessLangFile(u8 *data, u32 size, u32 *outSize, s32 modNum) {
 	u32 newSizeEstimated = romdataFileGetEstimatedSize(size, LOADTYPE_LANG);
 	u8 *dst = sysMemZeroAlloc(newSizeEstimated);
 

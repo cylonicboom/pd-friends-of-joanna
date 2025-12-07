@@ -2421,7 +2421,7 @@ s32 ciGetNumUnlockedChrBios(void)
 	s32 count = 0;
 	s32 bodynum;
 
-	for (bodynum = 0; bodynum < ARRAYCOUNT(g_HeadsAndBodies) - 1; bodynum++) {
+	for (bodynum = 0; bodynum < g_NumHeadsAndBodies - 1; bodynum++) {
 		if (ciIsChrBioUnlocked(bodynum)) {
 			count++;
 		}
@@ -2435,7 +2435,7 @@ s32 ciGetChrBioBodynumBySlot(s32 slot)
 	s32 index = -1;
 	s32 bodynum;
 
-	for (bodynum = 0; bodynum < ARRAYCOUNT(g_HeadsAndBodies) - 1; bodynum++) {
+	for (bodynum = 0; bodynum < g_NumHeadsAndBodies - 1; bodynum++) {
 		if (ciIsChrBioUnlocked(bodynum)) {
 			index++;
 		}

@@ -1,5 +1,6 @@
 #include <ultra64.h>
 #include "constants.h"
+#include "system.h"
 #include "game/debug.h"
 #include "game/dlights.h"
 #include "game/game_006900.h"
@@ -49,6 +50,8 @@
 #include "video.h"
 #include "platform.h"
 #endif
+
+void *sysMemAlloc(const u32 size);
 
 #define BGCMD_END                               0x00
 #define BGCMD_PUSH                              0x01

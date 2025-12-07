@@ -10,6 +10,7 @@
 #include "game/menu.h"
 #include "game/playermgr.h"
 #include "game/credits.h"
+#include "game/endscreen.h"
 #include "game/game_1531a0.h"
 #include "game/file.h"
 #include "game/gfxmemory.h"
@@ -1906,6 +1907,8 @@ Gfx *creditsDraw(Gfx *gdl)
 		g_Vars.normmplayerisrunning = false;
 		g_Vars.lvmpbotlevel = 0;
 		g_TitleNextStage = STAGE_CITRAINING;
+		// Restore the mission config to the last completed mission (before credits)
+		g_MissionConfig.stagenum = endscreenGetLastCompletedMission();
 
 		setNumPlayers(1);
 		mainChangeToStage(g_TitleNextStage);

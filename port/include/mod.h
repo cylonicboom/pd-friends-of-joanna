@@ -5,9 +5,20 @@
 
 #define MOD_CONFIG_FNAME "modconfig.txt"
 
+#define MOD_FLAG_FORCE_LOAD    (1 << 0)
+#define MOD_FLAG_FORCE_VANILLA (1 << 1)
+
+extern u8 g_StageModFlags[256];
+extern char g_ModNames[64][64];
+
 struct animtableentry;
 
+void modInit(void);
 s32 modConfigLoad(const char *path);
+s32 modImport(char *modName, char *assetName);
+s32 modLoadAIO(void);
+void modScanAllMods(void);
+void modCacheAllConfigs(void);
 
 s32 modTextureLoad(u16 num, void *dst, u32 dstSize);
 

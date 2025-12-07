@@ -18,6 +18,7 @@ u8 *romdataFileGetData(s32 fileNum);
 s32 romdataFileGetSize(s32 fileNum);
 
 s32 romdataFileGetNumForName(const char *name);
+s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum);
 
 u8 *romdataSegGetData(const char *segName);
 u8 *romdataSegGetDataEnd(const char *segName);
@@ -27,5 +28,7 @@ u32 romdataFileGetEstimatedSize(const u32 size, const u32 loadtype);
 s32 romdataCheckGbcRom(void);
 
 void fileSlotsInit(u32 numMods);
+void romdataResetMod(s32 modNum);
+
 
 #endif
