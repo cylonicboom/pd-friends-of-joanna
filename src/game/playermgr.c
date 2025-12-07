@@ -336,6 +336,20 @@ void playermgrAllocatePlayer(s32 index)
 	g_Vars.players[index]->aborted = false;
 	g_Vars.players[index]->bondhealth = 1;
 	g_Vars.players[index]->stealhealth = -1;
+
+	// Initialize lives based on mission config
+	if (g_MissionConfig.isteam) {
+		if (g_MissionConfig.lives == -1 || g_MissionConfig.lives == 0) {
+			g_Vars.players[index]->livesremaining = -1; // Unlimited or Standard
+		} else {
+			// lives value directly represents number of lives
+			g_Vars.players[index]->livesremaining = g_MissionConfig.lives;
+		}
+	} else {
+		g_Vars.players[index]->livesremaining = -1; // Not in team mode
+	}
+	g_Vars.players[index]->respawnpending = false;
+
 	g_Vars.players[index]->oldhealth = 1;
 	g_Vars.players[index]->oldarmour = 0;
 	g_Vars.players[index]->apparenthealth = 1;

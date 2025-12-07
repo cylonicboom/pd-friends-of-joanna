@@ -502,8 +502,9 @@ void playerStartNewLife(void)
 	pakEnableRumbleForPlayer(g_Vars.currentplayernum);
 
 	g_Vars.currentplayer->dostartnewlife = false;
+	g_Vars.currentplayer->respawnpending = false;
 
-	if (g_Vars.coopplayernum < 0) {
+	if (g_Vars.currentcoopplayernum < 0) {
 		struct prop *prop = g_Vars.currentplayer->prop->child;
 
 		while (prop) {
@@ -655,7 +656,28 @@ void playerStartNewLife(void)
 		}
 	}
 
-	if (g_Vars.coopplayernum >= 0 && g_Vars.currentplayer->stealhealth > 0) {
+	// Handle health restoration based on lives mode
+	if (g_MissionConfig.isteam && g_MissionConfig.lives >= -1) {
+		if (g_MissionConfig.lives == 0) {
+			// Standard FoJ: use shared health (existing behavior)
+			if (g_Vars.coopplayernum >= 0 && g_Vars.currentplayer->stealhealth > 0) {
+				g_Vars.currentplayer->bondhealth = g_Vars.currentplayer->stealhealth;
+				g_Vars.currentplayer->oldhealth = 0;
+				g_Vars.currentplayer->oldarmour = 0;
+				g_Vars.currentplayer->apparenthealth = 0;
+				g_Vars.currentplayer->apparentarmour = 0;
+			}
+		} else {
+			// Lives modes (-1, 1-100): Full health restoration
+			g_Vars.currentplayer->bondhealth = 1.0f;
+			g_Vars.currentplayer->oldhealth = 1.0f;
+			g_Vars.currentplayer->oldarmour = 0;
+			g_Vars.currentplayer->apparenthealth = 1.0f;
+			g_Vars.currentplayer->apparentarmour = 0;
+			playerSetShieldFrac(0);
+		}
+	} else if (g_Vars.coopplayernum >= 0 && g_Vars.currentplayer->stealhealth > 0) {
+		// Legacy behavior for non-team missions
 		g_Vars.currentplayer->bondhealth = g_Vars.currentplayer->stealhealth;
 		g_Vars.currentplayer->oldhealth = 0;
 		g_Vars.currentplayer->oldarmour = 0;
@@ -4400,14 +4422,98 @@ void playerTick(bool arg0)
 		if (g_Vars.currentplayer->redbloodfinished && g_Vars.currentplayer->deathanimfinished) {
 			if (g_Vars.mplayerisrunning == false) {
 				mainEndStage();
-			} else if (g_Vars.coopplayernum >= 0) {
-				if (g_Vars.currentplayer == g_Vars.bond
-						&& g_Vars.coop->isdead
-						&& g_Vars.coop->redbloodfinished
-						&& g_Vars.coop->deathanimfinished) {
-					mainEndStage();
+			} else if (g_Vars.currentcoopplayernum >= 0) {
+				// Team mission death handling
+				if (g_MissionConfig.isteam && g_MissionConfig.lives >= -1) {
+					bool mission_failed = false;
+
+					switch (g_MissionConfig.lives) {
+					case -1: // Unlimited
+						// Always allow respawn
+						g_Vars.currentplayer->respawnpending = true;
+						g_Vars.currentplayer->dostartnewlife = false;
+						break;
+
+					case 0: // Standard FoJ
+						// Use existing shared health logic
+						if (g_Vars.currentplayer == g_Vars.bond
+								&& g_Vars.coop->isdead
+								&& g_Vars.coop->redbloodfinished
+								&& g_Vars.coop->deathanimfinished) {
+							// Check if all allies are dead
+							bool any_ally_alive = false;
+							for (int i = 0; i < PLAYERCOUNT(); i++) {
+								if (!g_Vars.players[i]) continue;
+								if (g_Vars.antiplayers[i]) continue;
+								if (!g_Vars.players[i]->isdead) {
+									any_ally_alive = true;
+									break;
+								}
+							}
+							// // HACK: Perfect Dark scripts need a lot of work to make this work so disabling for now
+							// any_ally_alive = false;
+							mission_failed = !any_ally_alive;
+						} else {
+							chrsClearRefsToPlayer(g_Vars.currentplayernum);
+						}
+						break;
+
+					default: // 1-100 lives
+						// Decrement lives
+						if (g_Vars.currentplayer->livesremaining > 0) {
+							g_Vars.currentplayer->livesremaining--;
+						}
+
+						// Check if player has lives remaining
+						if (g_Vars.currentplayer->livesremaining > 0 ||
+						    (g_MissionConfig.lives == -1)) {
+							// Has lives left - allow respawn
+							g_Vars.currentplayer->respawnpending = true;
+							g_Vars.currentplayer->dostartnewlife = true;
+						} else {
+							// Out of lives - check if mission should fail
+							// Mission fails only if ALL allies are out of lives
+							bool any_ally_has_lives = false;
+							for (int i = 0; i < PLAYERCOUNT(); i++) {
+								if (!g_Vars.players[i]) continue;
+								if (g_Vars.antiplayers[i]) continue;
+
+								// Check if alive OR has lives remaining
+								if (!g_Vars.players[i]->isdead ||
+								    g_Vars.players[i]->livesremaining > 0) {
+									any_ally_has_lives = true;
+									break;
+								}
+							}
+							mission_failed = !any_ally_has_lives;
+						}
+						break;
+					}
+
+					if (mission_failed) {
+						mainEndStage();
+					}
 				} else {
-					chrsClearRefsToPlayer(g_Vars.currentplayernum);
+					// Non-team or legacy behavior
+					if (g_Vars.currentplayer == g_Vars.bond
+							&& g_Vars.coop->isdead
+							&& g_Vars.coop->redbloodfinished
+							&& g_Vars.coop->deathanimfinished) {
+						bool anyalive = 0;
+						for (int i = 0; i < PLAYERCOUNT(); i++) {
+							if (!g_Vars.players[i]) continue;
+							if (g_Vars.antiplayers[i]) continue;
+							if (!g_Vars.players[i]->isdead) {
+								anyalive = 1;
+								break;
+							}
+						}
+						if (!anyalive) {
+							mainEndStage();
+						}
+					} else {
+						chrsClearRefsToPlayer(g_Vars.currentplayernum);
+					}
 				}
 			} else if (g_Vars.antiplayernum >= 0 && g_Vars.currentplayer == g_Vars.bond) {
 				mainEndStage();
@@ -4892,17 +4998,23 @@ Gfx *playerRenderHud(Gfx *gdl)
 							}
 						} else {
 							// Coop
-							if (g_Vars.coopplayernum >= 0 &&
-									(!g_Vars.bond->isdead || !g_Vars.coop->isdead)) {
+						if (g_Vars.coopplayernum >= 0) {
+								// Check if we can respawn based on lives mode and other player health
+								bool needBuddyAlive = !(g_MissionConfig.isteam && g_MissionConfig.lives != 0);
+							// For team missions with non-standard lives, allow respawn
+								if (g_MissionConfig.isteam && g_MissionConfig.lives != 0) {
+									g_Vars.currentplayer->coopcanrestart = true;
+									canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
+									if (canrestart) {
+										g_Vars.currentplayer->dostartnewlife = true;
+									}
+								}
+							else if (!needBuddyAlive || (!g_Vars.bond->isdead || !g_Vars.coop->isdead)) {
 								f32 totalhealth;
 								u32 buddyplayernum = g_Vars.bondplayernum;
 								u32 prevplayernum = g_Vars.currentplayernum;
 								f32 stealhealth;
 								f32 shield;
-
-								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)
-									&& !mpIsPaused();
-
 								// Get ready to respawn.
 								// The other player's health will be halved.
 								buddyplayernum = g_Vars.currentplayer == g_Vars.coop ? g_Vars.bondplayernum : g_Vars.coopplayernum;
@@ -4972,12 +5084,13 @@ Gfx *playerRenderHud(Gfx *gdl)
 									setCurrentPlayerNum(prevplayernum);
 								}
 
-								if (totalhealth > 0.125f) {
+								if ((g_MissionConfig.isteam && g_MissionConfig.lives != 0) || totalhealth > 0.125f) {
 									g_Vars.currentplayer->coopcanrestart = true;
 								}
 #endif
 							}
 						}
+					}
 					} else {
 						u32 playernum = g_Vars.currentplayernum;
 						s32 playercount = PLAYERCOUNT();

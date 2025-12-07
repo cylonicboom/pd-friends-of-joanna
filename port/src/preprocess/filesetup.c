@@ -6,6 +6,7 @@
 
 #include "preprocess/common.h"
 #include "preprocess/setup.h"
+#include "mod.h"
 
 extern u32 chraiGetAilistLength(u8 *list);
 
@@ -145,10 +146,10 @@ static void convTvScreen(struct tvscreen* dstobj, struct n64_tvscreen* srcobj)
 	PD_CONV_VAL(dstobj->colinc, srcobj->colinc);
 }
 
-static void convertDefaultObjHdr(struct defaultobj* dstobj, struct n64_defaultobj* srcobj)
+static void convertDefaultObjHdr(struct defaultobj* dstobj, struct n64_defaultobj* srcobj, s32 modNum)
 {
 	PD_CONV_VAL(dstobj->extrascale, srcobj->extrascale);
-	
+
 	/* 'header' is like this inside a u32:
 		u16 unk00_1,
 		u8 unk00_2,
@@ -165,7 +166,7 @@ static void convertDefaultObjHdr(struct defaultobj* dstobj, struct n64_defaultob
 	dst_unk00_2[1] = src_unk00_2[1];
 }
 
-static void convertDefaultObj(struct defaultobj* dstobj, struct n64_defaultobj* srcobj)
+static void convertDefaultObj(struct defaultobj* dstobj, struct n64_defaultobj* srcobj, s32 modNum)
 {
 	PD_CONV_VAL(dstobj->extrascale, srcobj->extrascale);
 	PD_CONV_VAL(dstobj->hidden2, srcobj->hidden2);
@@ -188,7 +189,7 @@ static void convertDefaultObj(struct defaultobj* dstobj, struct n64_defaultobj* 
 	PD_CONV_VAL(dstobj->geocount, srcobj->geocount);
 }
 
-static u32 convertProps(u8* dst, u8* src)
+static u32 convertProps(u8* dst, u8* src, s32 modNum)
 {
 	u8* start = dst;
 	struct n64_defaultobj* cmd = (struct n64_defaultobj*)src;
@@ -204,7 +205,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_doorobj* srcobj = (struct n64_doorobj*)cmd;
 				struct doorobj* dstobj = (struct doorobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->maxfrac, srcobj->maxfrac);
 				PD_CONV_VAL(dstobj->perimfrac, srcobj->perimfrac);
@@ -248,7 +249,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_doorscaleobj* srcobj = (struct n64_doorscaleobj*)cmd;
 				struct doorscaleobj* dstobj = (struct doorscaleobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->scale, srcobj->scale);
 
 				dst += sizeof(struct doorscaleobj);
@@ -263,7 +264,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_defaultobj* srcobj = (struct n64_defaultobj*)cmd;
 				struct defaultobj* dstobj = (struct defaultobj*)dst;
 
-				convertDefaultObj(dstobj, cmd);
+				convertDefaultObj(dstobj, cmd, modNum);
 
 				dst += sizeof(struct defaultobj);
 				break;
@@ -273,7 +274,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_keyobj* srcobj = (struct n64_keyobj*)cmd;
 				struct keyobj* dstobj = (struct keyobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 				PD_CONV_VAL(dstobj->keyflags, srcobj->keyflags);
 
 				dst += sizeof(struct keyobj);
@@ -285,7 +286,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_cctvobj* srcobj = (struct n64_cctvobj*)cmd;
 				struct cctvobj* dstobj = (struct cctvobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->lookatpadnum, srcobj->lookatpadnum);
 				PD_CONV_VAL(dstobj->toleft, srcobj->toleft);
@@ -307,7 +308,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_ammocrateobj* srcobj = (struct n64_ammocrateobj*)cmd;
 				struct ammocrateobj* dstobj = (struct ammocrateobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 				PD_CONV_VAL(dstobj->ammotype, srcobj->ammotype);
 
 				dst += sizeof(struct ammocrateobj);
@@ -319,7 +320,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_weaponobj* srcobj = (struct n64_weaponobj*)cmd;
 				struct weaponobj* dstobj = (struct weaponobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->weaponnum, srcobj->weaponnum);
 				PD_CONV_VAL(dstobj->unk5d, srcobj->unk5d);
@@ -373,7 +374,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_singlemonitorobj* srcobj = (struct n64_singlemonitorobj*)cmd;
 				struct singlemonitorobj* dstobj = (struct singlemonitorobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 				convTvScreen(&dstobj->screen, &srcobj->screen);
 
 				PD_CONV_VAL(dstobj->owneroffset, srcobj->owneroffset);
@@ -388,7 +389,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_multimonitorobj* srcobj = (struct n64_multimonitorobj*)cmd;
 				struct multimonitorobj* dstobj = (struct multimonitorobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				for (size_t i = 0; i < 4; i++)
 					convTvScreen(&dstobj->screens[i], &srcobj->screens[i]);
@@ -402,7 +403,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_autogunobj* srcobj = (struct n64_autogunobj*)cmd;
 				struct autogunobj* dstobj = (struct autogunobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->targetpad, srcobj->targetpad);
 				PD_CONV_VAL(dstobj->firing, srcobj->firing);
@@ -437,7 +438,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_linkgunsobj* srcobj = (struct n64_linkgunsobj*)cmd;
 				struct linkgunsobj* dstobj = (struct linkgunsobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->offset1, srcobj->offset1);
 				PD_CONV_VAL(dstobj->offset2, srcobj->offset2);
 
@@ -449,7 +450,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_grenadeprobobj* srcobj = (struct n64_grenadeprobobj*)cmd;
 				struct grenadeprobobj* dstobj = (struct grenadeprobobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->chrnum, srcobj->chrnum);
 				PD_CONV_VAL(dstobj->probability, srcobj->probability);
 
@@ -461,7 +462,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_linkliftdoorobj* srcobj = (struct n64_linkliftdoorobj*)cmd;
 				struct linkliftdoorobj* dstobj = (struct linkliftdoorobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_PTR(dstobj->door, srcobj->ptr_door, struct prop*);
 				PD_CONV_PTR(dstobj->lift, srcobj->ptr_lift, struct prop*);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct linkliftdoorobj*);
@@ -475,7 +476,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_multiammocrateobj* srcobj = (struct n64_multiammocrateobj*)cmd;
 				struct multiammocrateobj* dstobj = (struct multiammocrateobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				for (size_t i = 0; i < 19; i++) {
 					PD_CONV_VAL(dstobj->slots[i].modelnum, srcobj->slots[i].modelnum);
@@ -490,7 +491,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_shieldobj* srcobj = (struct n64_shieldobj*)cmd;
 				struct shieldobj* dstobj = (struct shieldobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->initialamount, srcobj->initialamount);
 				PD_CONV_VAL(dstobj->amount, srcobj->amount);
@@ -504,7 +505,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_tag* srcobj = (struct n64_tag*)cmd;
 				struct tag* dstobj = (struct tag*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->tagnum, srcobj->tagnum);
 				PD_CONV_VAL(dstobj->cmdoffset, srcobj->cmdoffset);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct tag*);
@@ -518,7 +519,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_objective* srcobj = (struct n64_objective*)cmd;
 				struct objective* dstobj = (struct objective*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->index, srcobj->index);
 				PD_CONV_VAL(dstobj->text, srcobj->text);
 				PD_CONV_VAL(dstobj->unk0c, srcobj->unk0c);
@@ -538,7 +539,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_stdobjective* srcobj = (struct n64_stdobjective*)cmd;
 				struct n64_stdobjective* dstobj = (struct n64_stdobjective*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 
 				dst += sizeof(struct n64_stdobjective);
 				break;
@@ -563,7 +564,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_criteria_holograph* srcobj = (struct n64_criteria_holograph*)cmd;
 				struct criteria_holograph* dstobj = (struct criteria_holograph*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->obj, srcobj->obj);
 				PD_CONV_VAL(dstobj->status, srcobj->status);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct criteria_holograph*);
@@ -576,7 +577,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_criteria_roomentered* srcobj = (struct n64_criteria_roomentered*)cmd;
 				struct criteria_roomentered* dstobj = (struct criteria_roomentered*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->pad, srcobj->pad);
 				PD_CONV_VAL(dstobj->status, srcobj->status);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct criteria_roomentered*);
@@ -589,7 +590,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_criteria_throwinroom* srcobj = (struct n64_criteria_throwinroom*)cmd;
 				struct criteria_throwinroom* dstobj = (struct criteria_throwinroom*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->pad, srcobj->pad);
 				PD_CONV_VAL(dstobj->status, srcobj->status);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct criteria_throwinroom*);
@@ -602,7 +603,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_briefingobj* srcobj = (struct n64_briefingobj*)cmd;
 				struct briefingobj* dstobj = (struct briefingobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->type, srcobj->type);
 				PD_CONV_VAL(dstobj->text, srcobj->text);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct briefingobj*);
@@ -615,7 +616,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_textoverride* srcobj = (struct n64_textoverride*)cmd;
 				struct textoverride* dstobj = (struct textoverride*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->objoffset, srcobj->objoffset);
 				PD_CONV_VAL(dstobj->weapon, srcobj->weapon);
 				PD_CONV_VAL(dstobj->obtaintext, srcobj->obtaintext);
@@ -634,7 +635,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_padlockeddoorobj* srcobj = (struct n64_padlockeddoorobj*)cmd;
 				struct padlockeddoorobj* dstobj = (struct padlockeddoorobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_PTR(dstobj->door, srcobj->ptr_door, struct doorobj*);
 				PD_CONV_PTR(dstobj->lock, srcobj->ptr_lock, struct defaultobj*);
 				PD_CONV_PTR(dstobj->next, srcobj->ptr_next, struct padlockeddoorobj*);
@@ -647,7 +648,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_truckobj* srcobj = (struct n64_truckobj*)cmd;
 				struct truckobj* dstobj = (struct truckobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_PTR(dstobj->ailist, srcobj->ptr_ailist, u8*);
 				PD_CONV_VAL(dstobj->aioffset, srcobj->aioffset);
@@ -670,7 +671,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_heliobj* srcobj = (struct n64_heliobj*)cmd;
 				struct heliobj* dstobj = (struct heliobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_PTR(dstobj->ailist, srcobj->ptr_ailist, u8*);
 				PD_CONV_VAL(dstobj->aioffset, srcobj->aioffset);
@@ -694,7 +695,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_glassobj* srcobj = (struct n64_glassobj*)cmd;
 				struct glassobj* dstobj = (struct glassobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 				PD_CONV_VAL(dstobj->portalnum, srcobj->portalnum);
 
 				dst += sizeof(struct glassobj);
@@ -705,7 +706,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_safeitemobj* srcobj = (struct n64_safeitemobj*)cmd;
 				struct safeitemobj* dstobj = (struct safeitemobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_PTR(dstobj->item, srcobj->ptr_item, struct defaultobj*);
 				PD_CONV_PTR(dstobj->safe, srcobj->ptr_safe, struct safeobj*);
 				PD_CONV_PTR(dstobj->door, srcobj->ptr_door, struct doorobj*);
@@ -724,7 +725,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_cameraposobj* srcobj = (struct n64_cameraposobj*)cmd;
 				struct cameraposobj* dstobj = (struct cameraposobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->x, srcobj->x);
 				PD_CONV_VAL(dstobj->y, srcobj->y);
 				PD_CONV_VAL(dstobj->z, srcobj->z);
@@ -740,7 +741,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_tintedglassobj* srcobj = (struct n64_tintedglassobj*)cmd;
 				struct tintedglassobj* dstobj = (struct tintedglassobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->xludist, srcobj->xludist);
 				PD_CONV_VAL(dstobj->opadist, srcobj->opadist);
@@ -756,7 +757,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_liftobj* srcobj = (struct n64_liftobj*)cmd;
 				struct liftobj* dstobj = (struct liftobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_ARRAY(dstobj->pads, srcobj->pads);
 				for (int k = 0; k < 4; k++)
@@ -778,7 +779,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_linksceneryobj* srcobj = (struct n64_linksceneryobj*)cmd;
 				struct linksceneryobj* dstobj = (struct linksceneryobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_PTR(dstobj->trigger, srcobj->ptr_trigger, struct defaultobj*);
 				PD_CONV_PTR(dstobj->unexp, srcobj->ptr_unexp, struct defaultobj*);
 				PD_CONV_PTR(dstobj->exp, srcobj->ptr_exp, struct defaultobj*);
@@ -792,7 +793,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_blockedpathobj* srcobj = (struct n64_blockedpathobj*)cmd;
 				struct blockedpathobj* dstobj = (struct blockedpathobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_PTR(dstobj->blocker, srcobj->ptr_blocker, struct defaultobj*);
 				PD_CONV_VAL(dstobj->waypoint1, srcobj->waypoint1);
 				PD_CONV_VAL(dstobj->waypoint2, srcobj->waypoint2);
@@ -805,7 +806,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_hoverbikeobj* srcobj = (struct n64_hoverbikeobj*)cmd;
 				struct hoverbikeobj* dstobj = (struct hoverbikeobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->hov.type, srcobj->hov.type);
 				PD_CONV_VAL(dstobj->hov.flags, srcobj->hov.flags);
@@ -845,7 +846,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_hoverpropobj* srcobj = (struct n64_hoverpropobj*)cmd;
 				struct hoverpropobj* dstobj = (struct hoverpropobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->hov.type, srcobj->hov.type);
 				PD_CONV_VAL(dstobj->hov.flags, srcobj->hov.flags);
@@ -873,7 +874,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_fanobj* srcobj = (struct n64_fanobj*)cmd;
 				struct fanobj* dstobj = (struct fanobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->yrot, srcobj->yrot);
 				PD_CONV_VAL(dstobj->yrotprev, srcobj->yrotprev);
@@ -890,7 +891,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_hovercarobj* srcobj = (struct n64_hovercarobj*)cmd;
 				struct hovercarobj* dstobj = (struct hovercarobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_PTR(dstobj->ailist, srcobj->ptr_ailist, u8*);
 				PD_CONV_VAL(dstobj->aioffset, srcobj->aioffset);
@@ -919,7 +920,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct padeffectobj* srcobj = (struct padeffectobj*)cmd;
 				struct padeffectobj* dstobj = (struct padeffectobj*)dst;
 
-				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd);
+				convertDefaultObjHdr((struct defaultobj*)dstobj, cmd, modNum);
 				PD_CONV_VAL(dstobj->effect, srcobj->effect);
 				PD_CONV_VAL(dstobj->pad, srcobj->pad);
 
@@ -931,7 +932,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_chopperobj* srcobj = (struct n64_chopperobj*)cmd;
 				struct chopperobj* dstobj = (struct chopperobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_PTR(dstobj->ailist, srcobj->ptr_ailist, u8*);
 				PD_CONV_VAL(dstobj->aioffset, srcobj->aioffset);
@@ -981,7 +982,7 @@ static u32 convertProps(u8* dst, u8* src)
 				struct n64_escalatorobj* srcobj = (struct n64_escalatorobj*)cmd;
 				struct escalatorobj* dstobj = (struct escalatorobj*)dst;
 
-				convertDefaultObj(&dstobj->base, cmd);
+				convertDefaultObj(&dstobj->base, cmd, modNum);
 
 				PD_CONV_VAL(dstobj->frame, srcobj->frame);
 				PD_CONV_VAL(dstobj->prevpos, srcobj->prevpos);
@@ -1073,10 +1074,10 @@ static u32 convertPads(struct path *dstpaths, u8 *dst, u8 *src, u32 dstpos)
 			dstpos += sizeof(s32);
 			if (p == -1) break;
 		}
-		
+
 		dstpaths++;
 	}
-	
+
 	return dstpos - start;
 }
 
@@ -1132,11 +1133,11 @@ static u32 convertLists(u8 *dst, u8 *src, u32 dstpos, u32 src_ofs)
 
 		dstpos += PD_ALIGN(listsize, 4);
 	}
-	
+
 	return dstpos;
 }
 
-static u32 convertSetup(u8 *dst, u8 *src, u32 srclen)
+static u32 convertSetup(u8 *dst, u8 *src, u32 srclen, s32 modNum)
 {
 	struct n64_stagesetup *src_header = (struct n64_stagesetup*)src;
 	struct stagesetup *dst_header = (struct stagesetup*)dst;
@@ -1151,12 +1152,12 @@ static u32 convertSetup(u8 *dst, u8 *src, u32 srclen)
 
 	srcpos = src_header->ptr_props;
 	dst_header->props = (u32 *)(uintptr_t)dstpos;
-	dstpos += convertProps(&dst[dstpos], &src[srcpos]);
+	dstpos += convertProps(&dst[dstpos], &src[srcpos], modNum);
 
 	srcpos = src_header->ptr_intro;
 	dst_header->intro = (s32 *)(uintptr_t)dstpos;
 	dstpos += convertIntro(&dst[dstpos], &src[srcpos]);
-	
+
 	// write the lists bytecodes before the ailists entries
 	dstpos = convertLists(dst, src, dstpos, src_header->ptr_ailists);
 
@@ -1173,11 +1174,11 @@ static u32 convertSetup(u8 *dst, u8 *src, u32 srclen)
 	return dstpos;
 }
 
-u8 *preprocessSetupFile(u8 *data, u32 size, u32 *outSize) {
+u8 *preprocessSetupFile(u8 *data, u32 size, u32 *outSize, s32 modNum) {
 	u32 newSizeEstimated = romdataFileGetEstimatedSize(size, LOADTYPE_SETUP);
 	u8 *dst = sysMemZeroAlloc(newSizeEstimated);
 
-	u32 newSize = convertSetup(dst, data, size);
+	u32 newSize = convertSetup(dst, data, size, modNum);
 
 	if (newSize > newSizeEstimated) {
 		sysFatalError("overflow when trying to preprocess a model file, size %d newsize %d", size, newSize);

@@ -84,6 +84,8 @@ bool g_MainGameLogicEnabled = true;
 u32 g_MainNumGfxTasks = 0;
 bool g_MainIsEndscreen = false;
 s32 g_DoBootPakMenu = 0;
+bool g_DebugEndscreen = false;
+bool g_DebugMenu = false;
 
 struct stageallocation g_StageAllocations8Mb[] = {
 #if VERSION >= VERSION_NTSC_1_0

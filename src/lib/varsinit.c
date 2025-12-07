@@ -51,6 +51,7 @@ void varsInit(void)
 	g_Vars.coopradaron = true;
 	g_Vars.coopfriendlyfire = true;
 	g_Vars.antiradaron = true;
+	g_MissionConfig.lives = 0; // Default to Standard FoJ behavior
 	g_Vars.pendingantiplayernum = 1;
 	g_Vars.modifiedfiles = 0;
 	g_Vars.numaibuddies = 0;

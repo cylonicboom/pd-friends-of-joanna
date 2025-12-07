@@ -2519,11 +2519,11 @@ struct player {
 	/*0x0298*/ struct prop *lift;
 	/*0x029c*/ f32 ladderupdown;
 	/*0x02a0*/ struct coord laddernormal;
-	/*0x02ac*/ bool onladder;
-	/*0x02b0*/ bool inlift;
-	/*0x02b4*/ struct coord posdie;
-	/*0x02c0*/ struct coord bonddampeyesum;
-	/*0x02cc*/ struct coord bonddampeye;
+	/*0x02a8*/ bool onladder;
+	/*0x02ac*/ bool inlift;
+	/*0x02b0*/ struct coord posdie;
+	/*0x02bc*/ struct coord bonddampeyesum;
+	/*0x02c8*/ struct coord bonddampeye;
 	/*0x02d8*/ s32 colourscreenred;
 	/*0x02dc*/ s32 colourscreengreen;
 	/*0x02e0*/ s32 colourscreenblue;
@@ -2823,6 +2823,10 @@ struct player {
 	/*0x1c54*/ u32 devicesinhibit;
 	/*0x1c58*/ f32 grabbedforcez;
 	/*0x1c5c*/ f32 stealhealth;
+	/*ext*/ s8 livesremaining; // Current lives left for this player (-1 = unlimited)
+	/*ext*/ bool respawnpending; // True if player died and can respawn
+	/*ext*/ u8 isdropping;
+	/*ext*/ s16 droptimer60;
 	/*0x1c60*/ s16 fslastradius;
 	/*0x1c62*/ s16 fsscanline;
 	/*0x1c64*/ s32 unk1c64;
@@ -4099,6 +4103,7 @@ struct missionconfig {
 	/*0x10*/ f32 pdmodedamagef;
 	/*0x14*/ f32 pdmodeaccuracyf;
 	u8 isteam;
+	/*ext*/ s8 lives; // -1 to 100: lives mode (-1=unlimited, 0=standard, 1+=that many lives)
 };
 
 struct mpsetup {
@@ -4138,10 +4143,18 @@ struct savebuffer {
 	u8 bytes[220];
 };
 
+struct mparenagroup {
+	char *name;
+	u16 langid;
+	s32 startindex;
+};
+
 struct mparena {
 	s16 stagenum;
 	u8 requirefeature;
 	u16 name;
+	char *customname;
+	char *group;
 };
 
 struct filelistfile {
@@ -5221,7 +5234,8 @@ struct healthdamagetype {
 
 struct optiongroup {
 	s32 offset;
-	u16 name;
+	u16 langid;
+	char *customname;
 };
 
 struct musicevent {

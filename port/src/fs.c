@@ -85,7 +85,7 @@ static inline const bool fsModFullPath(char *pathBuf, const char *relPath)
 		printf("fsModFullPath ret false: relPath=%s\n", relPath);
 		return false;
 	}
-	sysLogPrintf(LOG_NOTE, "fsModFullPath: relPath=%s. Switch on g_ModNum\n", relPath, g_ModNum);
+	// sysLogPrintf(LOG_NOTE, "fsModFullPath: relPath=%s. Switch on g_ModNum\n", relPath, g_ModNum);
 	// iterate over all mods, annd if fsModFullPathCheck returns true, return true immediately
 	// otherwise return false at the end
 
@@ -112,12 +112,23 @@ static inline const bool fsModFullPath(char *pathBuf, const char *relPath)
 		sysLogPrintf(LOG_NOTE, "fsModFullPath: not found in any mod\n");
 		return false;
 	} else {
-		sysLogPrintf(LOG_NOTE, "fsModFullPath: checking current mod only\n");
+		// Check current mod first
 		if (fsModFullPathCheck(relPath, modDirs[g_ModNum], pathBuf)) {
 			sysLogPrintf(LOG_NOTE, "fsModFullPath: found in modDir=%s\n", modDirs[g_ModNum]);
 			return true;
 		}
-		sysLogPrintf(LOG_NOTE, "fsModFullPath: not found in current mod\n");
+
+		// Fallback: Check all other mods
+		// This ensures assets (like textures) in other mods (like AIO) are found
+		// even if the current mod is different (e.g. boot mod)
+		for (s32 i = 0; i < g_NumModDirs; ++i) {
+			if (i == g_ModNum) continue;
+			if (fsModFullPathCheck(relPath, (const char*)modDirs[i], pathBuf)) {
+				sysLogPrintf(LOG_NOTE, "fsModFullPath: %s found in modDir=%s\n", relPath, modDirs[i]);
+				return true;
+			}
+		}
+
 		return false;
 	}
 

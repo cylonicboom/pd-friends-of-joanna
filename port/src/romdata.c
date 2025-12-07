@@ -10,6 +10,11 @@
 #include "system.h"
 #include "preprocess.h"
 #include "platform.h"
+#include "data.h"
+#include "mod.h"
+#include "bss.h"
+
+#include "constants.h"
 
 /**
  * asset files and ROM segments can be replaced by optional external files,
@@ -48,15 +53,19 @@
 #error "This ROM version is unsupported."
 #endif
 
-#define ROMDATA_MAX_FILES 2048
+#define ROMDATA_MAX_FILES 4096
 
 #define GBC_ROM_NAME "pd.gbc"
 #define GBC_ROM_SIZE 4194304
+
+static bool g_DebugFileLoad = false;
+#define DEBUG_FLOAD(...) if (g_DebugFileLoad) { sysLogPrintf(LOG_NOTE, __VA_ARGS__); }
 
 u8 *g_RomFile;
 u32 g_RomFileSize;
 
 extern u32 g_NumModDirs;
+extern char modDirs[64][FS_MAXPATH + 1];
 static u8 *romDataSeg;
 static u32 romDataSegSize;
 static const char *romName = ROMDATA_ROM_NAME;
@@ -305,7 +314,7 @@ static inline void romdataInitSegment(struct romfile *seg)
 
 	// call the post load function if any
 	if (seg->preprocess && !seg->preprocessed) {
-		newData = seg->preprocess(seg->data, seg->size, &seg->size);
+		newData = seg->preprocess(seg->data, seg->size, &seg->size, g_ModNum);
 
 		if (newData) {
 			if (seg->source == SRC_EXTERNAL)
@@ -345,83 +354,246 @@ static inline s32 romdataLoadExternalFileList(void)
 	return n - 1;
 }
 
-static inline void romdataInitFiles(void)
+static u8 *externalFileTableData = NULL;
+static u32 externalFileTableSize = 0;
+
+static inline s32 romdataLoadExternalFileTable(void)
 {
-	if (!g_RomFile) {
-		// no ROM; try to load the file name list from disk
-		if (!romdataLoadExternalFileList()) {
-			sysFatalError("No ROM file or external filename table found.");
+	u32 size = 0;
+	externalFileTableData = fsFileLoad("filetable.dat", &size);
+	if (!externalFileTableData || size < 12) {
+		if (externalFileTableData) {
+			sysMemFree(externalFileTableData);
+			externalFileTableData = NULL;
 		}
-		return;
+		return 0;
+	}
+	externalFileTableSize = size;
+
+	u8 *data = externalFileTableData;
+	if (memcmp(data, "PDFT", 4) != 0) {
+		sysLogPrintf(LOG_ERROR, "Invalid file table magic");
+		sysMemFree(externalFileTableData);
+		externalFileTableData = NULL;
+		return 0;
 	}
 
-	// the file offset table is in the data seg
-	const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
-	u32 i;
-	for (i = 1; offsets[i]; ++i) {
-		if (offsets + i + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
-			const u32 nextofs = PD_BE32(offsets[i + 1]);
-			const u32 ofs = PD_BE32(offsets[i]);
-			int mod;
-			for (mod = 0; mod <= g_NumModDirs; ++mod) {
-				fileSlots[mod][i].data = g_RomFile + ofs;
-				fileSlots[mod][i].size = nextofs - ofs;
-				fileSlots[mod][i].source = SRC_UNLOADED;
-				fileSlots[mod][i].preprocessed = 0;
+	u32 version = PD_BE32(*(u32*)(data + 4));
+	u32 numFiles = PD_BE32(*(u32*)(data + 8));
+	u8 *p = data + 12;
+
+	sysLogPrintf(LOG_NOTE, "Loading external file table v%d with %d files", version, numFiles);
+
+	for (u32 i = 0; i < numFiles; ++i) {
+		if (p + 16 > data + size) break;
+
+		u32 id = PD_BE32(*(u32*)p); p += 4;
+		u32 flags = PD_BE32(*(u32*)p); p += 4;
+		u32 offset = PD_BE32(*(u32*)p); p += 4;
+		u32 fileSize = PD_BE32(*(u32*)p); p += 4;
+
+		u16 nameLen = PD_BE16(*(u16*)p); p += 2;
+		char *name = (char*)p;
+		p += nameLen;
+
+		u16 pathLen = PD_BE16(*(u16*)p); p += 2;
+		char *path = (char*)p;
+		p += pathLen;
+
+		if (id < ROMDATA_MAX_FILES) {
+			// Check if path contains export flag and mod constraint
+			bool hasExport = false;
+			const char *pathAfterDoubleColon = NULL;
+			const char *modConstraint = NULL;
+
+			if ((flags & 2) && pathLen > 1) {
+				// Look for "export" keyword in path
+				if (strstr(path, "export")) {
+					hasExport = true;
+				}
+				// Look for "mod:" prefix to extract owner mod
+				const char *modPrefix = strstr(path, "mod:");
+				if (modPrefix) {
+					modConstraint = modPrefix + 4; // points to start of mod name
+				}
+				// Find the "::" separator to extract the actual path
+				const char *separator = strstr(path, "::");
+				if (separator) {
+					pathAfterDoubleColon = separator + 2;
+				}
+			}
+
+			for (s32 mod = 0; mod <= g_NumModDirs; ++mod) {
+				if (flags & 1) {
+					fileSlots[mod][id].data = g_RomFile + offset;
+					fileSlots[mod][id].size = fileSize;
+					fileSlots[mod][id].source = SRC_UNLOADED;
+				}
+
+				if ((flags & 2) && pathLen > 1) {
+					// If file is exported and has a mod constraint
+					if (hasExport && modConstraint && pathAfterDoubleColon) {
+						// Get current mod's name (basename of mod directory)
+						const char *currentModName = NULL;
+						if (mod > 0 && mod <= g_NumModDirs && modDirs[mod - 1][0]) {
+							currentModName = strrchr(modDirs[mod - 1], '/');
+							if (currentModName) {
+								currentModName++; // skip the '/'
+							} else {
+								currentModName = modDirs[mod - 1];
+							}
+						}
+
+						// Check if this mod is the owner (matches the mod constraint)
+						bool isOwner = false;
+						if (currentModName) {
+							// Check if modConstraint starts with currentModName
+							size_t modNameLen = strlen(currentModName);
+							if (strncmp(modConstraint, currentModName, modNameLen) == 0) {
+								// Make sure it's followed by comma, colon, or end of metadata
+								char next = modConstraint[modNameLen];
+								if (next == ',' || next == ':') {
+									isOwner = true;
+								}
+							}
+						}
+
+
+						if (isOwner) {
+							// Owner mod: use full path with metadata
+							fileSlots[mod][id].name = path;
+						} else {
+							// Non-owner mod: use simplified path (after ::)
+							fileSlots[mod][id].name = pathAfterDoubleColon;
+						}
+					} else {
+						// No export or no mod constraint: use path as-is
+						fileSlots[mod][id].name = path;
+					}
+				} else if (nameLen > 1) {
+					fileSlots[mod][id].name = name;
+				}
 			}
 		}
 	}
 
-	// last offset is to the name table
-	const u32 *nameOffsets = (u32 *)(g_RomFile + PD_BE32(offsets[i - 1]));
-	for (i = 1; nameOffsets[i]; ++i) {
-		const u32 ofs = PD_BE32(nameOffsets[i]);
-		for (s32 mod = 0; mod <= g_NumModDirs; ++mod) {
-			fileSlots[mod][i].name = (const char *)nameOffsets + ofs; // ofs is relative to the start of the name table
+	return 1;
+}
+
+static inline void romdataInitFiles(void)
+{
+	// First load from ROM if available
+	if (g_RomFile) {
+		// the file offset table is in the data seg
+		const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
+		u32 i;
+		for (i = 1; offsets[i]; ++i) {
+			if (offsets + i + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
+				const u32 nextofs = PD_BE32(offsets[i + 1]);
+				const u32 ofs = PD_BE32(offsets[i]);
+				int mod;
+				for (mod = 0; mod <= g_NumModDirs; ++mod) {
+					fileSlots[mod][i].data = g_RomFile + ofs;
+					fileSlots[mod][i].size = nextofs - ofs;
+					fileSlots[mod][i].source = SRC_UNLOADED;
+					fileSlots[mod][i].preprocessed = 0;
+				}
+			}
+		}
+
+		// last offset is to the name table
+		const u32 *nameOffsets = (u32 *)(g_RomFile + PD_BE32(offsets[i - 1]));
+		for (i = 1; nameOffsets[i]; ++i) {
+			const u32 ofs = PD_BE32(nameOffsets[i]);
+			for (s32 mod = 0; mod <= g_NumModDirs; ++mod) {
+				fileSlots[mod][i].name = (const char *)nameOffsets + ofs; // ofs is relative to the start of the name table
+			}
+		}
+
+		for (i = 1; i < (u32)(sizeof(fileSlots[0]) / sizeof(fileSlots[0][0])); ++i) {
+			for (s32 mod = 1; mod < (g_NumModDirs - 1); ++mod) {
+				fileSlots[mod][i] = fileSlots[0][i];
+			}
+		}
+	} else {
+		// no ROM; try to load the file name list from disk
+		if (!romdataLoadExternalFileList()) {
+			// If no ROM and no file list, we rely entirely on external file table
+			// But we can't error out yet if external table exists
 		}
 	}
 
-	// TODO: need to define these files in modconfig,
-	// and overlay them here
-	const struct {
-		int file_index;
-		const char *name;
-	} slot_defs[] = {
-		{FILE_CDRCARROLL2, "Ccarroll2Z"},
-		{FILE_CSKEDAR2, "Cskedar2Z"},
-		{FILE_GHAND_DRCARROLL, "Ghand_carollZ"},
-		{FILE_GHAND_SKEDAR, "Ghand_skedarZ"}
-	};
-
-	// init mod slow in AIO for expanded files
-	for (i = 0; i < sizeof(slot_defs) / sizeof(slot_defs[0]); ++i) {
-		const s32 file_index = slot_defs[i].file_index;
-		const char *name = slot_defs[i].name;
-		fileSlots[0][file_index].data = 0;
-		fileSlots[0][file_index].size = 0;
-		fileSlots[0][file_index].source = SRC_UNLOADED;
-		fileSlots[0][file_index].preprocessed = 0;
-		fileSlots[0][file_index].name = name;
+	// Then overlay external file table
+	if (romdataLoadExternalFileTable()) {
+		return;
 	}
 
-	for (i = 1; i < (u32)(sizeof(fileSlots[0]) / sizeof(fileSlots[0][0])); ++i) {
-		for (s32 mod = 1; mod < (g_NumModDirs - 1); ++mod) {
-			fileSlots[mod][i] = fileSlots[0][i];
+	if (!g_RomFile && !fileSlots[0][1].name) { // Check if we have anything
+		sysFatalError("No ROM file or external filename table found.");
+	}
+}
+
+static inline void romdataResetFile(s32 modNum, s32 fileNum)
+{
+	// 1. Load from ROM table first (default)
+	if (romDataSeg) {
+		const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
+		if (offsets + fileNum + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
+			const u32 nextofs = PD_BE32(offsets[fileNum + 1]);
+			const u32 ofs = PD_BE32(offsets[fileNum]);
+
+			// Validate offsets to ensure we aren't reading garbage beyond the actual file table
+			if (ofs < g_RomFileSize && nextofs <= g_RomFileSize && nextofs >= ofs) {
+				fileSlots[modNum][fileNum].data = g_RomFile + ofs;
+				fileSlots[modNum][fileNum].size = nextofs - ofs;
+			} else {
+				fileSlots[modNum][fileNum].data = NULL;
+				fileSlots[modNum][fileNum].size = 0;
+			}
+			fileSlots[modNum][fileNum].source = SRC_UNLOADED;
+			fileSlots[modNum][fileNum].preprocessed = 0;
+		}
+	}
+
+	// 2. Override with External table if present
+	if (externalFileTableData) {
+		u8 *data = externalFileTableData;
+		u32 numFiles = PD_BE32(*(u32*)(data + 8));
+		u8 *p = data + 12;
+
+		for (u32 i = 0; i < numFiles; ++i) {
+			u32 id = PD_BE32(*(u32*)p); p += 4;
+			u32 flags = PD_BE32(*(u32*)p); p += 4;
+			u32 offset = PD_BE32(*(u32*)p); p += 4;
+			u32 fileSize = PD_BE32(*(u32*)p); p += 4;
+			u16 nameLen = PD_BE16(*(u16*)p); p += 2 + nameLen;
+			u16 pathLen = PD_BE16(*(u16*)p); p += 2 + pathLen;
+
+			if (id == fileNum) {
+				if (flags & 1) {
+					fileSlots[modNum][fileNum].data = g_RomFile + offset;
+					fileSlots[modNum][fileNum].size = fileSize;
+					fileSlots[modNum][fileNum].source = SRC_UNLOADED;
+				}
+				fileSlots[modNum][fileNum].preprocessed = 0;
+				return;
+			}
 		}
 	}
 }
 
-static inline void romdataResetFile(s32 fileNum)
+void romdataResetMod(s32 modNum)
 {
-	// the file offset table is in the data seg
-	const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
-	if (offsets + fileNum + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
-		const u32 nextofs = PD_BE32(offsets[fileNum + 1]);
-		const u32 ofs = PD_BE32(offsets[fileNum]);
-		fileSlots[g_ModNum][fileNum].data = g_RomFile + ofs;
-		fileSlots[g_ModNum][fileNum].size = nextofs - ofs;
-		fileSlots[g_ModNum][fileNum].source = SRC_UNLOADED;
-		fileSlots[g_ModNum][fileNum].preprocessed = 0;
+	if (modNum < 0 || modNum >= 64) {
+		return;
+	}
+
+	for (s32 i = 1; i < ROMDATA_MAX_FILES; ++i) {
+		if (fileSlots[modNum][i].source == SRC_EXTERNAL) {
+			sysMemFree(fileSlots[modNum][i].data);
+			fileSlots[modNum][i].data = NULL;
+		}
+		romdataResetFile(modNum, i);
 	}
 }
 
@@ -436,6 +608,11 @@ static inline struct romfile *romdataGetSeg(const char *name)
 
 s32 romdataInit(void)
 {
+	if (getenv("PD_DEBUG_FILELOAD")) {
+		g_DebugFileLoad = true;
+		sysLogPrintf(LOG_NOTE, "File loading debugging enabled");
+	}
+
 	const char *altRomName = sysArgGetString("--rom-file");
 	if (altRomName) {
 		romName = altRomName;
@@ -503,16 +680,214 @@ s32 romdataCheckGbcRom(void)
 	return ret;
 }
 
+static char g_FileLoadModPrefix[32] = "MOD_FOJO";
+
+
+static const char *romdataGetContextPrefix(void)
+{
+	const char *context;
+	
+	// Check for Boot
+	if (g_MainIsBooting) {
+		context = "BOOT";
+		goto done;
+	}
+
+	// Check for Intro
+	if (g_InCutscene) {
+		context = "INTRO";
+		goto done;
+	}
+
+	// Check for CI
+	if (g_StageNum == STAGE_CITRAINING) {
+		context = "CI";
+		goto done;
+	}
+
+	// Check for 4MB Menu
+	if (g_StageNum == STAGE_4MBMENU) {
+		context = "MB";
+		goto done;
+	}
+
+	// Check for Combat Simulator (Multiplayer)
+	if (g_Vars.normmplayerisrunning) {
+		context = "CS";
+		goto done;
+	}
+
+	// Check for Co-op / Counter-Op / Team Missions
+	if (g_Vars.mplayerisrunning) {
+		if (g_MissionConfig.isteam) {
+			context = "TEAM";
+			goto done;
+		}
+		if (g_MissionConfig.isanti) {
+			context = "ANTI";
+			goto done;
+		}
+		context = "COOP";
+		goto done;
+	}
+
+	// Default to Solo
+	context = "SOLO";
+	
+done:
+	DEBUG_FLOAD("romdataGetContextPrefix: stage=%d, normmplayerisrunning=%d, mplayerisrunning=%d, isteam=%d, isanti=%d -> context=%s\n",
+		g_StageNum, g_Vars.normmplayerisrunning, g_Vars.mplayerisrunning, g_MissionConfig.isteam, g_MissionConfig.isanti, context);
+	return context;
+}
+
+static void romdataResolvePath(char *dst, const char *src, size_t dstSize, const char *currentModName, const char *activeModName, bool requireExport)
+{
+	dst[0] = '\0';
+	if (!src) {
+		return;
+	}
+
+	const char *contextPrefix = romdataGetContextPrefix();
+
+	// We need to parse the string. It might have pipes.
+	// Format: metadata::path|metadata2::path2
+	// Metadata: mod:mod_name,context:context,export
+
+	char srcCopy[4096];
+	strncpy(srcCopy, src, sizeof(srcCopy));
+	srcCopy[sizeof(srcCopy) - 1] = '\0';
+
+	char *bestMatch = NULL;
+	int bestScore = -1;
+
+	char *cursor = srcCopy;
+	while (*cursor) {
+		// Find end of current token (pipe or end of string)
+		char *pipe = strchr(cursor, '|');
+		if (pipe) {
+			*pipe = '\0';
+		}
+
+		char *token = cursor;
+		char *sep = strstr(token, "::");
+		int score = -1;
+		char *pathStart = token;
+
+		if (sep) {
+			*sep = '\0'; // Terminate metadata
+			pathStart = sep + 2;
+			char *metadata = token;
+
+			// Parse metadata
+			bool modMatch = false;
+			bool contextMatch = false;
+			bool hasMod = false;
+			bool hasContext = false;
+			bool hasExport = false;
+
+			if (metadata[0] == '\0') {
+				// Empty metadata = default
+				score = 0;
+			} else {
+				// Parse comma-separated metadata
+				char *metaCursor = metadata;
+				while (*metaCursor) {
+					char *comma = strchr(metaCursor, ',');
+					if (comma) {
+						*comma = '\0';
+					}
+
+					char *metaToken = metaCursor;
+					char *valSep = strchr(metaToken, ':');
+					if (valSep) {
+						*valSep = '\0';
+						char *key = metaToken;
+						char *val = valSep + 1;
+
+						if (strcmp(key, "mod") == 0) {
+							hasMod = true;
+							if (currentModName && strcmp(val, currentModName) == 0) {
+								modMatch = true;
+							}
+						} else if (strcmp(key, "context") == 0) {
+							hasContext = true;
+							if (strcmp(val, contextPrefix) == 0) {
+								contextMatch = true;
+							}
+						}
+					} else {
+						// Flag only (e.g. export)
+						if (strcmp(metaToken, "export") == 0) {
+							hasExport = true;
+						}
+					}
+
+					if (comma) {
+						metaCursor = comma + 1;
+					} else {
+						break;
+					}
+				}
+
+				// Scoring logic
+				if (requireExport && !hasExport) {
+					score = -1; // Export required but not present
+				} else if (hasMod && !modMatch && !hasExport) {
+					score = -1; // Wrong mod (provider mismatch) and not exported
+				} else if (hasContext && !contextMatch) {
+					score = -1; // Wrong context
+				} else if (hasMod && !hasExport && activeModName && currentModName && strcmp(currentModName, activeModName) != 0) {
+					// Private asset (not exported), and we are not the owner
+					score = -1;
+				} else {
+					// Matches constraints
+					score = 0;
+					if (hasMod && modMatch) score += 2;
+					if (hasContext) score += 1;
+				}
+			}
+		} else {
+			// No :: separator, assume simple path (default)
+			score = 0;
+			if (requireExport) {
+				score = -1; // Default path is not exported
+			}
+		}
+
+		if (score > bestScore) {
+			bestScore = score;
+			bestMatch = pathStart;
+		}
+
+		if (pipe) {
+			cursor = pipe + 1;
+		} else {
+			break;
+		}
+	}
+
+	if (bestMatch) {
+		strncpy(dst, bestMatch, dstSize);
+		dst[dstSize - 1] = '\0';
+	}
+}
+
 s32 romdataFileGetSize(s32 fileNum)
 {
+	s32 modNum = g_ModNum;
+	if (fileNum & 0xFFFF0000) {
+		modNum = (fileNum >> 16) & 0xFF;
+		fileNum = fileNum & 0xFFFF;
+	}
+
 	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) {
 		sysLogPrintf(LOG_ERROR, "romdataFileGetSize: invalid file num %d", fileNum);
 		return -1;
 	}
 
 	// ensure any external files are loaded and we use their size
-	if (romdataFileLoad(fileNum, NULL)) {
-		return fileSlots[g_ModNum][fileNum].size;
+	if (romdataFileLoad(fileNum | (modNum << 16), NULL)) {
+		return fileSlots[modNum][fileNum].size;
 	}
 
 	sysLogPrintf(LOG_ERROR, "romdataFileGetSize: could not load file num %d", fileNum);
@@ -524,8 +899,23 @@ u8 *romdataFileGetData(s32 fileNum)
 	return romdataFileLoad(fileNum, NULL);
 }
 
+static bool romdataValidate(void *data, u32 size)
+{
+	if (!data || size == 0) {
+		return false;
+	}
+	// TODO: Add more robust validation (e.g. rzip header check)
+	return true;
+}
+
 u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 {
+	s32 modNum = g_ModNum;
+	if (fileNum & 0xFFFF0000) {
+		modNum = (fileNum >> 16) & 0xFF;
+		fileNum = fileNum & 0xFFFF;
+	}
+
 	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) {
 		sysLogPrintf(LOG_ERROR, "romdataFileLoad: invalid file num %d", fileNum);
 		return NULL;
@@ -534,127 +924,192 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 	u8 *out = NULL;
 
 	// try to load external file
-	if (fileSlots[g_ModNum][fileNum].source == SRC_UNLOADED) {
+	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
 		char tmp[FS_MAXPATH] = { 0 };
-		snprintf(tmp, sizeof(tmp), ROMDATA_FILEDIR "/%s", fileSlots[g_ModNum][fileNum].name);
+		char resolvedName[FS_MAXPATH];
 
-		// All Solos in Multi Mod: do not load in solo, coop, counter-op (excluding playable skedar model)
-		if (fsFileSize(tmp) > 0 && (!g_NotLoadMod || fileNum == FILE_CSKEDAR2 || fileNum == FILE_GHAND_SKEDAR)) {
-			u32 size = 0;
-
-			out = fsFileLoad(tmp, &size);
-
-			if (out && size) {
-				sysLogPrintf(LOG_NOTE, "file %d (%s) loaded externally (g_ModNum: %d)", fileNum, fileSlots[g_ModNum][fileNum].name, g_ModNum);
-				fileSlots[g_ModNum][fileNum].data = out;
-				fileSlots[g_ModNum][fileNum].size = size;
-				fileSlots[g_ModNum][fileNum].source = SRC_EXTERNAL;
-				// external file; do not apply patches to this
-				fileSlots[g_ModNum][fileNum].numpatches = 0;
+		// All Solos in Multi Mod: do not load in solo, coop, counter-op
+		bool allowMod = !g_NotLoadMod;
+		if (g_StageNum >= 0 && g_StageNum < 256) {
+			if (g_StageModFlags[g_StageNum] & MOD_FLAG_FORCE_LOAD) {
+				allowMod = true;
+			} else if (g_StageModFlags[g_StageNum] & MOD_FLAG_FORCE_VANILLA) {
+				allowMod = false;
 			}
 		}
 
-		if (fileSlots[g_ModNum][fileNum].source == SRC_UNLOADED) {
-			// tried and failed, fall back to ROM
-			fileSlots[g_ModNum][fileNum].source = SRC_ROM;
+
+		// Always allow setup files to be modded
+		const char *fileName = fileSlots[modNum][fileNum].name;
+		if (fileName && strstr(fileName, "setup")) {
+			allowMod = true;
 		}
+
+		u32 loadedSize = 0;
+
+		// Get active mod name
+		const char *activeModName = NULL;
+		if (g_ModNum >= 0 && g_ModNum < g_NumModDirs && modDirs[g_ModNum][0]) {
+			activeModName = strrchr(modDirs[g_ModNum], '/');
+			if (activeModName) activeModName++;
+			else activeModName = modDirs[g_ModNum];
+		}
+
+		bool requireExport = !allowMod;
+
+		// 1. Try All Mods (Reverse Order)
+		for (s32 i = g_NumModDirs - 1; i >= 0; --i) {
+			if (modDirs[i][0]) {
+				// Extract mod name from path (basename)
+				const char *modName = strrchr(modDirs[i], '/');
+				if (modName) {
+					modName++; // Skip '/'
+				} else {
+					modName = modDirs[i];
+				}
+
+					// Resolve path specifically for this mod
+				romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), modName, activeModName, requireExport);
+
+				if (resolvedName[0] == '\0') {
+					continue; // No match for this mod
+				}
+
+				// If resolvedName already starts with "files/", don't prepend ROMDATA_FILEDIR
+				if (strncmp(resolvedName, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1) == 0) {
+					snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
+				} else if (strncmp(resolvedName, "textures/", 9) == 0) {
+					// Special case for textures: check both files/textures and just textures
+					snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
+					if (fsFileSize(tmp) <= 0) {
+						snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
+					}
+				} else {
+					snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
+				}
+
+				// if (fileNum == FILE_CHEADGREY) {
+				// 	sysLogPrintf(LOG_NOTE, "DEBUG: Checking for FILE_CHEADGREY at '%s'", tmp);
+				// }
+
+				if (fsFileSize(tmp) > 0) {
+					out = fsFileLoad(tmp, &loadedSize);
+					if (romdataValidate(out, loadedSize)) {
+						sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from mod %d (%s)", fileNum, resolvedName, i, modName);
+						break;
+					} else {
+						sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in mod %d, skipping", fileNum, resolvedName, i);
+						if (out) { sysMemFree(out); out = NULL; }
+					}
+				}
+			}
+		}
+
+		// 2. Try Base Dir (if not found in mod or corrupted)
+		if (!out) {
+			// Resolve generic path (no mod constraint)
+			romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), NULL, activeModName, requireExport);
+
+			if (resolvedName[0] != '\0') {
+				snprintf(tmp, sizeof(tmp), "$B/" ROMDATA_FILEDIR "/%s", resolvedName);
+				if (fsFileSize(tmp) > 0) {
+					out = fsFileLoad(tmp, &loadedSize);
+					if (romdataValidate(out, loadedSize)) {
+						sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from base", fileNum, resolvedName);
+					} else {
+						sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in base, falling back", fileNum, resolvedName);
+						if (out) { sysMemFree(out); out = NULL; }
+					}
+				}
+			}
+		}
+
+		if (out) {
+			fileSlots[modNum][fileNum].data = out;
+			fileSlots[modNum][fileNum].size = loadedSize;
+			fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
+			// external file; do not apply patches to this
+			fileSlots[modNum][fileNum].numpatches = 0;
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d, g_NotLoadMod=%d)", 
+			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+	}
+
+	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
+		// tried and failed, fall back to ROM
+		fileSlots[modNum][fileNum].source = SRC_ROM;
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d, g_NotLoadMod=%d)", 
+			fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+	}
 	}
 
 	if (!out) {
-		out = fileSlots[g_ModNum][fileNum].data;
+		out = fileSlots[modNum][fileNum].data;
 	}
 
 	if (out && outSize) {
-		*outSize = fileSlots[g_ModNum][fileNum].size;
+		*outSize = fileSlots[modNum][fileNum].size;
 	}
 
 	return out;
 }
 
+
 void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *outSize)
 {
+	s32 modNum = g_ModNum;
+	if (fileNum & 0xFFFF0000) {
+		modNum = (fileNum >> 16) & 0xFF;
+		fileNum = fileNum & 0xFFFF;
+	}
+
 	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) {
 		sysLogPrintf(LOG_ERROR, "romdataFilePreprocess: invalid file num %d", fileNum);
 		return;
 	}
 
-	if (data && size /* && !fileSlots[g_ModNum][fileNum].preprocessed*/) {
+	if (data && size /* && !fileSlots[modNum][fileNum].preprocessed*/) {
 		if (loadType && loadType < (u32)ARRAYCOUNT(filePreprocFuncs) && filePreprocFuncs[loadType]) {
 			// apply patches
-			for (u32 i = 0; i < fileSlots[g_ModNum][fileNum].numpatches; ++i) {
-				const struct romfilepatch *p = &fileSlots[g_ModNum][fileNum].patches[i];
+			for (u32 i = 0; i < fileSlots[modNum][fileNum].numpatches; ++i) {
+				const struct romfilepatch *p = &fileSlots[modNum][fileNum].patches[i];
 				if (!memcmp(data + p->ofs, p->src, p->len)) {
 					memcpy(data + p->ofs, p->dst, p->len);
-					sysLogPrintf(LOG_NOTE, "file %d (%s) patched at offset 0x%x", fileNum, fileSlots[g_ModNum][fileNum].name, p->ofs);
+					sysLogPrintf(LOG_NOTE, "file %d (%s) patched at offset 0x%x", fileNum, fileSlots[modNum][fileNum].name, p->ofs);
 				}
 			}
 			// then preprocess
-			filePreprocFuncs[loadType](data, size, outSize);
-			// fileSlots[g_ModNum][fileNum].preprocessed = 1;
+			filePreprocFuncs[loadType](data, size, outSize, modNum);
+			// fileSlots[modNum][fileNum].preprocessed = 1;
 		}
 	}
 }
 
 void romdataFileFree(s32 fileNum)
 {
+	s32 modNum = g_ModNum;
+	if (fileNum & 0xFFFF0000) {
+		modNum = (fileNum >> 16) & 0xFF;
+		fileNum = fileNum & 0xFFFF;
+	}
+
 	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) {
 		sysLogPrintf(LOG_ERROR, "fsFileFree: invalid file num %d", fileNum);
 		return;
 	}
 
-	if (fileSlots[g_ModNum][fileNum].source == SRC_EXTERNAL) {
-		sysMemFree(fileSlots[g_ModNum][fileNum].data);
-		fileSlots[g_ModNum][fileNum].data = NULL;
+	if (fileSlots[modNum][fileNum].source == SRC_EXTERNAL) {
+		sysMemFree(fileSlots[modNum][fileNum].data);
+		fileSlots[modNum][fileNum].data = NULL;
 	}
 
-	fileSlots[g_ModNum][fileNum].source = SRC_UNLOADED;
+	fileSlots[modNum][fileNum].source = SRC_UNLOADED;
 }
 
 void romdataFileFreeForSolo(void)
 {
-	// All Solos in Multi Mod: reset mod files for solo (bg, clipping, pads)
-	romdataResetFile(0x009); // bgdata/bg_azt.seg
-	romdataResetFile(0x00a); // bgdata/bg_pete.seg
-	romdataResetFile(0x00b); // bgdata/bg_depo.seg
-	romdataResetFile(0x00e); // bgdata/bg_dam.seg
-	romdataResetFile(0x014); // bgdata/bg_cave.seg
-	romdataResetFile(0x017); // bgdata/bg_sho.seg
-	romdataResetFile(0x018); // bgdata/bg_eld.seg
-	romdataResetFile(0x019); // bgdata/bg_imp.seg
-	romdataResetFile(0x01b); // bgdata/bg_lue.seg
-	romdataResetFile(0x01c); // bgdata/bg_ame.seg
-	romdataResetFile(0x01d); // bgdata/bg_rit.seg
-	romdataResetFile(0x01f); // bgdata/bg_ear.seg
-	romdataResetFile(0x020); // bgdata/bg_lee.seg
-	romdataResetFile(0x024); // bgdata/bg_pam.seg
-	romdataResetFile(0x14b); // bgdata/bg_ame_padsZ
-	romdataResetFile(0x14c); // bgdata/bg_ame_tilesZ
-	romdataResetFile(0x155); // bgdata/bg_azt_padsZ
-	romdataResetFile(0x156); // bgdata/bg_azt_tilesZ
-	romdataResetFile(0x159); // bgdata/bg_cave_padsZ
-	romdataResetFile(0x15a); // bgdata/bg_cave_tilesZ
-	romdataResetFile(0x15f); // bgdata/bg_dam_padsZ
-	romdataResetFile(0x160); // bgdata/bg_dam_tilesZ
-	romdataResetFile(0x161); // bgdata/bg_depo_padsZ
-	romdataResetFile(0x162); // bgdata/bg_depo_tilesZ
-	romdataResetFile(0x167); // bgdata/bg_ear_padsZ
-	romdataResetFile(0x168); // bgdata/bg_ear_tilesZ
-	romdataResetFile(0x169); // bgdata/bg_eld_padsZ
-	romdataResetFile(0x16a); // bgdata/bg_eld_tilesZ
-	romdataResetFile(0x16b); // bgdata/bg_imp_padsZ
-	romdataResetFile(0x16c); // bgdata/bg_imp_tilesZ
-	romdataResetFile(0x16f); // bgdata/bg_lee_padsZ
-	romdataResetFile(0x170); // bgdata/bg_lee_tilesZ
-	romdataResetFile(0x175); // bgdata/bg_lue_padsZ
-	romdataResetFile(0x176); // bgdata/bg_lue_tilesZ
-	romdataResetFile(0x179); // bgdata/bg_pam_padsZ
-	romdataResetFile(0x17a); // bgdata/bg_pam_tilesZ
-	romdataResetFile(0x17b); // bgdata/bg_pete_padsZ
-	romdataResetFile(0x17c); // bgdata/bg_pete_tilesZ
-	romdataResetFile(0x17f); // bgdata/bg_rit_padsZ
-	romdataResetFile(0x180); // bgdata/bg_rit_tilesZ
-	romdataResetFile(0x189); // bgdata/bg_sho_padsZ
-	romdataResetFile(0x18a); // bgdata/bg_sho_tilesZ
+	DEBUG_FLOAD("romdataFileFreeForSolo: Resetting files for mod %d (g_StageNum=0x%02x, restartlevel=%d)", 
+		g_ModNum, g_StageNum, g_Vars.restartlevel);
+	romdataResetMod(g_ModNum);
 }
 
 const char *romdataFileGetName(s32 fileNum)
@@ -673,6 +1128,56 @@ s32 romdataFileGetNumForName(const char *name)
 
 	for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
 		if (fileSlots[g_ModNum][i].name && !strcmp(fileSlots[g_ModNum][i].name, name)) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
+{
+	if (!name || !name[0]) {
+		return -1;
+	}
+
+	if (modNum < 0 || modNum >= 64) {
+		return -1;
+	}
+
+	// Try to find in external file table first (supports separate name vs path)
+	if (externalFileTableData) {
+		u8 *data = externalFileTableData;
+		u32 numFiles = PD_BE32(*(u32*)(data + 8));
+		u8 *p = data + 12;
+		size_t searchLen = strlen(name);
+
+		for (u32 i = 0; i < numFiles; ++i) {
+			if (p + 16 > data + externalFileTableSize) break;
+
+			u32 id = PD_BE32(*(u32*)p); p += 4;
+			p += 12; // flags, offset, filesize
+
+			u16 nameLen = PD_BE16(*(u16*)p); p += 2;
+			char *entryName = (char*)p;
+			p += nameLen;
+
+			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
+			p += pathLen;
+
+			if (nameLen == searchLen && !strncmp(entryName, name, nameLen)) {
+				return id;
+			}
+
+			// Also try matching basename if the input name has a path
+			if (searchLen > nameLen && name[searchLen - nameLen - 1] == '/' && !strncmp(entryName, name + searchLen - nameLen, nameLen)) {
+				return id;
+			}
+		}
+	}
+
+	for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
+		if (fileSlots[modNum][i].name && !strcmp(fileSlots[modNum][i].name, name)) {
 			return i;
 		}
 	}
@@ -712,4 +1217,16 @@ u32 romdataFileGetEstimatedSize(const u32 size, const u32 loadtype)
 	}
 #endif
 	return size;
+}
+
+// DEBUG helper function to check fileSlots integrity
+void romdataDebugCheckFileSlot(s32 modNum, s32 fileNum) {
+	if (modNum >= 0 && modNum < 64 && fileNum >= 0 && fileNum < ROMDATA_MAX_FILES) {
+		if (fileSlots[modNum][fileNum].name) {
+			sysLogPrintf(LOG_NOTE, "DEBUG: fileSlots[%d][%d].name = %s (source=%d)",
+				modNum, fileNum, fileSlots[modNum][fileNum].name, fileSlots[modNum][fileNum].source);
+		} else {
+			sysLogPrintf(LOG_NOTE, "DEBUG: fileSlots[%d][%d].name = NULL", modNum, fileNum);
+		}
+	}
 }
