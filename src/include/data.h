@@ -402,7 +402,8 @@ extern struct skeleton g_SkelSkedar;
 extern struct skeleton g_SkelDrCaroll;
 extern struct skeleton g_Skel22;
 extern struct skeleton g_SkelRobot;
-extern struct headorbody g_HeadsAndBodies[152];
+extern struct headorbody *g_HeadsAndBodies;
+extern s32 g_NumHeadsAndBodies;
 extern struct hatposition var8007dae4[1][6];
 extern f32 g_SkyCloudOffset;
 extern f32 g_SkyWindSpeed;
@@ -470,8 +471,11 @@ extern struct menudialogdef g_MpEndscreenChallengeCheatedMenuDialog;
 extern struct menudialogdef g_MpEndscreenChallengeFailedMenuDialog;
 extern struct menudialogdef g_MpDropOutMenuDialog;
 extern struct mparena* g_MpArenas;
-extern struct mparena g_MpArenas_AIO[];
+extern struct mparena *g_MpArenas_AIO;
+extern s32 g_NumMpArenas_AIO;
 extern struct mparena g_MpArenas_Vanilla[];
+extern struct mparenagroup *g_MpArenaGroups;
+extern s32 g_NumMpArenaGroups;
 extern struct menudialogdef g_MpWeaponsMenuDialog;
 extern struct menudialogdef g_MpPlayerOptionsMenuDialog;
 extern struct menudialogdef g_MpControlMenuDialog;
@@ -504,17 +508,11 @@ extern struct menudialogdef g_MpQuickTeamScenarioMenuDialog;
 extern u32 g_MenuTransitionFlags;
 extern bool g_MpEnableMusicSwitching;
 extern struct mpweapon g_MpWeapons[NUM_MPWEAPONS];
-#ifdef PLATFORM_N64
-extern struct mphead g_MpHeads[VERSION == VERSION_JPN_FINAL ? 74 : 75];
-#else // PD Plus Mod
-extern struct mphead g_MpHeads[VERSION == VERSION_JPN_FINAL ? 75 : 76];
-#endif
+extern struct mphead *g_MpHeads;
+extern s32 g_NumMpHeads;
 extern struct botprofile g_BotProfiles[18];
-#ifdef PLATFORM_N64
-extern struct mpbody g_MpBodies[61];
-#else // PD Plus Mod
-extern struct mpbody g_MpBodies[63];
-#endif
+extern struct mpbody *g_MpBodies;
+extern s32 g_NumMpBodies;
 extern struct mppreset g_MpPresets[];
 extern u32 g_TeamColours[];
 extern u32 var80087ce4[];
@@ -595,11 +593,6 @@ extern s16 g_MpCurrentSetup;
 // 1: GoldenEye X Mod
 // 2: Kakariko Village Mod
 extern s32 g_ModNum;
-// GoldenEye X Mod
-extern struct modelstate g_GexModelStates[NUM_MODELS];
-extern s8 g_GexPropExplosionTypes[];
-// Goldfinger 64 Mod
-extern struct modelstate g_Goldfinger64ModelStates[NUM_MODELS];
 // All Solos in Multi Mod
 extern bool g_NotLoadMod;
 

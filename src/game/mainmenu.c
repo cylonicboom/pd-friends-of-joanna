@@ -36,6 +36,7 @@
 #include "lib/rng.h"
 #include "data.h"
 #include "types.h"
+#include "mod.h"
 
 #ifndef PLATFORM_N64 // All Solos in Multi Mod
 #include "romdata.h"
@@ -804,6 +805,12 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 
 #ifndef PLATFORM_N64 // All Solos in Multi Mod
 		g_NotLoadMod = true;
+		// Check if the stage is forced to load mod files
+		if (g_MissionConfig.stagenum >= 0 && g_MissionConfig.stagenum < 256) {
+			if (g_StageModFlags[g_MissionConfig.stagenum] & MOD_FLAG_FORCE_LOAD) {
+				g_NotLoadMod = false;
+			}
+		}
 		romdataFileFreeForSolo();
 #endif
 
@@ -1003,6 +1010,36 @@ MenuItemHandlerResult menuhandlerPdModeSetting(s32 operation, struct menuitem *i
 		break;
 	}
 
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerTeamLives(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GETSLIDER:
+		// Map -1..100 range to slider 0..101
+		data->slider.value = g_MissionConfig.lives + 1;
+		return 0;
+	case MENUOP_SET:
+		// Map slider 0..101 to -1..100 range
+		g_MissionConfig.lives = data->slider.value - 1;
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+		return 0;
+	case MENUOP_GETSLIDERLABEL:
+		{
+			s32 value = g_MissionConfig.lives;
+			if (value == -1) {
+				sprintf(data->slider.label, "Unlimited");
+			} else if (value == 0) {
+				sprintf(data->slider.label, "Classic");
+			} else if (value == 1) {
+				sprintf(data->slider.label, "YOLO");
+			} else {
+				sprintf(data->slider.label, "%d Lives", value);
+			}
+		}
+		return 0;
+	}
 	return 0;
 }
 
@@ -1790,7 +1827,9 @@ struct menudialogdef g_TeamMissionsOperativeModelMenuDialog = {
 #define FOJO_HEAD_JOANNA    MPHEAD_DARK_COMBAT  // 0x00 - Joanna Dark
 #define FOJO_HEAD_VELVET    MPHEAD_VD           // 0x0b - Velvet Dark
 #define FOJO_HEAD_MIKADO    0x4b                // Japanese Jo (from AIO detection)
-#define FOJO_HEAD_POPLIN    MPHEAD_ANKA    // 0x03 - Poplin Dark (stub in Anka for now)
+#define FOJO_HEAD_POPLIN    MPHEAD_ANKA      // 0x03 - Poplin Dark (stub in Anka for now)
+// #define FOJO_HEAD_FOSLER    MPHEAD_FOSLER    // TODO: assign slot
+#define FOJO_HEAD_CASS      MPHEAD_CASSANDRA    // TODO: assign slot
 
 // Array of female heads for the carousel (max 5 slots: up to 4 fixed + player's CS head)
 // Last slot is for player's CS head, Mikado slot is conditional on AIO
@@ -1956,6 +1995,10 @@ char *fojoGetHeadName(s32 optionindex)
 		return "Mikado Dark";
 	case FOJO_HEAD_POPLIN:
 		return "Poplin Dark";
+	// case FOJO_HEAD_FOSLER:
+	// 	return "darkZer0";
+	case FOJO_HEAD_CASS:
+		return "Cassandra de Vries";
 	default:
 		return "Unknown";
 	}
@@ -2003,7 +2046,7 @@ s32 fojoGetPlayerHead(s32 playernum)
 	s32 headnum = mpGetHeadId(cshead);
 
 	// If CS head is female, return it as-is
-	if (headnum >= 0 && headnum < ARRAYCOUNT(g_HeadsAndBodies)) {
+	if (headnum >= 0 && headnum < g_NumHeadsAndBodies) {
 		if (!g_HeadsAndBodies[headnum].ismale) {
 			return cshead;
 		}
@@ -2387,6 +2430,14 @@ struct menuitem g_TeamMissionOptionsMenuItems[] = {
 		(uintptr_t)"Difficulty",
 		0,
 		menuhandlerTeamMissionDifficultyDropdown
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_LOCKABLEMINOR | MENUITEMFLAG_SLIDER_ALTSIZE,
+		(uintptr_t)"Lives",
+		0x00000065, // 0-101 range (representing -1 to 100)
+		menuhandlerTeamLives,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -3145,7 +3196,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 	s32 stageindex;
 	union handlerdata spdc;
 
-	g_ModNum = MOD_AIO;
+	g_ModNum = 0;
 
 	switch (operation) {
 	case MENUOP_GETOPTIONCOUNT:
@@ -6292,6 +6343,9 @@ MenuItemHandlerResult menuhandlerMainMenuCombatSimulator(s32 operation, struct m
 		menuResetJoinFadeAlpha();
 #ifndef PLATFORM_N64 // All Solos in Multi Mod
 		g_NotLoadMod = false;
+		// Check if the stage is forced to be vanilla
+		// Note: We don't know the next stage yet in CS menu, but romdataFileFreeForSolo
+		// will clear everything. The actual check happens in romdataFileLoad.
 		romdataFileFreeForSolo();
 #endif
 	}

@@ -24,7 +24,7 @@ struct n64_fontcharjpn {
 	u32 pixeldata;
 };
 
-u8 *preprocessFont(u8 *src, u32 srclen, u32 *outSize)
+u8 *preprocessFont(u8 *src, u32 srclen, u32 *outSize, s32 modNum)
 {
 	int num_chars = 94;
 #if VERSION == VERSION_PAL_FINAL
@@ -97,7 +97,7 @@ u8 *preprocessFont(u8 *src, u32 srclen, u32 *outSize)
 	return dst;
 }
 
-u8 *preprocessJpnFont(u8* data, u32 size, u32* outSize)
+u8 *preprocessJpnFont(u8* data, u32 size, u32* outSize, s32 modNum)
 {
 	// ???
 	return NULL;

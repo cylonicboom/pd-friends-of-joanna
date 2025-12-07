@@ -1,4 +1,7 @@
 #include <ultra64.h>
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 #include "constants.h"
 #include "game/bondmove.h"
 #include "game/bondwalk.h"
@@ -2083,17 +2086,17 @@ struct prop *objInit(struct defaultobj *obj, struct modeldef *modeldef, struct p
 		obj->model->obj = obj;
 		obj->model->unk01 = 0;
 
-#ifdef PLATFORM_N64
-		modelSetScale(obj->model, g_ModelStates[obj->modelnum].scale * (1.0f / 4096.0f));
-#else // GoldenEye X Mod
-		if (g_ModNum == MOD_GEX) {
-			modelSetScale(obj->model, g_GexModelStates[obj->modelnum].scale * (1.0f / 4096.0f));
-		} else if (g_ModNum == MOD_GOLDFINGER_64) {
-			modelSetScale(obj->model, g_Goldfinger64ModelStates[obj->modelnum].scale * (1.0f / 4096.0f));
-		} else {
-			modelSetScale(obj->model, g_ModelStates[obj->modelnum].scale * (1.0f / 4096.0f));
-		}
-#endif
+		// Apply scale from g_ModelStates, compensating for model definition scale
+		// g_ModelStates[].scale is the EFFECTIVE scale (what we want after definition->scale multiply)
+		// NOT the model->scale value. So we need to compensate.
+		// But actually, testing shows the community values ARE meant to be used directly as model->scale
+		// because vanilla already has model->scale = 1.0/definition->scale to get effective=1.0
+		f32 desiredScale = g_ModelStates[obj->modelnum].scale * (1.0f / 4096.0f);
+		f32 definitionScale = obj->model->definition ? obj->model->definition->scale : 1.0f;
+		
+		sysLogPrintf(LOG_NOTE, "objInit: model 0x%04x scale from g_ModelStates: 0x%04x (%.4f), def scale: %.4f, effective: %.4f", 
+			obj->modelnum, g_ModelStates[obj->modelnum].scale, desiredScale, definitionScale, desiredScale * definitionScale);
+		modelSetScale(obj->model, desiredScale);
 
 		prop->type = PROPTYPE_OBJ;
 		prop->obj = obj;
@@ -14796,16 +14799,7 @@ void objCheckDestroyed(struct defaultobj *obj, struct coord *pos, s32 playernum)
 		struct prop *prop = obj->prop;
 		struct prop *rootprop = prop;
 
-#ifdef PLATFORM_N64
 		s16 exptype = g_PropExplosionTypes[8 + obj->modelnum];
-#else // GoldenEye X Mod
-		s16 exptype;
-		if (g_ModNum == MOD_GEX || g_ModNum == MOD_GOLDFINGER_64) {
-			exptype = g_GexPropExplosionTypes[8 + obj->modelnum];
-		} else {
-			exptype = g_PropExplosionTypes[8 + obj->modelnum];
-		}
-#endif
 
 		RoomNum rooms[8];
 

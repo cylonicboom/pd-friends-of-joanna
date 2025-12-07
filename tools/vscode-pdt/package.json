@@ -1,0 +1,53 @@
+{
+  "name": "vscode-pdt",
+  "displayName": "Perfect Dark Tooling",
+  "description": "VS Code extension for Perfect Dark build tools (pdt)",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pdt.buildPort",
+        "title": "PDT: Build Port",
+        "category": "PDT"
+      },
+      {
+        "command": "pdt.rom",
+        "title": "PDT: Run ROM Tool",
+        "category": "PDT"
+      },
+      {
+        "command": "pdt.cleanBuild",
+        "title": "PDT: Clean and Build Port",
+        "category": "PDT"
+      }
+    ],
+    "configuration": {
+      "title": "Perfect Dark Tooling",
+      "properties": {
+        "pdt.path": {
+          "type": "string",
+          "default": "${workspaceFolder}/../tools/docker-caroll/bin/pdt",
+          "description": "Path to the pdt script"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^16.x",
+    "typescript": "^4.9.5"
+  }
+}

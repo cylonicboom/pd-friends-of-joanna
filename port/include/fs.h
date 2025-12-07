@@ -24,4 +24,7 @@ void fsFileFree(FILE *f);
 const char *fsGetModDir(void);
 s32 fsCreateDir(const char *path);
 
+extern char modDirs[64][FS_MAXPATH + 1];
+extern u32 g_NumModDirs;
+
 #endif

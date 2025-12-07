@@ -1,5 +1,7 @@
 #include <ultra64.h>
 #include "constants.h"
+#include "platform.h"
+#include "system.h"
 #include "game/game_096700.h"
 #include "game/acosfasinf.h"
 #include "game/quaternion.h"
@@ -572,6 +574,9 @@ void modelSetChrRotY(struct model *model, f32 angle)
 
 void modelSetScale(struct model *model, f32 scale)
 {
+	sysLogPrintf(LOG_NOTE, "modelSetScale: setting scale to %.4f (definition scale: %.4f, effective: %.4f)", 
+		scale, model->definition ? model->definition->scale : 0.0f, 
+		model->definition ? model->definition->scale * scale : scale);
 	model->scale = scale;
 }
 

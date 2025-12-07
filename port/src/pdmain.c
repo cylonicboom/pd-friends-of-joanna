@@ -28,6 +28,10 @@
 #include "game/chrai.h"
 #include "game/title.h"
 #include "game/pdmode.h"
+#include "game/mplayer/setup.h"
+#include "fs.h"
+#include "mod.h"
+#include <string.h>
 #include "game/objectives.h"
 #include "game/endscreen.h"
 #include "game/playermgr.h"
@@ -299,7 +303,8 @@ void mainInit(void)
 		g_VanillaTextures[i].soundsurfacetype = g_Textures[i].soundsurfacetype;
 	}
 	if (fsGetModDir()) {
-		// load all mods, then load MOD_AIO (0) again
+		modInit();
+		// load all mods, then load mod 0 again
 		for (s32 i = 0; i < g_NumModDirs; ++i) {
 			g_ModNum = i;
 			modConfigLoad(MOD_CONFIG_FNAME);
@@ -307,6 +312,9 @@ void mainInit(void)
 			g_ModNum = 0;
 			modConfigLoad(MOD_CONFIG_FNAME);
 	}
+
+	mpSetArenaMode(g_NumMpArenas_AIO > 0);
+
 	langInit();
 	lvInit();
 	cheatsInit();
@@ -334,8 +342,12 @@ void mainProc(void)
 {
 	mainInit();
 	for (s32 i = 0; i < g_NumModDirs; i++) {
+		sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod %d", i);
 		modSwitch(i, -1);
 	}
+	sysLogPrintf(LOG_NOTE, "mainProc: caching all mod configs");
+	modCacheAllConfigs();
+	sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
 	modSwitch(0, -1);
 	rdpInit();
 	sndInit();
@@ -531,6 +543,7 @@ void mainLoop(void)
 		joyReset();
 		dhudReset();
 		zbufReset(g_StageNum);
+		langReset(g_StageNum);
 		lvReset(g_StageNum);
 		viReset(g_StageNum);
 		frametimeCalculate();
@@ -555,7 +568,24 @@ void mainLoop(void)
 		viBlack(true);
 		pak0f116994();
 
+		if (g_MainChangeToStageNum == STAGE_TITLE) {
+			// Switch to boot mod (mod_fojo)
+			s32 bootMod = 0;
+			for (s32 i = 0; i < g_NumModDirs; ++i) {
+				if (strstr(modDirs[i], "mod_fojo")) {
+					bootMod = i;
+					break;
+				}
+			}
+			modSwitch(bootMod, -1);
+		} else {
+			sysLogPrintf(LOG_NOTE, "mainLoop: switching to stage 0x%02x", g_MainChangeToStageNum);
+			// Switch to the mod that owns this stage
+			modSwitch(-1, g_MainChangeToStageNum);
+		}
+
 		g_StageNum = g_MainChangeToStageNum;
+		sysLogPrintf(LOG_NOTE, "mainLoop: clearing g_MainChangeToStageNum (was 0x%02x)", g_MainChangeToStageNum);
 		g_MainChangeToStageNum = -1;
 	}
 }
@@ -656,6 +686,23 @@ void mainEndStage(void)
 void mainChangeToStage(s32 stagenum)
 {
 	pak0f11c6d0();
+
+	// If returning to title screen, ensure we reload the boot mod (mod_fojo)
+	if (stagenum == STAGE_TITLE) {
+		// Find mod_fojo index
+		s32 fojoIndex = -1;
+		for (s32 i = 0; i < g_NumModDirs; ++i) {
+			if (strstr(modDirs[i], "mod_fojo")) {
+				fojoIndex = i;
+				break;
+			}
+		}
+
+		if (fojoIndex >= 0) {
+			// Switch to mod_fojo, no specific level (will go to title)
+			modSwitch(fojoIndex, -1);
+		}
+	}
 
 	g_MainChangeToStageNum = stagenum;
 }

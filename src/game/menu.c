@@ -3713,9 +3713,6 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 	switch (root) {
 	case MENUROOT_MPSETUP:
 		menuSetBackground(MENUBG_CONEALPHA);
-		if (g_ModNum > MOD_NONE) {
-			modSwitch(MOD_AIO, -1);
-		}
 		break;
 	case MENUROOT_4MBFILEMGR:
 		musicStartMenu();
@@ -3918,6 +3915,7 @@ void menuResetModel(struct menumodel *menumodel, u32 allocationlen, bool allocat
 
 void menuReset(void)
 {
+	sysLogPrintf(LOG_NOTE, "menuReset called");
 	s32 i;
 
 	func0f110bf0();

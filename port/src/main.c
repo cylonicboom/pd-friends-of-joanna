@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <PR/ultratypes.h>
 #include <PR/ultrasched.h>
 #include <PR/os_message.h>
@@ -17,6 +18,7 @@
 #include "mod.h"
 #include "system.h"
 #include "utils.h"
+#include "game/mplayer/setup.h"
 
 u32 g_OsMemSize = 0;
 s32 g_OsMemSizeMb = 16;
@@ -103,6 +105,21 @@ int main(int argc, const char **argv)
 
 	sysInit();
 	fsInit();
+
+	// Check for AIO mod presence
+	extern s32 g_AIOPresent;
+	g_AIOPresent = 0;
+	for (s32 i = 0; i < g_NumModDirs; ++i) {
+		if (strstr(modDirs[i], "mod_aio") || strstr(modDirs[i], "mod_fojo")) {
+			g_AIOPresent = 1;
+			break;
+		}
+	}
+
+	if (g_AIOPresent) {
+		// mpSetArenaMode(true); // Moved to pdmain.c after config load
+	}
+
 	configInit();
 	videoInit();
 	inputInit();
@@ -153,7 +170,7 @@ int main(int argc, const char **argv)
 	mainProc();
 
 	// Mod Switch
-	g_ModNum = MOD_AIO;
+	g_ModNum = 0;
 
 	return 0;
 }

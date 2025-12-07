@@ -1,0 +1,20 @@
+ERROR: FATAL: Crashed: PC=0x55650ba1d6dd SIGNAL=11
+ERROR: FATAL: Crash!
+
+SIGNAL: 11
+PC: 0x55650ba1d6dd
+MODULE: 0x55650b779000
+MAIN MODULE: 0x55650b779000
+
+BACKTRACE:
+#00: ./build/pd.x86_64(+0x27e9c4) [0x55650b9f79c4]
+#01: ./build/pd.x86_64(+0x27eff7) [0x55650b9f7ff7]
+#02: /usr/lib64/libc.so.6(+0x3d310) [0x7f2b9cc52310]
+#03: ./build/pd.x86_64(+0x2a46dd) [0x55650ba1d6dd]
+#04: ./build/pd.x86_64(+0x27fa26) [0x55650b9f8a26]
+#05: ./build/pd.x86_64(+0x28477d) [0x55650b9fd77d]
+#06: /usr/lib64/libc.so.6(+0x2716e) [0x7f2b9cc3c16e]
+#07: /usr/lib64/libc.so.6(__libc_start_main+0x89) [0x7f2b9cc3c229]
+#08: ./build/pd.x86_64(+0x1e505) [0x55650b797505]
+
+ERROR: FATAL: Crashed: PC=0x7f2b9cca84cc SIGNAL=6

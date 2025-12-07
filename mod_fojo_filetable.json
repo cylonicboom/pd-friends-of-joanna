@@ -1,0 +1,109 @@
+{
+  "modName": "Friends of Joanna",
+  "modVersion": "1.0",
+  "description": "Mod: Friends of Joanna stage fixes for Friends of Joanna Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)",
+  "author": "Catherine Reprobate",
+  "files": [
+    {
+      "name": "UsetupstatZ",
+      "path": "SOLO:files/UsetupstatZ|COOP:files/UsetupstatZ|TEAM:files/UsetupstatZ|ANTI:files/UsetupstatZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupstatZ",
+      "stageId": "0x16",
+      "stageName": "extra spawns for coop characters",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupearZ",
+      "path": "SOLO:files/UsetupearZ|COOP:files/UsetupearZ|TEAM:files/UsetupearZ|ANTI:files/UsetupearZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupearZ",
+      "stageId": "0x33",
+      "stageName": "investigation",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetuppamZ",
+      "path": "SOLO:files/UsetuppamZ|COOP:files/UsetuppamZ|TEAM:files/UsetuppamZ|ANTI:files/UsetuppamZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetuppamZ",
+      "stageId": "0x38",
+      "stageName": "deep sea",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupdishZ",
+      "path": "SOLO:files/UsetupdishZ|COOP:files/UsetupdishZ|TEAM:files/UsetupdishZ|ANTI:files/UsetupdishZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupdishZ",
+      "stageId": "0x26",
+      "stageName": "pre-load Mikado Dark as a hidden character",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupameZ",
+      "path": "SOLO:files/UsetupameZ|COOP:files/UsetupameZ|TEAM:files/UsetupameZ|ANTI:files/UsetupameZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupameZ",
+      "stageId": "0x30",
+      "stageName": "defection",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetuplueZ",
+      "path": "SOLO:files/UsetuplueZ|COOP:files/UsetuplueZ|TEAM:files/UsetuplueZ|ANTI:files/UsetuplueZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetuplueZ",
+      "stageId": "0x2f",
+      "stageName": "infiltration",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetuppeteZ",
+      "path": "SOLO:files/UsetuppeteZ|COOP:files/UsetuppeteZ|TEAM:files/UsetuppeteZ|ANTI:files/UsetuppeteZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetuppeteZ",
+      "stageId": "0x1d",
+      "stageName": "chicago",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupeldZ",
+      "path": "SOLO:files/UsetupeldZ|COOP:files/UsetupeldZ|TEAM:files/UsetupeldZ|ANTI:files/UsetupeldZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupeldZ",
+      "stageId": "0x2c",
+      "stageName": "villa",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupleeZ",
+      "path": "SOLO:files/UsetupleeZ|COOP:files/UsetupleeZ|TEAM:files/UsetupleeZ|ANTI:files/UsetupleeZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupleeZ",
+      "stageId": "0x34",
+      "stageName": "hangar elevator fixes",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupimpZ",
+      "path": "SOLO:files/UsetupimpZ|COOP:files/UsetupimpZ|TEAM:files/UsetupimpZ|ANTI:files/UsetupimpZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupimpZ",
+      "stageId": "0x2d",
+      "stageName": "extra spawns, QOL changes for coop mode",
+      "prefix": "solo / team missions"
+    }
+  ],
+  "imports": []
+}

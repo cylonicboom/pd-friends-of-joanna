@@ -696,12 +696,6 @@ void menuTick(void)
 					mpSetPaused(MPPAUSEMODE_UNPAUSED);
 					menuResetToTraining();
 
-#ifndef PLATFORM_N64 // GoldenEye X Mod
-					// Mod Switch (MP End)
-					if (g_ModNum > MOD_NONE) {
-						modSwitch(MOD_AIO, -1);
-					}
-#endif
 				}
 				break;
 			}

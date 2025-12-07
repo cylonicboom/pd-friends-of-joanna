@@ -1,0 +1,5779 @@
+{
+    "files": [
+        {
+            "id": 2,
+            "name": "bg_silo.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_silo.seg"
+        },
+        {
+            "id": 3,
+            "name": "bg_stat.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_stat.seg"
+        },
+        {
+            "id": 4,
+            "name": "bg_arec.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_arec.seg|mod:mod_kakariko,context:CS::files/bgdata/bg_arec.seg|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_arec.seg"
+        },
+        {
+            "id": 5,
+            "name": "bg_arch.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_arch.seg"
+        },
+        {
+            "id": 6,
+            "name": "bg_tra.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_tra.seg"
+        },
+        {
+            "id": 7,
+            "name": "bg_dest.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_dest.seg"
+        },
+        {
+            "id": 9,
+            "name": "bg_azt.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_azt.seg"
+        },
+        {
+            "id": 10,
+            "name": "bg_pete.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_pete.seg"
+        },
+        {
+            "id": 11,
+            "name": "bg_depo.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_depo.seg"
+        },
+        {
+            "id": 12,
+            "name": "bg_ref.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_ref.seg|mod:mod_kakariko,context:CS::files/bgdata/bg_ref.seg|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_ref.seg"
+        },
+        {
+            "id": 13,
+            "name": "bg_cryp.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_cryp.seg"
+        },
+        {
+            "id": 14,
+            "name": "bg_dam.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_dam.seg"
+        },
+        {
+            "id": 15,
+            "name": "bg_ark.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_ark.seg"
+        },
+        {
+            "id": 16,
+            "name": "bg_run.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_run.seg"
+        },
+        {
+            "id": 18,
+            "name": "bg_jun.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_jun.seg"
+        },
+        {
+            "id": 20,
+            "name": "bg_cave.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_cave.seg"
+        },
+        {
+            "id": 22,
+            "name": "bg_crad.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_crad.seg|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_crad.seg"
+        },
+        {
+            "id": 23,
+            "name": "bg_sho.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_sho.seg"
+        },
+        {
+            "id": 24,
+            "name": "bg_eld.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_eld.seg"
+        },
+        {
+            "id": 27,
+            "name": "bg_lue.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_lue.seg"
+        },
+        {
+            "id": 28,
+            "name": "bg_ame.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_ame.seg"
+        },
+        {
+            "id": 29,
+            "name": "bg_rit.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_rit.seg"
+        },
+        {
+            "id": 30,
+            "name": "bg_oat.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_oat.seg"
+        },
+        {
+            "id": 31,
+            "name": "bg_ear.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_ear.seg"
+        },
+        {
+            "id": 32,
+            "name": "bg_lee.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_lee.seg|mod:mod_aio,context:CS::files/bgdata/bg_lee.seg"
+        },
+        {
+            "id": 36,
+            "name": "bg_pam.seg",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_pam.seg"
+        },
+        {
+            "id": 40,
+            "name": "bg_lam.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_lam.seg"
+        },
+        {
+            "id": 42,
+            "name": "bg_mp2.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp2.seg|mod:mod_aio,context:CS::files/bgdata/bg_mp2.seg"
+        },
+        {
+            "id": 43,
+            "name": "bg_mp3.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp3.seg"
+        },
+        {
+            "id": 44,
+            "name": "bg_mp4.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp4.seg"
+        },
+        {
+            "id": 45,
+            "name": "bg_mp5.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp5.seg"
+        },
+        {
+            "id": 46,
+            "name": "bg_mp6.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp6.seg|mod:mod_aio,context:CS::files/bgdata/bg_mp6.seg"
+        },
+        {
+            "id": 47,
+            "name": "bg_mp7.seg",
+            "path": "mod:mod_dark_noon,context:CS::files/bgdata/bg_mp7.seg"
+        },
+        {
+            "id": 48,
+            "name": "bg_mp8.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp8.seg"
+        },
+        {
+            "id": 49,
+            "name": "bg_mp9.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp9.seg"
+        },
+        {
+            "id": 50,
+            "name": "bg_mp10.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp10.seg"
+        },
+        {
+            "id": 51,
+            "name": "bg_mp11.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp11.seg|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_mp11.seg"
+        },
+        {
+            "id": 52,
+            "name": "bg_mp12.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp12.seg"
+        },
+        {
+            "id": 53,
+            "name": "bg_mp13.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp13.seg|mod:mod_kakariko,context:CS::files/bgdata/bg_mp13.seg"
+        },
+        {
+            "id": 54,
+            "name": "bg_mp14.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp14.seg"
+        },
+        {
+            "id": 56,
+            "name": "bg_mp16.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp16.seg"
+        },
+        {
+            "id": 57,
+            "name": "bg_mp17.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp17.seg"
+        },
+        {
+            "id": 58,
+            "name": "bg_mp18.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp18.seg"
+        },
+        {
+            "id": 59,
+            "name": "bg_mp19.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp19.seg"
+        },
+        {
+            "id": 60,
+            "name": "bg_mp20.seg",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp20.seg|mod:mod_kakariko,context:CS::files/bgdata/bg_mp20.seg"
+        },
+        {
+            "id": 93,
+            "name": "Pa51_crate1Z",
+            "path": "mod:mod_gex,context:CS::files/Pa51_crate1Z|mod:mod_dark_noon,context:CS::files/Pa51_crate1Z"
+        },
+        {
+            "id": 95,
+            "name": "Pa51_crate3Z",
+            "path": "mod:mod_gex,context:CS::files/Pa51_crate3Z"
+        },
+        {
+            "id": 96,
+            "name": "Pa51_exp1Z",
+            "path": "mod:mod_gex,context:CS::files/Pa51_exp1Z|mod:mod_dark_noon,context:CS::files/Pa51_exp1Z"
+        },
+        {
+            "id": 98,
+            "name": "Pa51_horiz_door_botZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_horiz_door_botZ"
+        },
+        {
+            "id": 99,
+            "name": "Pa51_horiz_door_glZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_horiz_door_glZ"
+        },
+        {
+            "id": 100,
+            "name": "Pa51_horiz_door_secretZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_horiz_door_secretZ"
+        },
+        {
+            "id": 101,
+            "name": "Pa51_horiz_door_topZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_horiz_door_topZ"
+        },
+        {
+            "id": 106,
+            "name": "Pa51_unexp1Z",
+            "path": "mod:mod_gex,context:CS::files/Pa51_unexp1Z"
+        },
+        {
+            "id": 109,
+            "name": "Pa51_vert_door_leftZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_vert_door_leftZ"
+        },
+        {
+            "id": 110,
+            "name": "Pa51_vert_door_rightZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_vert_door_rightZ"
+        },
+        {
+            "id": 111,
+            "name": "Pa51_vert_door_stZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51_vert_door_stZ"
+        },
+        {
+            "id": 123,
+            "name": "Paivilladoor1Z",
+            "path": "mod:mod_gex,context:CS::files/Paivilladoor1Z|mod:mod_goldfinger_64,context:CS::files/Paivilladoor1Z|mod:mod_aio,context:CS::files/Paivilladoor1Z"
+        },
+        {
+            "id": 124,
+            "name": "Paivilladoor2aZ",
+            "path": "mod:mod_gex,context:CS::files/Paivilladoor2aZ"
+        },
+        {
+            "id": 125,
+            "name": "Paivilladoor4Z",
+            "path": "mod:mod_gex,context:CS::files/Paivilladoor4Z|mod:mod_goldfinger_64,context:CS::files/Paivilladoor4Z|mod:mod_aio,context:CS::files/Paivilladoor4Z"
+        },
+        {
+            "id": 129,
+            "name": "Paldoor_lZ",
+            "path": "mod:mod_gex,context:CS::files/Paldoor_lZ"
+        },
+        {
+            "id": 130,
+            "name": "Paldoor_rZ",
+            "path": "mod:mod_gex,context:CS::files/Paldoor_rZ"
+        },
+        {
+            "id": 131,
+            "name": "Pborg_crateZ",
+            "path": "mod:mod_gex,context:CS::files/Pborg_crateZ|mod:mod_kakariko,context:CS::files/Pborg_crateZ"
+        },
+        {
+            "id": 137,
+            "name": "Pcryptdoor1bZ",
+            "path": "mod:mod_gex,context:CS::files/Pcryptdoor1bZ"
+        },
+        {
+            "id": 144,
+            "name": "Pdd_decodoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_decodoorZ"
+        },
+        {
+            "id": 148,
+            "name": "Pdd_hovcabZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_hovcabZ"
+        },
+        {
+            "id": 152,
+            "name": "Pdd_hovmotoZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_hovmotoZ"
+        },
+        {
+            "id": 153,
+            "name": "Pdd_hovtruckZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_hovtruckZ"
+        },
+        {
+            "id": 156,
+            "name": "Pdd_lab_door_bsZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_lab_door_bsZ"
+        },
+        {
+            "id": 157,
+            "name": "Pdd_lab_door_secZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_lab_door_secZ"
+        },
+        {
+            "id": 158,
+            "name": "Pdd_lab_door_windZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_lab_door_windZ"
+        },
+        {
+            "id": 167,
+            "name": "Pdd_liftdoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_liftdoorZ"
+        },
+        {
+            "id": 169,
+            "name": "Pdd_officedoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_officedoorZ"
+        },
+        {
+            "id": 175,
+            "name": "Pdd_secretdoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_secretdoorZ"
+        },
+        {
+            "id": 176,
+            "name": "Pdd_secretdoor2Z",
+            "path": "mod:mod_gex,context:CS::files/Pdd_secretdoor2Z"
+        },
+        {
+            "id": 177,
+            "name": "Pdd_servicedoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_servicedoorZ"
+        },
+        {
+            "id": 180,
+            "name": "Pdd_winddoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_winddoorZ"
+        },
+        {
+            "id": 183,
+            "name": "Pdoor1a_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor1a_G5Z"
+        },
+        {
+            "id": 184,
+            "name": "Pdoor1atri_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor1atri_G5Z"
+        },
+        {
+            "id": 185,
+            "name": "Pdoor1b_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor1b_G5Z"
+        },
+        {
+            "id": 186,
+            "name": "Pdoor2_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor2_G5Z"
+        },
+        {
+            "id": 187,
+            "name": "Pdoor2a_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor2a_G5Z"
+        },
+        {
+            "id": 188,
+            "name": "Pdoor4a_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor4a_G5Z"
+        },
+        {
+            "id": 189,
+            "name": "Pdoor4b_G5Z",
+            "path": "mod:mod_gex,context:CS::files/Pdoor4b_G5Z"
+        },
+        {
+            "id": 190,
+            "name": "Pdoor_rollertrainZ",
+            "path": "mod:mod_gex,context:CS::files/Pdoor_rollertrainZ"
+        },
+        {
+            "id": 192,
+            "name": "Pdr_caroll_doorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_doorZ"
+        },
+        {
+            "id": 193,
+            "name": "Pdr_caroll_door_baseZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_baseZ"
+        },
+        {
+            "id": 194,
+            "name": "Pdr_caroll_door_bleftZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_bleftZ"
+        },
+        {
+            "id": 195,
+            "name": "Pdr_caroll_door_bmainZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_bmainZ"
+        },
+        {
+            "id": 196,
+            "name": "Pdr_caroll_door_brightZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_brightZ"
+        },
+        {
+            "id": 197,
+            "name": "Pdr_caroll_door_leftZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_leftZ"
+        },
+        {
+            "id": 198,
+            "name": "Pdr_caroll_door_mainZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_mainZ"
+        },
+        {
+            "id": 199,
+            "name": "Pdr_caroll_door_rightZ",
+            "path": "mod:mod_gex,context:CS::files/Pdr_caroll_door_rightZ"
+        },
+        {
+            "id": 204,
+            "name": "Pg5_escdoordownZ",
+            "path": "mod:mod_gex,context:CS::files/Pg5_escdoordownZ"
+        },
+        {
+            "id": 205,
+            "name": "Pg5_escdoordownboomZ",
+            "path": "mod:mod_gex,context:CS::files/Pg5_escdoordownboomZ"
+        },
+        {
+            "id": 206,
+            "name": "Pg5_escdoorupZ",
+            "path": "mod:mod_gex,context:CS::files/Pg5_escdoorupZ"
+        },
+        {
+            "id": 207,
+            "name": "Pg5_escdoorupboomZ",
+            "path": "mod:mod_gex,context:CS::files/Pg5_escdoorupboomZ"
+        },
+        {
+            "id": 209,
+            "name": "Pg5safedoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pg5safedoorZ"
+        },
+        {
+            "id": 213,
+            "name": "PhovbikeZ",
+            "path": "mod:mod_gex,context:CS::files/PhovbikeZ"
+        },
+        {
+            "id": 216,
+            "name": "PlasdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PlasdoorZ"
+        },
+        {
+            "id": 218,
+            "name": "Pmedlabwin1Z",
+            "path": "mod:mod_gex,context:CS::files/Pmedlabwin1Z"
+        },
+        {
+            "id": 236,
+            "name": "Psk_door1Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_door1Z"
+        },
+        {
+            "id": 238,
+            "name": "Psk_hangardoor_botZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_hangardoor_botZ"
+        },
+        {
+            "id": 239,
+            "name": "Psk_hangardoor_topZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_hangardoor_topZ"
+        },
+        {
+            "id": 240,
+            "name": "Psk_ship_door1Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_ship_door1Z"
+        },
+        {
+            "id": 243,
+            "name": "Psk_ship_hulldoor1Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_ship_hulldoor1Z"
+        },
+        {
+            "id": 244,
+            "name": "Psk_ship_hulldoor2Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_ship_hulldoor2Z"
+        },
+        {
+            "id": 245,
+            "name": "Psk_ship_hulldoor3Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_ship_hulldoor3Z"
+        },
+        {
+            "id": 246,
+            "name": "Psk_ship_hulldoor4Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_ship_hulldoor4Z"
+        },
+        {
+            "id": 247,
+            "name": "Psk_under_generatorZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_under_generatorZ"
+        },
+        {
+            "id": 257,
+            "name": "PwindowZ",
+            "path": "mod:mod_gex,context:CS::files/PwindowZ"
+        },
+        {
+            "id": 258,
+            "name": "Ump_setupameZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupameZ"
+        },
+        {
+            "id": 259,
+            "name": "Ump_setuparchZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setuparchZ"
+        },
+        {
+            "id": 260,
+            "name": "Ump_setuparecZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setuparecZ|mod:mod_kakariko,context:CS::files/Ump_setuparecZ|mod:mod_goldfinger_64,context:CS::files/Ump_setuparecZ"
+        },
+        {
+            "id": 261,
+            "name": "Ump_setuparkZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setuparkZ"
+        },
+        {
+            "id": 263,
+            "name": "Ump_setupaztZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupaztZ"
+        },
+        {
+            "id": 265,
+            "name": "Ump_setupcaveZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupcaveZ"
+        },
+        {
+            "id": 266,
+            "name": "Ump_setupcradZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupcradZ|mod:mod_goldfinger_64,context:CS::files/Ump_setupcradZ"
+        },
+        {
+            "id": 267,
+            "name": "Ump_setupcrypZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupcrypZ"
+        },
+        {
+            "id": 268,
+            "name": "Ump_setupdamZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupdamZ"
+        },
+        {
+            "id": 269,
+            "name": "Ump_setupdepoZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupdepoZ"
+        },
+        {
+            "id": 270,
+            "name": "Ump_setupdestZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupdestZ"
+        },
+        {
+            "id": 272,
+            "name": "Ump_setupearZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupearZ"
+        },
+        {
+            "id": 273,
+            "name": "Ump_setupeldZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupeldZ"
+        },
+        {
+            "id": 274,
+            "name": "Ump_setupimpZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupimpZ"
+        },
+        {
+            "id": 275,
+            "name": "Ump_setupjunZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupjunZ"
+        },
+        {
+            "id": 276,
+            "name": "Ump_setupleeZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupleeZ|mod:mod_aio,context:CS::files/Ump_setupleeZ"
+        },
+        {
+            "id": 279,
+            "name": "Ump_setuplueZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setuplueZ"
+        },
+        {
+            "id": 280,
+            "name": "Ump_setupoatZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupoatZ"
+        },
+        {
+            "id": 281,
+            "name": "Ump_setuppamZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setuppamZ"
+        },
+        {
+            "id": 282,
+            "name": "Ump_setuppeteZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setuppeteZ"
+        },
+        {
+            "id": 283,
+            "name": "Ump_setuprefZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setuprefZ|mod:mod_kakariko,context:CS::files/Ump_setuprefZ|mod:mod_goldfinger_64,context:CS::files/Ump_setuprefZ"
+        },
+        {
+            "id": 284,
+            "name": "Ump_setupritZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupritZ"
+        },
+        {
+            "id": 289,
+            "name": "Ump_setupshoZ",
+            "path": "mod:mod_aio,context:CS::files/Ump_setupshoZ"
+        },
+        {
+            "id": 290,
+            "name": "Ump_setupsiloZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupsiloZ"
+        },
+        {
+            "id": 291,
+            "name": "Ump_setupstatZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupstatZ"
+        },
+        {
+            "id": 294,
+            "name": "UsetupameZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupameZ|mod:mod_fojo,context:COOP::files/UsetupameZ|mod:mod_fojo,context:TEAM::files/UsetupameZ|mod:mod_fojo,context:ANTI::files/UsetupameZ"
+        },
+        {
+            "id": 307,
+            "name": "UsetupdishZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupdishZ|mod:mod_fojo,context:COOP::files/UsetupdishZ|mod:mod_fojo,context:TEAM::files/UsetupdishZ|mod:mod_fojo,context:ANTI::files/UsetupdishZ"
+        },
+        {
+            "id": 308,
+            "name": "UsetupearZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupearZ|mod:mod_fojo,context:COOP::files/UsetupearZ|mod:mod_fojo,context:TEAM::files/UsetupearZ|mod:mod_fojo,context:ANTI::files/UsetupearZ"
+        },
+        {
+            "id": 309,
+            "name": "UsetupeldZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupeldZ|mod:mod_fojo,context:COOP::files/UsetupeldZ|mod:mod_fojo,context:TEAM::files/UsetupeldZ|mod:mod_fojo,context:ANTI::files/UsetupeldZ"
+        },
+        {
+            "id": 310,
+            "name": "UsetupimpZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupimpZ|mod:mod_fojo,context:COOP::files/UsetupimpZ|mod:mod_fojo,context:TEAM::files/UsetupimpZ|mod:mod_fojo,context:ANTI::files/UsetupimpZ"
+        },
+        {
+            "id": 312,
+            "name": "UsetupleeZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupleeZ|mod:mod_fojo,context:COOP::files/UsetupleeZ|mod:mod_fojo,context:TEAM::files/UsetupleeZ|mod:mod_fojo,context:ANTI::files/UsetupleeZ"
+        },
+        {
+            "id": 315,
+            "name": "UsetuplueZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetuplueZ|mod:mod_fojo,context:COOP::files/UsetuplueZ|mod:mod_fojo,context:TEAM::files/UsetuplueZ|mod:mod_fojo,context:ANTI::files/UsetuplueZ"
+        },
+        {
+            "id": 317,
+            "name": "UsetuppamZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetuppamZ|mod:mod_fojo,context:COOP::files/UsetuppamZ|mod:mod_fojo,context:TEAM::files/UsetuppamZ|mod:mod_fojo,context:ANTI::files/UsetuppamZ"
+        },
+        {
+            "id": 318,
+            "name": "UsetuppeteZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetuppeteZ|mod:mod_fojo,context:COOP::files/UsetuppeteZ|mod:mod_fojo,context:TEAM::files/UsetuppeteZ|mod:mod_fojo,context:ANTI::files/UsetuppeteZ"
+        },
+        {
+            "id": 328,
+            "name": "UsetupstatZ",
+            "path": "mod:mod_fojo,context:SOLO::files/UsetupstatZ|mod:mod_fojo,context:COOP::files/UsetupstatZ|mod:mod_fojo,context:TEAM::files/UsetupstatZ|mod:mod_fojo,context:ANTI::files/UsetupstatZ"
+        },
+        {
+            "id": 331,
+            "name": "bg_ame_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_ame_padsZ"
+        },
+        {
+            "id": 333,
+            "name": "bg_arch_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_arch_padsZ"
+        },
+        {
+            "id": 334,
+            "name": "bg_arch_tilesZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_arch_tilesZ"
+        },
+        {
+            "id": 335,
+            "name": "bg_arec_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_arec_padsZ|mod:mod_kakariko,context:CS::files/bgdata/bg_arec_padsZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_arec_padsZ"
+        },
+        {
+            "id": 336,
+            "name": "bg_arec_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_arec_tilesZ|mod:mod_kakariko,context:CS::files/bgdata/bg_arec_tilesZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_arec_tilesZ"
+        },
+        {
+            "id": 337,
+            "name": "bg_ark_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_ark_padsZ"
+        },
+        {
+            "id": 338,
+            "name": "bg_ark_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_ark_tilesZ"
+        },
+        {
+            "id": 341,
+            "name": "bg_azt_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_azt_padsZ"
+        },
+        {
+            "id": 345,
+            "name": "bg_cave_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_cave_padsZ"
+        },
+        {
+            "id": 347,
+            "name": "bg_crad_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_crad_padsZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_crad_padsZ"
+        },
+        {
+            "id": 348,
+            "name": "bg_crad_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_crad_tilesZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_crad_tilesZ"
+        },
+        {
+            "id": 349,
+            "name": "bg_cryp_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_cryp_padsZ"
+        },
+        {
+            "id": 350,
+            "name": "bg_cryp_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_cryp_tilesZ"
+        },
+        {
+            "id": 351,
+            "name": "bg_dam_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_dam_padsZ"
+        },
+        {
+            "id": 353,
+            "name": "bg_depo_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_depo_padsZ"
+        },
+        {
+            "id": 355,
+            "name": "bg_dest_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_dest_padsZ"
+        },
+        {
+            "id": 356,
+            "name": "bg_dest_tilesZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_dest_tilesZ"
+        },
+        {
+            "id": 359,
+            "name": "bg_ear_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_ear_padsZ"
+        },
+        {
+            "id": 361,
+            "name": "bg_eld_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_eld_padsZ"
+        },
+        {
+            "id": 362,
+            "name": "bg_eld_tilesZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_eld_tilesZ"
+        },
+        {
+            "id": 365,
+            "name": "bg_jun_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_jun_padsZ"
+        },
+        {
+            "id": 366,
+            "name": "bg_jun_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_jun_tilesZ"
+        },
+        {
+            "id": 367,
+            "name": "bg_lee_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_lee_padsZ|mod:mod_aio,context:CS::files/bgdata/bg_lee_padsZ"
+        },
+        {
+            "id": 368,
+            "name": "bg_lee_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_lee_tilesZ"
+        },
+        {
+            "id": 373,
+            "name": "bg_lue_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_lue_padsZ"
+        },
+        {
+            "id": 375,
+            "name": "bg_oat_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_oat_padsZ"
+        },
+        {
+            "id": 376,
+            "name": "bg_oat_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_oat_tilesZ"
+        },
+        {
+            "id": 377,
+            "name": "bg_pam_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_pam_padsZ"
+        },
+        {
+            "id": 378,
+            "name": "bg_pam_tilesZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_pam_tilesZ"
+        },
+        {
+            "id": 379,
+            "name": "bg_pete_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_pete_padsZ"
+        },
+        {
+            "id": 381,
+            "name": "bg_ref_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_ref_padsZ|mod:mod_kakariko,context:CS::files/bgdata/bg_ref_padsZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_ref_padsZ"
+        },
+        {
+            "id": 382,
+            "name": "bg_ref_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_ref_tilesZ|mod:mod_kakariko,context:CS::files/bgdata/bg_ref_tilesZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_ref_tilesZ"
+        },
+        {
+            "id": 383,
+            "name": "bg_rit_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_rit_padsZ"
+        },
+        {
+            "id": 384,
+            "name": "bg_rit_tilesZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_rit_tilesZ"
+        },
+        {
+            "id": 385,
+            "name": "bg_run_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_run_padsZ"
+        },
+        {
+            "id": 386,
+            "name": "bg_run_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_run_tilesZ"
+        },
+        {
+            "id": 393,
+            "name": "bg_sho_padsZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_sho_padsZ"
+        },
+        {
+            "id": 394,
+            "name": "bg_sho_tilesZ",
+            "path": "mod:mod_aio,context:CS::files/bgdata/bg_sho_tilesZ"
+        },
+        {
+            "id": 395,
+            "name": "bg_silo_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_silo_padsZ"
+        },
+        {
+            "id": 396,
+            "name": "bg_silo_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_silo_tilesZ"
+        },
+        {
+            "id": 397,
+            "name": "bg_stat_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_stat_padsZ"
+        },
+        {
+            "id": 398,
+            "name": "bg_stat_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_stat_tilesZ"
+        },
+        {
+            "id": 399,
+            "name": "bg_tra_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_tra_padsZ"
+        },
+        {
+            "id": 400,
+            "name": "bg_tra_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_tra_tilesZ"
+        },
+        {
+            "id": 407,
+            "name": "PquadpodZ",
+            "path": "mod:mod_gex,context:CS::files/PquadpodZ"
+        },
+        {
+            "id": 427,
+            "name": "Pdd_grateZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_grateZ"
+        },
+        {
+            "id": 431,
+            "name": "Pdd_accessdoorupZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_accessdoorupZ"
+        },
+        {
+            "id": 432,
+            "name": "Pdd_accessdoordnZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_accessdoordnZ"
+        },
+        {
+            "id": 441,
+            "name": "Pdd_labdoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_labdoorZ"
+        },
+        {
+            "id": 442,
+            "name": "Pdd_lab_doortopZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_lab_doortopZ"
+        },
+        {
+            "id": 443,
+            "name": "Pmulti_ammo_crateZ",
+            "path": "mod:mod_gex,context:CS::files/Pmulti_ammo_crateZ|mod:mod_goldfinger_64,context:CS::files/Pmulti_ammo_crateZ"
+        },
+        {
+            "id": 445,
+            "name": "CheadgreyZ",
+            "path": "::files/CheadgreyZ|mod:mod_aio::files/CheadgreyZ"
+        },
+        {
+            "id": 455,
+            "name": "PtdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PtdoorZ"
+        },
+        {
+            "id": 478,
+            "name": "Ump_setuplamZ",
+            "path": "mod:mod_gex,context:CS::files/Ump_setuplamZ"
+        },
+        {
+            "id": 479,
+            "name": "bg_lam_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_lam_padsZ"
+        },
+        {
+            "id": 480,
+            "name": "bg_lam_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_lam_tilesZ"
+        },
+        {
+            "id": 482,
+            "name": "Ump_setupmp1Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp1Z"
+        },
+        {
+            "id": 486,
+            "name": "Ump_setupmp2Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp2Z|mod:mod_aio,context:CS::files/Ump_setupmp2Z"
+        },
+        {
+            "id": 487,
+            "name": "bg_mp2_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp2_padsZ|mod:mod_aio,context:CS::files/bgdata/bg_mp2_padsZ"
+        },
+        {
+            "id": 488,
+            "name": "bg_mp2_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp2_tilesZ|mod:mod_aio,context:CS::files/bgdata/bg_mp2_tilesZ"
+        },
+        {
+            "id": 490,
+            "name": "Ump_setupmp3Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp3Z"
+        },
+        {
+            "id": 491,
+            "name": "bg_mp3_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp3_padsZ"
+        },
+        {
+            "id": 492,
+            "name": "bg_mp3_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp3_tilesZ"
+        },
+        {
+            "id": 494,
+            "name": "Ump_setupmp4Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp4Z"
+        },
+        {
+            "id": 495,
+            "name": "bg_mp4_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp4_padsZ"
+        },
+        {
+            "id": 496,
+            "name": "bg_mp4_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp4_tilesZ"
+        },
+        {
+            "id": 498,
+            "name": "Ump_setupmp5Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp5Z"
+        },
+        {
+            "id": 499,
+            "name": "bg_mp5_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp5_padsZ"
+        },
+        {
+            "id": 500,
+            "name": "bg_mp5_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp5_tilesZ"
+        },
+        {
+            "id": 502,
+            "name": "Ump_setupmp6Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp6Z|mod:mod_aio,context:CS::files/Ump_setupmp6Z"
+        },
+        {
+            "id": 503,
+            "name": "bg_mp6_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp6_padsZ|mod:mod_aio,context:CS::files/bgdata/bg_mp6_padsZ"
+        },
+        {
+            "id": 504,
+            "name": "bg_mp6_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp6_tilesZ|mod:mod_aio,context:CS::files/bgdata/bg_mp6_tilesZ"
+        },
+        {
+            "id": 506,
+            "name": "Ump_setupmp7Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp7Z|mod:mod_dark_noon,context:CS::files/Ump_setupmp7Z"
+        },
+        {
+            "id": 507,
+            "name": "bg_mp7_padsZ",
+            "path": "mod:mod_dark_noon,context:CS::files/bgdata/bg_mp7_padsZ"
+        },
+        {
+            "id": 508,
+            "name": "bg_mp7_tilesZ",
+            "path": "mod:mod_dark_noon,context:CS::files/bgdata/bg_mp7_tilesZ"
+        },
+        {
+            "id": 510,
+            "name": "Ump_setupmp8Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp8Z"
+        },
+        {
+            "id": 511,
+            "name": "bg_mp8_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp8_padsZ"
+        },
+        {
+            "id": 512,
+            "name": "bg_mp8_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp8_tilesZ"
+        },
+        {
+            "id": 514,
+            "name": "Ump_setupmp9Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp9Z"
+        },
+        {
+            "id": 515,
+            "name": "bg_mp9_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp9_padsZ"
+        },
+        {
+            "id": 516,
+            "name": "bg_mp9_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp9_tilesZ"
+        },
+        {
+            "id": 518,
+            "name": "Ump_setupmp10Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp10Z"
+        },
+        {
+            "id": 519,
+            "name": "bg_mp10_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp10_padsZ"
+        },
+        {
+            "id": 520,
+            "name": "bg_mp10_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp10_tilesZ"
+        },
+        {
+            "id": 522,
+            "name": "Ump_setupmp11Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp11Z|mod:mod_goldfinger_64,context:CS::files/Ump_setupmp11Z"
+        },
+        {
+            "id": 523,
+            "name": "bg_mp11_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp11_padsZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_mp11_padsZ"
+        },
+        {
+            "id": 524,
+            "name": "bg_mp11_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp11_tilesZ|mod:mod_goldfinger_64,context:CS::files/bgdata/bg_mp11_tilesZ"
+        },
+        {
+            "id": 526,
+            "name": "Ump_setupmp12Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp12Z"
+        },
+        {
+            "id": 527,
+            "name": "bg_mp12_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp12_padsZ"
+        },
+        {
+            "id": 528,
+            "name": "bg_mp12_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp12_tilesZ"
+        },
+        {
+            "id": 530,
+            "name": "Ump_setupmp13Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp13Z|mod:mod_kakariko,context:CS::files/Ump_setupmp13Z"
+        },
+        {
+            "id": 531,
+            "name": "bg_mp13_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp13_padsZ|mod:mod_kakariko,context:CS::files/bgdata/bg_mp13_padsZ"
+        },
+        {
+            "id": 532,
+            "name": "bg_mp13_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp13_tilesZ|mod:mod_kakariko,context:CS::files/bgdata/bg_mp13_tilesZ"
+        },
+        {
+            "id": 534,
+            "name": "Ump_setupmp14Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp14Z"
+        },
+        {
+            "id": 535,
+            "name": "bg_mp14_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp14_padsZ"
+        },
+        {
+            "id": 536,
+            "name": "bg_mp14_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp14_tilesZ"
+        },
+        {
+            "id": 538,
+            "name": "Ump_setupmp15Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp15Z"
+        },
+        {
+            "id": 542,
+            "name": "Ump_setupmp16Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp16Z"
+        },
+        {
+            "id": 543,
+            "name": "bg_mp16_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp16_padsZ"
+        },
+        {
+            "id": 544,
+            "name": "bg_mp16_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp16_tilesZ"
+        },
+        {
+            "id": 546,
+            "name": "Ump_setupmp17Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp17Z"
+        },
+        {
+            "id": 547,
+            "name": "bg_mp17_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp17_padsZ"
+        },
+        {
+            "id": 548,
+            "name": "bg_mp17_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp17_tilesZ"
+        },
+        {
+            "id": 550,
+            "name": "Ump_setupmp18Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp18Z"
+        },
+        {
+            "id": 551,
+            "name": "bg_mp18_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp18_padsZ"
+        },
+        {
+            "id": 552,
+            "name": "bg_mp18_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp18_tilesZ"
+        },
+        {
+            "id": 554,
+            "name": "Ump_setupmp19Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp19Z"
+        },
+        {
+            "id": 555,
+            "name": "bg_mp19_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp19_padsZ"
+        },
+        {
+            "id": 556,
+            "name": "bg_mp19_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp19_tilesZ"
+        },
+        {
+            "id": 558,
+            "name": "Ump_setupmp20Z",
+            "path": "mod:mod_gex,context:CS::files/Ump_setupmp20Z|mod:mod_kakariko,context:CS::files/Ump_setupmp20Z"
+        },
+        {
+            "id": 559,
+            "name": "bg_mp20_padsZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp20_padsZ|mod:mod_kakariko,context:CS::files/bgdata/bg_mp20_padsZ"
+        },
+        {
+            "id": 560,
+            "name": "bg_mp20_tilesZ",
+            "path": "mod:mod_gex,context:CS::files/bgdata/bg_mp20_tilesZ|mod:mod_kakariko,context:CS::files/bgdata/bg_mp20_tilesZ"
+        },
+        {
+            "id": 565,
+            "name": "Pci_liftdoorZ",
+            "path": "mod:mod_gex,context:CS::files/Pci_liftdoorZ"
+        },
+        {
+            "id": 567,
+            "name": "CstewardZ",
+            "path": "mod:mod_gex::files/CstewardZ"
+        },
+        {
+            "id": 577,
+            "name": "PnewvilladoorZ",
+            "path": "mod:mod_gex,context:CS::files/PnewvilladoorZ"
+        },
+        {
+            "id": 584,
+            "name": "Psk_pillarleftZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_pillarleftZ"
+        },
+        {
+            "id": 591,
+            "name": "Psk_fl_shad_tZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_fl_shad_tZ"
+        },
+        {
+            "id": 605,
+            "name": "Psk_sunshad1Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_sunshad1Z"
+        },
+        {
+            "id": 606,
+            "name": "Psk_sunshad2Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_sunshad2Z"
+        },
+        {
+            "id": 617,
+            "name": "PbarrelZ",
+            "path": "mod:mod_gex,context:CS::files/PbarrelZ|mod:mod_goldfinger_64,context:CS::files/PbarrelZ"
+        },
+        {
+            "id": 828,
+            "name": "Cdark_af1Z",
+            "path": "mod:mod_gex::files/Cdark_af1Z"
+        },
+        {
+            "id": 918,
+            "name": "GskorpionZ",
+            "path": "mod:mod_gex,context:CS::files/GskorpionZ|mod:mod_kakariko,context:CS::files/GskorpionZ|mod:mod_dark_noon,context:CS::files/GskorpionZ|mod:mod_goldfinger_64,context:CS::files/GskorpionZ|mod:mod_aio,context:CS::files/GskorpionZ"
+        },
+        {
+            "id": 921,
+            "name": "Gmp5kZ",
+            "path": "mod:mod_gex,context:CS::files/Gmp5kZ|mod:mod_kakariko,context:CS::files/Gmp5kZ|mod:mod_dark_noon,context:CS::files/Gmp5kZ|mod:mod_goldfinger_64,context:CS::files/Gmp5kZ|mod:mod_aio,context:CS::files/Gmp5kZ"
+        },
+        {
+            "id": 922,
+            "name": "Gm16Z",
+            "path": "mod:mod_gex,context:CS::files/Gm16Z|mod:mod_kakariko,context:CS::files/Gm16Z|mod:mod_dark_noon,context:CS::files/Gm16Z|mod:mod_goldfinger_64,context:CS::files/Gm16Z|mod:mod_aio,context:CS::files/Gm16Z"
+        },
+        {
+            "id": 927,
+            "name": "PpelagicdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PpelagicdoorZ"
+        },
+        {
+            "id": 1238,
+            "name": "PreactordoorZ",
+            "path": "mod:mod_gex,context:CS::files/PreactordoorZ"
+        },
+        {
+            "id": 1241,
+            "name": "Pcetanwindow1Z",
+            "path": "mod:mod_gex,context:CS::files/Pcetanwindow1Z"
+        },
+        {
+            "id": 1242,
+            "name": "Pcetanwindow2Z",
+            "path": "mod:mod_gex,context:CS::files/Pcetanwindow2Z"
+        },
+        {
+            "id": 1243,
+            "name": "Pcetanwindow3Z",
+            "path": "mod:mod_gex,context:CS::files/Pcetanwindow3Z"
+        },
+        {
+            "id": 1248,
+            "name": "PbigpelagicdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PbigpelagicdoorZ"
+        },
+        {
+            "id": 1257,
+            "name": "PenginepartZ",
+            "path": "mod:mod_gex,context:CS::files/PenginepartZ"
+        },
+        {
+            "id": 1281,
+            "name": "PdevicesecretdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PdevicesecretdoorZ"
+        },
+        {
+            "id": 1282,
+            "name": "PcarringtonsecretdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PcarringtonsecretdoorZ"
+        },
+        {
+            "id": 1283,
+            "name": "PsinisterpcZ",
+            "path": "mod:mod_gex,context:CS::files/PsinisterpcZ"
+        },
+        {
+            "id": 1287,
+            "name": "PretinalockZ",
+            "path": "mod:mod_aio,context:CS::files/PretinalockZ"
+        },
+        {
+            "id": 1289,
+            "name": "PgoodstationZ",
+            "path": "mod:mod_gex,context:CS::files/PgoodstationZ"
+        },
+        {
+            "id": 1317,
+            "name": "Pcidoor1Z",
+            "path": "mod:mod_gex,context:CS::files/Pcidoor1Z"
+        },
+        {
+            "id": 1340,
+            "name": "Pci_cabinetZ",
+            "path": "mod:mod_kakariko,context:CS::files/Pci_cabinetZ"
+        },
+        {
+            "id": 1341,
+            "name": "Pci_deskZ",
+            "path": "mod:mod_kakariko,context:CS::files/Pci_deskZ"
+        },
+        {
+            "id": 1342,
+            "name": "Pci_carr_deskZ",
+            "path": "mod:mod_kakariko,context:CS::files/Pci_carr_deskZ"
+        },
+        {
+            "id": 1343,
+            "name": "Pci_f_chairZ",
+            "path": "mod:mod_kakariko,context:CS::files/Pci_f_chairZ"
+        },
+        {
+            "id": 1357,
+            "name": "Pdd_ear_tableZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_ear_tableZ"
+        },
+        {
+            "id": 1358,
+            "name": "Pdd_ear_chairZ",
+            "path": "mod:mod_gex,context:CS::files/Pdd_ear_chairZ"
+        },
+        {
+            "id": 1359,
+            "name": "Pairbase_table2Z",
+            "path": "mod:mod_gex,context:CS::files/Pairbase_table2Z"
+        },
+        {
+            "id": 1361,
+            "name": "Pmisc_crateZ",
+            "path": "mod:mod_gex,context:CS::files/Pmisc_crateZ"
+        },
+        {
+            "id": 1372,
+            "name": "Pcidoor1_refZ",
+            "path": "mod:mod_gex,context:CS::files/Pcidoor1_refZ"
+        },
+        {
+            "id": 1373,
+            "name": "Palaskadoor_outZ",
+            "path": "mod:mod_gex,context:CS::files/Palaskadoor_outZ"
+        },
+        {
+            "id": 1374,
+            "name": "Palaskadoor_inZ",
+            "path": "mod:mod_gex,context:CS::files/Palaskadoor_inZ"
+        },
+        {
+            "id": 1383,
+            "name": "Paf1_lampZ",
+            "path": "mod:mod_gex,context:CS::files/Paf1_lampZ"
+        },
+        {
+            "id": 1384,
+            "name": "Paf1_toiletZ",
+            "path": "mod:mod_gex,context:CS::files/Paf1_toiletZ"
+        },
+        {
+            "id": 1385,
+            "name": "Paf1_doorbig2Z",
+            "path": "mod:mod_gex,context:CS::files/Paf1_doorbig2Z"
+        },
+        {
+            "id": 1386,
+            "name": "Paf1_phoneZ",
+            "path": "mod:mod_gex,context:CS::files/Paf1_phoneZ"
+        },
+        {
+            "id": 1387,
+            "name": "Paf1_cargodoorZ",
+            "path": "mod:mod_gex,context:CS::files/Paf1_cargodoorZ"
+        },
+        {
+            "id": 1390,
+            "name": "Psk_templecolumn4Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_templecolumn4Z"
+        },
+        {
+            "id": 1391,
+            "name": "PcorehatchZ",
+            "path": "mod:mod_gex,context:CS::files/PcorehatchZ"
+        },
+        {
+            "id": 1714,
+            "name": "LmpmenuE",
+            "path": "mod:mod_aio,context:CS::files/LmpmenuE"
+        },
+        {
+            "id": 1715,
+            "name": "LmpmenuJ",
+            "path": "mod:mod_aio,context:CS::files/LmpmenuJ"
+        },
+        {
+            "id": 1716,
+            "name": "LmpmenuP",
+            "path": "mod:mod_aio,context:CS::files/LmpmenuP"
+        },
+        {
+            "id": 1742,
+            "name": "LoptionsE",
+            "path": "mod:mod_aio::files/LoptionsE"
+        },
+        {
+            "id": 1743,
+            "name": "LoptionsJ",
+            "path": "mod:mod_aio,context:CS::files/LoptionsJ"
+        },
+        {
+            "id": 1744,
+            "name": "LoptionsP",
+            "path": "mod:mod_aio,context:CS::files/LoptionsP"
+        },
+        {
+            "id": 1868,
+            "name": "Pa51grateZ",
+            "path": "mod:mod_gex,context:CS::files/Pa51grateZ"
+        },
+        {
+            "id": 1872,
+            "name": "Paf1escapedoorZ",
+            "path": "mod:mod_gex,context:CS::files/Paf1escapedoorZ"
+        },
+        {
+            "id": 1875,
+            "name": "Ppelagicdoor2Z",
+            "path": "mod:mod_gex,context:CS::files/Ppelagicdoor2Z"
+        },
+        {
+            "id": 1878,
+            "name": "Pttb_boxZ",
+            "path": "mod:mod_kakariko,context:CS::files/Pttb_boxZ"
+        },
+        {
+            "id": 1879,
+            "name": "PinstfrontdoorZ",
+            "path": "mod:mod_gex,context:CS::files/PinstfrontdoorZ"
+        },
+        {
+            "id": 1944,
+            "name": "Psk_ship_door2Z",
+            "path": "mod:mod_gex,context:CS::files/Psk_ship_door2Z"
+        },
+        {
+            "id": 1946,
+            "name": "Psk_hangardoorb_topZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_hangardoorb_topZ"
+        },
+        {
+            "id": 1947,
+            "name": "Psk_hangardoorb_botZ",
+            "path": "mod:mod_gex,context:CS::files/Psk_hangardoorb_botZ"
+        },
+        {
+            "id": 1948,
+            "name": "Paf1_innerdoorZ",
+            "path": "mod:mod_gex,context:CS::files/Paf1_innerdoorZ"
+        },
+        {
+            "id": 1949,
+            "name": "Plaser_postZ",
+            "path": "mod:mod_gex,context:CS::files/Plaser_postZ"
+        },
+        {
+            "id": 1996,
+            "name": "PbuddybridgeZ",
+            "path": "mod:mod_gex,context:CS::files/PbuddybridgeZ"
+        },
+        {
+            "id": 2014,
+            "name": "Ccarroll2Z",
+            "path": "::files/Ccarroll2Z|mod:mod_aio::files/Ccarroll2Z"
+        },
+        {
+            "id": 2015,
+            "name": "Cskedar2Z",
+            "path": "::files/Cskedar2Z|mod:mod_aio::files/Cskedar2Z"
+        },
+        {
+            "id": 2016,
+            "name": "Ghand_carollZ",
+            "path": "::files/Ghand_carollZ|mod:mod_aio::files/Ghand_carollZ"
+        },
+        {
+            "id": 2017,
+            "name": "Ghand_skedarZ",
+            "path": "::files/Ghand_skedarZ|mod:mod_aio::files/Ghand_skedarZ"
+        },
+        {
+            "id": 2018,
+            "name": "0169.bin",
+            "path": "mod:mod_gex,context:CS::textures/0169.bin"
+        },
+        {
+            "id": 2019,
+            "name": "0a33.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a33.bin|mod:mod_goldfinger_64,context:CS::textures/0a33.bin"
+        },
+        {
+            "id": 2020,
+            "name": "0221.bin",
+            "path": "mod:mod_gex,context:CS::textures/0221.bin"
+        },
+        {
+            "id": 2021,
+            "name": "09ac.bin",
+            "path": "mod:mod_gex,context:CS::textures/09ac.bin"
+        },
+        {
+            "id": 2022,
+            "name": "0a37.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a37.bin"
+        },
+        {
+            "id": 2023,
+            "name": "0a13.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a13.bin"
+        },
+        {
+            "id": 2024,
+            "name": "0154.bin",
+            "path": "mod:mod_gex,context:CS::textures/0154.bin"
+        },
+        {
+            "id": 2025,
+            "name": "024b.bin",
+            "path": "mod:mod_gex,context:CS::textures/024b.bin|mod:mod_kakariko,context:CS::textures/024b.bin"
+        },
+        {
+            "id": 2026,
+            "name": "022d.bin",
+            "path": "mod:mod_gex,context:CS::textures/022d.bin"
+        },
+        {
+            "id": 2027,
+            "name": "0242.bin",
+            "path": "mod:mod_gex,context:CS::textures/0242.bin|mod:mod_kakariko,context:CS::textures/0242.bin"
+        },
+        {
+            "id": 2028,
+            "name": "0218.bin",
+            "path": "mod:mod_gex,context:CS::textures/0218.bin"
+        },
+        {
+            "id": 2029,
+            "name": "06de.bin",
+            "path": "mod:mod_gex,context:CS::textures/06de.bin"
+        },
+        {
+            "id": 2030,
+            "name": "026a.bin",
+            "path": "mod:mod_gex,context:CS::textures/026a.bin"
+        },
+        {
+            "id": 2031,
+            "name": "02da.bin",
+            "path": "mod:mod_gex,context:CS::textures/02da.bin"
+        },
+        {
+            "id": 2032,
+            "name": "08a0.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a0.bin"
+        },
+        {
+            "id": 2033,
+            "name": "0703.bin",
+            "path": "mod:mod_gex,context:CS::textures/0703.bin"
+        },
+        {
+            "id": 2034,
+            "name": "0a40.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a40.bin"
+        },
+        {
+            "id": 2035,
+            "name": "0257.bin",
+            "path": "mod:mod_gex,context:CS::textures/0257.bin"
+        },
+        {
+            "id": 2036,
+            "name": "0a38.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a38.bin"
+        },
+        {
+            "id": 2037,
+            "name": "0694.bin",
+            "path": "mod:mod_gex,context:CS::textures/0694.bin"
+        },
+        {
+            "id": 2038,
+            "name": "0c90.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c90.bin"
+        },
+        {
+            "id": 2039,
+            "name": "02d5.bin",
+            "path": "mod:mod_gex,context:CS::textures/02d5.bin"
+        },
+        {
+            "id": 2040,
+            "name": "06c3.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c3.bin"
+        },
+        {
+            "id": 2041,
+            "name": "0714.bin",
+            "path": "mod:mod_gex,context:CS::textures/0714.bin"
+        },
+        {
+            "id": 2042,
+            "name": "065b.bin",
+            "path": "mod:mod_gex,context:CS::textures/065b.bin"
+        },
+        {
+            "id": 2043,
+            "name": "0677.bin",
+            "path": "mod:mod_gex,context:CS::textures/0677.bin"
+        },
+        {
+            "id": 2044,
+            "name": "00aa.bin",
+            "path": "mod:mod_gex,context:CS::textures/00aa.bin"
+        },
+        {
+            "id": 2045,
+            "name": "00e5.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e5.bin|mod:mod_kakariko,context:CS::textures/00e5.bin"
+        },
+        {
+            "id": 2046,
+            "name": "013b.bin",
+            "path": "mod:mod_gex,context:CS::textures/013b.bin"
+        },
+        {
+            "id": 2047,
+            "name": "0712.bin",
+            "path": "mod:mod_gex,context:CS::textures/0712.bin"
+        },
+        {
+            "id": 2048,
+            "name": "08af.bin",
+            "path": "mod:mod_gex,context:CS::textures/08af.bin"
+        },
+        {
+            "id": 2049,
+            "name": "0884.bin",
+            "path": "mod:mod_gex,context:CS::textures/0884.bin"
+        },
+        {
+            "id": 2050,
+            "name": "022f.bin",
+            "path": "mod:mod_gex,context:CS::textures/022f.bin"
+        },
+        {
+            "id": 2051,
+            "name": "099c.bin",
+            "path": "mod:mod_gex,context:CS::textures/099c.bin"
+        },
+        {
+            "id": 2052,
+            "name": "09b1.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b1.bin"
+        },
+        {
+            "id": 2053,
+            "name": "0a24.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a24.bin"
+        },
+        {
+            "id": 2054,
+            "name": "08a8.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a8.bin"
+        },
+        {
+            "id": 2055,
+            "name": "06fc.bin",
+            "path": "mod:mod_gex,context:CS::textures/06fc.bin"
+        },
+        {
+            "id": 2056,
+            "name": "06ca.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ca.bin"
+        },
+        {
+            "id": 2057,
+            "name": "0231.bin",
+            "path": "mod:mod_gex,context:CS::textures/0231.bin|mod:mod_kakariko,context:CS::textures/0231.bin"
+        },
+        {
+            "id": 2058,
+            "name": "0cee.bin",
+            "path": "mod:mod_gex,context:CS::textures/0cee.bin|mod:mod_goldfinger_64,context:CS::textures/0cee.bin"
+        },
+        {
+            "id": 2059,
+            "name": "020a.bin",
+            "path": "mod:mod_gex,context:CS::textures/020a.bin"
+        },
+        {
+            "id": 2060,
+            "name": "0a32.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a32.bin"
+        },
+        {
+            "id": 2061,
+            "name": "066c.bin",
+            "path": "mod:mod_gex,context:CS::textures/066c.bin"
+        },
+        {
+            "id": 2062,
+            "name": "0c57.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c57.bin"
+        },
+        {
+            "id": 2063,
+            "name": "0a19.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a19.bin"
+        },
+        {
+            "id": 2064,
+            "name": "0211.bin",
+            "path": "mod:mod_gex,context:CS::textures/0211.bin"
+        },
+        {
+            "id": 2065,
+            "name": "00bc.bin",
+            "path": "mod:mod_gex,context:CS::textures/00bc.bin|mod:mod_kakariko,context:CS::textures/00bc.bin"
+        },
+        {
+            "id": 2066,
+            "name": "08b5.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b5.bin"
+        },
+        {
+            "id": 2067,
+            "name": "01b5.bin",
+            "path": "mod:mod_gex,context:CS::textures/01b5.bin|mod:mod_kakariko,context:CS::textures/01b5.bin"
+        },
+        {
+            "id": 2068,
+            "name": "0892.bin",
+            "path": "mod:mod_gex,context:CS::textures/0892.bin"
+        },
+        {
+            "id": 2069,
+            "name": "08b1.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b1.bin"
+        },
+        {
+            "id": 2070,
+            "name": "08a3.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a3.bin"
+        },
+        {
+            "id": 2071,
+            "name": "01d9.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d9.bin"
+        },
+        {
+            "id": 2072,
+            "name": "00c9.bin",
+            "path": "mod:mod_gex,context:CS::textures/00c9.bin|mod:mod_kakariko,context:CS::textures/00c9.bin"
+        },
+        {
+            "id": 2073,
+            "name": "0225.bin",
+            "path": "mod:mod_gex,context:CS::textures/0225.bin"
+        },
+        {
+            "id": 2074,
+            "name": "06ae.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ae.bin"
+        },
+        {
+            "id": 2075,
+            "name": "0180.bin",
+            "path": "mod:mod_gex,context:CS::textures/0180.bin"
+        },
+        {
+            "id": 2076,
+            "name": "00ee.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ee.bin"
+        },
+        {
+            "id": 2077,
+            "name": "0887.bin",
+            "path": "mod:mod_gex,context:CS::textures/0887.bin"
+        },
+        {
+            "id": 2078,
+            "name": "06da.bin",
+            "path": "mod:mod_gex,context:CS::textures/06da.bin"
+        },
+        {
+            "id": 2079,
+            "name": "073b.bin",
+            "path": "mod:mod_gex,context:CS::textures/073b.bin"
+        },
+        {
+            "id": 2080,
+            "name": "0a4b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a4b.bin"
+        },
+        {
+            "id": 2081,
+            "name": "0894.bin",
+            "path": "mod:mod_gex,context:CS::textures/0894.bin"
+        },
+        {
+            "id": 2082,
+            "name": "099a.bin",
+            "path": "mod:mod_gex,context:CS::textures/099a.bin"
+        },
+        {
+            "id": 2083,
+            "name": "089f.bin",
+            "path": "mod:mod_gex,context:CS::textures/089f.bin"
+        },
+        {
+            "id": 2084,
+            "name": "00a8.bin",
+            "path": "mod:mod_gex,context:CS::textures/00a8.bin"
+        },
+        {
+            "id": 2085,
+            "name": "023f.bin",
+            "path": "mod:mod_gex,context:CS::textures/023f.bin|mod:mod_kakariko,context:CS::textures/023f.bin"
+        },
+        {
+            "id": 2086,
+            "name": "008c.bin",
+            "path": "mod:mod_gex,context:CS::textures/008c.bin"
+        },
+        {
+            "id": 2087,
+            "name": "022e.bin",
+            "path": "mod:mod_gex,context:CS::textures/022e.bin"
+        },
+        {
+            "id": 2088,
+            "name": "00cd.bin",
+            "path": "mod:mod_gex,context:CS::textures/00cd.bin|mod:mod_kakariko,context:CS::textures/00cd.bin|mod:mod_goldfinger_64,context:CS::textures/00cd.bin"
+        },
+        {
+            "id": 2089,
+            "name": "0a35.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a35.bin"
+        },
+        {
+            "id": 2090,
+            "name": "0745.bin",
+            "path": "mod:mod_gex,context:CS::textures/0745.bin"
+        },
+        {
+            "id": 2091,
+            "name": "0748.bin",
+            "path": "mod:mod_gex,context:CS::textures/0748.bin"
+        },
+        {
+            "id": 2092,
+            "name": "06d1.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d1.bin"
+        },
+        {
+            "id": 2093,
+            "name": "0a47.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a47.bin"
+        },
+        {
+            "id": 2094,
+            "name": "02d6.bin",
+            "path": "mod:mod_gex,context:CS::textures/02d6.bin"
+        },
+        {
+            "id": 2095,
+            "name": "06bd.bin",
+            "path": "mod:mod_gex,context:CS::textures/06bd.bin"
+        },
+        {
+            "id": 2096,
+            "name": "0c29.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c29.bin"
+        },
+        {
+            "id": 2097,
+            "name": "067d.bin",
+            "path": "mod:mod_gex,context:CS::textures/067d.bin"
+        },
+        {
+            "id": 2098,
+            "name": "008f.bin",
+            "path": "mod:mod_gex,context:CS::textures/008f.bin"
+        },
+        {
+            "id": 2099,
+            "name": "0132.bin",
+            "path": "mod:mod_gex,context:CS::textures/0132.bin"
+        },
+        {
+            "id": 2100,
+            "name": "0c18.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c18.bin|mod:mod_kakariko,context:CS::textures/0c18.bin|mod:mod_dark_noon,context:CS::textures/0c18.bin|mod:mod_goldfinger_64,context:CS::textures/0c18.bin|mod:mod_aio,context:CS::textures/0c18.bin"
+        },
+        {
+            "id": 2101,
+            "name": "08b2.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b2.bin"
+        },
+        {
+            "id": 2102,
+            "name": "00ab.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ab.bin"
+        },
+        {
+            "id": 2103,
+            "name": "0688.bin",
+            "path": "mod:mod_gex,context:CS::textures/0688.bin"
+        },
+        {
+            "id": 2104,
+            "name": "0a0e.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a0e.bin"
+        },
+        {
+            "id": 2105,
+            "name": "0a2e.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a2e.bin"
+        },
+        {
+            "id": 2106,
+            "name": "0055.bin",
+            "path": "mod:mod_gex,context:CS::textures/0055.bin|mod:mod_kakariko,context:CS::textures/0055.bin"
+        },
+        {
+            "id": 2107,
+            "name": "0078.bin",
+            "path": "mod:mod_gex,context:CS::textures/0078.bin"
+        },
+        {
+            "id": 2108,
+            "name": "018b.bin",
+            "path": "mod:mod_gex,context:CS::textures/018b.bin"
+        },
+        {
+            "id": 2109,
+            "name": "0166.bin",
+            "path": "mod:mod_gex,context:CS::textures/0166.bin"
+        },
+        {
+            "id": 2110,
+            "name": "0680.bin",
+            "path": "mod:mod_gex,context:CS::textures/0680.bin"
+        },
+        {
+            "id": 2111,
+            "name": "008b.bin",
+            "path": "mod:mod_gex,context:CS::textures/008b.bin"
+        },
+        {
+            "id": 2112,
+            "name": "070b.bin",
+            "path": "mod:mod_gex,context:CS::textures/070b.bin"
+        },
+        {
+            "id": 2113,
+            "name": "08a6.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a6.bin"
+        },
+        {
+            "id": 2114,
+            "name": "0083.bin",
+            "path": "mod:mod_gex,context:CS::textures/0083.bin"
+        },
+        {
+            "id": 2115,
+            "name": "0681.bin",
+            "path": "mod:mod_gex,context:CS::textures/0681.bin"
+        },
+        {
+            "id": 2116,
+            "name": "0259.bin",
+            "path": "mod:mod_gex,context:CS::textures/0259.bin"
+        },
+        {
+            "id": 2117,
+            "name": "0686.bin",
+            "path": "mod:mod_gex,context:CS::textures/0686.bin"
+        },
+        {
+            "id": 2118,
+            "name": "070d.bin",
+            "path": "mod:mod_gex,context:CS::textures/070d.bin"
+        },
+        {
+            "id": 2119,
+            "name": "06ef.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ef.bin"
+        },
+        {
+            "id": 2120,
+            "name": "0a41.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a41.bin"
+        },
+        {
+            "id": 2121,
+            "name": "019b.bin",
+            "path": "mod:mod_gex,context:CS::textures/019b.bin"
+        },
+        {
+            "id": 2122,
+            "name": "0ced.bin",
+            "path": "mod:mod_gex,context:CS::textures/0ced.bin|mod:mod_goldfinger_64,context:CS::textures/0ced.bin"
+        },
+        {
+            "id": 2123,
+            "name": "09b0.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b0.bin"
+        },
+        {
+            "id": 2124,
+            "name": "06d6.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d6.bin"
+        },
+        {
+            "id": 2125,
+            "name": "007e.bin",
+            "path": "mod:mod_gex,context:CS::textures/007e.bin"
+        },
+        {
+            "id": 2126,
+            "name": "00e4.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e4.bin|mod:mod_kakariko,context:CS::textures/00e4.bin"
+        },
+        {
+            "id": 2127,
+            "name": "0704.bin",
+            "path": "mod:mod_gex,context:CS::textures/0704.bin"
+        },
+        {
+            "id": 2128,
+            "name": "0165.bin",
+            "path": "mod:mod_gex,context:CS::textures/0165.bin"
+        },
+        {
+            "id": 2129,
+            "name": "0690.bin",
+            "path": "mod:mod_gex,context:CS::textures/0690.bin"
+        },
+        {
+            "id": 2130,
+            "name": "00d7.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d7.bin|mod:mod_kakariko,context:CS::textures/00d7.bin"
+        },
+        {
+            "id": 2131,
+            "name": "0260.bin",
+            "path": "mod:mod_gex,context:CS::textures/0260.bin"
+        },
+        {
+            "id": 2132,
+            "name": "0284.bin",
+            "path": "mod:mod_gex,context:CS::textures/0284.bin"
+        },
+        {
+            "id": 2133,
+            "name": "0665.bin",
+            "path": "mod:mod_gex,context:CS::textures/0665.bin"
+        },
+        {
+            "id": 2134,
+            "name": "0267.bin",
+            "path": "mod:mod_gex,context:CS::textures/0267.bin"
+        },
+        {
+            "id": 2135,
+            "name": "0222.bin",
+            "path": "mod:mod_gex,context:CS::textures/0222.bin"
+        },
+        {
+            "id": 2136,
+            "name": "0236.bin",
+            "path": "mod:mod_gex,context:CS::textures/0236.bin|mod:mod_kakariko,context:CS::textures/0236.bin"
+        },
+        {
+            "id": 2137,
+            "name": "01d0.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d0.bin|mod:mod_kakariko,context:CS::textures/01d0.bin"
+        },
+        {
+            "id": 2138,
+            "name": "01e4.bin",
+            "path": "mod:mod_gex,context:CS::textures/01e4.bin|mod:mod_kakariko,context:CS::textures/01e4.bin"
+        },
+        {
+            "id": 2139,
+            "name": "0a0a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a0a.bin|mod:mod_goldfinger_64,context:CS::textures/0a0a.bin"
+        },
+        {
+            "id": 2140,
+            "name": "0743.bin",
+            "path": "mod:mod_gex,context:CS::textures/0743.bin"
+        },
+        {
+            "id": 2141,
+            "name": "017a.bin",
+            "path": "mod:mod_gex,context:CS::textures/017a.bin"
+        },
+        {
+            "id": 2142,
+            "name": "0c5b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c5b.bin|mod:mod_kakariko,context:CS::textures/0c5b.bin|mod:mod_dark_noon,context:CS::textures/0c5b.bin|mod:mod_goldfinger_64,context:CS::textures/0c5b.bin|mod:mod_aio,context:CS::textures/0c5b.bin"
+        },
+        {
+            "id": 2143,
+            "name": "0171.bin",
+            "path": "mod:mod_gex,context:CS::textures/0171.bin|mod:mod_goldfinger_64,context:CS::textures/0171.bin"
+        },
+        {
+            "id": 2144,
+            "name": "00c8.bin",
+            "path": "mod:mod_gex,context:CS::textures/00c8.bin|mod:mod_kakariko,context:CS::textures/00c8.bin"
+        },
+        {
+            "id": 2145,
+            "name": "0717.bin",
+            "path": "mod:mod_gex,context:CS::textures/0717.bin"
+        },
+        {
+            "id": 2146,
+            "name": "016f.bin",
+            "path": "mod:mod_gex,context:CS::textures/016f.bin"
+        },
+        {
+            "id": 2147,
+            "name": "0210.bin",
+            "path": "mod:mod_gex,context:CS::textures/0210.bin|mod:mod_goldfinger_64,context:CS::textures/0210.bin"
+        },
+        {
+            "id": 2148,
+            "name": "0053.bin",
+            "path": "mod:mod_gex,context:CS::textures/0053.bin|mod:mod_kakariko,context:CS::textures/0053.bin|mod:mod_goldfinger_64,context:CS::textures/0053.bin"
+        },
+        {
+            "id": 2149,
+            "name": "0161.bin",
+            "path": "mod:mod_gex,context:CS::textures/0161.bin"
+        },
+        {
+            "id": 2150,
+            "name": "00ec.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ec.bin"
+        },
+        {
+            "id": 2151,
+            "name": "0678.bin",
+            "path": "mod:mod_gex,context:CS::textures/0678.bin"
+        },
+        {
+            "id": 2152,
+            "name": "0163.bin",
+            "path": "mod:mod_gex,context:CS::textures/0163.bin"
+        },
+        {
+            "id": 2153,
+            "name": "004b.bin",
+            "path": "mod:mod_gex,context:CS::textures/004b.bin|mod:mod_kakariko,context:CS::textures/004b.bin|mod:mod_goldfinger_64,context:CS::textures/004b.bin"
+        },
+        {
+            "id": 2154,
+            "name": "0a21.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a21.bin"
+        },
+        {
+            "id": 2155,
+            "name": "0068.bin",
+            "path": "mod:mod_gex,context:CS::textures/0068.bin|mod:mod_kakariko,context:CS::textures/0068.bin|mod:mod_goldfinger_64,context:CS::textures/0068.bin"
+        },
+        {
+            "id": 2156,
+            "name": "0164.bin",
+            "path": "mod:mod_gex,context:CS::textures/0164.bin"
+        },
+        {
+            "id": 2157,
+            "name": "0b67.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b67.bin"
+        },
+        {
+            "id": 2158,
+            "name": "0235.bin",
+            "path": "mod:mod_gex,context:CS::textures/0235.bin|mod:mod_kakariko,context:CS::textures/0235.bin"
+        },
+        {
+            "id": 2159,
+            "name": "00be.bin",
+            "path": "mod:mod_gex,context:CS::textures/00be.bin"
+        },
+        {
+            "id": 2160,
+            "name": "0054.bin",
+            "path": "mod:mod_gex,context:CS::textures/0054.bin|mod:mod_kakariko,context:CS::textures/0054.bin"
+        },
+        {
+            "id": 2161,
+            "name": "0a22.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a22.bin"
+        },
+        {
+            "id": 2162,
+            "name": "067b.bin",
+            "path": "mod:mod_gex,context:CS::textures/067b.bin"
+        },
+        {
+            "id": 2163,
+            "name": "020f.bin",
+            "path": "mod:mod_gex,context:CS::textures/020f.bin"
+        },
+        {
+            "id": 2164,
+            "name": "00a6.bin",
+            "path": "mod:mod_gex,context:CS::textures/00a6.bin"
+        },
+        {
+            "id": 2165,
+            "name": "0265.bin",
+            "path": "mod:mod_gex,context:CS::textures/0265.bin"
+        },
+        {
+            "id": 2166,
+            "name": "0a26.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a26.bin"
+        },
+        {
+            "id": 2167,
+            "name": "06f3.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f3.bin|mod:mod_goldfinger_64,context:CS::textures/06f3.bin"
+        },
+        {
+            "id": 2168,
+            "name": "0a1a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a1a.bin"
+        },
+        {
+            "id": 2169,
+            "name": "06ed.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ed.bin"
+        },
+        {
+            "id": 2170,
+            "name": "0a12.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a12.bin"
+        },
+        {
+            "id": 2171,
+            "name": "0696.bin",
+            "path": "mod:mod_gex,context:CS::textures/0696.bin"
+        },
+        {
+            "id": 2172,
+            "name": "00bd.bin",
+            "path": "mod:mod_gex,context:CS::textures/00bd.bin|mod:mod_kakariko,context:CS::textures/00bd.bin"
+        },
+        {
+            "id": 2173,
+            "name": "0065.bin",
+            "path": "mod:mod_gex,context:CS::textures/0065.bin|mod:mod_kakariko,context:CS::textures/0065.bin|mod:mod_goldfinger_64,context:CS::textures/0065.bin"
+        },
+        {
+            "id": 2174,
+            "name": "06ce.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ce.bin"
+        },
+        {
+            "id": 2175,
+            "name": "01b0.bin",
+            "path": "mod:mod_gex,context:CS::textures/01b0.bin"
+        },
+        {
+            "id": 2176,
+            "name": "01d2.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d2.bin|mod:mod_kakariko,context:CS::textures/01d2.bin"
+        },
+        {
+            "id": 2177,
+            "name": "023d.bin",
+            "path": "mod:mod_gex,context:CS::textures/023d.bin|mod:mod_kakariko,context:CS::textures/023d.bin"
+        },
+        {
+            "id": 2178,
+            "name": "066b.bin",
+            "path": "mod:mod_gex,context:CS::textures/066b.bin"
+        },
+        {
+            "id": 2179,
+            "name": "08cd.bin",
+            "path": "mod:mod_gex,context:CS::textures/08cd.bin|mod:mod_goldfinger_64,context:CS::textures/08cd.bin"
+        },
+        {
+            "id": 2180,
+            "name": "022b.bin",
+            "path": "mod:mod_gex,context:CS::textures/022b.bin"
+        },
+        {
+            "id": 2181,
+            "name": "0a16.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a16.bin"
+        },
+        {
+            "id": 2182,
+            "name": "00b8.bin",
+            "path": "mod:mod_gex,context:CS::textures/00b8.bin|mod:mod_kakariko,context:CS::textures/00b8.bin"
+        },
+        {
+            "id": 2183,
+            "name": "0705.bin",
+            "path": "mod:mod_gex,context:CS::textures/0705.bin"
+        },
+        {
+            "id": 2184,
+            "name": "08a1.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a1.bin"
+        },
+        {
+            "id": 2185,
+            "name": "0198.bin",
+            "path": "mod:mod_gex,context:CS::textures/0198.bin|mod:mod_goldfinger_64,context:CS::textures/0198.bin"
+        },
+        {
+            "id": 2186,
+            "name": "020e.bin",
+            "path": "mod:mod_gex,context:CS::textures/020e.bin"
+        },
+        {
+            "id": 2187,
+            "name": "0a18.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a18.bin"
+        },
+        {
+            "id": 2188,
+            "name": "089d.bin",
+            "path": "mod:mod_gex,context:CS::textures/089d.bin"
+        },
+        {
+            "id": 2189,
+            "name": "0c58.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c58.bin|mod:mod_kakariko,context:CS::textures/0c58.bin|mod:mod_dark_noon,context:CS::textures/0c58.bin|mod:mod_goldfinger_64,context:CS::textures/0c58.bin|mod:mod_aio,context:CS::textures/0c58.bin"
+        },
+        {
+            "id": 2190,
+            "name": "01c6.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c6.bin|mod:mod_kakariko,context:CS::textures/01c6.bin"
+        },
+        {
+            "id": 2191,
+            "name": "0062.bin",
+            "path": "mod:mod_gex,context:CS::textures/0062.bin|mod:mod_kakariko,context:CS::textures/0062.bin|mod:mod_goldfinger_64,context:CS::textures/0062.bin"
+        },
+        {
+            "id": 2192,
+            "name": "01ce.bin",
+            "path": "mod:mod_gex,context:CS::textures/01ce.bin|mod:mod_kakariko,context:CS::textures/01ce.bin"
+        },
+        {
+            "id": 2193,
+            "name": "0685.bin",
+            "path": "mod:mod_gex,context:CS::textures/0685.bin"
+        },
+        {
+            "id": 2194,
+            "name": "0b8c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b8c.bin"
+        },
+        {
+            "id": 2195,
+            "name": "0050.bin",
+            "path": "mod:mod_gex,context:CS::textures/0050.bin|mod:mod_kakariko,context:CS::textures/0050.bin|mod:mod_goldfinger_64,context:CS::textures/0050.bin"
+        },
+        {
+            "id": 2196,
+            "name": "02b2.bin",
+            "path": "mod:mod_gex,context:CS::textures/02b2.bin"
+        },
+        {
+            "id": 2197,
+            "name": "06c0.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c0.bin"
+        },
+        {
+            "id": 2198,
+            "name": "06c8.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c8.bin"
+        },
+        {
+            "id": 2199,
+            "name": "0174.bin",
+            "path": "mod:mod_gex,context:CS::textures/0174.bin"
+        },
+        {
+            "id": 2200,
+            "name": "022a.bin",
+            "path": "mod:mod_gex,context:CS::textures/022a.bin"
+        },
+        {
+            "id": 2201,
+            "name": "0be3.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be3.bin|mod:mod_goldfinger_64,context:CS::textures/0be3.bin"
+        },
+        {
+            "id": 2202,
+            "name": "01c9.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c9.bin|mod:mod_kakariko,context:CS::textures/01c9.bin"
+        },
+        {
+            "id": 2203,
+            "name": "06ba.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ba.bin"
+        },
+        {
+            "id": 2204,
+            "name": "004e.bin",
+            "path": "mod:mod_gex,context:CS::textures/004e.bin|mod:mod_kakariko,context:CS::textures/004e.bin"
+        },
+        {
+            "id": 2205,
+            "name": "0184.bin",
+            "path": "mod:mod_gex,context:CS::textures/0184.bin|mod:mod_goldfinger_64,context:CS::textures/0184.bin"
+        },
+        {
+            "id": 2206,
+            "name": "01d4.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d4.bin|mod:mod_kakariko,context:CS::textures/01d4.bin"
+        },
+        {
+            "id": 2207,
+            "name": "01c2.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c2.bin|mod:mod_kakariko,context:CS::textures/01c2.bin"
+        },
+        {
+            "id": 2208,
+            "name": "0212.bin",
+            "path": "mod:mod_gex,context:CS::textures/0212.bin"
+        },
+        {
+            "id": 2209,
+            "name": "0014.bin",
+            "path": "mod:mod_gex,context:CS::textures/0014.bin"
+        },
+        {
+            "id": 2210,
+            "name": "06a6.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a6.bin"
+        },
+        {
+            "id": 2211,
+            "name": "0bdc.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bdc.bin"
+        },
+        {
+            "id": 2212,
+            "name": "08a7.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a7.bin"
+        },
+        {
+            "id": 2213,
+            "name": "06d8.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d8.bin"
+        },
+        {
+            "id": 2214,
+            "name": "0a43.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a43.bin"
+        },
+        {
+            "id": 2215,
+            "name": "06a2.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a2.bin"
+        },
+        {
+            "id": 2216,
+            "name": "016a.bin",
+            "path": "mod:mod_gex,context:CS::textures/016a.bin"
+        },
+        {
+            "id": 2217,
+            "name": "0000.bin",
+            "path": "mod:mod_gex,context:CS::textures/0000.bin"
+        },
+        {
+            "id": 2218,
+            "name": "0a3f.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a3f.bin"
+        },
+        {
+            "id": 2219,
+            "name": "065a.bin",
+            "path": "mod:mod_gex,context:CS::textures/065a.bin"
+        },
+        {
+            "id": 2220,
+            "name": "0223.bin",
+            "path": "mod:mod_gex,context:CS::textures/0223.bin"
+        },
+        {
+            "id": 2221,
+            "name": "00bb.bin",
+            "path": "mod:mod_gex,context:CS::textures/00bb.bin|mod:mod_kakariko,context:CS::textures/00bb.bin|mod:mod_goldfinger_64,context:CS::textures/00bb.bin"
+        },
+        {
+            "id": 2222,
+            "name": "09b2.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b2.bin"
+        },
+        {
+            "id": 2223,
+            "name": "0216.bin",
+            "path": "mod:mod_gex,context:CS::textures/0216.bin"
+        },
+        {
+            "id": 2224,
+            "name": "0a2f.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a2f.bin"
+        },
+        {
+            "id": 2225,
+            "name": "0689.bin",
+            "path": "mod:mod_gex,context:CS::textures/0689.bin"
+        },
+        {
+            "id": 2226,
+            "name": "0746.bin",
+            "path": "mod:mod_gex,context:CS::textures/0746.bin"
+        },
+        {
+            "id": 2227,
+            "name": "069d.bin",
+            "path": "mod:mod_gex,context:CS::textures/069d.bin"
+        },
+        {
+            "id": 2228,
+            "name": "018f.bin",
+            "path": "mod:mod_gex,context:CS::textures/018f.bin"
+        },
+        {
+            "id": 2229,
+            "name": "0a2d.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a2d.bin"
+        },
+        {
+            "id": 2230,
+            "name": "08a2.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a2.bin"
+        },
+        {
+            "id": 2231,
+            "name": "09a4.bin",
+            "path": "mod:mod_gex,context:CS::textures/09a4.bin"
+        },
+        {
+            "id": 2232,
+            "name": "0889.bin",
+            "path": "mod:mod_gex,context:CS::textures/0889.bin|mod:mod_dark_noon,context:CS::textures/0889.bin"
+        },
+        {
+            "id": 2233,
+            "name": "00db.bin",
+            "path": "mod:mod_gex,context:CS::textures/00db.bin|mod:mod_kakariko,context:CS::textures/00db.bin"
+        },
+        {
+            "id": 2234,
+            "name": "01c4.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c4.bin|mod:mod_kakariko,context:CS::textures/01c4.bin"
+        },
+        {
+            "id": 2235,
+            "name": "0a44.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a44.bin"
+        },
+        {
+            "id": 2236,
+            "name": "06b6.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b6.bin"
+        },
+        {
+            "id": 2237,
+            "name": "00e0.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e0.bin|mod:mod_kakariko,context:CS::textures/00e0.bin|mod:mod_goldfinger_64,context:CS::textures/00e0.bin"
+        },
+        {
+            "id": 2238,
+            "name": "06bf.bin",
+            "path": "mod:mod_gex,context:CS::textures/06bf.bin"
+        },
+        {
+            "id": 2239,
+            "name": "0bdf.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bdf.bin"
+        },
+        {
+            "id": 2240,
+            "name": "08b6.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b6.bin"
+        },
+        {
+            "id": 2241,
+            "name": "004f.bin",
+            "path": "mod:mod_gex,context:CS::textures/004f.bin|mod:mod_kakariko,context:CS::textures/004f.bin|mod:mod_goldfinger_64,context:CS::textures/004f.bin"
+        },
+        {
+            "id": 2242,
+            "name": "0266.bin",
+            "path": "mod:mod_gex,context:CS::textures/0266.bin"
+        },
+        {
+            "id": 2243,
+            "name": "023b.bin",
+            "path": "mod:mod_gex,context:CS::textures/023b.bin|mod:mod_kakariko,context:CS::textures/023b.bin"
+        },
+        {
+            "id": 2244,
+            "name": "06b1.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b1.bin"
+        },
+        {
+            "id": 2245,
+            "name": "0215.bin",
+            "path": "mod:mod_gex,context:CS::textures/0215.bin"
+        },
+        {
+            "id": 2246,
+            "name": "0001.bin",
+            "path": "mod:mod_gex,context:CS::textures/0001.bin|mod:mod_goldfinger_64,context:CS::textures/0001.bin"
+        },
+        {
+            "id": 2247,
+            "name": "0b8a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b8a.bin"
+        },
+        {
+            "id": 2248,
+            "name": "0082.bin",
+            "path": "mod:mod_gex,context:CS::textures/0082.bin"
+        },
+        {
+            "id": 2249,
+            "name": "021a.bin",
+            "path": "mod:mod_gex,context:CS::textures/021a.bin"
+        },
+        {
+            "id": 2250,
+            "name": "0a49.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a49.bin"
+        },
+        {
+            "id": 2251,
+            "name": "021e.bin",
+            "path": "mod:mod_gex,context:CS::textures/021e.bin"
+        },
+        {
+            "id": 2252,
+            "name": "08b0.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b0.bin"
+        },
+        {
+            "id": 2253,
+            "name": "0a1e.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a1e.bin"
+        },
+        {
+            "id": 2254,
+            "name": "0190.bin",
+            "path": "mod:mod_gex,context:CS::textures/0190.bin|mod:mod_goldfinger_64,context:CS::textures/0190.bin"
+        },
+        {
+            "id": 2255,
+            "name": "0c54.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c54.bin"
+        },
+        {
+            "id": 2256,
+            "name": "0be2.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be2.bin|mod:mod_goldfinger_64,context:CS::textures/0be2.bin"
+        },
+        {
+            "id": 2257,
+            "name": "073e.bin",
+            "path": "mod:mod_gex,context:CS::textures/073e.bin"
+        },
+        {
+            "id": 2258,
+            "name": "06c7.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c7.bin"
+        },
+        {
+            "id": 2259,
+            "name": "070c.bin",
+            "path": "mod:mod_gex,context:CS::textures/070c.bin"
+        },
+        {
+            "id": 2260,
+            "name": "00d5.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d5.bin|mod:mod_kakariko,context:CS::textures/00d5.bin"
+        },
+        {
+            "id": 2261,
+            "name": "0248.bin",
+            "path": "mod:mod_gex,context:CS::textures/0248.bin|mod:mod_kakariko,context:CS::textures/0248.bin"
+        },
+        {
+            "id": 2262,
+            "name": "06df.bin",
+            "path": "mod:mod_gex,context:CS::textures/06df.bin"
+        },
+        {
+            "id": 2263,
+            "name": "08a4.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a4.bin"
+        },
+        {
+            "id": 2264,
+            "name": "08ad.bin",
+            "path": "mod:mod_gex,context:CS::textures/08ad.bin"
+        },
+        {
+            "id": 2265,
+            "name": "0691.bin",
+            "path": "mod:mod_gex,context:CS::textures/0691.bin"
+        },
+        {
+            "id": 2266,
+            "name": "06e3.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e3.bin"
+        },
+        {
+            "id": 2267,
+            "name": "068a.bin",
+            "path": "mod:mod_gex,context:CS::textures/068a.bin"
+        },
+        {
+            "id": 2268,
+            "name": "0bea.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bea.bin"
+        },
+        {
+            "id": 2269,
+            "name": "004a.bin",
+            "path": "mod:mod_gex,context:CS::textures/004a.bin|mod:mod_kakariko,context:CS::textures/004a.bin|mod:mod_goldfinger_64,context:CS::textures/004a.bin"
+        },
+        {
+            "id": 2270,
+            "name": "0744.bin",
+            "path": "mod:mod_gex,context:CS::textures/0744.bin"
+        },
+        {
+            "id": 2271,
+            "name": "025f.bin",
+            "path": "mod:mod_gex,context:CS::textures/025f.bin"
+        },
+        {
+            "id": 2272,
+            "name": "0c35.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c35.bin"
+        },
+        {
+            "id": 2273,
+            "name": "01c8.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c8.bin|mod:mod_kakariko,context:CS::textures/01c8.bin"
+        },
+        {
+            "id": 2274,
+            "name": "0244.bin",
+            "path": "mod:mod_gex,context:CS::textures/0244.bin|mod:mod_kakariko,context:CS::textures/0244.bin"
+        },
+        {
+            "id": 2275,
+            "name": "021c.bin",
+            "path": "mod:mod_gex,context:CS::textures/021c.bin"
+        },
+        {
+            "id": 2276,
+            "name": "00d0.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d0.bin|mod:mod_kakariko,context:CS::textures/00d0.bin"
+        },
+        {
+            "id": 2277,
+            "name": "0089.bin",
+            "path": "mod:mod_gex,context:CS::textures/0089.bin"
+        },
+        {
+            "id": 2278,
+            "name": "02f0.bin",
+            "path": "mod:mod_gex,context:CS::textures/02f0.bin"
+        },
+        {
+            "id": 2279,
+            "name": "0a1f.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a1f.bin"
+        },
+        {
+            "id": 2280,
+            "name": "06f0.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f0.bin"
+        },
+        {
+            "id": 2281,
+            "name": "0056.bin",
+            "path": "mod:mod_gex,context:CS::textures/0056.bin|mod:mod_kakariko,context:CS::textures/0056.bin|mod:mod_goldfinger_64,context:CS::textures/0056.bin"
+        },
+        {
+            "id": 2282,
+            "name": "01ca.bin",
+            "path": "mod:mod_gex,context:CS::textures/01ca.bin|mod:mod_kakariko,context:CS::textures/01ca.bin"
+        },
+        {
+            "id": 2283,
+            "name": "06d2.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d2.bin"
+        },
+        {
+            "id": 2284,
+            "name": "08ae.bin",
+            "path": "mod:mod_gex,context:CS::textures/08ae.bin"
+        },
+        {
+            "id": 2285,
+            "name": "0b6a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b6a.bin"
+        },
+        {
+            "id": 2286,
+            "name": "020c.bin",
+            "path": "mod:mod_gex,context:CS::textures/020c.bin"
+        },
+        {
+            "id": 2287,
+            "name": "008d.bin",
+            "path": "mod:mod_gex,context:CS::textures/008d.bin"
+        },
+        {
+            "id": 2288,
+            "name": "0b69.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b69.bin"
+        },
+        {
+            "id": 2289,
+            "name": "0658.bin",
+            "path": "mod:mod_gex,context:CS::textures/0658.bin"
+        },
+        {
+            "id": 2290,
+            "name": "0a30.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a30.bin"
+        },
+        {
+            "id": 2291,
+            "name": "073f.bin",
+            "path": "mod:mod_gex,context:CS::textures/073f.bin"
+        },
+        {
+            "id": 2292,
+            "name": "088e.bin",
+            "path": "mod:mod_gex,context:CS::textures/088e.bin"
+        },
+        {
+            "id": 2293,
+            "name": "0261.bin",
+            "path": "mod:mod_gex,context:CS::textures/0261.bin"
+        },
+        {
+            "id": 2294,
+            "name": "06aa.bin",
+            "path": "mod:mod_gex,context:CS::textures/06aa.bin"
+        },
+        {
+            "id": 2295,
+            "name": "06b4.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b4.bin"
+        },
+        {
+            "id": 2296,
+            "name": "088d.bin",
+            "path": "mod:mod_gex,context:CS::textures/088d.bin"
+        },
+        {
+            "id": 2297,
+            "name": "0a3e.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a3e.bin"
+        },
+        {
+            "id": 2298,
+            "name": "0069.bin",
+            "path": "mod:mod_gex,context:CS::textures/0069.bin"
+        },
+        {
+            "id": 2299,
+            "name": "06f2.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f2.bin"
+        },
+        {
+            "id": 2300,
+            "name": "017f.bin",
+            "path": "mod:mod_gex,context:CS::textures/017f.bin"
+        },
+        {
+            "id": 2301,
+            "name": "0227.bin",
+            "path": "mod:mod_gex,context:CS::textures/0227.bin"
+        },
+        {
+            "id": 2302,
+            "name": "0173.bin",
+            "path": "mod:mod_gex,context:CS::textures/0173.bin"
+        },
+        {
+            "id": 2303,
+            "name": "073d.bin",
+            "path": "mod:mod_gex,context:CS::textures/073d.bin"
+        },
+        {
+            "id": 2304,
+            "name": "01c1.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c1.bin|mod:mod_kakariko,context:CS::textures/01c1.bin"
+        },
+        {
+            "id": 2305,
+            "name": "0899.bin",
+            "path": "mod:mod_gex,context:CS::textures/0899.bin"
+        },
+        {
+            "id": 2306,
+            "name": "0b68.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b68.bin"
+        },
+        {
+            "id": 2307,
+            "name": "017e.bin",
+            "path": "mod:mod_gex,context:CS::textures/017e.bin"
+        },
+        {
+            "id": 2308,
+            "name": "007f.bin",
+            "path": "mod:mod_gex,context:CS::textures/007f.bin"
+        },
+        {
+            "id": 2309,
+            "name": "0b66.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b66.bin"
+        },
+        {
+            "id": 2310,
+            "name": "0657.bin",
+            "path": "mod:mod_gex,context:CS::textures/0657.bin"
+        },
+        {
+            "id": 2311,
+            "name": "0693.bin",
+            "path": "mod:mod_gex,context:CS::textures/0693.bin"
+        },
+        {
+            "id": 2312,
+            "name": "00ed.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ed.bin|mod:mod_goldfinger_64,context:CS::textures/00ed.bin"
+        },
+        {
+            "id": 2313,
+            "name": "0692.bin",
+            "path": "mod:mod_gex,context:CS::textures/0692.bin"
+        },
+        {
+            "id": 2314,
+            "name": "068d.bin",
+            "path": "mod:mod_gex,context:CS::textures/068d.bin"
+        },
+        {
+            "id": 2315,
+            "name": "01c0.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c0.bin|mod:mod_kakariko,context:CS::textures/01c0.bin|mod:mod_goldfinger_64,context:CS::textures/01c0.bin"
+        },
+        {
+            "id": 2316,
+            "name": "0898.bin",
+            "path": "mod:mod_gex,context:CS::textures/0898.bin"
+        },
+        {
+            "id": 2317,
+            "name": "00ba.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ba.bin|mod:mod_kakariko,context:CS::textures/00ba.bin"
+        },
+        {
+            "id": 2318,
+            "name": "01cd.bin",
+            "path": "mod:mod_gex,context:CS::textures/01cd.bin|mod:mod_kakariko,context:CS::textures/01cd.bin"
+        },
+        {
+            "id": 2319,
+            "name": "00cc.bin",
+            "path": "mod:mod_gex,context:CS::textures/00cc.bin|mod:mod_kakariko,context:CS::textures/00cc.bin|mod:mod_goldfinger_64,context:CS::textures/00cc.bin"
+        },
+        {
+            "id": 2320,
+            "name": "06c6.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c6.bin"
+        },
+        {
+            "id": 2321,
+            "name": "01a4.bin",
+            "path": "mod:mod_gex,context:CS::textures/01a4.bin"
+        },
+        {
+            "id": 2322,
+            "name": "066e.bin",
+            "path": "mod:mod_gex,context:CS::textures/066e.bin"
+        },
+        {
+            "id": 2323,
+            "name": "0a3b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a3b.bin|mod:mod_goldfinger_64,context:CS::textures/0a3b.bin"
+        },
+        {
+            "id": 2324,
+            "name": "0219.bin",
+            "path": "mod:mod_gex,context:CS::textures/0219.bin"
+        },
+        {
+            "id": 2325,
+            "name": "0156.bin",
+            "path": "mod:mod_gex,context:CS::textures/0156.bin"
+        },
+        {
+            "id": 2326,
+            "name": "0888.bin",
+            "path": "mod:mod_gex,context:CS::textures/0888.bin"
+        },
+        {
+            "id": 2327,
+            "name": "06af.bin",
+            "path": "mod:mod_gex,context:CS::textures/06af.bin"
+        },
+        {
+            "id": 2328,
+            "name": "0240.bin",
+            "path": "mod:mod_gex,context:CS::textures/0240.bin|mod:mod_kakariko,context:CS::textures/0240.bin|mod:mod_goldfinger_64,context:CS::textures/0240.bin"
+        },
+        {
+            "id": 2329,
+            "name": "0080.bin",
+            "path": "mod:mod_gex,context:CS::textures/0080.bin"
+        },
+        {
+            "id": 2330,
+            "name": "0187.bin",
+            "path": "mod:mod_gex,context:CS::textures/0187.bin"
+        },
+        {
+            "id": 2331,
+            "name": "01d8.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d8.bin|mod:mod_kakariko,context:CS::textures/01d8.bin"
+        },
+        {
+            "id": 2332,
+            "name": "0158.bin",
+            "path": "mod:mod_gex,context:CS::textures/0158.bin"
+        },
+        {
+            "id": 2333,
+            "name": "066a.bin",
+            "path": "mod:mod_gex,context:CS::textures/066a.bin"
+        },
+        {
+            "id": 2334,
+            "name": "0047.bin",
+            "path": "mod:mod_gex,context:CS::textures/0047.bin"
+        },
+        {
+            "id": 2335,
+            "name": "09b3.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b3.bin"
+        },
+        {
+            "id": 2336,
+            "name": "02e8.bin",
+            "path": "mod:mod_gex,context:CS::textures/02e8.bin"
+        },
+        {
+            "id": 2337,
+            "name": "0669.bin",
+            "path": "mod:mod_gex,context:CS::textures/0669.bin|mod:mod_goldfinger_64,context:CS::textures/0669.bin"
+        },
+        {
+            "id": 2338,
+            "name": "089a.bin",
+            "path": "mod:mod_gex,context:CS::textures/089a.bin"
+        },
+        {
+            "id": 2339,
+            "name": "06bc.bin",
+            "path": "mod:mod_gex,context:CS::textures/06bc.bin"
+        },
+        {
+            "id": 2340,
+            "name": "069e.bin",
+            "path": "mod:mod_gex,context:CS::textures/069e.bin"
+        },
+        {
+            "id": 2341,
+            "name": "06e7.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e7.bin"
+        },
+        {
+            "id": 2342,
+            "name": "008e.bin",
+            "path": "mod:mod_gex,context:CS::textures/008e.bin"
+        },
+        {
+            "id": 2343,
+            "name": "06e9.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e9.bin"
+        },
+        {
+            "id": 2344,
+            "name": "0687.bin",
+            "path": "mod:mod_gex,context:CS::textures/0687.bin"
+        },
+        {
+            "id": 2345,
+            "name": "0085.bin",
+            "path": "mod:mod_gex,context:CS::textures/0085.bin|mod:mod_dark_noon,context:CS::textures/0085.bin"
+        },
+        {
+            "id": 2346,
+            "name": "0697.bin",
+            "path": "mod:mod_gex,context:CS::textures/0697.bin"
+        },
+        {
+            "id": 2347,
+            "name": "06b7.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b7.bin"
+        },
+        {
+            "id": 2348,
+            "name": "06f1.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f1.bin"
+        },
+        {
+            "id": 2349,
+            "name": "09ae.bin",
+            "path": "mod:mod_gex,context:CS::textures/09ae.bin"
+        },
+        {
+            "id": 2350,
+            "name": "00da.bin",
+            "path": "mod:mod_gex,context:CS::textures/00da.bin|mod:mod_kakariko,context:CS::textures/00da.bin"
+        },
+        {
+            "id": 2351,
+            "name": "0a4c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a4c.bin"
+        },
+        {
+            "id": 2352,
+            "name": "0193.bin",
+            "path": "mod:mod_gex,context:CS::textures/0193.bin|mod:mod_goldfinger_64,context:CS::textures/0193.bin"
+        },
+        {
+            "id": 2353,
+            "name": "018e.bin",
+            "path": "mod:mod_gex,context:CS::textures/018e.bin"
+        },
+        {
+            "id": 2354,
+            "name": "0980.bin",
+            "path": "mod:mod_gex,context:CS::textures/0980.bin"
+        },
+        {
+            "id": 2355,
+            "name": "0087.bin",
+            "path": "mod:mod_gex,context:CS::textures/0087.bin"
+        },
+        {
+            "id": 2356,
+            "name": "01e3.bin",
+            "path": "mod:mod_gex,context:CS::textures/01e3.bin|mod:mod_kakariko,context:CS::textures/01e3.bin"
+        },
+        {
+            "id": 2357,
+            "name": "0088.bin",
+            "path": "mod:mod_gex,context:CS::textures/0088.bin"
+        },
+        {
+            "id": 2358,
+            "name": "0381.bin",
+            "path": "mod:mod_gex,context:CS::textures/0381.bin"
+        },
+        {
+            "id": 2359,
+            "name": "0263.bin",
+            "path": "mod:mod_gex,context:CS::textures/0263.bin"
+        },
+        {
+            "id": 2360,
+            "name": "00d1.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d1.bin"
+        },
+        {
+            "id": 2361,
+            "name": "06e0.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e0.bin"
+        },
+        {
+            "id": 2362,
+            "name": "065e.bin",
+            "path": "mod:mod_gex,context:CS::textures/065e.bin"
+        },
+        {
+            "id": 2363,
+            "name": "0a14.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a14.bin"
+        },
+        {
+            "id": 2364,
+            "name": "06bb.bin",
+            "path": "mod:mod_gex,context:CS::textures/06bb.bin"
+        },
+        {
+            "id": 2365,
+            "name": "0217.bin",
+            "path": "mod:mod_gex,context:CS::textures/0217.bin"
+        },
+        {
+            "id": 2366,
+            "name": "00de.bin",
+            "path": "mod:mod_gex,context:CS::textures/00de.bin|mod:mod_kakariko,context:CS::textures/00de.bin"
+        },
+        {
+            "id": 2367,
+            "name": "01db.bin",
+            "path": "mod:mod_gex,context:CS::textures/01db.bin|mod:mod_kakariko,context:CS::textures/01db.bin"
+        },
+        {
+            "id": 2368,
+            "name": "00e7.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e7.bin|mod:mod_kakariko,context:CS::textures/00e7.bin"
+        },
+        {
+            "id": 2369,
+            "name": "01b7.bin",
+            "path": "mod:mod_gex,context:CS::textures/01b7.bin|mod:mod_goldfinger_64,context:CS::textures/01b7.bin"
+        },
+        {
+            "id": 2370,
+            "name": "0234.bin",
+            "path": "mod:mod_gex,context:CS::textures/0234.bin|mod:mod_kakariko,context:CS::textures/0234.bin"
+        },
+        {
+            "id": 2371,
+            "name": "066f.bin",
+            "path": "mod:mod_gex,context:CS::textures/066f.bin"
+        },
+        {
+            "id": 2372,
+            "name": "028e.bin",
+            "path": "mod:mod_gex,context:CS::textures/028e.bin"
+        },
+        {
+            "id": 2373,
+            "name": "088c.bin",
+            "path": "mod:mod_gex,context:CS::textures/088c.bin"
+        },
+        {
+            "id": 2374,
+            "name": "06e2.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e2.bin"
+        },
+        {
+            "id": 2375,
+            "name": "01c3.bin",
+            "path": "mod:mod_gex,context:CS::textures/01c3.bin|mod:mod_kakariko,context:CS::textures/01c3.bin"
+        },
+        {
+            "id": 2376,
+            "name": "01da.bin",
+            "path": "mod:mod_gex,context:CS::textures/01da.bin|mod:mod_kakariko,context:CS::textures/01da.bin"
+        },
+        {
+            "id": 2377,
+            "name": "0695.bin",
+            "path": "mod:mod_gex,context:CS::textures/0695.bin"
+        },
+        {
+            "id": 2378,
+            "name": "0185.bin",
+            "path": "mod:mod_gex,context:CS::textures/0185.bin"
+        },
+        {
+            "id": 2379,
+            "name": "0be6.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be6.bin"
+        },
+        {
+            "id": 2380,
+            "name": "0981.bin",
+            "path": "mod:mod_gex,context:CS::textures/0981.bin"
+        },
+        {
+            "id": 2381,
+            "name": "0195.bin",
+            "path": "mod:mod_gex,context:CS::textures/0195.bin|mod:mod_goldfinger_64,context:CS::textures/0195.bin"
+        },
+        {
+            "id": 2382,
+            "name": "0172.bin",
+            "path": "mod:mod_gex,context:CS::textures/0172.bin"
+        },
+        {
+            "id": 2383,
+            "name": "0a4a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a4a.bin"
+        },
+        {
+            "id": 2384,
+            "name": "01f5.bin",
+            "path": "mod:mod_gex,context:CS::textures/01f5.bin"
+        },
+        {
+            "id": 2385,
+            "name": "08ab.bin",
+            "path": "mod:mod_gex,context:CS::textures/08ab.bin"
+        },
+        {
+            "id": 2386,
+            "name": "00b3.bin",
+            "path": "mod:mod_gex,context:CS::textures/00b3.bin|mod:mod_kakariko,context:CS::textures/00b3.bin"
+        },
+        {
+            "id": 2387,
+            "name": "06cc.bin",
+            "path": "mod:mod_gex,context:CS::textures/06cc.bin"
+        },
+        {
+            "id": 2388,
+            "name": "06b9.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b9.bin"
+        },
+        {
+            "id": 2389,
+            "name": "0a20.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a20.bin"
+        },
+        {
+            "id": 2390,
+            "name": "0cf0.bin",
+            "path": "mod:mod_gex,context:CS::textures/0cf0.bin|mod:mod_goldfinger_64,context:CS::textures/0cf0.bin"
+        },
+        {
+            "id": 2391,
+            "name": "070a.bin",
+            "path": "mod:mod_gex,context:CS::textures/070a.bin"
+        },
+        {
+            "id": 2392,
+            "name": "0a25.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a25.bin"
+        },
+        {
+            "id": 2393,
+            "name": "0893.bin",
+            "path": "mod:mod_gex,context:CS::textures/0893.bin"
+        },
+        {
+            "id": 2394,
+            "name": "02bf.bin",
+            "path": "mod:mod_gex,context:CS::textures/02bf.bin"
+        },
+        {
+            "id": 2395,
+            "name": "0715.bin",
+            "path": "mod:mod_gex,context:CS::textures/0715.bin"
+        },
+        {
+            "id": 2396,
+            "name": "069a.bin",
+            "path": "mod:mod_gex,context:CS::textures/069a.bin"
+        },
+        {
+            "id": 2397,
+            "name": "00e3.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e3.bin"
+        },
+        {
+            "id": 2398,
+            "name": "0be4.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be4.bin|mod:mod_goldfinger_64,context:CS::textures/0be4.bin"
+        },
+        {
+            "id": 2399,
+            "name": "0cef.bin",
+            "path": "mod:mod_gex,context:CS::textures/0cef.bin|mod:mod_goldfinger_64,context:CS::textures/0cef.bin"
+        },
+        {
+            "id": 2400,
+            "name": "0051.bin",
+            "path": "mod:mod_gex,context:CS::textures/0051.bin|mod:mod_kakariko,context:CS::textures/0051.bin|mod:mod_goldfinger_64,context:CS::textures/0051.bin"
+        },
+        {
+            "id": 2401,
+            "name": "0a4f.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a4f.bin"
+        },
+        {
+            "id": 2402,
+            "name": "06f9.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f9.bin"
+        },
+        {
+            "id": 2403,
+            "name": "0a3a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a3a.bin"
+        },
+        {
+            "id": 2404,
+            "name": "06d9.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d9.bin"
+        },
+        {
+            "id": 2405,
+            "name": "06be.bin",
+            "path": "mod:mod_gex,context:CS::textures/06be.bin"
+        },
+        {
+            "id": 2406,
+            "name": "09b6.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b6.bin"
+        },
+        {
+            "id": 2407,
+            "name": "08d0.bin",
+            "path": "mod:mod_gex,context:CS::textures/08d0.bin|mod:mod_goldfinger_64,context:CS::textures/08d0.bin"
+        },
+        {
+            "id": 2408,
+            "name": "0716.bin",
+            "path": "mod:mod_gex,context:CS::textures/0716.bin"
+        },
+        {
+            "id": 2409,
+            "name": "0683.bin",
+            "path": "mod:mod_gex,context:CS::textures/0683.bin"
+        },
+        {
+            "id": 2410,
+            "name": "0a39.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a39.bin"
+        },
+        {
+            "id": 2411,
+            "name": "088b.bin",
+            "path": "mod:mod_gex,context:CS::textures/088b.bin"
+        },
+        {
+            "id": 2412,
+            "name": "023c.bin",
+            "path": "mod:mod_gex,context:CS::textures/023c.bin|mod:mod_kakariko,context:CS::textures/023c.bin"
+        },
+        {
+            "id": 2413,
+            "name": "0179.bin",
+            "path": "mod:mod_gex,context:CS::textures/0179.bin"
+        },
+        {
+            "id": 2414,
+            "name": "09b8.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b8.bin"
+        },
+        {
+            "id": 2415,
+            "name": "0a1d.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a1d.bin"
+        },
+        {
+            "id": 2416,
+            "name": "02c1.bin",
+            "path": "mod:mod_gex,context:CS::textures/02c1.bin"
+        },
+        {
+            "id": 2417,
+            "name": "0a31.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a31.bin"
+        },
+        {
+            "id": 2418,
+            "name": "088a.bin",
+            "path": "mod:mod_gex,context:CS::textures/088a.bin|mod:mod_dark_noon,context:CS::textures/088a.bin"
+        },
+        {
+            "id": 2419,
+            "name": "0226.bin",
+            "path": "mod:mod_gex,context:CS::textures/0226.bin"
+        },
+        {
+            "id": 2420,
+            "name": "0084.bin",
+            "path": "mod:mod_gex,context:CS::textures/0084.bin"
+        },
+        {
+            "id": 2421,
+            "name": "06d3.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d3.bin"
+        },
+        {
+            "id": 2422,
+            "name": "018d.bin",
+            "path": "mod:mod_gex,context:CS::textures/018d.bin"
+        },
+        {
+            "id": 2423,
+            "name": "068e.bin",
+            "path": "mod:mod_gex,context:CS::textures/068e.bin|mod:mod_goldfinger_64,context:CS::textures/068e.bin"
+        },
+        {
+            "id": 2424,
+            "name": "0b64.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b64.bin"
+        },
+        {
+            "id": 2425,
+            "name": "00b6.bin",
+            "path": "mod:mod_gex,context:CS::textures/00b6.bin|mod:mod_kakariko,context:CS::textures/00b6.bin"
+        },
+        {
+            "id": 2426,
+            "name": "0124.bin",
+            "path": "mod:mod_gex,context:CS::textures/0124.bin"
+        },
+        {
+            "id": 2427,
+            "name": "0bde.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bde.bin"
+        },
+        {
+            "id": 2428,
+            "name": "023e.bin",
+            "path": "mod:mod_gex,context:CS::textures/023e.bin|mod:mod_kakariko,context:CS::textures/023e.bin"
+        },
+        {
+            "id": 2429,
+            "name": "020d.bin",
+            "path": "mod:mod_gex,context:CS::textures/020d.bin"
+        },
+        {
+            "id": 2430,
+            "name": "01f6.bin",
+            "path": "mod:mod_gex,context:CS::textures/01f6.bin"
+        },
+        {
+            "id": 2431,
+            "name": "06ac.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ac.bin"
+        },
+        {
+            "id": 2432,
+            "name": "01be.bin",
+            "path": "mod:mod_gex,context:CS::textures/01be.bin|mod:mod_kakariko,context:CS::textures/01be.bin|mod:mod_goldfinger_64,context:CS::textures/01be.bin"
+        },
+        {
+            "id": 2433,
+            "name": "0890.bin",
+            "path": "mod:mod_gex,context:CS::textures/0890.bin"
+        },
+        {
+            "id": 2434,
+            "name": "007d.bin",
+            "path": "mod:mod_gex,context:CS::textures/007d.bin"
+        },
+        {
+            "id": 2435,
+            "name": "0a4e.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a4e.bin"
+        },
+        {
+            "id": 2436,
+            "name": "06b0.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b0.bin"
+        },
+        {
+            "id": 2437,
+            "name": "0cec.bin",
+            "path": "mod:mod_gex,context:CS::textures/0cec.bin|mod:mod_goldfinger_64,context:CS::textures/0cec.bin"
+        },
+        {
+            "id": 2438,
+            "name": "06c4.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c4.bin"
+        },
+        {
+            "id": 2439,
+            "name": "0160.bin",
+            "path": "mod:mod_gex,context:CS::textures/0160.bin"
+        },
+        {
+            "id": 2440,
+            "name": "06b5.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b5.bin"
+        },
+        {
+            "id": 2441,
+            "name": "0238.bin",
+            "path": "mod:mod_gex,context:CS::textures/0238.bin|mod:mod_kakariko,context:CS::textures/0238.bin"
+        },
+        {
+            "id": 2442,
+            "name": "00dc.bin",
+            "path": "mod:mod_gex,context:CS::textures/00dc.bin|mod:mod_kakariko,context:CS::textures/00dc.bin"
+        },
+        {
+            "id": 2443,
+            "name": "0c55.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c55.bin"
+        },
+        {
+            "id": 2444,
+            "name": "0c5a.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c5a.bin|mod:mod_kakariko,context:CS::textures/0c5a.bin|mod:mod_dark_noon,context:CS::textures/0c5a.bin|mod:mod_goldfinger_64,context:CS::textures/0c5a.bin|mod:mod_aio,context:CS::textures/0c5a.bin"
+        },
+        {
+            "id": 2445,
+            "name": "06f6.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f6.bin|mod:mod_kakariko,context:CS::textures/06f6.bin"
+        },
+        {
+            "id": 2446,
+            "name": "0bf0.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bf0.bin"
+        },
+        {
+            "id": 2447,
+            "name": "0c51.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c51.bin"
+        },
+        {
+            "id": 2448,
+            "name": "0698.bin",
+            "path": "mod:mod_gex,context:CS::textures/0698.bin"
+        },
+        {
+            "id": 2449,
+            "name": "0be1.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be1.bin|mod:mod_goldfinger_64,context:CS::textures/0be1.bin"
+        },
+        {
+            "id": 2450,
+            "name": "020b.bin",
+            "path": "mod:mod_gex,context:CS::textures/020b.bin"
+        },
+        {
+            "id": 2451,
+            "name": "0718.bin",
+            "path": "mod:mod_gex,context:CS::textures/0718.bin"
+        },
+        {
+            "id": 2452,
+            "name": "0081.bin",
+            "path": "mod:mod_gex,context:CS::textures/0081.bin"
+        },
+        {
+            "id": 2453,
+            "name": "0896.bin",
+            "path": "mod:mod_gex,context:CS::textures/0896.bin"
+        },
+        {
+            "id": 2454,
+            "name": "018c.bin",
+            "path": "mod:mod_gex,context:CS::textures/018c.bin"
+        },
+        {
+            "id": 2455,
+            "name": "0139.bin",
+            "path": "mod:mod_gex,context:CS::textures/0139.bin"
+        },
+        {
+            "id": 2456,
+            "name": "025b.bin",
+            "path": "mod:mod_gex,context:CS::textures/025b.bin"
+        },
+        {
+            "id": 2457,
+            "name": "0208.bin",
+            "path": "mod:mod_gex,context:CS::textures/0208.bin"
+        },
+        {
+            "id": 2458,
+            "name": "0b8b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b8b.bin"
+        },
+        {
+            "id": 2459,
+            "name": "0a4d.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a4d.bin"
+        },
+        {
+            "id": 2460,
+            "name": "06cf.bin",
+            "path": "mod:mod_gex,context:CS::textures/06cf.bin"
+        },
+        {
+            "id": 2461,
+            "name": "0063.bin",
+            "path": "mod:mod_gex,context:CS::textures/0063.bin|mod:mod_kakariko,context:CS::textures/0063.bin|mod:mod_goldfinger_64,context:CS::textures/0063.bin"
+        },
+        {
+            "id": 2462,
+            "name": "021d.bin",
+            "path": "mod:mod_gex,context:CS::textures/021d.bin"
+        },
+        {
+            "id": 2463,
+            "name": "0be7.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be7.bin|mod:mod_goldfinger_64,context:CS::textures/0be7.bin"
+        },
+        {
+            "id": 2464,
+            "name": "0a09.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a09.bin"
+        },
+        {
+            "id": 2465,
+            "name": "00df.bin",
+            "path": "mod:mod_gex,context:CS::textures/00df.bin|mod:mod_kakariko,context:CS::textures/00df.bin"
+        },
+        {
+            "id": 2466,
+            "name": "06ee.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ee.bin"
+        },
+        {
+            "id": 2467,
+            "name": "08a9.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a9.bin"
+        },
+        {
+            "id": 2468,
+            "name": "025e.bin",
+            "path": "mod:mod_gex,context:CS::textures/025e.bin"
+        },
+        {
+            "id": 2469,
+            "name": "08b8.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b8.bin|mod:mod_goldfinger_64,context:CS::textures/08b8.bin"
+        },
+        {
+            "id": 2470,
+            "name": "0707.bin",
+            "path": "mod:mod_gex,context:CS::textures/0707.bin"
+        },
+        {
+            "id": 2471,
+            "name": "0230.bin",
+            "path": "mod:mod_gex,context:CS::textures/0230.bin"
+        },
+        {
+            "id": 2472,
+            "name": "0137.bin",
+            "path": "mod:mod_gex,context:CS::textures/0137.bin"
+        },
+        {
+            "id": 2473,
+            "name": "025a.bin",
+            "path": "mod:mod_gex,context:CS::textures/025a.bin"
+        },
+        {
+            "id": 2474,
+            "name": "0213.bin",
+            "path": "mod:mod_gex,context:CS::textures/0213.bin"
+        },
+        {
+            "id": 2475,
+            "name": "00c6.bin",
+            "path": "mod:mod_gex,context:CS::textures/00c6.bin|mod:mod_kakariko,context:CS::textures/00c6.bin"
+        },
+        {
+            "id": 2476,
+            "name": "06e1.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e1.bin"
+        },
+        {
+            "id": 2477,
+            "name": "0684.bin",
+            "path": "mod:mod_gex,context:CS::textures/0684.bin"
+        },
+        {
+            "id": 2478,
+            "name": "06ab.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ab.bin"
+        },
+        {
+            "id": 2479,
+            "name": "017c.bin",
+            "path": "mod:mod_gex,context:CS::textures/017c.bin"
+        },
+        {
+            "id": 2480,
+            "name": "028d.bin",
+            "path": "mod:mod_gex,context:CS::textures/028d.bin"
+        },
+        {
+            "id": 2481,
+            "name": "0c5c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c5c.bin"
+        },
+        {
+            "id": 2482,
+            "name": "0a0f.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a0f.bin"
+        },
+        {
+            "id": 2483,
+            "name": "0877.bin",
+            "path": "mod:mod_gex,context:CS::textures/0877.bin"
+        },
+        {
+            "id": 2484,
+            "name": "06a5.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a5.bin"
+        },
+        {
+            "id": 2485,
+            "name": "0a0d.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a0d.bin"
+        },
+        {
+            "id": 2486,
+            "name": "0710.bin",
+            "path": "mod:mod_gex,context:CS::textures/0710.bin"
+        },
+        {
+            "id": 2487,
+            "name": "00d2.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d2.bin|mod:mod_goldfinger_64,context:CS::textures/00d2.bin"
+        },
+        {
+            "id": 2488,
+            "name": "06db.bin",
+            "path": "mod:mod_gex,context:CS::textures/06db.bin"
+        },
+        {
+            "id": 2489,
+            "name": "0232.bin",
+            "path": "mod:mod_gex,context:CS::textures/0232.bin|mod:mod_kakariko,context:CS::textures/0232.bin"
+        },
+        {
+            "id": 2490,
+            "name": "06f5.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f5.bin"
+        },
+        {
+            "id": 2491,
+            "name": "0077.bin",
+            "path": "mod:mod_gex,context:CS::textures/0077.bin"
+        },
+        {
+            "id": 2492,
+            "name": "00eb.bin",
+            "path": "mod:mod_gex,context:CS::textures/00eb.bin|mod:mod_kakariko,context:CS::textures/00eb.bin"
+        },
+        {
+            "id": 2493,
+            "name": "0711.bin",
+            "path": "mod:mod_gex,context:CS::textures/0711.bin"
+        },
+        {
+            "id": 2494,
+            "name": "06dc.bin",
+            "path": "mod:mod_gex,context:CS::textures/06dc.bin"
+        },
+        {
+            "id": 2495,
+            "name": "0a15.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a15.bin"
+        },
+        {
+            "id": 2496,
+            "name": "0245.bin",
+            "path": "mod:mod_gex,context:CS::textures/0245.bin|mod:mod_kakariko,context:CS::textures/0245.bin"
+        },
+        {
+            "id": 2497,
+            "name": "089b.bin",
+            "path": "mod:mod_gex,context:CS::textures/089b.bin"
+        },
+        {
+            "id": 2498,
+            "name": "0c52.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c52.bin"
+        },
+        {
+            "id": 2499,
+            "name": "0c53.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c53.bin"
+        },
+        {
+            "id": 2500,
+            "name": "01bf.bin",
+            "path": "mod:mod_gex,context:CS::textures/01bf.bin|mod:mod_kakariko,context:CS::textures/01bf.bin|mod:mod_goldfinger_64,context:CS::textures/01bf.bin"
+        },
+        {
+            "id": 2501,
+            "name": "007b.bin",
+            "path": "mod:mod_gex,context:CS::textures/007b.bin"
+        },
+        {
+            "id": 2502,
+            "name": "0066.bin",
+            "path": "mod:mod_gex,context:CS::textures/0066.bin|mod:mod_kakariko,context:CS::textures/0066.bin|mod:mod_goldfinger_64,context:CS::textures/0066.bin"
+        },
+        {
+            "id": 2503,
+            "name": "0118.bin",
+            "path": "mod:mod_gex,context:CS::textures/0118.bin"
+        },
+        {
+            "id": 2504,
+            "name": "0188.bin",
+            "path": "mod:mod_gex,context:CS::textures/0188.bin"
+        },
+        {
+            "id": 2505,
+            "name": "0a3d.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a3d.bin"
+        },
+        {
+            "id": 2506,
+            "name": "0a23.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a23.bin"
+        },
+        {
+            "id": 2507,
+            "name": "0c50.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c50.bin"
+        },
+        {
+            "id": 2508,
+            "name": "06d4.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d4.bin"
+        },
+        {
+            "id": 2509,
+            "name": "00d8.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d8.bin|mod:mod_kakariko,context:CS::textures/00d8.bin"
+        },
+        {
+            "id": 2510,
+            "name": "00d3.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d3.bin|mod:mod_kakariko,context:CS::textures/00d3.bin"
+        },
+        {
+            "id": 2511,
+            "name": "007c.bin",
+            "path": "mod:mod_gex,context:CS::textures/007c.bin"
+        },
+        {
+            "id": 2512,
+            "name": "025d.bin",
+            "path": "mod:mod_gex,context:CS::textures/025d.bin"
+        },
+        {
+            "id": 2513,
+            "name": "0a0c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a0c.bin"
+        },
+        {
+            "id": 2514,
+            "name": "01bd.bin",
+            "path": "mod:mod_gex,context:CS::textures/01bd.bin|mod:mod_kakariko,context:CS::textures/01bd.bin|mod:mod_goldfinger_64,context:CS::textures/01bd.bin"
+        },
+        {
+            "id": 2515,
+            "name": "06a3.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a3.bin"
+        },
+        {
+            "id": 2516,
+            "name": "01d5.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d5.bin|mod:mod_kakariko,context:CS::textures/01d5.bin"
+        },
+        {
+            "id": 2517,
+            "name": "08b4.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b4.bin"
+        },
+        {
+            "id": 2518,
+            "name": "06ad.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ad.bin"
+        },
+        {
+            "id": 2519,
+            "name": "023a.bin",
+            "path": "mod:mod_gex,context:CS::textures/023a.bin|mod:mod_kakariko,context:CS::textures/023a.bin"
+        },
+        {
+            "id": 2520,
+            "name": "088f.bin",
+            "path": "mod:mod_gex,context:CS::textures/088f.bin"
+        },
+        {
+            "id": 2521,
+            "name": "0262.bin",
+            "path": "mod:mod_gex,context:CS::textures/0262.bin"
+        },
+        {
+            "id": 2522,
+            "name": "08b7.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b7.bin"
+        },
+        {
+            "id": 2523,
+            "name": "0181.bin",
+            "path": "mod:mod_gex,context:CS::textures/0181.bin|mod:mod_goldfinger_64,context:CS::textures/0181.bin"
+        },
+        {
+            "id": 2524,
+            "name": "01cc.bin",
+            "path": "mod:mod_gex,context:CS::textures/01cc.bin|mod:mod_kakariko,context:CS::textures/01cc.bin"
+        },
+        {
+            "id": 2525,
+            "name": "01d3.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d3.bin|mod:mod_kakariko,context:CS::textures/01d3.bin"
+        },
+        {
+            "id": 2526,
+            "name": "08ac.bin",
+            "path": "mod:mod_gex,context:CS::textures/08ac.bin"
+        },
+        {
+            "id": 2527,
+            "name": "0186.bin",
+            "path": "mod:mod_gex,context:CS::textures/0186.bin"
+        },
+        {
+            "id": 2528,
+            "name": "0741.bin",
+            "path": "mod:mod_gex,context:CS::textures/0741.bin"
+        },
+        {
+            "id": 2529,
+            "name": "00b9.bin",
+            "path": "mod:mod_gex,context:CS::textures/00b9.bin|mod:mod_kakariko,context:CS::textures/00b9.bin"
+        },
+        {
+            "id": 2530,
+            "name": "06cd.bin",
+            "path": "mod:mod_gex,context:CS::textures/06cd.bin"
+        },
+        {
+            "id": 2531,
+            "name": "01b8.bin",
+            "path": "mod:mod_gex,context:CS::textures/01b8.bin|mod:mod_kakariko,context:CS::textures/01b8.bin|mod:mod_goldfinger_64,context:CS::textures/01b8.bin"
+        },
+        {
+            "id": 2532,
+            "name": "0105.bin",
+            "path": "mod:mod_gex,context:CS::textures/0105.bin"
+        },
+        {
+            "id": 2533,
+            "name": "00b7.bin",
+            "path": "mod:mod_gex,context:CS::textures/00b7.bin|mod:mod_kakariko,context:CS::textures/00b7.bin"
+        },
+        {
+            "id": 2534,
+            "name": "069c.bin",
+            "path": "mod:mod_gex,context:CS::textures/069c.bin"
+        },
+        {
+            "id": 2535,
+            "name": "06eb.bin",
+            "path": "mod:mod_gex,context:CS::textures/06eb.bin"
+        },
+        {
+            "id": 2536,
+            "name": "00e1.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e1.bin|mod:mod_kakariko,context:CS::textures/00e1.bin"
+        },
+        {
+            "id": 2537,
+            "name": "01d6.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d6.bin|mod:mod_kakariko,context:CS::textures/01d6.bin"
+        },
+        {
+            "id": 2538,
+            "name": "0885.bin",
+            "path": "mod:mod_gex,context:CS::textures/0885.bin"
+        },
+        {
+            "id": 2539,
+            "name": "01d7.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d7.bin|mod:mod_kakariko,context:CS::textures/01d7.bin"
+        },
+        {
+            "id": 2540,
+            "name": "0a34.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a34.bin"
+        },
+        {
+            "id": 2541,
+            "name": "0b63.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b63.bin"
+        },
+        {
+            "id": 2542,
+            "name": "0209.bin",
+            "path": "mod:mod_gex,context:CS::textures/0209.bin"
+        },
+        {
+            "id": 2543,
+            "name": "00c3.bin",
+            "path": "mod:mod_gex,context:CS::textures/00c3.bin|mod:mod_kakariko,context:CS::textures/00c3.bin"
+        },
+        {
+            "id": 2544,
+            "name": "015f.bin",
+            "path": "mod:mod_gex,context:CS::textures/015f.bin"
+        },
+        {
+            "id": 2545,
+            "name": "0699.bin",
+            "path": "mod:mod_gex,context:CS::textures/0699.bin"
+        },
+        {
+            "id": 2546,
+            "name": "06a0.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a0.bin"
+        },
+        {
+            "id": 2547,
+            "name": "021b.bin",
+            "path": "mod:mod_gex,context:CS::textures/021b.bin"
+        },
+        {
+            "id": 2548,
+            "name": "00cf.bin",
+            "path": "mod:mod_gex,context:CS::textures/00cf.bin|mod:mod_kakariko,context:CS::textures/00cf.bin|mod:mod_goldfinger_64,context:CS::textures/00cf.bin"
+        },
+        {
+            "id": 2549,
+            "name": "010d.bin",
+            "path": "mod:mod_gex,context:CS::textures/010d.bin"
+        },
+        {
+            "id": 2550,
+            "name": "08b9.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b9.bin|mod:mod_goldfinger_64,context:CS::textures/08b9.bin"
+        },
+        {
+            "id": 2551,
+            "name": "00a9.bin",
+            "path": "mod:mod_gex,context:CS::textures/00a9.bin"
+        },
+        {
+            "id": 2552,
+            "name": "068c.bin",
+            "path": "mod:mod_gex,context:CS::textures/068c.bin"
+        },
+        {
+            "id": 2553,
+            "name": "0be0.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be0.bin"
+        },
+        {
+            "id": 2554,
+            "name": "0935.bin",
+            "path": "mod:mod_gex,context:CS::textures/0935.bin"
+        },
+        {
+            "id": 2555,
+            "name": "00c5.bin",
+            "path": "mod:mod_gex,context:CS::textures/00c5.bin|mod:mod_kakariko,context:CS::textures/00c5.bin"
+        },
+        {
+            "id": 2556,
+            "name": "0247.bin",
+            "path": "mod:mod_gex,context:CS::textures/0247.bin|mod:mod_kakariko,context:CS::textures/0247.bin"
+        },
+        {
+            "id": 2557,
+            "name": "00ef.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ef.bin"
+        },
+        {
+            "id": 2558,
+            "name": "0673.bin",
+            "path": "mod:mod_gex,context:CS::textures/0673.bin"
+        },
+        {
+            "id": 2559,
+            "name": "0136.bin",
+            "path": "mod:mod_gex,context:CS::textures/0136.bin"
+        },
+        {
+            "id": 2560,
+            "name": "0177.bin",
+            "path": "mod:mod_gex,context:CS::textures/0177.bin|mod:mod_goldfinger_64,context:CS::textures/0177.bin"
+        },
+        {
+            "id": 2561,
+            "name": "004c.bin",
+            "path": "mod:mod_gex,context:CS::textures/004c.bin|mod:mod_kakariko,context:CS::textures/004c.bin|mod:mod_goldfinger_64,context:CS::textures/004c.bin"
+        },
+        {
+            "id": 2562,
+            "name": "0917.bin",
+            "path": "mod:mod_gex,context:CS::textures/0917.bin"
+        },
+        {
+            "id": 2563,
+            "name": "00e9.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e9.bin|mod:mod_kakariko,context:CS::textures/00e9.bin|mod:mod_goldfinger_64,context:CS::textures/00e9.bin"
+        },
+        {
+            "id": 2564,
+            "name": "06e4.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e4.bin"
+        },
+        {
+            "id": 2565,
+            "name": "09b5.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b5.bin"
+        },
+        {
+            "id": 2566,
+            "name": "0895.bin",
+            "path": "mod:mod_gex,context:CS::textures/0895.bin"
+        },
+        {
+            "id": 2567,
+            "name": "017b.bin",
+            "path": "mod:mod_gex,context:CS::textures/017b.bin"
+        },
+        {
+            "id": 2568,
+            "name": "0a45.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a45.bin"
+        },
+        {
+            "id": 2569,
+            "name": "0162.bin",
+            "path": "mod:mod_gex,context:CS::textures/0162.bin"
+        },
+        {
+            "id": 2570,
+            "name": "06b2.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b2.bin"
+        },
+        {
+            "id": 2571,
+            "name": "0131.bin",
+            "path": "mod:mod_gex,context:CS::textures/0131.bin"
+        },
+        {
+            "id": 2572,
+            "name": "0a3c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a3c.bin"
+        },
+        {
+            "id": 2573,
+            "name": "0048.bin",
+            "path": "mod:mod_gex,context:CS::textures/0048.bin|mod:mod_kakariko,context:CS::textures/0048.bin"
+        },
+        {
+            "id": 2574,
+            "name": "01cb.bin",
+            "path": "mod:mod_gex,context:CS::textures/01cb.bin|mod:mod_kakariko,context:CS::textures/01cb.bin"
+        },
+        {
+            "id": 2575,
+            "name": "0a50.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a50.bin"
+        },
+        {
+            "id": 2576,
+            "name": "09af.bin",
+            "path": "mod:mod_gex,context:CS::textures/09af.bin"
+        },
+        {
+            "id": 2577,
+            "name": "0060.bin",
+            "path": "mod:mod_gex,context:CS::textures/0060.bin|mod:mod_kakariko,context:CS::textures/0060.bin"
+        },
+        {
+            "id": 2578,
+            "name": "0214.bin",
+            "path": "mod:mod_gex,context:CS::textures/0214.bin"
+        },
+        {
+            "id": 2579,
+            "name": "0682.bin",
+            "path": "mod:mod_gex,context:CS::textures/0682.bin"
+        },
+        {
+            "id": 2580,
+            "name": "0237.bin",
+            "path": "mod:mod_gex,context:CS::textures/0237.bin|mod:mod_kakariko,context:CS::textures/0237.bin"
+        },
+        {
+            "id": 2581,
+            "name": "0a17.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a17.bin"
+        },
+        {
+            "id": 2582,
+            "name": "0196.bin",
+            "path": "mod:mod_gex,context:CS::textures/0196.bin"
+        },
+        {
+            "id": 2583,
+            "name": "0729.bin",
+            "path": "mod:mod_gex,context:CS::textures/0729.bin"
+        },
+        {
+            "id": 2584,
+            "name": "067c.bin",
+            "path": "mod:mod_gex,context:CS::textures/067c.bin"
+        },
+        {
+            "id": 2585,
+            "name": "0178.bin",
+            "path": "mod:mod_gex,context:CS::textures/0178.bin"
+        },
+        {
+            "id": 2586,
+            "name": "0058.bin",
+            "path": "mod:mod_gex,context:CS::textures/0058.bin"
+        },
+        {
+            "id": 2587,
+            "name": "09b4.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b4.bin"
+        },
+        {
+            "id": 2588,
+            "name": "06a1.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a1.bin"
+        },
+        {
+            "id": 2589,
+            "name": "0256.bin",
+            "path": "mod:mod_gex,context:CS::textures/0256.bin"
+        },
+        {
+            "id": 2590,
+            "name": "00e6.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e6.bin|mod:mod_kakariko,context:CS::textures/00e6.bin"
+        },
+        {
+            "id": 2591,
+            "name": "0a11.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a11.bin"
+        },
+        {
+            "id": 2592,
+            "name": "06ff.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ff.bin"
+        },
+        {
+            "id": 2593,
+            "name": "00ea.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ea.bin|mod:mod_kakariko,context:CS::textures/00ea.bin|mod:mod_goldfinger_64,context:CS::textures/00ea.bin"
+        },
+        {
+            "id": 2594,
+            "name": "0057.bin",
+            "path": "mod:mod_gex,context:CS::textures/0057.bin|mod:mod_kakariko,context:CS::textures/0057.bin"
+        },
+        {
+            "id": 2595,
+            "name": "008a.bin",
+            "path": "mod:mod_gex,context:CS::textures/008a.bin|mod:mod_goldfinger_64,context:CS::textures/008a.bin"
+        },
+        {
+            "id": 2596,
+            "name": "0086.bin",
+            "path": "mod:mod_gex,context:CS::textures/0086.bin|mod:mod_goldfinger_64,context:CS::textures/0086.bin"
+        },
+        {
+            "id": 2597,
+            "name": "0a36.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a36.bin"
+        },
+        {
+            "id": 2598,
+            "name": "0258.bin",
+            "path": "mod:mod_gex,context:CS::textures/0258.bin"
+        },
+        {
+            "id": 2599,
+            "name": "06e6.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e6.bin"
+        },
+        {
+            "id": 2600,
+            "name": "0a1c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a1c.bin"
+        },
+        {
+            "id": 2601,
+            "name": "022c.bin",
+            "path": "mod:mod_gex,context:CS::textures/022c.bin"
+        },
+        {
+            "id": 2602,
+            "name": "0679.bin",
+            "path": "mod:mod_gex,context:CS::textures/0679.bin"
+        },
+        {
+            "id": 2603,
+            "name": "0674.bin",
+            "path": "mod:mod_gex,context:CS::textures/0674.bin|mod:mod_goldfinger_64,context:CS::textures/0674.bin"
+        },
+        {
+            "id": 2604,
+            "name": "069b.bin",
+            "path": "mod:mod_gex,context:CS::textures/069b.bin"
+        },
+        {
+            "id": 2605,
+            "name": "0bdb.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bdb.bin"
+        },
+        {
+            "id": 2606,
+            "name": "06ea.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ea.bin"
+        },
+        {
+            "id": 2607,
+            "name": "0241.bin",
+            "path": "mod:mod_gex,context:CS::textures/0241.bin|mod:mod_kakariko,context:CS::textures/0241.bin"
+        },
+        {
+            "id": 2608,
+            "name": "0672.bin",
+            "path": "mod:mod_gex,context:CS::textures/0672.bin"
+        },
+        {
+            "id": 2609,
+            "name": "06c5.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c5.bin"
+        },
+        {
+            "id": 2610,
+            "name": "08b3.bin",
+            "path": "mod:mod_gex,context:CS::textures/08b3.bin"
+        },
+        {
+            "id": 2611,
+            "name": "02d4.bin",
+            "path": "mod:mod_gex,context:CS::textures/02d4.bin"
+        },
+        {
+            "id": 2612,
+            "name": "0155.bin",
+            "path": "mod:mod_gex,context:CS::textures/0155.bin"
+        },
+        {
+            "id": 2613,
+            "name": "0531.bin",
+            "path": "mod:mod_gex,context:CS::textures/0531.bin"
+        },
+        {
+            "id": 2614,
+            "name": "025c.bin",
+            "path": "mod:mod_gex,context:CS::textures/025c.bin"
+        },
+        {
+            "id": 2615,
+            "name": "0bdd.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bdd.bin"
+        },
+        {
+            "id": 2616,
+            "name": "0197.bin",
+            "path": "mod:mod_gex,context:CS::textures/0197.bin"
+        },
+        {
+            "id": 2617,
+            "name": "0701.bin",
+            "path": "mod:mod_gex,context:CS::textures/0701.bin"
+        },
+        {
+            "id": 2618,
+            "name": "00e2.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e2.bin|mod:mod_kakariko,context:CS::textures/00e2.bin"
+        },
+        {
+            "id": 2619,
+            "name": "004d.bin",
+            "path": "mod:mod_gex,context:CS::textures/004d.bin|mod:mod_kakariko,context:CS::textures/004d.bin|mod:mod_goldfinger_64,context:CS::textures/004d.bin"
+        },
+        {
+            "id": 2620,
+            "name": "0a0b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a0b.bin"
+        },
+        {
+            "id": 2621,
+            "name": "0b65.bin",
+            "path": "mod:mod_gex,context:CS::textures/0b65.bin"
+        },
+        {
+            "id": 2622,
+            "name": "00bf.bin",
+            "path": "mod:mod_gex,context:CS::textures/00bf.bin|mod:mod_kakariko,context:CS::textures/00bf.bin"
+        },
+        {
+            "id": 2623,
+            "name": "0264.bin",
+            "path": "mod:mod_gex,context:CS::textures/0264.bin"
+        },
+        {
+            "id": 2624,
+            "name": "0664.bin",
+            "path": "mod:mod_gex,context:CS::textures/0664.bin"
+        },
+        {
+            "id": 2625,
+            "name": "06b8.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b8.bin"
+        },
+        {
+            "id": 2626,
+            "name": "0a1b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a1b.bin"
+        },
+        {
+            "id": 2627,
+            "name": "06f7.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f7.bin"
+        },
+        {
+            "id": 2628,
+            "name": "0049.bin",
+            "path": "mod:mod_gex,context:CS::textures/0049.bin|mod:mod_kakariko,context:CS::textures/0049.bin|mod:mod_goldfinger_64,context:CS::textures/0049.bin"
+        },
+        {
+            "id": 2629,
+            "name": "005c.bin",
+            "path": "mod:mod_gex,context:CS::textures/005c.bin|mod:mod_kakariko,context:CS::textures/005c.bin"
+        },
+        {
+            "id": 2630,
+            "name": "089e.bin",
+            "path": "mod:mod_gex,context:CS::textures/089e.bin"
+        },
+        {
+            "id": 2631,
+            "name": "00cb.bin",
+            "path": "mod:mod_gex,context:CS::textures/00cb.bin|mod:mod_kakariko,context:CS::textures/00cb.bin|mod:mod_goldfinger_64,context:CS::textures/00cb.bin"
+        },
+        {
+            "id": 2632,
+            "name": "09a5.bin",
+            "path": "mod:mod_gex,context:CS::textures/09a5.bin"
+        },
+        {
+            "id": 2633,
+            "name": "0170.bin",
+            "path": "mod:mod_gex,context:CS::textures/0170.bin|mod:mod_goldfinger_64,context:CS::textures/0170.bin"
+        },
+        {
+            "id": 2634,
+            "name": "00ce.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ce.bin|mod:mod_kakariko,context:CS::textures/00ce.bin"
+        },
+        {
+            "id": 2635,
+            "name": "0be5.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be5.bin"
+        },
+        {
+            "id": 2636,
+            "name": "068b.bin",
+            "path": "mod:mod_gex,context:CS::textures/068b.bin"
+        },
+        {
+            "id": 2637,
+            "name": "06a8.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a8.bin"
+        },
+        {
+            "id": 2638,
+            "name": "0bda.bin",
+            "path": "mod:mod_gex,context:CS::textures/0bda.bin"
+        },
+        {
+            "id": 2639,
+            "name": "06c2.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c2.bin"
+        },
+        {
+            "id": 2640,
+            "name": "069f.bin",
+            "path": "mod:mod_gex,context:CS::textures/069f.bin"
+        },
+        {
+            "id": 2641,
+            "name": "0194.bin",
+            "path": "mod:mod_gex,context:CS::textures/0194.bin|mod:mod_goldfinger_64,context:CS::textures/0194.bin"
+        },
+        {
+            "id": 2642,
+            "name": "0713.bin",
+            "path": "mod:mod_gex,context:CS::textures/0713.bin"
+        },
+        {
+            "id": 2643,
+            "name": "0667.bin",
+            "path": "mod:mod_gex,context:CS::textures/0667.bin"
+        },
+        {
+            "id": 2644,
+            "name": "0886.bin",
+            "path": "mod:mod_gex,context:CS::textures/0886.bin"
+        },
+        {
+            "id": 2645,
+            "name": "0167.bin",
+            "path": "mod:mod_gex,context:CS::textures/0167.bin"
+        },
+        {
+            "id": 2646,
+            "name": "01dc.bin",
+            "path": "mod:mod_gex,context:CS::textures/01dc.bin|mod:mod_kakariko,context:CS::textures/01dc.bin"
+        },
+        {
+            "id": 2647,
+            "name": "0249.bin",
+            "path": "mod:mod_gex,context:CS::textures/0249.bin|mod:mod_kakariko,context:CS::textures/0249.bin"
+        },
+        {
+            "id": 2648,
+            "name": "0a10.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a10.bin|mod:mod_goldfinger_64,context:CS::textures/0a10.bin"
+        },
+        {
+            "id": 2649,
+            "name": "00f0.bin",
+            "path": "mod:mod_gex,context:CS::textures/00f0.bin"
+        },
+        {
+            "id": 2650,
+            "name": "01a0.bin",
+            "path": "mod:mod_gex,context:CS::textures/01a0.bin"
+        },
+        {
+            "id": 2651,
+            "name": "06a9.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a9.bin"
+        },
+        {
+            "id": 2652,
+            "name": "0740.bin",
+            "path": "mod:mod_gex,context:CS::textures/0740.bin"
+        },
+        {
+            "id": 2653,
+            "name": "0168.bin",
+            "path": "mod:mod_gex,context:CS::textures/0168.bin"
+        },
+        {
+            "id": 2654,
+            "name": "08a5.bin",
+            "path": "mod:mod_gex,context:CS::textures/08a5.bin"
+        },
+        {
+            "id": 2655,
+            "name": "06c1.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c1.bin"
+        },
+        {
+            "id": 2656,
+            "name": "06a4.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a4.bin"
+        },
+        {
+            "id": 2657,
+            "name": "0061.bin",
+            "path": "mod:mod_gex,context:CS::textures/0061.bin|mod:mod_kakariko,context:CS::textures/0061.bin|mod:mod_goldfinger_64,context:CS::textures/0061.bin"
+        },
+        {
+            "id": 2658,
+            "name": "0897.bin",
+            "path": "mod:mod_gex,context:CS::textures/0897.bin"
+        },
+        {
+            "id": 2659,
+            "name": "0a48.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a48.bin"
+        },
+        {
+            "id": 2660,
+            "name": "01d1.bin",
+            "path": "mod:mod_gex,context:CS::textures/01d1.bin|mod:mod_kakariko,context:CS::textures/01d1.bin|mod:mod_goldfinger_64,context:CS::textures/01d1.bin"
+        },
+        {
+            "id": 2661,
+            "name": "0a2c.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a2c.bin"
+        },
+        {
+            "id": 2662,
+            "name": "08ce.bin",
+            "path": "mod:mod_gex,context:CS::textures/08ce.bin|mod:mod_kakariko,context:CS::textures/08ce.bin|mod:mod_goldfinger_64,context:CS::textures/08ce.bin"
+        },
+        {
+            "id": 2663,
+            "name": "0220.bin",
+            "path": "mod:mod_gex,context:CS::textures/0220.bin"
+        },
+        {
+            "id": 2664,
+            "name": "0671.bin",
+            "path": "mod:mod_gex,context:CS::textures/0671.bin"
+        },
+        {
+            "id": 2665,
+            "name": "01cf.bin",
+            "path": "mod:mod_gex,context:CS::textures/01cf.bin|mod:mod_kakariko,context:CS::textures/01cf.bin"
+        },
+        {
+            "id": 2666,
+            "name": "073c.bin",
+            "path": "mod:mod_gex,context:CS::textures/073c.bin"
+        },
+        {
+            "id": 2667,
+            "name": "016d.bin",
+            "path": "mod:mod_gex,context:CS::textures/016d.bin"
+        },
+        {
+            "id": 2668,
+            "name": "00dd.bin",
+            "path": "mod:mod_gex,context:CS::textures/00dd.bin|mod:mod_kakariko,context:CS::textures/00dd.bin"
+        },
+        {
+            "id": 2669,
+            "name": "0c59.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c59.bin|mod:mod_kakariko,context:CS::textures/0c59.bin|mod:mod_dark_noon,context:CS::textures/0c59.bin|mod:mod_goldfinger_64,context:CS::textures/0c59.bin|mod:mod_aio,context:CS::textures/0c59.bin"
+        },
+        {
+            "id": 2670,
+            "name": "005d.bin",
+            "path": "mod:mod_gex,context:CS::textures/005d.bin|mod:mod_kakariko,context:CS::textures/005d.bin"
+        },
+        {
+            "id": 2671,
+            "name": "0be9.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be9.bin"
+        },
+        {
+            "id": 2672,
+            "name": "06d7.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d7.bin"
+        },
+        {
+            "id": 2673,
+            "name": "06f4.bin",
+            "path": "mod:mod_gex,context:CS::textures/06f4.bin"
+        },
+        {
+            "id": 2674,
+            "name": "066d.bin",
+            "path": "mod:mod_gex,context:CS::textures/066d.bin"
+        },
+        {
+            "id": 2675,
+            "name": "00ca.bin",
+            "path": "mod:mod_gex,context:CS::textures/00ca.bin|mod:mod_kakariko,context:CS::textures/00ca.bin|mod:mod_goldfinger_64,context:CS::textures/00ca.bin"
+        },
+        {
+            "id": 2676,
+            "name": "0a2b.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a2b.bin"
+        },
+        {
+            "id": 2677,
+            "name": "0891.bin",
+            "path": "mod:mod_gex,context:CS::textures/0891.bin"
+        },
+        {
+            "id": 2678,
+            "name": "0233.bin",
+            "path": "mod:mod_gex,context:CS::textures/0233.bin|mod:mod_kakariko,context:CS::textures/0233.bin"
+        },
+        {
+            "id": 2679,
+            "name": "013a.bin",
+            "path": "mod:mod_gex,context:CS::textures/013a.bin"
+        },
+        {
+            "id": 2680,
+            "name": "06d5.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d5.bin"
+        },
+        {
+            "id": 2681,
+            "name": "0382.bin",
+            "path": "mod:mod_gex,context:CS::textures/0382.bin"
+        },
+        {
+            "id": 2682,
+            "name": "0229.bin",
+            "path": "mod:mod_gex,context:CS::textures/0229.bin"
+        },
+        {
+            "id": 2683,
+            "name": "0380.bin",
+            "path": "mod:mod_gex,context:CS::textures/0380.bin"
+        },
+        {
+            "id": 2684,
+            "name": "09b7.bin",
+            "path": "mod:mod_gex,context:CS::textures/09b7.bin"
+        },
+        {
+            "id": 2685,
+            "name": "06dd.bin",
+            "path": "mod:mod_gex,context:CS::textures/06dd.bin"
+        },
+        {
+            "id": 2686,
+            "name": "0138.bin",
+            "path": "mod:mod_gex,context:CS::textures/0138.bin"
+        },
+        {
+            "id": 2687,
+            "name": "06c9.bin",
+            "path": "mod:mod_gex,context:CS::textures/06c9.bin"
+        },
+        {
+            "id": 2688,
+            "name": "02e6.bin",
+            "path": "mod:mod_gex,context:CS::textures/02e6.bin"
+        },
+        {
+            "id": 2689,
+            "name": "06e8.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e8.bin"
+        },
+        {
+            "id": 2690,
+            "name": "0243.bin",
+            "path": "mod:mod_gex,context:CS::textures/0243.bin"
+        },
+        {
+            "id": 2691,
+            "name": "068f.bin",
+            "path": "mod:mod_gex,context:CS::textures/068f.bin"
+        },
+        {
+            "id": 2692,
+            "name": "06d0.bin",
+            "path": "mod:mod_gex,context:CS::textures/06d0.bin"
+        },
+        {
+            "id": 2693,
+            "name": "012f.bin",
+            "path": "mod:mod_gex,context:CS::textures/012f.bin"
+        },
+        {
+            "id": 2694,
+            "name": "0064.bin",
+            "path": "mod:mod_gex,context:CS::textures/0064.bin|mod:mod_kakariko,context:CS::textures/0064.bin|mod:mod_goldfinger_64,context:CS::textures/0064.bin"
+        },
+        {
+            "id": 2695,
+            "name": "06b3.bin",
+            "path": "mod:mod_gex,context:CS::textures/06b3.bin"
+        },
+        {
+            "id": 2696,
+            "name": "0191.bin",
+            "path": "mod:mod_gex,context:CS::textures/0191.bin|mod:mod_goldfinger_64,context:CS::textures/0191.bin"
+        },
+        {
+            "id": 2697,
+            "name": "0255.bin",
+            "path": "mod:mod_gex,context:CS::textures/0255.bin|mod:mod_kakariko,context:CS::textures/0255.bin"
+        },
+        {
+            "id": 2698,
+            "name": "0157.bin",
+            "path": "mod:mod_gex,context:CS::textures/0157.bin"
+        },
+        {
+            "id": 2699,
+            "name": "019f.bin",
+            "path": "mod:mod_gex,context:CS::textures/019f.bin"
+        },
+        {
+            "id": 2700,
+            "name": "00d4.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d4.bin|mod:mod_kakariko,context:CS::textures/00d4.bin"
+        },
+        {
+            "id": 2701,
+            "name": "00f1.bin",
+            "path": "mod:mod_gex,context:CS::textures/00f1.bin"
+        },
+        {
+            "id": 2702,
+            "name": "0a46.bin",
+            "path": "mod:mod_gex,context:CS::textures/0a46.bin"
+        },
+        {
+            "id": 2703,
+            "name": "0747.bin",
+            "path": "mod:mod_gex,context:CS::textures/0747.bin"
+        },
+        {
+            "id": 2704,
+            "name": "021f.bin",
+            "path": "mod:mod_gex,context:CS::textures/021f.bin"
+        },
+        {
+            "id": 2705,
+            "name": "089c.bin",
+            "path": "mod:mod_gex,context:CS::textures/089c.bin"
+        },
+        {
+            "id": 2706,
+            "name": "0c56.bin",
+            "path": "mod:mod_gex,context:CS::textures/0c56.bin"
+        },
+        {
+            "id": 2707,
+            "name": "0be8.bin",
+            "path": "mod:mod_gex,context:CS::textures/0be8.bin"
+        },
+        {
+            "id": 2708,
+            "name": "0228.bin",
+            "path": "mod:mod_gex,context:CS::textures/0228.bin"
+        },
+        {
+            "id": 2709,
+            "name": "02b1.bin",
+            "path": "mod:mod_gex,context:CS::textures/02b1.bin"
+        },
+        {
+            "id": 2710,
+            "name": "00a2.bin",
+            "path": "mod:mod_gex,context:CS::textures/00a2.bin"
+        },
+        {
+            "id": 2711,
+            "name": "024c.bin",
+            "path": "mod:mod_gex,context:CS::textures/024c.bin|mod:mod_kakariko,context:CS::textures/024c.bin|mod:mod_goldfinger_64,context:CS::textures/024c.bin"
+        },
+        {
+            "id": 2712,
+            "name": "00e8.bin",
+            "path": "mod:mod_gex,context:CS::textures/00e8.bin|mod:mod_kakariko,context:CS::textures/00e8.bin|mod:mod_goldfinger_64,context:CS::textures/00e8.bin"
+        },
+        {
+            "id": 2713,
+            "name": "06ec.bin",
+            "path": "mod:mod_gex,context:CS::textures/06ec.bin"
+        },
+        {
+            "id": 2714,
+            "name": "0742.bin",
+            "path": "mod:mod_gex,context:CS::textures/0742.bin"
+        },
+        {
+            "id": 2715,
+            "name": "00d9.bin",
+            "path": "mod:mod_gex,context:CS::textures/00d9.bin|mod:mod_kakariko,context:CS::textures/00d9.bin"
+        },
+        {
+            "id": 2716,
+            "name": "017d.bin",
+            "path": "mod:mod_gex,context:CS::textures/017d.bin"
+        },
+        {
+            "id": 2717,
+            "name": "06e5.bin",
+            "path": "mod:mod_gex,context:CS::textures/06e5.bin"
+        },
+        {
+            "id": 2718,
+            "name": "016e.bin",
+            "path": "mod:mod_gex,context:CS::textures/016e.bin"
+        },
+        {
+            "id": 2719,
+            "name": "015e.bin",
+            "path": "mod:mod_gex,context:CS::textures/015e.bin"
+        },
+        {
+            "id": 2720,
+            "name": "08aa.bin",
+            "path": "mod:mod_gex,context:CS::textures/08aa.bin"
+        },
+        {
+            "id": 2721,
+            "name": "06a7.bin",
+            "path": "mod:mod_gex,context:CS::textures/06a7.bin"
+        },
+        {
+            "id": 2722,
+            "name": "08cf.bin",
+            "path": "mod:mod_gex,context:CS::textures/08cf.bin|mod:mod_goldfinger_64,context:CS::textures/08cf.bin"
+        },
+        {
+            "id": 2723,
+            "name": "0224.bin",
+            "path": "mod:mod_gex,context:CS::textures/0224.bin"
+        },
+        {
+            "id": 2724,
+            "name": "0052.bin",
+            "path": "mod:mod_gex,context:CS::textures/0052.bin|mod:mod_kakariko,context:CS::textures/0052.bin|mod:mod_goldfinger_64,context:CS::textures/0052.bin"
+        },
+        {
+            "id": 2725,
+            "name": "09ad.bin",
+            "path": "mod:mod_gex,context:CS::textures/09ad.bin"
+        },
+        {
+            "id": 2726,
+            "name": "0700.bin",
+            "path": "mod:mod_gex,context:CS::textures/0700.bin"
+        },
+        {
+            "id": 2727,
+            "name": "0239.bin",
+            "path": "mod:mod_gex,context:CS::textures/0239.bin|mod:mod_kakariko,context:CS::textures/0239.bin"
+        },
+        {
+            "id": 2728,
+            "name": "0067.bin",
+            "path": "mod:mod_gex,context:CS::textures/0067.bin|mod:mod_kakariko,context:CS::textures/0067.bin|mod:mod_goldfinger_64,context:CS::textures/0067.bin"
+        },
+        {
+            "id": 2729,
+            "name": "0c6c.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c6c.bin"
+        },
+        {
+            "id": 2730,
+            "name": "01bc.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01bc.bin"
+        },
+        {
+            "id": 2731,
+            "name": "0c80.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c80.bin|mod:mod_dark_noon,context:CS::textures/0c80.bin"
+        },
+        {
+            "id": 2732,
+            "name": "00c4.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00c4.bin"
+        },
+        {
+            "id": 2733,
+            "name": "0c68.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c68.bin|mod:mod_aio,context:CS::textures/0c68.bin"
+        },
+        {
+            "id": 2734,
+            "name": "01ba.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01ba.bin"
+        },
+        {
+            "id": 2735,
+            "name": "0c44.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c44.bin"
+        },
+        {
+            "id": 2736,
+            "name": "0c40.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c40.bin"
+        },
+        {
+            "id": 2737,
+            "name": "0252.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0252.bin"
+        },
+        {
+            "id": 2738,
+            "name": "0c3d.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c3d.bin"
+        },
+        {
+            "id": 2739,
+            "name": "0c7b.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c7b.bin|mod:mod_dark_noon,context:CS::textures/0c7b.bin"
+        },
+        {
+            "id": 2740,
+            "name": "0c8d.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c8d.bin"
+        },
+        {
+            "id": 2741,
+            "name": "0c64.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c64.bin|mod:mod_aio,context:CS::textures/0c64.bin"
+        },
+        {
+            "id": 2742,
+            "name": "0c77.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c77.bin|mod:mod_dark_noon,context:CS::textures/0c77.bin"
+        },
+        {
+            "id": 2743,
+            "name": "0c7e.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c7e.bin"
+        },
+        {
+            "id": 2744,
+            "name": "0c45.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c45.bin|mod:mod_dark_noon,context:CS::textures/0c45.bin"
+        },
+        {
+            "id": 2745,
+            "name": "0c81.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c81.bin|mod:mod_dark_noon,context:CS::textures/0c81.bin"
+        },
+        {
+            "id": 2746,
+            "name": "00d6.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00d6.bin"
+        },
+        {
+            "id": 2747,
+            "name": "0c69.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c69.bin|mod:mod_aio,context:CS::textures/0c69.bin"
+        },
+        {
+            "id": 2748,
+            "name": "0c6a.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c6a.bin|mod:mod_dark_noon,context:CS::textures/0c6a.bin"
+        },
+        {
+            "id": 2749,
+            "name": "0c70.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c70.bin|mod:mod_dark_noon,context:CS::textures/0c70.bin"
+        },
+        {
+            "id": 2750,
+            "name": "0c8c.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c8c.bin"
+        },
+        {
+            "id": 2751,
+            "name": "0c65.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c65.bin|mod:mod_aio,context:CS::textures/0c65.bin"
+        },
+        {
+            "id": 2752,
+            "name": "0c43.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c43.bin|mod:mod_dark_noon,context:CS::textures/0c43.bin"
+        },
+        {
+            "id": 2753,
+            "name": "0c74.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c74.bin|mod:mod_dark_noon,context:CS::textures/0c74.bin"
+        },
+        {
+            "id": 2754,
+            "name": "0c8b.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c8b.bin"
+        },
+        {
+            "id": 2755,
+            "name": "0c3c.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c3c.bin"
+        },
+        {
+            "id": 2756,
+            "name": "0c3e.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c3e.bin"
+        },
+        {
+            "id": 2757,
+            "name": "00c7.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00c7.bin"
+        },
+        {
+            "id": 2758,
+            "name": "0c78.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c78.bin"
+        },
+        {
+            "id": 2759,
+            "name": "0c73.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c73.bin|mod:mod_dark_noon,context:CS::textures/0c73.bin"
+        },
+        {
+            "id": 2760,
+            "name": "024f.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/024f.bin"
+        },
+        {
+            "id": 2761,
+            "name": "005f.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/005f.bin"
+        },
+        {
+            "id": 2762,
+            "name": "01df.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01df.bin"
+        },
+        {
+            "id": 2763,
+            "name": "01b6.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01b6.bin"
+        },
+        {
+            "id": 2764,
+            "name": "00b2.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00b2.bin"
+        },
+        {
+            "id": 2765,
+            "name": "0c7f.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c7f.bin|mod:mod_dark_noon,context:CS::textures/0c7f.bin"
+        },
+        {
+            "id": 2766,
+            "name": "0c63.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c63.bin|mod:mod_dark_noon,context:CS::textures/0c63.bin"
+        },
+        {
+            "id": 2767,
+            "name": "0c6f.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c6f.bin|mod:mod_aio,context:CS::textures/0c6f.bin"
+        },
+        {
+            "id": 2768,
+            "name": "0254.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0254.bin"
+        },
+        {
+            "id": 2769,
+            "name": "01c5.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01c5.bin"
+        },
+        {
+            "id": 2770,
+            "name": "0c4b.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c4b.bin"
+        },
+        {
+            "id": 2771,
+            "name": "0c86.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c86.bin"
+        },
+        {
+            "id": 2772,
+            "name": "0c8f.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c8f.bin"
+        },
+        {
+            "id": 2773,
+            "name": "00b4.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00b4.bin"
+        },
+        {
+            "id": 2774,
+            "name": "01e6.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01e6.bin"
+        },
+        {
+            "id": 2775,
+            "name": "024d.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/024d.bin"
+        },
+        {
+            "id": 2776,
+            "name": "0c4a.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c4a.bin"
+        },
+        {
+            "id": 2777,
+            "name": "0c71.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c71.bin|mod:mod_dark_noon,context:CS::textures/0c71.bin"
+        },
+        {
+            "id": 2778,
+            "name": "00af.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00af.bin"
+        },
+        {
+            "id": 2779,
+            "name": "0c66.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c66.bin|mod:mod_aio,context:CS::textures/0c66.bin"
+        },
+        {
+            "id": 2780,
+            "name": "01b4.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01b4.bin"
+        },
+        {
+            "id": 2781,
+            "name": "01de.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01de.bin"
+        },
+        {
+            "id": 2782,
+            "name": "0c7a.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c7a.bin|mod:mod_dark_noon,context:CS::textures/0c7a.bin"
+        },
+        {
+            "id": 2783,
+            "name": "0253.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0253.bin"
+        },
+        {
+            "id": 2784,
+            "name": "00b1.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00b1.bin"
+        },
+        {
+            "id": 2785,
+            "name": "00c2.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00c2.bin"
+        },
+        {
+            "id": 2786,
+            "name": "01e1.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01e1.bin"
+        },
+        {
+            "id": 2787,
+            "name": "0c7c.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c7c.bin|mod:mod_dark_noon,context:CS::textures/0c7c.bin"
+        },
+        {
+            "id": 2788,
+            "name": "00ae.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00ae.bin"
+        },
+        {
+            "id": 2789,
+            "name": "0c4c.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c4c.bin"
+        },
+        {
+            "id": 2790,
+            "name": "0c83.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c83.bin|mod:mod_dark_noon,context:CS::textures/0c83.bin"
+        },
+        {
+            "id": 2791,
+            "name": "0c48.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c48.bin"
+        },
+        {
+            "id": 2792,
+            "name": "0251.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0251.bin"
+        },
+        {
+            "id": 2793,
+            "name": "01c7.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01c7.bin"
+        },
+        {
+            "id": 2794,
+            "name": "0c8e.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c8e.bin"
+        },
+        {
+            "id": 2795,
+            "name": "0c31.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c31.bin"
+        },
+        {
+            "id": 2796,
+            "name": "01e0.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01e0.bin"
+        },
+        {
+            "id": 2797,
+            "name": "0c72.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c72.bin|mod:mod_dark_noon,context:CS::textures/0c72.bin"
+        },
+        {
+            "id": 2798,
+            "name": "0c88.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c88.bin"
+        },
+        {
+            "id": 2799,
+            "name": "0c84.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c84.bin|mod:mod_dark_noon,context:CS::textures/0c84.bin"
+        },
+        {
+            "id": 2800,
+            "name": "0246.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0246.bin"
+        },
+        {
+            "id": 2801,
+            "name": "01e2.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01e2.bin"
+        },
+        {
+            "id": 2802,
+            "name": "0c6e.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c6e.bin|mod:mod_dark_noon,context:CS::textures/0c6e.bin"
+        },
+        {
+            "id": 2803,
+            "name": "0c79.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c79.bin|mod:mod_dark_noon,context:CS::textures/0c79.bin"
+        },
+        {
+            "id": 2804,
+            "name": "0c49.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c49.bin"
+        },
+        {
+            "id": 2805,
+            "name": "00b0.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00b0.bin"
+        },
+        {
+            "id": 2806,
+            "name": "0250.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0250.bin"
+        },
+        {
+            "id": 2807,
+            "name": "01bb.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01bb.bin"
+        },
+        {
+            "id": 2808,
+            "name": "00b5.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00b5.bin"
+        },
+        {
+            "id": 2809,
+            "name": "0c82.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c82.bin|mod:mod_dark_noon,context:CS::textures/0c82.bin"
+        },
+        {
+            "id": 2810,
+            "name": "0c8a.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c8a.bin"
+        },
+        {
+            "id": 2811,
+            "name": "01b9.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01b9.bin"
+        },
+        {
+            "id": 2812,
+            "name": "00c1.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00c1.bin"
+        },
+        {
+            "id": 2813,
+            "name": "0c6b.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c6b.bin"
+        },
+        {
+            "id": 2814,
+            "name": "0c7d.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c7d.bin|mod:mod_dark_noon,context:CS::textures/0c7d.bin"
+        },
+        {
+            "id": 2815,
+            "name": "0c3b.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c3b.bin"
+        },
+        {
+            "id": 2816,
+            "name": "0c75.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c75.bin|mod:mod_dark_noon,context:CS::textures/0c75.bin"
+        },
+        {
+            "id": 2817,
+            "name": "01b3.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/01b3.bin"
+        },
+        {
+            "id": 2818,
+            "name": "0c42.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c42.bin|mod:mod_dark_noon,context:CS::textures/0c42.bin"
+        },
+        {
+            "id": 2819,
+            "name": "024a.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/024a.bin|mod:mod_goldfinger_64,context:CS::textures/024a.bin"
+        },
+        {
+            "id": 2820,
+            "name": "0c3f.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c3f.bin"
+        },
+        {
+            "id": 2821,
+            "name": "00c0.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/00c0.bin"
+        },
+        {
+            "id": 2822,
+            "name": "0c67.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/0c67.bin|mod:mod_aio,context:CS::textures/0c67.bin"
+        },
+        {
+            "id": 2823,
+            "name": "005e.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/005e.bin"
+        },
+        {
+            "id": 2824,
+            "name": "024e.bin",
+            "path": "mod:mod_kakariko,context:CS::textures/024e.bin"
+        },
+        {
+            "id": 2825,
+            "name": "08f7.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/08f7.bin"
+        },
+        {
+            "id": 2826,
+            "name": "0c6d.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/0c6d.bin"
+        },
+        {
+            "id": 2827,
+            "name": "0c85.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/0c85.bin"
+        },
+        {
+            "id": 2828,
+            "name": "0c87.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/0c87.bin"
+        },
+        {
+            "id": 2829,
+            "name": "0281.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/0281.bin|mod:mod_goldfinger_64,context:CS::textures/0281.bin"
+        },
+        {
+            "id": 2830,
+            "name": "0c41.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/0c41.bin"
+        },
+        {
+            "id": 2831,
+            "name": "006a.bin",
+            "path": "mod:mod_dark_noon,context:CS::textures/006a.bin"
+        },
+        {
+            "id": 2832,
+            "name": "08bd.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/08bd.bin"
+        },
+        {
+            "id": 2833,
+            "name": "0bbc.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0bbc.bin"
+        },
+        {
+            "id": 2834,
+            "name": "00a4.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/00a4.bin"
+        },
+        {
+            "id": 2835,
+            "name": "0ceb.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0ceb.bin"
+        },
+        {
+            "id": 2836,
+            "name": "00a5.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/00a5.bin"
+        },
+        {
+            "id": 2837,
+            "name": "0098.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0098.bin"
+        },
+        {
+            "id": 2838,
+            "name": "010f.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/010f.bin"
+        },
+        {
+            "id": 2839,
+            "name": "08ba.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/08ba.bin"
+        },
+        {
+            "id": 2840,
+            "name": "0c15.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0c15.bin"
+        },
+        {
+            "id": 2841,
+            "name": "08bc.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/08bc.bin"
+        },
+        {
+            "id": 2842,
+            "name": "0282.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0282.bin"
+        },
+        {
+            "id": 2843,
+            "name": "08bf.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/08bf.bin"
+        },
+        {
+            "id": 2844,
+            "name": "0278.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0278.bin"
+        },
+        {
+            "id": 2845,
+            "name": "08bb.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/08bb.bin"
+        },
+        {
+            "id": 2846,
+            "name": "0192.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0192.bin"
+        },
+        {
+            "id": 2847,
+            "name": "0ce9.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0ce9.bin"
+        },
+        {
+            "id": 2848,
+            "name": "08be.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/08be.bin"
+        },
+        {
+            "id": 2849,
+            "name": "0cea.bin",
+            "path": "mod:mod_goldfinger_64,context:CS::textures/0cea.bin"
+        },
+        {
+            "id": 2850,
+            "name": "0c36.bin",
+            "path": "mod:mod_aio,context:CS::textures/0c36.bin"
+        },
+        {
+            "id": 2851,
+            "name": "05ff.bin",
+            "path": "mod:mod_aio,context:CS::textures/05ff.bin"
+        }
+    ]
+}
