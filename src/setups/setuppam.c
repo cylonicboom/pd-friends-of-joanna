@@ -3326,6 +3326,16 @@ u8 func040c_blonde[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		if_chr_in_room(CHR_P1P2, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_BOND, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
 	endloop(0x04)
 
 	label(0x06)
@@ -3336,6 +3346,8 @@ u8 func040c_blonde[] = {
 	set_shotlist(GAILIST_ALERTED)
 
 	beginloop(0x08)
+		chr_toggle_p1p2(CHR_SELF)
+		set_target_chr(CHR_P1P2)
 		if_saw_injury(0x00, /*goto*/ 0x06)
 		if_saw_death(0x00, /*goto*/ 0x06)
 		if_los_to_target(/*goto*/ 0x06)
@@ -4851,6 +4863,16 @@ u8 func1034_enable_blondes[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		if_chr_in_room(CHR_P1P2, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_BOND, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
 	endloop(0x04)
 
 	label(0x2e)
