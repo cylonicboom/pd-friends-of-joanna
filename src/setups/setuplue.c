@@ -2924,14 +2924,12 @@ u8 func101c_msg_cantthrow[] = {
 	endlist
 };
 
-/**
- * This message is also unplayable.
- */
 u8 func101d_msg_hangarlift[] = {
 	// Wait for radar shut down and player in room 0x0001 (which is impossible)
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		if_objective_complete(0, /*goto*/ 0x2e)
+		if_chr_has_object(CHR_P1P2, OBJ_KEYCARD, /*goto*/ 0x2e)
 		reloop(0x04)
 
 		label(0x2e)
