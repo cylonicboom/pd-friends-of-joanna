@@ -1,60 +1,65 @@
+modname "Friends of Joanna"
+modversion "1.0"
+import "mod_aio.head_grey"
+import "mod_aio.MpHeads"
+
 # Mod: Friends of Joanna
 # stage fixes for Friends of Joanna
 # Author: Catherine Reprobate
-
 
 # Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)
 
 # CI Training
 # pre-load Mikado Dark as a hidden character
-stage 0x26 {
-  setupfile "UsetupdishZ"
-}
+#stage 0x26 {
+#setupfile "UsetupdishZ"
+#}
 
 # defection
 stage 0x30 {
-  setupfile "UsetupameZ"
+    setupfile "UsetupameZ"
 }
 
 # investigation
 stage 0x33 {
-  setupfile "UsetupearZ"
+    setupfile "UsetupearZ"
 }
 
 # villa
 stage 0x2c {
-  setupFile "UsetupeldZ"
+    setupFile "UsetupeldZ"
 }
 
 # chicago
 stage 0x1d {
-  setupfile "UsetuppeteZ"
+    setupfile "UsetuppeteZ"
 }
 
 # infiltration
 stage 0x2f {
-  setupfile "UsetuplueZ"
+    setupfile "UsetuplueZ"
 }
 
 # deep sea
 stage 0x38 {
-  setupfile "UsetuppamZ"
+    setupfile "UsetuppamZ"
 }
 
 # ci defense
 # extra spawns, QOL changes for coop mode
 stage 0x2d {
-  setupfile "UsetupimpZ"
+    setupfile "UsetupimpZ"
 }
 
 # attack ship
 # hangar elevator fixes
 stage 0x34 {
-  setupfile "UsetupleeZ"
+    setupfile "UsetupleeZ"
 }
 
 # war
 # extra spawns for coop characters
 stage 0x16 {
-  setupfile "UsetupstatZ"
+    setupfile "UsetupstatZ"
 }
+import "mod_aio.MpArena"
