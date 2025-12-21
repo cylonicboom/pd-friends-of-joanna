@@ -1,7 +1,5 @@
-modname "Friends of Joanna"
+modname "mod_fojo"
 modversion "1.0"
-import "mod_aio.head_grey"
-import "mod_aio.MpHeads"
 
 # Mod: Friends of Joanna
 # stage fixes for Friends of Joanna
@@ -16,11 +14,13 @@ import "mod_aio.MpHeads"
 #}
 
 # defection
+# ⏰
 stage 0x30 {
     setupfile "UsetupameZ"
 }
 
 # investigation
+# extra spawn
 stage 0x33 {
     setupfile "UsetupearZ"
 }
@@ -41,6 +41,7 @@ stage 0x2f {
 }
 
 # deep sea
+# teleportal fixes
 stage 0x38 {
     setupfile "UsetuppamZ"
 }
@@ -62,4 +63,3 @@ stage 0x34 {
 stage 0x16 {
     setupfile "UsetupstatZ"
 }
-import "mod_aio.MpArena"
