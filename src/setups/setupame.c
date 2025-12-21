@@ -2073,13 +2073,18 @@ u8 func100e_check_ecm_mines[] = {
 		if_ammo_quantity_lt(CHR_BOND, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xbf)
 		reloop(0x00)
 
+		yield
 		label(0xbe)
-		if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0xc0)
+		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xc0)
+		label(0xc0)
+		yield
+		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xc0)
+		label(0xc0)
+		yield
 		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xc0)
 		reloop(0x00)
 
 		label(0xbf)
-		if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0xc0)
 		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 1, /*goto*/ 0xc0)
 		reloop(0x00)
 
