@@ -1834,7 +1834,7 @@ struct menudialogdef g_TeamMissionsOperativeModelMenuDialog = {
 
 // Array of female heads for the carousel (max 5 slots: up to 4 fixed + player's CS head)
 // Last slot is for player's CS head, Mikado slot is conditional on AIO
-u8 g_FojoHeadOptions[5] = {0};
+s32 g_FojoHeadOptions[5] = {0};
 s32 g_FojoHeadCount = 0;
 
 // Cache for converted male->female heads per player

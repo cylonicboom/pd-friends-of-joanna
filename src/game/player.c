@@ -565,7 +565,7 @@ void playerStartNewLife(void)
 	playerSetCamPropertiesWithRoom(&pos, &g_Vars.currentplayer->bond2.unk28,
 			&g_Vars.currentplayer->bond2.unk1c, rooms[0]);
 
-	if (g_Vars.coopplayernum >= 0) {
+	if (g_Vars.coopplayers[g_Vars.currentplayernum] || g_Vars.bond == g_Vars.currentplayer) {
 		u32 stack;
 		bool ammotypesheld[33];
 		s32 stack2[2];
@@ -607,7 +607,7 @@ void playerStartNewLife(void)
 		if (cmd);
 		if (cmd);
 
-		if (g_Vars.currentantiplayernum != g_Vars.currentplayernum || g_Vars.currentplayer != g_Vars.anti) {
+		if (!g_Vars.antiplayers[g_Vars.currentplayernum]) {
 			while (cmd[0] != INTROCMD_END) {
 				switch (cmd[0]) {
 				case INTROCMD_SPAWN:
@@ -1385,19 +1385,29 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 
 	u32 coophead = HEAD_VD;
 
-	switch (g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].teamagentindex) {
-		case 0: coophead = HEAD_DARK_COMBAT; break; //Joanna
-		case 1: coophead = HEAD_VD; break; // Velvet Dark
-		case 2: coophead = HEAD_GREY; break; // PD+ Japanese Jo
-		case 3: coophead = HEAD_ANKA; break; // stub in Anka
-		default: break;
+	// Use Team Operative carousel selection for coop head
+	s32 selectedindex = g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].teamagentindex;
+	extern s32 g_FojoHeadOptions[5];
+	extern s32 g_FojoHeadCount;
+	extern void fojoInitHeadOptions(void);
+
+	// Initialize head options if not already done
+	if (g_FojoHeadCount == 0) {
+		fojoInitHeadOptions();
+	}
+
+	// Bounds check and get the selected head
+	s32 maxindex = g_FojoHeadCount + 1;
+	if (selectedindex >= 0 && selectedindex < maxindex) {
+		s32 mpheadnum = g_FojoHeadOptions[selectedindex];
+		coophead = mpGetHeadId(mpheadnum);
 	}
 
 	switch (outfit) {
 	default:
 	case OUTFIT_DEFAULT:
 		*bodynum = BODY_DARK_COMBAT;
-		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_ELVIS:
 		*bodynum = BODY_THEKING;
@@ -1413,39 +1423,39 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		break;
 	case OUTFIT_FROCK_RIPPED:
 		*bodynum = BODY_DARK_RIPPED;
-		*headnum = solo ? HEAD_DARK_FROCK : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_FROCK:
 		*bodynum = BODY_DARK_FROCK;
-		*headnum = solo ? HEAD_DARK_FROCK : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_LEATHER:
 		*bodynum = BODY_DARK_LEATHER;
-		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_DEEPSEA:
 		*bodynum = BODY_DARKWET;
-		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_WETSUIT:
 		*bodynum = BODY_DARKAQUALUNG;
-		*headnum = solo ? HEAD_DARKAQUA : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_SNOW:
 		*bodynum = BODY_DARKSNOW;
-		*headnum = solo ? HEAD_DARK_SNOW : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_LAB:
 		*bodynum = BODY_DARKLAB;
-		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_STEWARDESS:
 		*bodynum = BODY_DARK_AF1;
-		*headnum = solo ? HEAD_DARK_FROCK : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_NEGOTIATOR:
 		*bodynum = BODY_DARK_NEGOTIATOR;
-		*headnum = solo ? HEAD_DARK_FROCK : coophead;
+		*headnum = coophead;
 		break;
 	case OUTFIT_MRBLONDE:
 		*bodynum = BODY_MRBLONDE;
@@ -5010,6 +5020,9 @@ Gfx *playerRenderHud(Gfx *gdl)
 									}
 								}
 							else if (!needBuddyAlive || (!g_Vars.bond->isdead || !g_Vars.coop->isdead)) {
+								// Check for button press to respawn
+								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
+								
 								f32 totalhealth;
 								u32 buddyplayernum = g_Vars.bondplayernum;
 								u32 prevplayernum = g_Vars.currentplayernum;
