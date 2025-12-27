@@ -1770,7 +1770,7 @@ struct menuitem g_TeamPlayerProfilesMenuItems[] = {
 extern struct menuitem g_TeamMissionsPlayerSetupMenuItems[];
 struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
 	MENUDIALOGTYPE_DEFAULT,
-	(uintptr_t)"Bring Your Perfect Self",
+	(uintptr_t)"Be Your Perfect Self",
 	g_TeamMissionsPlayerSetupMenuItems,
 	menudialogTeamPlayerProfiles,
 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,

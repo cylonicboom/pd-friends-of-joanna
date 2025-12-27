@@ -2097,7 +2097,7 @@ struct prop *objInit(struct defaultobj *obj, struct modeldef *modeldef, struct p
 		f32 desiredScale = g_ModelStates[obj->modelnum].scale * (1.0f / 4096.0f);
 		f32 definitionScale = obj->model->definition ? obj->model->definition->scale : 1.0f;
 
-		DEBUG_MODELS("objInit: model 0x%04x scale from g_ModelStates: 0x%04x (%.4f), def scale: %.4f, effective: %.4f",
+		sysLogPrintf(LOG_NOTE, "objInit: model 0x%04x scale from g_ModelStates: 0x%04x (%.4f), def scale: %.4f, effective: %.4f",
 			obj->modelnum, g_ModelStates[obj->modelnum].scale, desiredScale, definitionScale, desiredScale * definitionScale);
 		modelSetScale(obj->model, desiredScale);
 
@@ -17525,6 +17525,7 @@ s32 objTestForPickup(struct prop *prop)
 	// pickupby. This prevents the thrower from picking up their own projectile
 	// within the first second, unless it's immediately bounced or landed.
 	if ((obj->hidden & OBJHFLAG_PROJECTILE) && obj->projectile->pickuptimer240 > 0) {
+
 		if (obj->projectile->pickupby == NULL) {
 			if (obj->projectile->bouncecount == 0) {
 				return TICKOP_NONE;
