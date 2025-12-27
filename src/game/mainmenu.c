@@ -804,13 +804,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 		menuStop();
 
 #ifndef PLATFORM_N64 // All Solos in Multi Mod
-		g_NotLoadMod = true;
-		// Check if the stage is forced to load mod files
-		if (g_MissionConfig.stagenum >= 0 && g_MissionConfig.stagenum < 256) {
-			if (g_StageModFlags[g_MissionConfig.stagenum] & MOD_FLAG_FORCE_LOAD) {
-				g_NotLoadMod = false;
-			}
-		}
+		g_NotLoadMod = false;
 		romdataFileFreeForSolo();
 #endif
 

@@ -1080,7 +1080,6 @@ void romdataFileFree(s32 fileNum)
 
 void romdataFileFreeForSolo(void)
 {
-	// All Solos in Multi Mod: reset mod files for solo
 	romdataResetMod(g_ModNum);
 }
 
