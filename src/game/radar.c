@@ -255,11 +255,17 @@ Gfx *radarRender(Gfx *gdl)
 	playercount = PLAYERCOUNT();
 
 	if (g_Vars.mplayerisrunning) {
-		if (g_Vars.normmplayerisrunning && (g_MpSetup.options & MPOPTION_NORADAR)) {
+		// Check if player has item-based radar (president scanner, R-tracker, etc.)
+		bool hasItemRadar = (g_Vars.currentplayer->devicesactive & ~g_Vars.currentplayer->devicesinhibit & DEVICE_RTRACKER) != 0;
+
+		// Only block radar if NORADAR is set AND player doesn't have an item radar
+		if (g_Vars.normmplayerisrunning && (g_MpSetup.options & MPOPTION_NORADAR) && !hasItemRadar) {
 			return gdl;
 		}
 
-		if ((g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].base.displayoptions & 0x00000004) == 0) {
+		// Only check display options if player doesn't have an item radar
+		// (item radars should override player preferences)
+		if (!hasItemRadar && (g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].base.displayoptions & 0x00000004) == 0) {
 			return gdl;
 		}
 	} else if ((g_Vars.currentplayer->devicesactive & ~g_Vars.currentplayer->devicesinhibit & DEVICE_RTRACKER) == 0) {
