@@ -5523,6 +5523,9 @@ void bgunTickSwitch2(void)
 			if (ctrl->weaponnum == WEAPON_REMOTEMINE) {
 				ctrl->dualwielding = true;
 			}
+			// Clear drop cooldown when weapon changes
+			player->isdropping = 0;
+			player->droptimer60 = 0;
 
 			if (!ctrl->dualwielding) {
 				lefthand->inuse = false;

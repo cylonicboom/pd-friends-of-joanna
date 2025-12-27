@@ -121,7 +121,7 @@ static const char *ckNames[CK_TOTAL_COUNT] = {
 	"ACCEPT_BUTTON",
 	"CANCEL_BUTTON",
 	"CK_0040",
-	"CK_0080",
+	"DROPITEM_BUTTON",
 	"CK_0100",
 	"CK_0200",
 	"CK_0400",
@@ -209,7 +209,8 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode)
 		{ CK_STICK_YNEG,    SDL_SCANCODE_DOWN,   0                   },
 		{ CK_STICK_YPOS,    SDL_SCANCODE_UP,     0                   },
 		{ CK_4000,          SDL_SCANCODE_LSHIFT, 0                   },
-		{ CK_2000,          SDL_SCANCODE_LCTRL,  0                   }
+		{ CK_2000,          SDL_SCANCODE_LCTRL,  0                   },
+		{ CK_DROPITEM,      SDL_SCANCODE_G,      0                   }
 	};
 
 	static const u32 pcjoybinds[][2] = {
@@ -229,6 +230,7 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode)
 		{ CK_ACCEPT, SDL_CONTROLLER_BUTTON_A             },
 		{ CK_CANCEL, SDL_CONTROLLER_BUTTON_B             },
 		{ CK_8000,   SDL_CONTROLLER_BUTTON_LEFTSTICK     },
+		{ CK_DROPITEM, SDL_CONTROLLER_BUTTON_RIGHTSTICK  },
 	};
 
 	static const u32 n64kbbinds[][3] = {

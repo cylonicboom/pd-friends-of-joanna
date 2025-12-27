@@ -103,7 +103,7 @@ enum contkey {
 	CK_ACCEPT,
 	CK_CANCEL,
 	CK_0040,
-	CK_0080,
+	CK_DROPITEM, // was CK_0080
 	CK_0100,
 	CK_0200,
 	CK_0400,
