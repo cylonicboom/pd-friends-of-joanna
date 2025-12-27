@@ -1634,8 +1634,8 @@ Gfx *mpRenderModalText(Gfx *gdl)
 			&& g_Vars.currentplayer->isdead
 			&& g_Vars.currentplayer->redbloodfinished
 			&& g_Vars.currentplayer->deathanimfinished
-			&& !(g_Vars.currentcoopplayernum >= 0 && (!g_Vars.currentplayer->coopcanrestart || g_InCutscene))
-			&& (g_Vars.currentcoopplayernum >= 0 || !(g_Vars.currentantiplayernum >= 0 && ((g_Vars.currentplayer != g_Vars.anti || g_InCutscene))))
+			&& !(g_Vars.coopplayers[g_Vars.currentplayernum] && (!g_Vars.currentplayer->coopcanrestart || g_InCutscene))
+			&& !(g_Vars.antiplayers[g_Vars.currentplayernum] && g_InCutscene)
 			&& g_NumReasonsToEndMpMatch == 0) {
 		// Render "Press START" text
 		gdl = text0f153628(gdl);
