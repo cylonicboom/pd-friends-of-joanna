@@ -4349,8 +4349,8 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 		return;
 	}
 
-	// Don't damage if coop and friendly fire is off (AI buddy)
-	if (g_MissionConfig.iscoop
+	// Don't damage if coop/team and friendly fire is off (AI buddy)
+	if ((g_MissionConfig.iscoop || g_MissionConfig.isteam)
 			&& g_Vars.coopfriendlyfire == false
 			&& aprop
 			&& aprop != vprop
