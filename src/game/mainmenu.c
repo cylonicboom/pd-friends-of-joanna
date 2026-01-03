@@ -2666,6 +2666,11 @@ void teamMissionConfigStrUpdateMarquee()
 	if (nextstagenum == 0) {
 	   nextstagenum = STAGE_DEFECTION;
 	}
+	// Reset Duel to Defection only in team missions mode (Duel is solo-only)
+	if (g_MissionConfig.isteam && nextstagenum == STAGE_DUEL) {
+	   nextstagenum = STAGE_DEFECTION;
+	   g_MissionConfig.stagenum = STAGE_DEFECTION;
+	}
 	char* nextStageName = langGetStageName(nextstagenum);
 
 	// setup player names
@@ -3117,7 +3122,7 @@ char* langGetStageName(s32 stagenum) {
 	return NULL;
 }
 
-s32 getNumUnlockedSpecialStages(void)
+s32 getNumUnlockedSpecialStages(bool isMultiplayerMode)
 {
 	s32 count = 0;
 	s32 offsetforduel = 1;
@@ -3129,7 +3134,7 @@ s32 getNumUnlockedSpecialStages(void)
 		}
 	}
 
-	if (g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti) {
+	if (isMultiplayerMode) {
 		offsetforduel = 0;
 	} else {
 		for (i = 0; i < (VERSION >= VERSION_NTSC_1_0 ? 32 : 33); i++) {
@@ -3224,12 +3229,12 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 			}
 		}
 
-		data->list.value += getNumUnlockedSpecialStages();
+		data->list.value += getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 		break;
 	case MENUOP_GETOPTIONTEXT:
 		if (data->list.unk04u32 == 0) {
 			menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp18c);
-			data->list.unk04u32 = sp18c.list.value - getNumUnlockedSpecialStages();
+			data->list.unk04u32 = sp18c.list.value - getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 		}
 
 		if (data->list.value < data->list.unk04u32) {
@@ -3243,7 +3248,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 	case MENUOP_SET:
 		sp188 = data->list.value;
 		menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp178);
-		sp178.list.value -= getNumUnlockedSpecialStages();
+		sp178.list.value -= getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 
 		if (data->list.value >= sp178.list.value) {
 			sp188 = func0f104720(data->list.value - sp178.list.value);
@@ -3276,10 +3281,10 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 			data->list.value = g_GameFile.autostageindex;
 
 			menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp168);
-			sp168.list.value -= getNumUnlockedSpecialStages();
+			sp168.list.value -= getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 
 			if (data->list.value >= sp168.list.value) {
-				sp164 = getNumUnlockedSpecialStages();
+				sp164 = getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 
 				data->list.value = sp168.list.value - 1;
 
@@ -3293,7 +3298,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 		break;
 	case MENUOP_GETOPTGROUPCOUNT:
 		menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp150);
-		sp150.list.value -= getNumUnlockedSpecialStages();
+		sp150.list.value -= getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 
 		data->list.unk0c = 0;
 
@@ -3313,7 +3318,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 	case MENUOP_GETGROUPSTARTINDEX:
 		if (data->list.unk0c == data->list.value) {
 			menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp13c);
-			data->list.groupstartindex = sp13c.list.value - getNumUnlockedSpecialStages();
+			data->list.groupstartindex = sp13c.list.value - getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 		} else {
 			data->list.groupstartindex = groups[data->list.value].offset;
 		}
@@ -3326,7 +3331,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 
 		if (data->type19.unk0c == 0) {
 			menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &spdc);
-			data->type19.unk0c = spdc.list.value - getNumUnlockedSpecialStages();
+			data->type19.unk0c = spdc.list.value - getNumUnlockedSpecialStages(g_MissionConfig.isteam || g_MissionConfig.iscoop || g_MissionConfig.isanti);
 		}
 
 		if (data->type19.unk04u32 >= data->type19.unk0c) {
