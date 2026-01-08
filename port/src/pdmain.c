@@ -313,7 +313,8 @@ void mainInit(void)
 			modConfigLoad(MOD_CONFIG_FNAME);
 	}
 
-	mpSetArenaMode(g_NumMpArenas_AIO > 0);
+	// Disabled: use vanilla maps until mod loader is ready
+	// mpSetArenaMode(g_NumMpArenas_AIO > 0);
 
 	langInit();
 	lvInit();

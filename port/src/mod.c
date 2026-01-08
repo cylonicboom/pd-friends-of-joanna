@@ -1291,12 +1291,12 @@ s32 modLoadAIO(void)
 
 		while (p && token[0]) {
 			if (!strcmp(token, "MpArena")) {
-				p = modConfigParseMpArena(p, token);
-				foundInThisMod = 1;
+				// Skip arenas - using vanilla list
+				p = modConfigSkipBlock(p, token);
 				continue;
 			} else if (!strcmp(token, "MpArenaGroup")) {
-				p = modConfigParseMpArenaGroup(p, token);
-				foundInThisMod = 1;
+				// Skip arena groups - using vanilla list
+				p = modConfigSkipBlock(p, token);
 				continue;
 			} else if (!strcmp(token, "MpHeads")) {
 				p = modConfigParseMpHeads(p, token);
@@ -1822,20 +1822,15 @@ void modSwitch(s32 modnum, s32 stagenum) {
 	// This implies it WAS set correctly before?
 	// For now, just keep it as is, but the g_ModNum fix is critical.
 
+	// Load AIO assets (heads, bodies, character models) but keep vanilla arenas
 	extern s32 g_AIOPresent;
 	if (g_AIOPresent && g_ModNum == 0) {
-		// If we are in the boot mod and AIO is present, we should have AIO arenas
-		// But modConfigLoad only loaded the boot mod's config, which doesn't have AIO arenas.
-		// We need to explicitly load AIO arenas if they aren't loaded.
+		// Load AIO heads/bodies for character models
 		if (g_NumMpArenas_AIO == 0) {
 			modLoadAIO();
 		}
-		mpSetArenaMode(true);
-	} else {
-		// If we are in a mod, we might still want AIO arenas if the mod imports them
-		// But typically mods have their own arenas or use vanilla.
-		// However, if we have loaded AIO arenas, we should probably use them if the mod doesn't override?
-		// For now, default to vanilla if not in boot mod, unless the mod explicitly requested AIO (which we don't track yet)
-		mpSetArenaMode(false);
+		// Disabled: keep using vanilla arenas with langbanks
+		// mpSetArenaMode(true);
 	}
+	// Always use vanilla arena list (don't switch to AIO arenas)
 }
