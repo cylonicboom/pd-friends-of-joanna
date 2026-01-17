@@ -2021,15 +2021,15 @@ u8 func100e_check_ecm_mines[] = {
 
 	beginloop(0x00)
 		if_stage_flag_eq(STAGEFLAG_SECURITYHUB_COMPLETE, TRUE, /*goto*/ 0x06)
-		if_stage_flag_eq(STAGEFLAG_SECURITYHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
 		if_weapon_thrown_on_object(WEAPON_ECMMINE, OBJ_SECURITYHUB, /*goto*/ 0x08)
 		label(0x06)
 		if_stage_flag_eq(STAGEFLAG_EXTCOMMSHUB_COMPLETE, TRUE, /*goto*/ 0x06)
-		if_stage_flag_eq(STAGEFLAG_EXTCOMMSHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
 		if_weapon_thrown_on_object(WEAPON_ECMMINE, OBJ_EXTCOMMSHUB, /*goto*/ 0x0a)
 		label(0x06)
 		if_timer_gt(0, /*goto*/ 0x06)
 		if_weapon_thrown(WEAPON_ECMMINE, /*goto*/ 0x0b)
+		if_stage_flag_eq(STAGEFLAG_SECURITYHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
+		if_stage_flag_eq(STAGEFLAG_EXTCOMMSHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
 		label(0x2c)
 		reloop(0x00)
 
@@ -2046,6 +2046,7 @@ u8 func100e_check_ecm_mines[] = {
 		set_object_sound_playing(CHANNEL_0, OBJ_SECURITYHUB, TRUE)
 		show_hudmsg(CHR_BOND, L_AME_076) // "Internal security system temporarily disabled."
 		set_stage_flag(STAGEFLAG_SECURITYHUB_COMPLETE)
+		unset_stage_flag(STAGEFLAG_SECURITYHUB_MINES_WASTED)
 		reloop(0x00)
 
 		label(0x0a)
@@ -2057,6 +2058,7 @@ u8 func100e_check_ecm_mines[] = {
 		set_object_sound_playing(CHANNEL_1, OBJ_EXTCOMMSHUB, TRUE)
 		show_hudmsg(CHR_BOND, L_AME_077) // "External communications hub disabled."
 		set_stage_flag(STAGEFLAG_EXTCOMMSHUB_COMPLETE)
+		unset_stage_flag(STAGEFLAG_EXTCOMMSHUB_MINES_WASTED)
 		reloop(0x00)
 
 		label(0x0b)
@@ -2144,8 +2146,6 @@ u8 func100e_check_ecm_mines[] = {
 		label(0x8a)
 	endloop(0x00)
 
-	beginloop(0x06)
-	endloop(0x06)
 
 	endlist
 };
