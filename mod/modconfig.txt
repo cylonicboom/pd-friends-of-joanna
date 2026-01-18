@@ -58,6 +58,11 @@ stage 0x34 {
     setupfile "UsetupleeZ"
 }
 
+# Skedar Ruins
+stage 0x2a {
+    setupfile "UsetupshoZ"
+}
+
 # war
 # extra spawns for coop characters
 stage 0x16 {
