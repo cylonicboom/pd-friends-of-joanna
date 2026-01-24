@@ -58,6 +58,9 @@
 #define GBC_ROM_NAME "pd.gbc"
 #define GBC_ROM_SIZE 4194304
 
+static bool g_DebugFileLoad = false;
+#define DEBUG_FLOAD(...) if (g_DebugFileLoad) { sysLogPrintf(LOG_NOTE, __VA_ARGS__); }
+
 u8 *g_RomFile;
 u32 g_RomFileSize;
 
@@ -605,6 +608,11 @@ static inline struct romfile *romdataGetSeg(const char *name)
 
 s32 romdataInit(void)
 {
+	if (getenv("PD_DEBUG_FILELOAD")) {
+		g_DebugFileLoad = true;
+		sysLogPrintf(LOG_NOTE, "File loading debugging enabled");
+	}
+
 	const char *altRomName = sysArgGetString("--rom-file");
 	if (altRomName) {
 		romName = altRomName;
@@ -677,44 +685,59 @@ static char g_FileLoadModPrefix[32] = "MOD_FOJO";
 
 static const char *romdataGetContextPrefix(void)
 {
+	const char *context;
+	
 	// Check for Boot
 	if (g_MainIsBooting) {
-		return "BOOT";
+		context = "BOOT";
+		goto done;
 	}
 
 	// Check for Intro
 	if (g_InCutscene) {
-		return "INTRO";
+		context = "INTRO";
+		goto done;
 	}
 
 	// Check for CI
 	if (g_StageNum == STAGE_CITRAINING) {
-		return "CI";
+		context = "CI";
+		goto done;
 	}
 
 	// Check for 4MB Menu
 	if (g_StageNum == STAGE_4MBMENU) {
-		return "MB";
+		context = "MB";
+		goto done;
 	}
 
 	// Check for Combat Simulator (Multiplayer)
 	if (g_Vars.normmplayerisrunning) {
-		return "CS";
+		context = "CS";
+		goto done;
 	}
 
 	// Check for Co-op / Counter-Op / Team Missions
 	if (g_Vars.mplayerisrunning) {
 		if (g_MissionConfig.isteam) {
-			return "TEAM";
+			context = "TEAM";
+			goto done;
 		}
 		if (g_MissionConfig.isanti) {
-			return "ANTI";
+			context = "ANTI";
+			goto done;
 		}
-		return "COOP";
+		context = "COOP";
+		goto done;
 	}
 
 	// Default to Solo
-	return "SOLO";
+	context = "SOLO";
+	
+done:
+	DEBUG_FLOAD("romdataGetContextPrefix: stage=%d, normmplayerisrunning=%d, mplayerisrunning=%d, isteam=%d, isanti=%d -> context=%s\n",
+		g_StageNum, g_Vars.normmplayerisrunning, g_Vars.mplayerisrunning, g_MissionConfig.isteam, g_MissionConfig.isanti, context);
+	return context;
 }
 
 static void romdataResolvePath(char *dst, const char *src, size_t dstSize, const char *currentModName, const char *activeModName, bool requireExport)
@@ -1007,12 +1030,16 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 			fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
 			// external file; do not apply patches to this
 			fileSlots[modNum][fileNum].numpatches = 0;
-		}
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d, g_NotLoadMod=%d)", 
+			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+	}
 
-		if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
-			// tried and failed, fall back to ROM
-			fileSlots[modNum][fileNum].source = SRC_ROM;
-		}
+	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
+		// tried and failed, fall back to ROM
+		fileSlots[modNum][fileNum].source = SRC_ROM;
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d, g_NotLoadMod=%d)", 
+			fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+	}
 	}
 
 	if (!out) {
@@ -1080,6 +1107,8 @@ void romdataFileFree(s32 fileNum)
 
 void romdataFileFreeForSolo(void)
 {
+	DEBUG_FLOAD("romdataFileFreeForSolo: Resetting files for mod %d (g_StageNum=0x%02x, restartlevel=%d)", 
+		g_ModNum, g_StageNum, g_Vars.restartlevel);
 	romdataResetMod(g_ModNum);
 }
 

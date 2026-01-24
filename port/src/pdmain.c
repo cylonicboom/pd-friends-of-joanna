@@ -664,6 +664,7 @@ void mainEndStage(void)
 
 			for (i = 0; i < PLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
+				printf("mainEndStage: before endscreenPushTeam (player %d)\n", i);
 				endscreenPushTeam();
 			}
 

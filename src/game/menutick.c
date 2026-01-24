@@ -28,6 +28,9 @@
 #include "data.h"
 #include "types.h"
 
+#define DEBUG_MENU(fmt, ...) \
+	do { if (g_DebugMenu) printf(fmt, ##__VA_ARGS__); } while (0)
+
 #ifndef PLATFORM_N64 // All in One Mod
 #include "system.h"
 #include "mod.h"
@@ -261,10 +264,12 @@ void menuTick(void)
 				}
 
 				g_MenuData.unk010 = 0;
-				g_MenuData.bg = g_MenuData.nextbg;
-				g_MenuData.nextbg = 255;
+			DEBUG_MENU("menuTick: BG TRANSITION - bg changing from %d to %d (nextbg=%d->255)\n",
+				g_MenuData.bg, g_MenuData.nextbg, g_MenuData.nextbg);
+			g_MenuData.bg = g_MenuData.nextbg;
+			g_MenuData.nextbg = 255;
 
-				if (g_MenuData.root == MENUROOT_ENDSCREEN) {
+			if (g_MenuData.root == MENUROOT_ENDSCREEN) {
 					if (g_MenuData.bg == MENUBG_BLUR) {
 						g_MenuData.nextbg = MENUBG_6;
 					}
@@ -522,6 +527,7 @@ void menuTick(void)
 							if (g_Vars.players[playernum]) {
 								s32 prevplayernum = g_Vars.currentplayernum;
 								setCurrentPlayerNum(playernum);
+								printf("menuTick: before endscreenPushTeam (player %d, menuroot %d)\n", playernum, g_MenuData.root);
 								endscreenPushTeam();
 								setCurrentPlayerNum(prevplayernum);
 								handled = true;
@@ -610,6 +616,7 @@ void menuTick(void)
 				for (i = 0; i < MAX_PLAYERS; i++) {
 					if (g_MpSetup.chrslots & (1 << i)) {
 						s32 prevplayernum = g_Vars.currentplayernum;
+						printf("menuTick: before endscreenPushTeam (player %d, menuroot %d)\n", i, g_MenuData.prevmenuroot);
 						setCurrentPlayerNum(playernum);
 						endscreenPushTeam();
 						setCurrentPlayerNum(prevplayernum);
@@ -667,18 +674,12 @@ void menuTick(void)
 			g_MenuData.prevmenuroot = MENUROOT_RESET;
 		} else {
 			switch (g_MenuData.root) {
-			case MENUROOT_ENDSCREEN:
-				if (g_Vars.restartlevel) {
-					mainChangeToStage(mainGetStageNum());
-				} else {
-					mainChangeToStage(STAGE_TITLE);
-				}
-				break;
 			case MENUROOT_MPPAUSE:
 				break;
 			// HACK: Friends of Joanna: lets treat these as the same
 			case MENUROOT_COOPCONTINUE:
 			case MENUROOT_MPENDSCREEN:
+			case MENUROOT_ENDSCREEN:
 				if (g_Vars.normmplayerisrunning) {
 					g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_SETUPSCREEN);
 				}
@@ -686,9 +687,7 @@ void menuTick(void)
 					// g_MenuTransitionFlags = (MENU_TRANSITIONFLAG_MATCHENDING | MENU_TRANSITIONFLAG_TEAMMISSIONS);
 				}
 
-				if (g_MissionConfig.isteam
-						// && g_MissionConfig.stageindex <= SOLOSTAGEINDEX_SKEDARRUINS
-						&& ((!g_CheatsActiveBank0 && !g_CheatsActiveBank1) || isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty))) {
+				if (!g_Vars.mplayerisrunning || (g_Vars.mplayerisrunning && g_MissionConfig.isteam)) {
 					endscreenDecideAndPushNextTeam();
 				} else if (g_Vars.restartlevel) {
 					mainChangeToStage(mainGetStageNum());
@@ -707,12 +706,15 @@ void menuTick(void)
 	if (g_MenuData.count == 0) {
 		if (g_MenuData.nextbg != 255) {
 			if (g_MenuData.nextbg != 0) {
+				DEBUG_MENU("menuTick: BG TRANSITION (count=0) - bg changing from %d to %d (nextbg=%d->0)\n",
+					g_MenuData.bg, g_MenuData.nextbg, g_MenuData.nextbg);
 				g_MenuData.bg = g_MenuData.nextbg;
 				g_MenuData.nextbg = 0;
 				g_MenuData.unk010 = 1.0f - g_MenuData.unk010;
 			}
 		} else {
 			if (g_MenuData.bg != 0) {
+				DEBUG_MENU("menuTick: Setting nextbg to 0 (current bg=%d)\n", g_MenuData.bg);
 				g_MenuData.nextbg = 0;
 			}
 		}

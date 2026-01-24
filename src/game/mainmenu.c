@@ -805,12 +805,19 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation, struct menuitem *i
 
 #ifndef PLATFORM_N64 // All Solos in Multi Mod
 		g_NotLoadMod = false;
-		romdataFileFreeForSolo();
-#endif
-
+		
+		// Check if restarting the same level and set restartlevel BEFORE calling romdataFileFreeForSolo
 		if (g_Vars.stagenum == g_MissionConfig.stagenum) {
 			g_Vars.restartlevel = true;
 		}
+		
+		if (getenv("PD_DEBUG_FILELOAD")) {
+			printf("menuhandlerAcceptMission: g_Vars.stagenum=0x%02x, g_MissionConfig.stagenum=0x%02x, equal=%d, restartlevel=%d\n",
+				g_Vars.stagenum, g_MissionConfig.stagenum, g_Vars.stagenum == g_MissionConfig.stagenum, g_Vars.restartlevel);
+		}
+		
+		romdataFileFreeForSolo();
+#endif
 
 		titleSetNextStage(g_MissionConfig.stagenum);
 

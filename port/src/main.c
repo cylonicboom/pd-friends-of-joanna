@@ -44,6 +44,10 @@ s32 g_SkipIntro = false;
 
 s32 g_FileAutoSelect = -1;
 
+bool g_DebugEndscreen = false;
+bool g_DebugMenu = false;
+bool g_DebugModels = false;
+
 extern s32 g_StageNum;
 
 s32 bootGetMemSize(void)
@@ -147,6 +151,21 @@ int main(int argc, const char **argv)
 	sysLogPrintf(LOG_NOTE, "rom  file at %p - %p", g_RomFile, g_RomFile + g_RomFileSize);
 
 	g_SndDisabled = sysArgCheck("--no-sound");
+
+	if (getenv("PD_DEBUG_ENDSCREEN")) {
+		g_DebugEndscreen = true;
+		sysLogPrintf(LOG_NOTE, "Endscreen debugging enabled");
+	}
+
+	if (getenv("PD_DEBUG_MENU")) {
+		g_DebugMenu = true;
+		sysLogPrintf(LOG_NOTE, "Menu debugging enabled");
+	}
+
+	if (getenv("PD_DEBUG_MODELS")) {
+		g_DebugModels = true;
+		sysLogPrintf(LOG_NOTE, "Model/mod scaling debugging enabled");
+	}
 
 	g_StageNum = sysArgGetInt("--boot-stage", STAGE_TITLE);
 

@@ -81,6 +81,9 @@
 #include "types.h"
 #include "string.h"
 
+#define DEBUG_MODELS(fmt, ...) \
+	do { if (g_DebugModels) sysLogPrintf(LOG_NOTE, fmt, ##__VA_ARGS__); } while (0)
+
 void rng2SetSeed(u32 seed);
 
 struct weaponobj *g_Proxies[30];
@@ -2094,7 +2097,7 @@ struct prop *objInit(struct defaultobj *obj, struct modeldef *modeldef, struct p
 		f32 desiredScale = g_ModelStates[obj->modelnum].scale * (1.0f / 4096.0f);
 		f32 definitionScale = obj->model->definition ? obj->model->definition->scale : 1.0f;
 
-		sysLogPrintf(LOG_NOTE, "objInit: model 0x%04x scale from g_ModelStates: 0x%04x (%.4f), def scale: %.4f, effective: %.4f",
+		DEBUG_MODELS("objInit: model 0x%04x scale from g_ModelStates: 0x%04x (%.4f), def scale: %.4f, effective: %.4f",
 			obj->modelnum, g_ModelStates[obj->modelnum].scale, desiredScale, definitionScale, desiredScale * definitionScale);
 		modelSetScale(obj->model, desiredScale);
 

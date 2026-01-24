@@ -50,6 +50,10 @@
 #include "lib/lib_317f0.h"
 #include "data.h"
 #include "types.h"
+
+#define DEBUG_MENU(fmt, ...) \
+	do { if (g_DebugMenu) printf(fmt, ##__VA_ARGS__); } while (0)
+
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "input.h"
@@ -3606,6 +3610,7 @@ void menuPlayerCloseDialogsAndSave(void)
 
 void menuSaveAndRecordPrevMenuRoot(struct menudialogdef *dialogdef, s32 root)
 {
+	DEBUG_MENU("menuSaveAndRecordPrevMenuRoot: root=%d, current_prevmenuroot=%d\n", root, g_MenuData.prevmenuroot);
 	s32 i;
 	s32 prevplayernum = g_MpPlayerNum;
 
@@ -3624,6 +3629,7 @@ void menuSaveAndRecordPrevMenuRoot(struct menudialogdef *dialogdef, s32 root)
 
 void menuSetBackground(s32 bg)
 {
+	DEBUG_MENU("menuSetBackground: bg=%d, current_bg=%d, nextbg=%d\n", bg, g_MenuData.bg, g_MenuData.nextbg);
 	// Can only screenshot if there is no background already,
 	// because we want a clean screenshot
 	bool screenshot = g_MenuData.bg == 0;
@@ -3635,10 +3641,12 @@ void menuSetBackground(s32 bg)
 	}
 
 	if (g_MenuData.bg != bg) {
+		DEBUG_MENU("menuSetBackground: Setting nextbg from %d to %d\n", g_MenuData.nextbg, bg);
 		g_MenuData.nextbg = bg;
 	}
 
 	if (screenshot && g_MenuData.bg == 0) {
+		DEBUG_MENU("menuSetBackground: Setting screenshottimer=1\n");
 		g_MenuData.screenshottimer = 1;
 	}
 }
@@ -3656,6 +3664,10 @@ void menuResetJoinFadeAlpha(void)
 
 void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 {
+	DEBUG_MENU("menuPushRootDialog: ENTER - root=%d, current_root=%d, prevmenuroot=%d, g_MpPlayerNum=%d\n",
+		root, g_MenuData.root, g_MenuData.prevmenuroot, g_MpPlayerNum);
+	DEBUG_MENU("menuPushRootDialog: current_bg=%d, nextbg=%d\n", g_MenuData.bg, g_MenuData.nextbg);
+	
 	g_Menus[g_MpPlayerNum].numdialogs = 0;
 	g_Menus[g_MpPlayerNum].depth = 0;
 
@@ -3693,6 +3705,7 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 
 	g_Menus[g_MpPlayerNum].unk820 = 1;
 
+	DEBUG_MENU("menuPushRootDialog: Setting root from %d to %d\n", g_MenuData.root, root);
 	g_MenuData.root = root;
 	g_MenuData.prevmenuroot = MENUROOT_RESET;
 	g_MenuData.unk5d5_02 = false;
@@ -3734,9 +3747,10 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 	case MENUROOT_MAINMENU:
 	case MENUROOT_MPENDSCREEN:
 	case MENUROOT_FILEMGR:
-	case MENUROOT_COOPCONTINUE:
 	case MENUROOT_TRAINING:
 		menuSetBackground(MENUBG_BLUR);
+		break;
+	case MENUROOT_COOPCONTINUE:
 		break;
 	case MENUROOT_BOOTPAKMGR:
 		musicStartMenu();

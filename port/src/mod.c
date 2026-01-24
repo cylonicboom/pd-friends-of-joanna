@@ -11,6 +11,9 @@
 #include "data.h"
 #include "bss.h"
 #include "game/stagetable.h"
+
+#define DEBUG_MODELS(fmt, ...) \
+	do { if (g_DebugModels) sysLogPrintf(LOG_NOTE, fmt, ##__VA_ARGS__); } while (0)
 #include "game/mplayer/mplayer.h"
 #include "game/mplayer/setup.h"
 
@@ -522,7 +525,7 @@ static char *modConfigParseModelStates(char *p, char *token, s32 modNum)
 				// Convert float scale to fixed-point (scale * 4096)
 				u16 fixedScale = (u16)(scale * 4096.0f);
 				g_ModelStates[modelId].scale = fixedScale;
-				sysLogPrintf(LOG_NOTE, "  Model 0x%04x: scale %.4f -> 0x%04x (was 0x%04x)",
+				DEBUG_MODELS("  Model 0x%04x: scale %.4f -> 0x%04x (was 0x%04x)",
 					modelId, scale, fixedScale, g_ModelStatesOriginal[modelId].scale);
 				numParsed++;
 			} else {
@@ -1307,38 +1310,9 @@ s32 modLoadAIO(void)
 				foundInThisMod = 1;
 				continue;
 			} else if (!strcmp(token, "HeadsAndBodies")) {
-				char *blockStart = p;
-				// Peek inside for head_grey
-				char *p2 = strParseToken(p, token, NULL); // skip {
-				if (token[0] == '{') {
-					char innerToken[UTIL_MAX_TOKEN + 1];
-					char *innerP = p2;
-					s32 hasHeadGrey = 0;
-
-					innerP = strParseToken(innerP, innerToken, NULL);
-					while (innerP && innerToken[0] && strcmp(innerToken, "}") != 0) {
-						if (!strcmp(innerToken, "name")) {
-							innerP = strParseToken(innerP, innerToken, NULL);
-							if (!strcmp(strUnquote(innerToken), "head_grey")) {
-								hasHeadGrey = 1;
-							}
-						}
-						innerP = strParseToken(innerP, innerToken, NULL);
-					}
-
-					if (hasHeadGrey) {
-						p = modConfigParseHeadsAndBodies(blockStart, token, i);
-						foundInThisMod = 1;
-						continue;
-					} else {
-						p = modConfigSkipBlock(blockStart, token);
-						continue;
-					}
-				} else {
-					// Malformed, skip
-					p = modConfigSkipBlock(blockStart, token);
-					continue;
-				}
+				p = modConfigParseHeadsAndBodies(p, token, i);
+				foundInThisMod = 1;
+				continue;
 			} else if (!strcmp(token, "stage")) {
 				// Skip stage number, then skip the block
 				p = strParseToken(p, token, NULL); // skip stage number
@@ -1575,7 +1549,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	s32 fileNum = romdataFileGetNumForNameInMod(name, g_ModNum);
 
 	if (fileNum > 0) {
-		sysLogPrintf(LOG_NOTE, "modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, g_ModNum);
+		DEBUG_MODELS("modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, g_ModNum);
 		u32 size = 0;
 		u8 *data = romdataFileLoad(fileNum, &size);
 
@@ -1762,11 +1736,11 @@ void modSwitch(s32 modnum, s32 stagenum) {
 	// Initialize backup of original model states on first run
 	static bool modelStatesBackedUp = false;
 	if (!modelStatesBackedUp) {
-		sysLogPrintf(LOG_NOTE, "modSwitch: Creating backup of original ModelStates and ExplosionTypes");
+		DEBUG_MODELS("modSwitch: Creating backup of original ModelStates and ExplosionTypes");
 		memcpy(g_ModelStatesOriginal, g_ModelStates, sizeof(g_ModelStates));
 		memcpy(g_PropExplosionTypesOriginal, g_PropExplosionTypes, NUM_MODELS);
 		modelStatesBackedUp = true;
-		sysLogPrintf(LOG_NOTE, "modSwitch: Backup complete - sample model 0x0001 scale: 0x%04x, explosion type: %d",
+		DEBUG_MODELS("modSwitch: Backup complete - sample model 0x0001 scale: 0x%04x, explosion type: %d",
 			g_ModelStatesOriginal[0x0001].scale, g_PropExplosionTypesOriginal[0x0001]);
 	}
 
@@ -1808,7 +1782,7 @@ void modSwitch(s32 modnum, s32 stagenum) {
 		sysLogPrintf(LOG_NOTE, "modSwitch: Loading cached config for mod %d", g_ModNum);
 		memcpy(g_ModelStates, g_ModelStates_PerMod[g_ModNum], sizeof(g_ModelStates));
 		memcpy(g_PropExplosionTypes, g_ExplosionTypes_PerMod[g_ModNum], NUM_MODELS);
-		sysLogPrintf(LOG_NOTE, "modSwitch: Applied cached config (model 0x0020 scale: 0x%04x)", g_ModelStates[0x0020].scale);
+		DEBUG_MODELS("modSwitch: Applied cached config (model 0x0020 scale: 0x%04x)", g_ModelStates[0x0020].scale);
 	} else {
 		// Fallback: parse config on-the-fly (only during boot before cache is ready)
 		modConfigLoad(MOD_CONFIG_FNAME);
