@@ -7,6 +7,14 @@ modversion "1.0"
 
 # Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)
 
+
+# setup Mikado Dark
+HeadsAndBodies {
+    slotnum 0x4b
+    name "head_grey"
+    filenum "CheadgreyZ"
+}
+
 # CI Training
 # pre-load Mikado Dark as a hidden character
 #stage 0x26 {
@@ -38,6 +46,11 @@ stage 0x1d {
 # infiltration
 stage 0x2f {
     setupfile "UsetuplueZ"
+}
+
+# af1
+stage 0x31 {
+    setupfile "UsetupritZ"
 }
 
 # deep sea
