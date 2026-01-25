@@ -2344,8 +2344,8 @@ u8 func100e_check_objectives_complete[] = {
 
 	// Mission failed - players dead
 	label(0x2d)
-	end_level
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	// end_level
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x06)
 	if_chr_dead(CHR_CARRINGTON, /*goto*/ 0x2d)
