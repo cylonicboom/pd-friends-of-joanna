@@ -1945,8 +1945,8 @@ u8 func100f_check_end_level[] = {
 	goto_next(0x08)
 
 	label(0x31)
-	end_level
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	// end_level
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	// Mission complete
 	label(0x08)
