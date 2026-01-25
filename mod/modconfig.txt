@@ -17,9 +17,9 @@ HeadsAndBodies {
 
 # CI Training
 # pre-load Mikado Dark as a hidden character
-#stage 0x26 {
-#setupfile "UsetupdishZ"
-#}
+stage 0x26 {
+    setupfile "UsetupdishZ"
+}
 
 # defection
 # ⏰
