@@ -48,9 +48,24 @@ stage 0x2f {
     setupfile "UsetuplueZ"
 }
 
+# Air Base
+stage 0x27 {
+    setupfile "UsetupcaveZ"
+}
+
 # af1
 stage 0x31 {
     setupfile "UsetupritZ"
+}
+
+# crash site
+stage 0x1c {
+    setupfile "UsetupaztZ"
+}
+
+# Pelagic II
+stage 0x21 {
+    setupfile "UsetupdamZ"
 }
 
 # deep sea
@@ -76,8 +91,18 @@ stage 0x2a {
     setupfile "UsetupshoZ"
 }
 
+# Mr. Blonde's Revenge
+stage 0x37 {
+    setupfile "UsetupwaxZ"
+}
+
 # war
 # extra spawns for coop characters
 stage 0x16 {
     setupfile "UsetupstatZ"
+}
+
+# Maian SOS
+stage 0x09 {
+    setupfile "UsetupsevZ"
 }
