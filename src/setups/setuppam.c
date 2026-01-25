@@ -3393,15 +3393,15 @@ u8 func100c_countdown_timer[] = {
 	label(0x09)
 	yield
 	label(0x2e)
-	if_chr_death_animation_finished(CHR_BOND, /*goto*/ 0x2e)
-	if_chr_dead(CHR_BOND, /*goto*/ 0x2e)
-	if_chr_knockedout(CHR_BOND, /*goto*/ 0x2e)
+	// if_chr_death_animation_finished(CHR_BOND, /*goto*/ 0x2e)
+	// if_chr_dead(CHR_BOND, /*goto*/ 0x2e)
+	// if_chr_knockedout(CHR_BOND, /*goto*/ 0x2e)
 	goto_next(0x06)
 
 	label(0x2e)
-	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
-	if_chr_dead(CHR_COOP, /*goto*/ 0x2e)
-	if_chr_knockedout(CHR_COOP, /*goto*/ 0x2e)
+	// if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
+	// if_chr_dead(CHR_COOP, /*goto*/ 0x2e)
+	// if_chr_knockedout(CHR_COOP, /*goto*/ 0x2e)
 	goto_next(0x06)
 
 	// Both players dead
