@@ -141,7 +141,6 @@ u32 props[] = {
 
 	beginobjective(4, L_PETE_014, (DIFFBIT_A | DIFFBIT_SA | DIFFBIT_PA | DIFFBIT_PD)) // "Gain entry to G5 building"
 		complete_flags(STAGEFLAG_IN_ELEVATOR)
-		fail_flags(STAGEFLAG_CIVILIAN_DEAD)
 		fail_flags(STAGEFLAG_ELEVATOR_SEALED)
 	endobjective
 
@@ -793,8 +792,12 @@ u8 func100f_check_mine[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x07)
+	if_stage_flag_eq(STAGEFLAG_MINE_WASTED, TRUE, 0x07)
 	set_stage_flag(STAGEFLAG_MINE_WASTED)
 	show_hudmsg(CHR_P1P2, L_PETE_016) // "Mine placed incorrectly."
+
+	label(0x07)
+	goto_first(0x08)
 
 	label(0x0a)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
@@ -1907,8 +1910,8 @@ u8 func041d_fbi[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE) \
  \
 	label(0x05) \
-	set_stage_flag(STAGEFLAG_CIVILIAN_DEAD) \
-	show_hudmsg(CHR_BOND, 0x321d) /* "Mission failed - unacceptable civilian casualties." */ \
+	// set_stage_flag(STAGEFLAG_CIVILIAN_DEAD) \
+	// show_hudmsg(CHR_BOND, 0x321d) /* "Mission failed - unacceptable civilian casualties." */ \
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 u8 func1009_check_cia1_dead[] = {
@@ -1930,8 +1933,8 @@ u8 func100a_check_cia2_dead[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x05)
-	set_stage_flag(STAGEFLAG_CIVILIAN_DEAD)
-	show_hudmsg(CHR_BOND, L_PETE_029) // "Mission failed - unacceptable civilian casualties."
+	// set_stage_flag(STAGEFLAG_CIVILIAN_DEAD)
+	// show_hudmsg(CHR_BOND, L_PETE_029) // "Mission failed - unacceptable civilian casualties."
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };
