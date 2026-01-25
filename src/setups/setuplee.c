@@ -2667,8 +2667,8 @@ u8 func1011_check_end_level[] = {
 
 	// Both players dead
 	label(0x2c)
-	end_level
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	// end_level
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	// Either buddy is alive
 	label(0x06)
