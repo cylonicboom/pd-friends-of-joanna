@@ -15,71 +15,84 @@ HeadsAndBodies {
     filenum "CheadgreyZ"
 }
 
+# 0.0
 # CI Training
 # pre-load Mikado Dark as a hidden character
 stage 0x26 {
     setupfile "UsetupdishZ"
 }
 
+# 1.1
 # defection
 # ⏰
 stage 0x30 {
     setupfile "UsetupameZ"
 }
 
+# 1.2
 # investigation
 # extra spawn
 stage 0x33 {
     setupfile "UsetupearZ"
 }
 
+# 2.1
 # villa
 stage 0x2c {
     setupFile "UsetupeldZ"
 }
 
+# 3.1
 # chicago
 stage 0x1d {
     setupfile "UsetuppeteZ"
 }
 
+# 4.2
 # infiltration
 stage 0x2f {
     setupfile "UsetuplueZ"
 }
 
+# 5.1
 # Air Base
 stage 0x27 {
     setupfile "UsetupcaveZ"
 }
 
+# 5.2
 # af1
 stage 0x31 {
     setupfile "UsetupritZ"
 }
 
+# 5.3
 # crash site
 stage 0x1c {
     setupfile "UsetupaztZ"
 }
 
+# 6.1
 # Pelagic II
 stage 0x21 {
     setupfile "UsetupdamZ"
 }
 
+# 6.2
 # deep sea
 # teleportal fixes
 stage 0x38 {
     setupfile "UsetuppamZ"
 }
 
+# 7.1
 # ci defense
 # extra spawns, QOL changes for coop mode
 stage 0x2d {
     setupfile "UsetupimpZ"
 }
 
+# 8.1
 # attack ship
 # hangar elevator fixes
 stage 0x34 {

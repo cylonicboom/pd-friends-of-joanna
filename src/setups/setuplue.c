@@ -1078,6 +1078,7 @@ u8 func1400_give_bugs[] = {
  \
 	label(0x0a) \
 	set_stage_flag(STAGEFLAG_COMMSBUG_PLACED) \
+	unset_stage_flag(STAGEFLAG_COMMSBUG_MISPLACED) \
 	show_hudmsg(chr, 0x2c1a) /* "Communications bug placed correctly." */ \
 	set_ailist(CHR_SELF, GAILIST_IDLE) \
  \
@@ -1088,8 +1089,10 @@ u8 func1400_give_bugs[] = {
  \
 	label(0x2e) \
 	set_stage_flag(STAGEFLAG_COMMSBUG_MISPLACED) \
+	if_stage_flag_eq(STAGEFLAG_COMMSBUG_MISPLACED, TRUE, 0x00) \
 	show_hudmsg(chr, 0x2c1b) /* "Communications bug placed incorrectly." */ \
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x00) \
+	reloop(0x00)
 
 /**
  * @unused
@@ -1106,13 +1109,16 @@ u8 func1003_check_bug_wasted_bond[] = {
 };
 
 u8 func1023_check_bug_wasted_coop[] = {
+	label(0x06)
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
 	set_target_chr(CHR_COOP)
 	goto_next(0x06)
 
 	label(0x2e)
-	set_stage_flag(STAGEFLAG_ONE_BUG_WASTED)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	yield
+	goto_first(0x06)
+	// set_stage_flag(STAGEFLAG_ONE_BUG_WASTED)
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x06)
 	check_bug_wasted(CHR_COOP)
