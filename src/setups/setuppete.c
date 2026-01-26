@@ -1068,9 +1068,13 @@ u8 func040c_taxi[] = {
  \
 	label(0x03) \
 	dprint 'W','R','O','N','G','3','\n',0, \
+	if_stage_flag_eq(STAGEFLAG_TRACERBUG_WASTED, FALSE, 0x03) \
+	goto_next(0x04) \
+	label(0x03) \
 	set_stage_flag(STAGEFLAG_TRACERBUG_WASTED) \
 	show_hudmsg(chr, 0x3218) /* "Tracer Bug placed incorrectly." */ \
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x04) \
+	goto_first(0x04)
 
 u8 func1004_tracerbug_bond[] = {
 	tracerbug_logic(CHR_BOND, CHR_BOND)
