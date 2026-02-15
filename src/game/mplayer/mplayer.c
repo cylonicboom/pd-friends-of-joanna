@@ -1046,12 +1046,16 @@ s32 mpGetPlayerRankings(struct ranking *rankings)
 		// For a team game, the mpchr's placement has to be the team's placement
 		// and not the placement of the individual player.
 		if (g_MpSetup.options & MPOPTION_TEAMSENABLED) {
-			s32 placement = numteams - 1;
+			s32 placement = 0;
 			s32 i;
 
-			for (i = 0; i < numteams; i++) {
-				if (teamrankings[i].teamnum == mpchrs[j]->team) {
-					placement = i;
+			if (numteams > 0) {
+				placement = numteams - 1;
+
+				for (i = 0; i < numteams; i++) {
+					if (teamrankings[i].teamnum == mpchrs[j]->team) {
+						placement = i;
+					}
 				}
 			}
 
