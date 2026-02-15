@@ -1975,12 +1975,12 @@ void endscreenPushTeam(void)
 	u32 prevplayernum = g_MpPlayerNum;
 
 	DEBUG_ENDSCREEN("endscreenPushTeam\n");
-	printf("g_Vars.currentplayer: %p\n", g_Vars.currentplayer);
+	DEBUG_ENDSCREEN("g_Vars.currentplayer: %p\n", g_Vars.currentplayer);
 
 	lvSetPaused(true);
 
 	g_MpPlayerNum = g_Vars.currentplayerstats->mpindex;
-	printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+	DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
 
 	g_Menus[g_MpPlayerNum].endscreen.cheatinfo = 0;
 	g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = false;
@@ -2017,16 +2017,16 @@ void endscreenPushTeam(void)
 
 
 	if (antiaborted && g_Vars.antiplayers[g_Vars.currentplayernum]) {
-		printf("anti aborted and currently anti\n");
-		printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-		printf("playernum: %d\n", g_Vars.currentplayernum);
+		DEBUG_ENDSCREEN("anti aborted and currently anti\n");
+		DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+		DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 		chooseEndScreenFailedDialog(usevertical);
 	}
 	else if (antiaborted && g_Vars.players[g_Vars.currentplayernum]) {
 		// anti aborted: bond or coop
-		printf("anti aborted and currently bond or coop\n");
-		printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-		printf("playernum: %d\n", g_Vars.currentplayernum);
+		DEBUG_ENDSCREEN("anti aborted and currently bond or coop\n");
+		DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+		DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 		chooseEndScreenCompletedDialog(usevertical);
 	}
 	else if (g_Vars.antiplayers[g_Vars.currentplayernum]){
@@ -2035,31 +2035,31 @@ void endscreenPushTeam(void)
 		// bond or coop dead, failed or aborted
 		bool p1p2failed = false;
 		if (bondaborted || coopaborted) {
-			printf("bond or coop aborted and currently anti\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond or coop aborted and currently anti\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (bondisdead && coopisdead) {
-			printf("bond and coop dead and currently anti\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond and coop dead and currently anti\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (!allcomplete && !antiaborted) {
-			printf("not all objectives complete and currently anti\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("not all objectives complete and currently anti\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			p1p2failed = true;
 		}
 
 		if (!p1p2failed) {
-			printf("anti did not fail, showing failed dialog\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("anti did not fail, showing failed dialog\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 		}
 
@@ -2067,30 +2067,30 @@ void endscreenPushTeam(void)
 		// currentplayer: is currently bond or coop and p1p2 failed
 		bool p1p2failed = false;
 		if (bondaborted || coopaborted) {
-			printf("bond or coop aborted and currently bond/coop\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond or coop aborted and currently bond/coop\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (bondisdead && coopisdead) {
-			printf("bond and coop dead and currently bond/coop\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond and coop dead and currently bond/coop\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (!allcomplete && !antiaborted) {
-			printf("not all objectives complete and currently bond/coop\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("not all objectives complete and currently bond/coop\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (!p1p2failed) {
-			printf("bond/coop did not fail, showing completed dialog\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond/coop did not fail, showing completed dialog\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			endscreenSetCoopCompleted();
 		}
