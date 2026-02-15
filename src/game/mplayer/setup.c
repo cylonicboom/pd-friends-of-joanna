@@ -44,6 +44,14 @@ extern struct menudialogdef g_TeamMissionsOperativeModelMenuDialog;
 extern s32 g_MpWeaponSetNum;
 #endif
 
+static char *getOptionGroupText(struct optiongroup *group)
+{
+	if (group->customname) {
+		return group->customname;
+	}
+	return langGet(group->langid);
+}
+
 MenuItemHandlerResult menuhandlerMpDropOut(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -386,10 +394,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 				count++;
 			}
 		}
-		if (groups[count].customname) {
-			return (uintptr_t)groups[count].customname;
-		}
-		return (uintptr_t)langGet(groups[count].langid);
+		return (uintptr_t)getOptionGroupText(&groups[count]);
 	case MENUOP_GETGROUPSTARTINDEX:
 		groupindex = data->list.value;
 
@@ -3251,10 +3256,7 @@ MenuItemHandlerResult mpAddChangeSimulantMenuHandler(s32 operation, struct menui
 		data->list.value = 2;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
-		if (groups[data->list.value].customname) {
-			return (uintptr_t)groups[data->list.value].customname;
-		}
-		return (uintptr_t)langGet(groups[data->list.value].langid);
+		return (uintptr_t)getOptionGroupText(&groups[data->list.value]);
 	case MENUOP_GETGROUPSTARTINDEX:
 		for (i = 0; i < groups[data->list.value].offset; i++) {
 			if (challengeIsFeatureUnlocked(g_BotProfiles[i].requirefeature)) {
