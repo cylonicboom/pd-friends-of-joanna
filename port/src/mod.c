@@ -1787,14 +1787,9 @@ void modSwitch(s32 modnum, s32 stagenum) {
 		// Fallback: parse config on-the-fly (only during boot before cache is ready)
 		modConfigLoad(MOD_CONFIG_FNAME);
 	}
-	// Reset textures surfacetype
 
 	// Only enable AIO arena mode if AIO is present AND we are in the boot mod (menus)
 	// or if the current mod IS the AIO mod.
-	// If we are playing a specific mod that is NOT AIO, we might want vanilla arenas?
-	// Actually, let's stick to the user's request: "return to menu detection isn't setting it back"
-	// This implies it WAS set correctly before?
-	// For now, just keep it as is, but the g_ModNum fix is critical.
 
 	// Load AIO assets (heads, bodies, character models) but keep vanilla arenas
 	extern s32 g_AIOPresent;
