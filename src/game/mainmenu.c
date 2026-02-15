@@ -3168,16 +3168,16 @@ s32 func0f104720(s32 value)
 MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	struct optiongroup groups[] = {
-		{  0, L_OPTIONS_123 }, // "Mission 1"
-		{  3, L_OPTIONS_124 }, // "Mission 2"
-		{  4, L_OPTIONS_125 }, // "Mission 3"
-		{  6, L_OPTIONS_126 }, // "Mission 4"
-		{  9, L_OPTIONS_127 }, // "Mission 5"
-		{ 12, L_OPTIONS_128 }, // "Mission 6"
-		{ 14, L_OPTIONS_129 }, // "Mission 7"
-		{ 15, L_OPTIONS_130 }, // "Mission 8"
-		{ 16, L_OPTIONS_131 }, // "Mission 9"
-		{ 99, L_OPTIONS_132 }, // "Special Assignments"
+		{  0, L_OPTIONS_123, NULL }, // "Mission 1"
+		{  3, L_OPTIONS_124, NULL }, // "Mission 2"
+		{  4, L_OPTIONS_125, NULL }, // "Mission 3"
+		{  6, L_OPTIONS_126, NULL }, // "Mission 4"
+		{  9, L_OPTIONS_127, NULL }, // "Mission 5"
+		{ 12, L_OPTIONS_128, NULL }, // "Mission 6"
+		{ 14, L_OPTIONS_129, NULL }, // "Mission 7"
+		{ 15, L_OPTIONS_130, NULL }, // "Mission 8"
+		{ 16, L_OPTIONS_131, NULL }, // "Mission 9"
+		{ 99, L_OPTIONS_132, NULL }, // "Special Assignments"
 	};
 
 	s32 i;
@@ -3312,9 +3312,9 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation, struct menuitem *ite
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
 		if (data->list.unk0c == data->list.value) {
-			return (uintptr_t) langGet(groups[9].name); // "Special Assignments"
+			return (uintptr_t) langGet(groups[9].langid); // "Special Assignments"
 		}
-		return (uintptr_t) langGet(groups[data->list.value].name);
+		return (uintptr_t) langGet(groups[data->list.value].langid);
 	case MENUOP_GETGROUPSTARTINDEX:
 		if (data->list.unk0c == data->list.value) {
 			menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp13c);

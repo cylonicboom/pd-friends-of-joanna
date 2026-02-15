@@ -5234,7 +5234,8 @@ struct healthdamagetype {
 
 struct optiongroup {
 	s32 offset;
-	u16 name;
+	u16 langid;
+	char *customname;
 };
 
 struct musicevent {

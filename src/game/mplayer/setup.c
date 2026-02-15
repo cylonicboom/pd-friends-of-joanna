@@ -277,9 +277,9 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 {
 	// Vanilla groups (17 arenas)
 	static struct optiongroup groups_vanilla[] = {
-		{ 0,  L_MPMENU_116 }, // "Dark"
-		{ 13, L_MPMENU_117 }, // "Classic"
-		{ 16, L_MPMENU_118 }, // "Random"
+		{ 0,  L_MPMENU_116, NULL }, // "Dark"
+		{ 13, L_MPMENU_117, NULL }, // "Classic"
+		{ 16, L_MPMENU_118, NULL }, // "Random"
 	};
 
 	static struct optiongroup dynamic_groups[32];
@@ -299,10 +299,11 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 			
 			// Use langid if specified, otherwise use literal name pointer
 			if (g_MpArenaGroups[i].langid) {
-				dynamic_groups[i].name = g_MpArenaGroups[i].langid;
+				dynamic_groups[i].langid = g_MpArenaGroups[i].langid;
+				dynamic_groups[i].customname = NULL;
 			} else {
-				// Store pointer to literal name as langid (safe cast for menu system)
-				dynamic_groups[i].name = (u16)(uintptr_t)g_MpArenaGroups[i].name;
+				dynamic_groups[i].langid = 0;
+				dynamic_groups[i].customname = g_MpArenaGroups[i].name;
 			}
 		}
 		
@@ -385,7 +386,10 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 				count++;
 			}
 		}
-		return (uintptr_t)langGet(groups[count].name);
+		if (groups[count].customname) {
+			return (uintptr_t)groups[count].customname;
+		}
+		return (uintptr_t)langGet(groups[count].langid);
 	case MENUOP_GETGROUPSTARTINDEX:
 		groupindex = data->list.value;
 
@@ -3165,8 +3169,8 @@ MenuItemHandlerResult mpAddChangeSimulantMenuHandler(s32 operation, struct menui
 	s32 count = 0;
 
 	struct optiongroup groups[] = {
-		{ 0, L_MPMENU_103 }, // "Normal Simulants"
-		{ 6, L_MPMENU_104 }, // "Special Simulants"
+		{ 0, L_MPMENU_103, NULL }, // "Normal Simulants"
+		{ 6, L_MPMENU_104, NULL }, // "Special Simulants"
 	};
 
 	s32 botnum;
@@ -3247,7 +3251,10 @@ MenuItemHandlerResult mpAddChangeSimulantMenuHandler(s32 operation, struct menui
 		data->list.value = 2;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
-		return (uintptr_t)langGet(groups[data->list.value].name);
+		if (groups[data->list.value].customname) {
+			return (uintptr_t)groups[data->list.value].customname;
+		}
+		return (uintptr_t)langGet(groups[data->list.value].langid);
 	case MENUOP_GETGROUPSTARTINDEX:
 		for (i = 0; i < groups[data->list.value].offset; i++) {
 			if (challengeIsFeatureUnlocked(g_BotProfiles[i].requirefeature)) {
