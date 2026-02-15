@@ -2509,6 +2509,7 @@ struct player {
 	/*0x0270*/ u8 epcol_0;
 	/*0x0271*/ u8 epcol_1;
 	/*0x0272*/ u8 epcol_2;
+	/*0x0273*/ u8 flashbang;
 	/*0x0274*/ bool waitforzrelease;
 	/*0x0278*/ f32 shieldshowrot;
 	/*0x027c*/ u32 shieldshowrnd;
@@ -2826,7 +2827,6 @@ struct player {
 	/*ext*/ bool respawnpending; // True if player died and can respawn
 	/*ext*/ u8 isdropping;
 	/*ext*/ s16 droptimer60;
-	/*ext*/ u8 flashbang;
 	/*0x1c60*/ s16 fslastradius;
 	/*0x1c62*/ s16 fsscanline;
 	/*0x1c64*/ s32 unk1c64;
