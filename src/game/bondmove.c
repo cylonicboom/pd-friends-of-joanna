@@ -21,6 +21,7 @@
 #include "game/bondcutscene.h"
 #include "game/bondhead.h"
 #include "game/playermgr.h"
+#include "game/inv.h"
 #include "game/bg.h"
 #include "game/lv.h"
 #include "game/mplayer/ingame.h"
@@ -1837,6 +1838,106 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 		}
 
 		bmoveHandleActivate();
+	}
+
+	// Handle drop item button
+	if (allowc1buttons && (c1buttonsthisframe & BUTTON_DROPITEM) && !g_Vars.currentplayer->isdropping) {
+		struct player *player = g_Vars.currentplayer;
+		s32 weaponnum = player->hands[0].gset.weaponnum;
+		struct chrdata *chr = player->prop->chr;
+
+		// Throw if B button (N64 B / Xbox B) or A button (accept/use) held
+		bool throw_items = (joyGetButtons(contpad1, B_BUTTON | A_BUTTON) & (B_BUTTON | A_BUTTON)) != 0;
+
+		if (!weaponHasFlag(weaponnum, WEAPONFLAG_UNDROPPABLE) && weaponnum > WEAPON_UNARMED) {
+			// Delete weapon from hands FIRST (like bgunDisarm does)
+			weaponDeleteFromChr(chr, HAND_RIGHT);
+			weaponDeleteFromChr(chr, HAND_LEFT);
+
+			// Create weapon prop to drop
+			s32 modelnum = playermgrGetModelOfWeapon(weaponnum);
+			if (modelnum >= 0) {
+				struct prop *prop = weaponCreateForChr(chr, modelnum, weaponnum,  OBJFLAG_WEAPON_AICANNOTUSE | OBJFLAG_WEAPON_NOAMMO, NULL, NULL);
+
+				if (prop && prop->obj) {
+					struct defaultobj *obj = prop->obj;
+					f32 angle = chrGetInverseTheta(chr);
+
+					objSetDropped(prop, DROPTYPE_DEFAULT);
+
+					// Set pickup restrictions BEFORE objDrop (like bgunDisarm does)
+					struct projectile *projectile = NULL;
+
+					// Get projectile pointer safely
+					if (obj->hidden & OBJHFLAG_EMBEDDED) {
+						projectile = obj->embedment->projectile;
+					} else if (obj->hidden & OBJHFLAG_PROJECTILE) {
+						projectile = obj->projectile;
+					}
+
+					if (projectile) {
+						// Find who the player is aiming at
+						struct prop *target_prop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+
+						// Only use as target if it's a chr
+						if (target_prop && target_prop->type != PROPTYPE_PLAYER) {
+							target_prop = NULL;
+						}
+
+						projectile->pickuptimer240 = TICKS(300);  // 5 seconds
+						// If aiming at chr, let them pick it up. Otherwise block everyone (including us)
+						projectile->pickupby = target_prop ? target_prop : prop;
+					}
+
+					objDrop(prop, false);
+
+					// Apply throw velocity AFTER objDrop to avoid it being overwritten
+					if (projectile) {
+						f32 throw_distance = throw_items? 800.0f: 100.0f;  // Medium throw distance
+						f32 offset_distance = 50.0f;
+						prop->pos.x += sinf(angle) * offset_distance;
+						prop->pos.z += cosf(angle) * offset_distance;
+
+						// Apply grenade-style throw velocity
+						projectile->speed.x = sinf(angle) * 13.333333015442f * (throw_distance / 1000);
+						projectile->speed.z = cosf(angle) * 13.333333015442f * (throw_distance / 1000);
+					}
+				}
+			}
+
+			// Remove from inventory
+			invRemoveItemByNum(weaponnum);
+
+			// Set hand states properly (like bgunDisarm does)
+			player->hands[1].state = HANDSTATE_IDLE;
+			player->hands[1].ejecttype = EJECTTYPE_GUN;
+			player->hands[0].ejectstate = EJECTSTATE_INIT;
+			player->hands[0].ejecttype = EJECTTYPE_GUN;
+			player->hands[0].state = HANDSTATE_IDLE;
+
+			// Equip unarmed (don't use bgunCycleBack - just go unarmed like disarm does)
+			bgunEquipWeapon2(HAND_RIGHT, WEAPON_UNARMED);
+			bgunEquipWeapon2(HAND_LEFT, WEAPON_NONE);
+
+			// Force immediate weapon change (bgunEquipWeapon2 only queues the switch)
+			player->gunctrl.weaponnum = WEAPON_UNARMED;
+
+			// Set drop cooldown
+			player->isdropping = 1;
+			player->droptimer60 = TICKS(60); // 1 second watchdog
+		}
+	}
+
+	// Handle drop cooldown timer
+	if (g_Vars.currentplayer->isdropping) {
+		if (g_Vars.currentplayer->droptimer60 > 0) {
+			g_Vars.currentplayer->droptimer60 -= g_Vars.lvupdate60;
+			if (g_Vars.currentplayer->droptimer60 <= 0) {
+				g_Vars.currentplayer->isdropping = 0;
+			}
+		} else {
+			g_Vars.currentplayer->isdropping = 0;
+		}
 	}
 
 	if (!movedata.invertpitch) {

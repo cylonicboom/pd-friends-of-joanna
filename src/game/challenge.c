@@ -554,7 +554,7 @@ void challengeForceUnlockConfigFeatures(struct mpconfig *config, u8 *array, s32 
 			}
 		}
 
-		if (config->simulants[i].mpbodynum < ARRAYCOUNT(g_MpBodies)) {
+		if (config->simulants[i].mpbodynum < g_NumMpBodies) {
 			featurenum = g_MpBodies[config->simulants[i].mpbodynum].requirefeature;
 
 			if (featurenum) {
@@ -562,7 +562,7 @@ void challengeForceUnlockConfigFeatures(struct mpconfig *config, u8 *array, s32 
 			}
 		}
 
-		if (config->simulants[i].mpheadnum < ARRAYCOUNT(g_MpHeads)) {
+		if (config->simulants[i].mpheadnum < g_NumMpHeads) {
 			featurenum = g_MpHeads[config->simulants[i].mpheadnum].requirefeature;
 
 			if (featurenum) {
@@ -672,7 +672,7 @@ void challengeForceUnlockBotFeatures(void)
 		}
 
 		// Force unlock the simulant's body
-		if (g_BotConfigsArray[i].base.mpbodynum < ARRAYCOUNT(g_MpBodies)) {
+		if (g_BotConfigsArray[i].base.mpbodynum < g_NumMpBodies) {
 			s32 featurenum = g_MpBodies[g_BotConfigsArray[i].base.mpbodynum].requirefeature;
 
 			if (featurenum) {
@@ -681,7 +681,7 @@ void challengeForceUnlockBotFeatures(void)
 		}
 
 		// Force unlock the simulant's head
-		if (g_BotConfigsArray[i].base.mpheadnum < ARRAYCOUNT(g_MpHeads)) {
+		if (g_BotConfigsArray[i].base.mpheadnum < g_NumMpHeads) {
 			s32 featurenum = g_MpHeads[g_BotConfigsArray[i].base.mpheadnum].requirefeature;
 
 			if (featurenum) {

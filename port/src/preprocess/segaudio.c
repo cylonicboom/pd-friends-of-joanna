@@ -313,8 +313,9 @@ static u32 convertAudioBankFile(u8 *dst, u8 *src)
 	return dstpos;
 }
 
-u8 *preprocessALBankFile(u8 *src, u32 size, u32 *outSize)
+u8 *preprocessALBankFile(u8 *src, u32 size, u32 *outSize, s32 modNum)
 {
+
 	ptrReset();
 
 	const u32 dstlen = size * 3; // this should overshoot any possible bank size, but * 2 also works for vanilla banks
@@ -337,7 +338,7 @@ u8 *preprocessALBankFile(u8 *src, u32 size, u32 *outSize)
 }
 
 
-u8 *preprocessALCMidiHdr(u8 *data, u32 size, u32 *outSize)
+u8 *preprocessALCMidiHdr(u8 *data, u32 size, u32 *outSize, s32 modNum)
 {
 	ALCMidiHdr *hdr = (ALCMidiHdr *)data;
 	PD_SWAP_VAL(hdr->division);
@@ -347,7 +348,7 @@ u8 *preprocessALCMidiHdr(u8 *data, u32 size, u32 *outSize)
 	return NULL;
 }
 
-u8 *preprocessSequences(u8* data, u32 size, u32 *outSize)
+u8 *preprocessSequences(u8* data, u32 size, u32 *outSize, s32 modNum)
 {
 	struct seqtable *seq = (struct seqtable *)data;
 	PD_SWAP_VAL(seq->count);

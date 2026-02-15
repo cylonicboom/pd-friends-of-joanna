@@ -33,25 +33,40 @@
 #include "data.h"
 #include "types.h"
 
+#define DEBUG_ENDSCREEN(fmt, ...) \
+	do { if (g_DebugEndscreen) printf(fmt, ##__VA_ARGS__); } while (0)
+
+// Store the last completed mission before transitioning to credits
+static u8 g_LastCompletedMission = STAGE_CITRAINING;
+
+u8 endscreenGetLastCompletedMission(void)
+{
+	return g_LastCompletedMission;
+}
+
 MenuItemHandlerResult endscreenHandleDeclineMission(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
 		menuPopDialog();
 		menuPopDialog();
 		mpSetPaused(MPPAUSEMODE_UNPAUSED);
-		if (!g_MissionConfig.isteam) return 0;
-		g_Vars.mplayerisrunning = false;
-		g_MissionConfig.iscoop = false;
-		g_MissionConfig.isanti = false;
-		g_MissionConfig.isteam = false;
-		g_MissionConfig.pdmode = false;
-		g_Vars.normmplayerisrunning = false;
-		g_Vars.lvmpbotlevel = 0;
 
-		if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
-			g_BossFile.locktype = MPLOCKTYPE_NONE;
+		// Reset mission config for team/MP missions
+		if (g_MissionConfig.isteam) {
+			g_Vars.mplayerisrunning = false;
+			g_MissionConfig.iscoop = false;
+			g_MissionConfig.isanti = false;
+			g_MissionConfig.isteam = false;
+			g_MissionConfig.pdmode = false;
+			g_Vars.normmplayerisrunning = false;
+			g_Vars.lvmpbotlevel = 0;
+
+			if (g_BossFile.locktype == MPLOCKTYPE_CHALLENGE) {
+				g_BossFile.locktype = MPLOCKTYPE_NONE;
+			}
 		}
 
+		// Return to title screen
 		if (IS8MB()) {
 			titleSetNextStage(STAGE_CITRAINING);
 			setNumPlayers(1);
@@ -187,8 +202,20 @@ char *endscreenMenuTitleNextMission(struct menudialogdef *dialogdef)
 MenuItemHandlerResult endscreenHandleReplayPreviousMission(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
+#ifndef PLATFORM_N64
+		if (getenv("PD_DEBUG_FILELOAD")) {
+			printf("endscreenHandleReplayPreviousMission: BEFORE decrement - stageindex=%d, g_MissionConfig.stagenum=0x%02x, g_Vars.stagenum=0x%02x\n", 
+				g_MissionConfig.stageindex, g_MissionConfig.stagenum, g_Vars.stagenum);
+		}
+#endif
 		g_MissionConfig.stageindex--;
 		g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+#ifndef PLATFORM_N64
+		if (getenv("PD_DEBUG_FILELOAD")) {
+			printf("endscreenHandleReplayPreviousMission: AFTER decrement - stageindex=%d, g_MissionConfig.stagenum=0x%02x, g_Vars.stagenum=0x%02x\n",
+				g_MissionConfig.stageindex, g_MissionConfig.stagenum, g_Vars.stagenum);
+		}
+#endif
 	}
 
 	return menuhandlerAcceptMission(operation, NULL, data);
@@ -517,7 +544,11 @@ void endscreenResetModels(void)
 #if VERSION >= VERSION_NTSC_1_0
 MenuItemHandlerResult endscreenHandleReplayLastLevel(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	if (operation == MENUOP_SET) {
+	switch (operation) {
+	case MENUOP_CHECKDISABLED:
+	case MENUOP_CHECKHIDDEN:
+		return 0;
+	case MENUOP_SET:
 		g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
 		return menuhandlerAcceptMission(operation, NULL, data);
 	}
@@ -624,10 +655,20 @@ struct menudialogdef g_2PMissionEndscreenObjectivesCompletedVMenuDialog = {
  */
 MenuItemHandlerResult endscreenHandleContinueMission(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	if (operation == MENUOP_SET) {
+	DEBUG_ENDSCREEN("endscreenHandleContinueMission: ENTER - operation=%d\n", operation);
+	DEBUG_ENDSCREEN("endscreenHandleContinueMission: menuroot=%d, bg=%d\n", g_MenuData.root, g_MenuData.bg);
+	switch (operation) {
+	case MENUOP_CHECKDISABLED:
+	case MENUOP_CHECKHIDDEN:
+		DEBUG_ENDSCREEN("endscreenHandleContinueMission: CHECK operation - returning 0\n");
+		return 0;
+	case MENUOP_SET:
+		DEBUG_ENDSCREEN("endscreenHandleContinueMission: MENUOP_SET - calling endscreenContinue(2)\n");
 		endscreenContinue(2);
+		break;
 	}
 
+	DEBUG_ENDSCREEN("endscreenHandleContinueMission: EXIT - returning 0\n");
 	return 0;
 }
 #endif
@@ -672,55 +713,88 @@ struct menudialogdef g_MissionContinueOrReplyMenuDialog = {
  */
 void endscreenContinue(s32 context)
 {
+	DEBUG_ENDSCREEN("endscreenContinue: ENTER - context=%d, stagenum=%d, stageindex=%d, difficulty=%d\n",
+		context, g_Vars.stagenum, g_MissionConfig.stageindex, g_MissionConfig.difficulty);
+	DEBUG_ENDSCREEN("endscreenContinue: isteam=%d, iscoop=%d, isanti=%d, PLAYERCOUNT=%d\n",
+		g_MissionConfig.isteam, g_MissionConfig.iscoop, g_MissionConfig.isanti, PLAYERCOUNT());
+	DEBUG_ENDSCREEN("endscreenContinue: menuroot=%d, bg=%d\n", g_MenuData.root, g_MenuData.bg);
+
 	if (context == 0 || context == 1) {
+		DEBUG_ENDSCREEN("endscreenContinue: Branch context 0 or 1 (context=%d)\n", context);
 		switch (g_Vars.stagenum) {
 			case STAGE_DEEPSEA:
 			case STAGE_MBR:
 			case STAGE_WAR:
 			case STAGE_MAIANSOS:
+			case STAGE_DUEL:
 			case STAGE_SKEDARRUINS:
+				DEBUG_ENDSCREEN("endscreenContinue: Special stage case - stagenum=%d\n", g_Vars.stagenum);
 				// If we are on Deep Sea or Skedar Ruins, we need to push the continue/reply dialog
 				// so that the player can choose to continue or reply.
 				if (context == 1) {
+					DEBUG_ENDSCREEN("endscreenContinue: context==1, pushing continue/reply dialog\n");
 					menuPushRootDialog(&g_MissionContinueOrReplyMenuDialog, MENUROOT_COOPCONTINUE);
+				} else {
+					DEBUG_ENDSCREEN("endscreenContinue: context==0 on special stage, no action\n");
 				}
 				break;
 			default:
+				DEBUG_ENDSCREEN("endscreenContinue: Default stage case - stagenum=%d\n", g_Vars.stagenum);
 				// If we are not on Deep Sea or Skedar Ruins, we just pop the dialog.
+				DEBUG_ENDSCREEN("endscreenContinue: Popping dialog\n");
 				menuPopDialog();
 				if (context == 1)  {
+					DEBUG_ENDSCREEN("endscreenContinue: context==1, calling endscreenAdvance\n");
 					struct menudialogdef *definition = endscreenAdvance();
 
 					if (definition) {
+						DEBUG_ENDSCREEN("endscreenContinue: endscreenAdvance returned valid definition, resetting models and pushing dialog\n");
 						endscreenResetModels();
 						menuPushRootDialog(definition, MENUROOT_COOPCONTINUE);
+					} else {
+						DEBUG_ENDSCREEN("endscreenContinue: endscreenAdvance returned NULL, no dialog to push\n");
 					}
+				} else {
+					DEBUG_ENDSCREEN("endscreenContinue: context==0, dialog popped only\n");
 				}
 				break;
 		}
 	// we pressed continue. ie context is 2
 	} else {
+		DEBUG_ENDSCREEN("endscreenContinue: Branch context 2 (pressed continue) - context=%d\n", context);
 		switch (g_Vars.stagenum) {
 			case STAGE_DEEPSEA:
+				DEBUG_ENDSCREEN("endscreenContinue: STAGE_DEEPSEA case\n");
+				DEBUG_ENDSCREEN("endscreenContinue: Checking isStageDifficultyUnlocked for stageindex+1=%d, difficulty=%d\n",
+					g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty);
 				if (!isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty)) {
+					DEBUG_ENDSCREEN("endscreenContinue: Next stage NOT unlocked, popping dialogs twice\n");
 					menuPopDialog();
 					menuPopDialog();
 				} else {
+					DEBUG_ENDSCREEN("endscreenContinue: Next stage IS unlocked, advancing to next stage\n");
 					// Commit to starting next stage
 					g_MissionConfig.stageindex++;
 					g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+					DEBUG_ENDSCREEN("endscreenContinue: NEW stageindex=%d, stagenum=%d\n",
+						g_MissionConfig.stageindex, g_MissionConfig.stagenum);
 
 					titleSetNextStage(g_MissionConfig.stagenum);
 
 					if (g_MissionConfig.isteam) {
+						DEBUG_ENDSCREEN("endscreenContinue: isteam=true, resetting team players\n");
 						playermgrResetTeamPlayers();
-						setNumPlayers(getNumTeamPlayerRoleAssignments());
+						s32 teamPlayers = getNumTeamPlayerRoleAssignments();
+						DEBUG_ENDSCREEN("endscreenContinue: Setting num players to %d\n", teamPlayers);
+						setNumPlayers(teamPlayers);
 					}
 					else {
+						DEBUG_ENDSCREEN("endscreenContinue: isteam=false, disabling team players, setting 1 player\n");
 						playermgrDisableTeamPlayers(false);
 						setNumPlayers(1);
 					}
 
+					DEBUG_ENDSCREEN("endscreenContinue: Starting next stage %d\n", g_MissionConfig.stagenum);
 					lvSetDifficulty(g_MissionConfig.difficulty);
 					titleSetNextMode(TITLEMODE_SKIP);
 					mainChangeToStage(g_MissionConfig.stagenum);
@@ -728,84 +802,157 @@ void endscreenContinue(s32 context)
 				}
 				break;
 			case STAGE_SKEDARRUINS:
+				DEBUG_ENDSCREEN("endscreenContinue: STAGE_SKEDARRUINS case - starting credits\n");
+				// Save the last completed mission before transitioning to credits
+				g_LastCompletedMission = g_MissionConfig.stagenum;
 				// Commit to starting credits
 				g_MissionConfig.stagenum = STAGE_CREDITS;
+				DEBUG_ENDSCREEN("endscreenContinue: Setting stage to CREDITS (%d)\n", STAGE_CREDITS);
 				titleSetNextStage(g_MissionConfig.stagenum);
 				lvSetDifficulty(g_MissionConfig.difficulty);
 				titleSetNextMode(TITLEMODE_SKIP);
 				mainChangeToStage(g_MissionConfig.stagenum);
 				viBlack(true);
 				break;
+			case STAGE_MBR:
+			case STAGE_WAR:
+			case STAGE_MAIANSOS:
+			case STAGE_DUEL:
+				DEBUG_ENDSCREEN("endscreenContinue: Team mission/Duel case - resetting to training\n");
+				viBlack(true);
+
+				while (g_Menus[g_MpPlayerNum].depth > 0) {
+					menuPopDialog();
+				}
+
+				menuUpdateCurFrame();
+
+				menuResetToTraining();
+				break;
 			default:
+				DEBUG_ENDSCREEN("endscreenContinue: DEFAULT case for stagenum=%d\n", g_Vars.stagenum);
+				DEBUG_ENDSCREEN("endscreenContinue: Popping dialog\n");
 				menuPopDialog();
 
+				s32 nextStageUnlocked = isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty);
+				s32 stageIdx = stageGetIndex(g_MissionConfig.stagenum);
+				DEBUG_ENDSCREEN("endscreenContinue: nextStageUnlocked=%d, stageGetIndex=%d, STAGE_CITRAINING=%d, stageindex=%d, SOLOSTAGEINDEX_MBR=%d\n",
+					nextStageUnlocked, stageIdx, STAGE_CITRAINING, g_MissionConfig.stageindex, SOLOSTAGEINDEX_MBR);
+
 				if (isStageDifficultyUnlocked(g_MissionConfig.stageindex + 1, g_MissionConfig.difficulty) == 0) {
-					menuPopDialog();
-					menuPopDialog();
+					DEBUG_ENDSCREEN("endscreenContinue: Next stage not unlocked, resetting to training\n");
+					while (g_Menus[g_MpPlayerNum].depth > 0) {
+						menuPopDialog();
+					}
 					menuResetToTraining();
 				} else if (stageGetIndex(g_MissionConfig.stagenum) < 0
 						|| g_Vars.stagenum == STAGE_CITRAINING
 						|| g_MissionConfig.stageindex >= SOLOSTAGEINDEX_MBR) {
-					menuPopDialog();
-					menuPopDialog();
+					DEBUG_ENDSCREEN("endscreenContinue: Invalid stage or training or past MBR, resetting to training\n");
+					while (g_Menus[g_MpPlayerNum].depth > 0) {
+						menuPopDialog();
+					}
 					menuResetToTraining();
 				} else {
+					DEBUG_ENDSCREEN("endscreenContinue: Valid progression, advancing endscreen\n");
 					endscreenResetModels();
 					menuPushDialog(endscreenAdvance());
 				}
 				break;
 		}
 	}
+	DEBUG_ENDSCREEN("endscreenContinue: EXIT\n");
 }
 
 MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
+	DEBUG_ENDSCREEN("endscreenHandle2PCompleted: ENTER - operation=%d, g_MpPlayerNum=%d, stagenum=%d\n",
+		operation, g_MpPlayerNum, g_Vars.stagenum);
+	DEBUG_ENDSCREEN("endscreenHandle2PCompleted: PLAYERCOUNT=%d, isteam=%d, iscoop=%d, isanti=%d\n",
+		PLAYERCOUNT(), g_MissionConfig.isteam, g_MissionConfig.iscoop, g_MissionConfig.isanti);
+	DEBUG_ENDSCREEN("endscreenHandle2PCompleted: menuroot=%d, bg=%d\n", g_MenuData.root, g_MenuData.bg);
+
 	if (operation == MENUOP_OPEN) {
+		DEBUG_ENDSCREEN("endscreenHandle2PCompleted: MENUOP_OPEN - resetting dialogbouncebacktimer to 0\n");
 		g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = 0;
 	}
 
 	if (operation == MENUOP_TICK) {
+		DEBUG_ENDSCREEN("endscreenHandle2PCompleted: MENUOP_TICK\n");
 		if (g_Menus[g_MpPlayerNum].curdialog) {
+			DEBUG_ENDSCREEN("endscreenHandle2PCompleted: curdialog exists\n");
 			if (g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef
 					|| (dialogdef->nextsibling && dialogdef->nextsibling == g_Menus[g_MpPlayerNum].curdialog->definition)) {
+				DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Dialog definition matches\n");
 				struct menuinputs *inputs = data->dialog2.inputs;
 
+				DEBUG_ENDSCREEN("endscreenHandle2PCompleted: inputs - select=%d, back=%d, start=%d\n",
+					inputs->select, inputs->back, inputs->start);
 				if (inputs->select || inputs->back || inputs->start) {
-					g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = VERSION >= VERSION_NTSC_1_0 ? 6 : 3;
+					s32 newTimer = VERSION >= VERSION_NTSC_1_0 ? 6 : 3;
+					DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Input detected, setting timer to %d (VERSION=%d)\n",
+						newTimer, VERSION);
+					g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer = newTimer;
 				}
 
+				DEBUG_ENDSCREEN("endscreenHandle2PCompleted: dialogbouncebacktimer=%d\n",
+					g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer);
+
 				if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer) {
+					DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Timer is active\n");
 					// decrement the timer
 					if (g_IsModalMenuMode) {
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: g_IsModalMenuMode=true, decrementing timer from %d\n",
+							g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer);
 						g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer--;
+					} else {
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: g_IsModalMenuMode=false, NOT decrementing timer\n");
 					}
 
 					if (g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer == 0) {
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Timer reached 0, calling endscreenContinue(0)\n");
 						endscreenContinue(0);
+
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Checking antiplayer aborts\n");
 						bool antiaborted = false;
 						for (s32 i = 0; i < MAX_PLAYERS; i++) {
-							if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->aborted) {
-								antiaborted = true;
-								break;
+							if (g_Vars.antiplayers[i]) {
+								DEBUG_ENDSCREEN("endscreenHandle2PCompleted: antiplayer[%d] exists, aborted=%d\n",
+									i, g_Vars.antiplayers[i]->aborted);
+								if (g_Vars.antiplayers[i]->aborted) {
+									antiaborted = true;
+									break;
+								}
 							}
 						}
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: antiaborted=%d\n", antiaborted);
 
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Checking coop/bond player aborts\n");
 						bool p1p2aborted = false;
 						for (s32 i = 0; i < MAX_PLAYERS; i++) {
-							if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
-								p1p2aborted = true;
-								break;
+							if (g_Vars.coopplayers[i]) {
+								DEBUG_ENDSCREEN("endscreenHandle2PCompleted: coopplayer[%d] exists, aborted=%d\n",
+									i, g_Vars.coopplayers[i]->aborted);
+								if (g_Vars.coopplayers[i]->aborted) {
+									p1p2aborted = true;
+									break;
+								}
 							}
 							if (g_Vars.bond->aborted) {
+								DEBUG_ENDSCREEN("endscreenHandle2PCompleted: bond aborted=true\n");
 								p1p2aborted = true;
 								break;
 							}
 						}
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: p1p2aborted=%d\n", p1p2aborted);
 
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Checking objectives complete\n");
 						bool objectivescomplete = objectiveIsAllComplete();
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: objectivescomplete=%d\n", objectivescomplete);
 
 						// special endscreen logic: don't progress if anyone aborted or objectives not complete
 						bool progress = !antiaborted && !p1p2aborted && objectivescomplete;
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: progress=%d (!antiaborted && !p1p2aborted && objectivescomplete)\n", progress);
 
 						// these stages have special endscreen logic
 						// they should show a contunue or retry dialog
@@ -823,28 +970,46 @@ MenuDialogHandlerResult endscreenHandle2PCompleted(s32 operation, struct menudia
 												|| g_Vars.stagenum == STAGE_WAR
 												|| g_Vars.stagenum == STAGE_MAIANSOS
 												|| g_Vars.stagenum == STAGE_SKEDARRUINS;
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: isspecialstage=%d (stagenum=%d)\n", isspecialstage, g_Vars.stagenum);
 
+						bool isAntiPlayer = g_Vars.antiplayers[g_MpPlayerNum] != NULL;
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: isAntiPlayer=%d\n", isAntiPlayer);
+
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Evaluating final branches...\n");
 						if (!g_Vars.antiplayers[g_MpPlayerNum] && !progress && isspecialstage) {
+							DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Branch 1: NOT antiplayer, NOT progress, IS specialstage -> menuPopDialog\n");
 							menuPopDialog();
 						}
 						else if (PLAYERCOUNT() == 1 && progress && isspecialstage) {
+							DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Branch 2: PLAYERCOUNT==1, progress, IS specialstage -> push continue/reply dialog\n");
 							menuPushDialog(&g_MissionContinueOrReplyMenuDialog);
 						}
 						else if (g_Vars.antiplayers[g_MpPlayerNum]) {
+							DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Branch 3: IS antiplayer -> menuPopDialog\n");
 							menuPopDialog();
 						}
 						else {
+							DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Branch 4: DEFAULT -> reset models and pop dialog\n");
 							endscreenResetModels();
 							menuPopDialog();
 						}
+					} else {
+						DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Timer not yet 0 (timer=%d)\n",
+							g_Menus[g_MpPlayerNum].endscreen.dialogbouncebacktimer);
 					}
 				}
 
+				DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Clearing input flags\n");
 				inputs->select = inputs->back = inputs->start = false;
+			} else {
+				DEBUG_ENDSCREEN("endscreenHandle2PCompleted: Dialog definition does NOT match\n");
 			}
+		} else {
+			DEBUG_ENDSCREEN("endscreenHandle2PCompleted: curdialog is NULL\n");
 		}
 	}
 
+	DEBUG_ENDSCREEN("endscreenHandle2PCompleted: EXIT - returning 0\n");
 	return 0;
 }
 
@@ -1808,13 +1973,13 @@ void endscreenPushTeam(void)
 {
 	u32 prevplayernum = g_MpPlayerNum;
 
-	printf("endscreenPushTeam\n");
-	printf("g_Vars.currentplayer: %p\n", g_Vars.currentplayer);
+	DEBUG_ENDSCREEN("endscreenPushTeam\n");
+	DEBUG_ENDSCREEN("g_Vars.currentplayer: %p\n", g_Vars.currentplayer);
 
 	lvSetPaused(true);
 
 	g_MpPlayerNum = g_Vars.currentplayerstats->mpindex;
-	printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+	DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
 
 	g_Menus[g_MpPlayerNum].endscreen.cheatinfo = 0;
 	g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = false;
@@ -1851,16 +2016,16 @@ void endscreenPushTeam(void)
 
 
 	if (antiaborted && g_Vars.antiplayers[g_Vars.currentplayernum]) {
-		printf("anti aborted and currently anti\n");
-		printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-		printf("playernum: %d\n", g_Vars.currentplayernum);
+		DEBUG_ENDSCREEN("anti aborted and currently anti\n");
+		DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+		DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 		chooseEndScreenFailedDialog(usevertical);
 	}
 	else if (antiaborted && g_Vars.players[g_Vars.currentplayernum]) {
 		// anti aborted: bond or coop
-		printf("anti aborted and currently bond or coop\n");
-		printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-		printf("playernum: %d\n", g_Vars.currentplayernum);
+		DEBUG_ENDSCREEN("anti aborted and currently bond or coop\n");
+		DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+		DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 		chooseEndScreenCompletedDialog(usevertical);
 	}
 	else if (g_Vars.antiplayers[g_Vars.currentplayernum]){
@@ -1869,31 +2034,31 @@ void endscreenPushTeam(void)
 		// bond or coop dead, failed or aborted
 		bool p1p2failed = false;
 		if (bondaborted || coopaborted) {
-			printf("bond or coop aborted and currently anti\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond or coop aborted and currently anti\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (bondisdead && coopisdead) {
-			printf("bond and coop dead and currently anti\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond and coop dead and currently anti\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (!allcomplete && !antiaborted) {
-			printf("not all objectives complete and currently anti\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("not all objectives complete and currently anti\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			p1p2failed = true;
 		}
 
 		if (!p1p2failed) {
-			printf("anti did not fail, showing failed dialog\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("anti did not fail, showing failed dialog\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 		}
 
@@ -1901,30 +2066,30 @@ void endscreenPushTeam(void)
 		// currentplayer: is currently bond or coop and p1p2 failed
 		bool p1p2failed = false;
 		if (bondaborted || coopaborted) {
-			printf("bond or coop aborted and currently bond/coop\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond or coop aborted and currently bond/coop\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (bondisdead && coopisdead) {
-			printf("bond and coop dead and currently bond/coop\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond and coop dead and currently bond/coop\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (!allcomplete && !antiaborted) {
-			printf("not all objectives complete and currently bond/coop\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("not all objectives complete and currently bond/coop\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenFailedDialog(usevertical);
 			p1p2failed = true;
 		}
 		if (!p1p2failed) {
-			printf("bond/coop did not fail, showing completed dialog\n");
-			printf("g_MpPlayerNum: %d\n", g_MpPlayerNum);
-			printf("playernum: %d\n", g_Vars.currentplayernum);
+			DEBUG_ENDSCREEN("bond/coop did not fail, showing completed dialog\n");
+			DEBUG_ENDSCREEN("g_MpPlayerNum: %d\n", g_MpPlayerNum);
+			DEBUG_ENDSCREEN("playernum: %d\n", g_Vars.currentplayernum);
 			chooseEndScreenCompletedDialog(usevertical);
 			endscreenSetCoopCompleted();
 		}
@@ -1947,34 +2112,53 @@ void endscreenPushTeam(void)
  */
 void endscreenDecideAndPushNextTeam(void)
 {
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: ENTER - stagenum=%d, isteam=%d, iscoop=%d\n",
+		g_Vars.stagenum, g_MissionConfig.isteam, g_MissionConfig.iscoop);
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: menuroot=%d, bg=%d\n", g_MenuData.root, g_MenuData.bg);
+
 	u32 prevplayernum = g_MpPlayerNum;
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: Saving prevplayernum=%d, setting g_MpPlayerNum to 0\n", prevplayernum);
 
 	g_MpPlayerNum = 0;
 	g_Menus[g_MpPlayerNum].playernum = 0;
 
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: Checking coop player status...\n");
 	bool coopisdead = false, coopaborted = false;
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->isdead) {
-			coopisdead = true;
-		}
-		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
-			coopaborted = true;
+		if (g_Vars.coopplayers[i]) {
+			DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: coopplayer[%d] exists - isdead=%d, aborted=%d\n",
+				i, g_Vars.coopplayers[i]->isdead, g_Vars.coopplayers[i]->aborted);
+			if (g_Vars.coopplayers[i]->isdead) {
+				coopisdead = true;
+			}
+			if (g_Vars.coopplayers[i]->aborted) {
+				coopaborted = true;
+			}
 		}
 	}
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: coopisdead=%d, coopaborted=%d\n", coopisdead, coopaborted);
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: bond->isdead=%d, bond->aborted=%d\n",
+		g_Vars.bond->isdead, g_Vars.bond->aborted);
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: objectiveIsAllComplete=%d\n", objectiveIsAllComplete());
 
 	if ((g_Vars.bond->isdead && coopisdead)
 			|| g_Vars.bond->aborted
 			|| coopaborted
 			|| !objectiveIsAllComplete())
 	{
+		DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: Level failed or aborted - coopaborted=%d, objectives=%d\n",
+			coopaborted, objectiveIsAllComplete());
 		// Failed or aborted
 		endscreenResetModels();
 		menuPushRootDialog(&g_RetryMissionMenuDialog, MENUROOT_COOPCONTINUE);
 	} else {
+		DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: Level completed successfully - calling endscreenContinue(1)\n");
 		// Completed
 		endscreenContinue(1);
 	}
 
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: Restoring g_MpPlayerNum to %d\n", prevplayernum);
 	g_MpPlayerNum = prevplayernum;
+	DEBUG_ENDSCREEN("endscreenDecideAndPushNextTeam: EXIT\n");
 }
 

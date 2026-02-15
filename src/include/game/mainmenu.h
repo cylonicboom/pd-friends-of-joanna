@@ -27,7 +27,7 @@ f32 func0f1036ac(u8 value, s32 prop);
 bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty);
 char *soloMenuTextBestTime(struct menuitem *item);
 s32 getMaxAiBuddies(void);
-s32 getNumUnlockedSpecialStages(void);
+s32 getNumUnlockedSpecialStages(bool isMultiplayerMode);
 s32 func0f104720(s32 value);
 char *func0f105664(struct menuitem *item);
 char *func0f1056a0(struct menuitem *item);
@@ -93,5 +93,11 @@ MenuItemHandlerResult menuhandlerShowZoomRange(s32 operation, struct menuitem *i
 MenuItemHandlerResult menuhandlerSightOnScreen(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult menuhandlerSoloDifficulty(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult menuhandlerSoundMode(s32 operation, struct menuitem *item, union handlerdata *data);
+
+s32 fojoGetPlayerHead(s32 playernum);
+void fojoInitHeadOptions(void);
+
+extern s32 g_FojoHeadOptions[5];
+extern s32 g_FojoHeadCount;
 
 #endif

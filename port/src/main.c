@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <PR/ultratypes.h>
 #include <PR/ultrasched.h>
 #include <PR/os_message.h>
@@ -17,6 +18,7 @@
 #include "mod.h"
 #include "system.h"
 #include "utils.h"
+#include "game/mplayer/setup.h"
 
 u32 g_OsMemSize = 0;
 s32 g_OsMemSizeMb = 16;
@@ -41,6 +43,10 @@ s32 g_TickExtraSleep = true;
 s32 g_SkipIntro = false;
 
 s32 g_FileAutoSelect = -1;
+
+bool g_DebugEndscreen = false;
+bool g_DebugMenu = false;
+bool g_DebugModels = false;
 
 extern s32 g_StageNum;
 
@@ -103,6 +109,21 @@ int main(int argc, const char **argv)
 
 	sysInit();
 	fsInit();
+
+	// Check for AIO mod presence
+	extern s32 g_AIOPresent;
+	g_AIOPresent = 0;
+	for (s32 i = 0; i < g_NumModDirs; ++i) {
+		if (strstr(modDirs[i], "mod_aio") || strstr(modDirs[i], "mod_fojo")) {
+			g_AIOPresent = 1;
+			break;
+		}
+	}
+
+	if (g_AIOPresent) {
+		// mpSetArenaMode(true); // Moved to pdmain.c after config load
+	}
+
 	configInit();
 	videoInit();
 	inputInit();
@@ -131,6 +152,21 @@ int main(int argc, const char **argv)
 
 	g_SndDisabled = sysArgCheck("--no-sound");
 
+	if (getenv("PD_DEBUG_ENDSCREEN")) {
+		g_DebugEndscreen = true;
+		sysLogPrintf(LOG_NOTE, "Endscreen debugging enabled");
+	}
+
+	if (getenv("PD_DEBUG_MENU")) {
+		g_DebugMenu = true;
+		sysLogPrintf(LOG_NOTE, "Menu debugging enabled");
+	}
+
+	if (getenv("PD_DEBUG_MODELS")) {
+		g_DebugModels = true;
+		sysLogPrintf(LOG_NOTE, "Model/mod scaling debugging enabled");
+	}
+
 	g_StageNum = sysArgGetInt("--boot-stage", STAGE_TITLE);
 
 	if (g_StageNum == STAGE_TITLE && (sysArgCheck("--skip-intro") || g_SkipIntro)) {
@@ -153,7 +189,7 @@ int main(int argc, const char **argv)
 	mainProc();
 
 	// Mod Switch
-	g_ModNum = MOD_AIO;
+	g_ModNum = 0;
 
 	return 0;
 }

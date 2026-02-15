@@ -15,6 +15,10 @@ bool rzipIs1172(void *buffer)
 
 bool rzipIs1173(void *buffer)
 {
+    if ((uintptr_t)buffer > 0xffffffff00000000) {
+        // It's a bad pointer, likely sign extended 32-bit
+        return false;
+    }
 	const u8* src = buffer;
 	return (src[0] == 0x11 && src[1] == 0x73);
 }

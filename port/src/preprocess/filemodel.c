@@ -1071,7 +1071,7 @@ static int convertModel(u8* dst, u8* src, u32 srclen)
 	return dstpos;
 }
 
-u8 *preprocessModelFile(u8 *data, u32 size, u32 *outSize)
+u8 *preprocessModelFile(u8 *data, u32 size, u32 *outSize, s32 modNum)
 {
 	gbiReset();
 
@@ -1092,7 +1092,7 @@ u8 *preprocessModelFile(u8 *data, u32 size, u32 *outSize)
 	return 0;
 }
 
-u8 *preprocessGunFile(u8 *data, u32 size, u32 *outSize)
+u8 *preprocessGunFile(u8 *data, u32 size, u32 *outSize, s32 modNum)
 {
 	gbiReset();
 

@@ -44,6 +44,14 @@ extern struct menudialogdef g_TeamMissionsOperativeModelMenuDialog;
 extern s32 g_MpWeaponSetNum;
 #endif
 
+static char *getOptionGroupText(struct optiongroup *group)
+{
+	if (group->customname) {
+		return group->customname;
+	}
+	return langGet(group->langid);
+}
+
 MenuItemHandlerResult menuhandlerMpDropOut(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -131,106 +139,10 @@ struct mparena g_MpArenas_Vanilla[] = {
 };
 
 // HACK: full AIO list of stages
-struct mparena g_MpArenas_AIO[] = {
-	// Stage, unlock, name
-	{ STAGE_MP_SKEDAR,     0,                          L_MPMENU_119 },
-	{ STAGE_MP_PIPES,      0,                          L_MPMENU_120 },
-#ifdef PLATFORM_N64
-	{ STAGE_MP_RAVINE,     MPFEATURE_STAGE_RAVINE,     L_MPMENU_121 },
-	{ STAGE_MP_G5BUILDING, MPFEATURE_STAGE_G5BUILDING, L_MPMENU_122 },
-	{ STAGE_MP_SEWERS,     MPFEATURE_STAGE_SEWERS,     L_MPMENU_123 },
-	{ STAGE_MP_WAREHOUSE,  MPFEATURE_STAGE_WAREHOUSE,  L_MPMENU_124 },
-	{ STAGE_MP_GRID,       MPFEATURE_STAGE_GRID,       L_MPMENU_125 },
-	{ STAGE_MP_RUINS,      MPFEATURE_STAGE_RUINS,      L_MPMENU_126 },
-	{ STAGE_MP_AREA52,     0,                          L_MPMENU_127 },
-	{ STAGE_MP_BASE,       MPFEATURE_STAGE_BASE,       L_MPMENU_128 },
-	{ STAGE_MP_FORTRESS,   MPFEATURE_STAGE_FORTRESS,   L_MPMENU_130 },
-	{ STAGE_MP_VILLA,      MPFEATURE_STAGE_VILLA,      L_MPMENU_131 },
-	{ STAGE_MP_CARPARK,    MPFEATURE_STAGE_CARPARK,    L_MPMENU_132 },
-	{ STAGE_MP_TEMPLE,     MPFEATURE_STAGE_TEMPLE,     L_MPMENU_133 },
-	{ STAGE_MP_COMPLEX,    MPFEATURE_STAGE_COMPLEX,    L_MPMENU_134 },
-	{ STAGE_MP_FELICITY,   MPFEATURE_STAGE_FELICITY,   L_MPMENU_135 },
-#else // All Solos in Multi Mod
-	{ STAGE_MP_RAVINE,       0, L_MPMENU_121  },
-	{ STAGE_MP_G5BUILDING,   0, L_MPMENU_122  },
-	{ STAGE_MP_SEWERS,       0, L_MPMENU_123  },
-	{ STAGE_MP_WAREHOUSE,    0, L_MPMENU_124  },
-	{ STAGE_MP_GRID,         0, L_MPMENU_125  },
-	{ STAGE_MP_RUINS,        0, L_MPMENU_126  },
-	{ STAGE_MP_AREA52,       0, L_MPMENU_127  },
-	{ STAGE_MP_BASE,         0, L_MPMENU_128  },
-	{ STAGE_MP_FORTRESS,     0, L_MPMENU_130  },
-	{ STAGE_MP_VILLA,        0, L_MPMENU_131  },
-	{ STAGE_MP_CARPARK,      0, L_MPMENU_132  },
-	{ STAGE_DEFECTION,       0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_134 : L_OPTIONS_133) }, // dataDyne Central
-	{ STAGE_INVESTIGATION,   0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_136 : L_OPTIONS_135) }, // dataDyne Research
-	{ STAGE_VILLA,           0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_140 : L_OPTIONS_139) }, // Carrington Villa
-	{ STAGE_CHICAGO,         0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_142 : L_OPTIONS_141) }, // Chicago
-	{ STAGE_G5BUILDING,      0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_144 : L_OPTIONS_143) }, // G5 Building
-	{ STAGE_INFILTRATION,    0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_146 : L_OPTIONS_145) }, // Area 51
-	{ STAGE_AIRBASE,         0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_152 : L_OPTIONS_151) }, // Air Base
-	{ STAGE_AIRFORCEONE,     0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_154 : L_OPTIONS_153) }, // Air Force One
-	{ STAGE_CRASHSITE,       0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_156 : L_OPTIONS_155) }, // Crash Site
-	{ STAGE_PELAGIC,         0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_158 : L_OPTIONS_157) }, // Pelagic II
-	{ STAGE_DEEPSEA,         0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_160 : L_OPTIONS_159) }, // Deep Sea
-	{ STAGE_DEFENSE,         0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_162 : L_OPTIONS_161) }, // Carrington Institute
-	{ STAGE_ATTACKSHIP,      0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_164 : L_OPTIONS_163) }, // Attack Ship
-	{ STAGE_SKEDARRUINS,     0, (VERSION == VERSION_JPN_FINAL ? L_OPTIONS_166 : L_OPTIONS_165) }, // Skedar Ruins
-	{ STAGE_MP_TEMPLE,       0, L_MPMENU_133  }, // Temple
-	{ STAGE_MP_COMPLEX,      0, L_MPMENU_134  }, // Complex
-	{ STAGE_TEST_MP6,        0, L_MPMENU_306  }, // Caves (PD Plus)
-	{ STAGE_TEST_MP2,        0, L_MPMENU_129  }, // Stack (PD Plus)
-	{ STAGE_MP_FELICITY,     0, L_MPMENU_135  }, // Felicity
-	// GoldenEye X Mod
-	{ STAGE_EXTRA6,          0, L_MPMENU_133 }, // Tample
-	{ STAGE_EXTRA2,          0, L_MPMENU_134 }, // Complex
-	{ STAGE_EXTRA8,          0, L_MPMENU_306 }, // Caves
-	{ STAGE_EXTRA9,          0, L_MPMENU_303 }, // Library
-	{ STAGE_EXTRA13,         0, L_MPMENU_302 }, // Basement
-	{ STAGE_EXTRA15,         0, L_MPMENU_309 }, // Stack
-	{ STAGE_EXTRA10,         0, L_MPMENU_311 }, // Facility
-	{ STAGE_EXTRA11,         0, L_MPMENU_300 }, // Bunker
-	{ STAGE_EXTRA4,          0, L_MPMENU_299 }, // Archives
-	{ STAGE_EXTRA12,         0, L_MPMENU_305 }, // Caverns
-	{ STAGE_EXTRA14,         0, L_MPMENU_312 }, // Egyptian
-	{ STAGE_TEST_MP17,       0, L_MPMENU_307 }, // Facility BZ
-	{ STAGE_EXTRA1,          0, L_MPMENU_298 }, // Frigate
-	{ STAGE_TEST_SILO,       0, L_MPMENU_314 }, // Archives 1F (GE-X 5e)
-	{ STAGE_TEST_MP16,       0, L_MPMENU_322 }, // Archives BZ
-	{ STAGE_TEST_MP14,       0, L_MPMENU_315 }, // Streets
-	{ STAGE_EXTRA3,          0, L_MPMENU_310 }, // Train
-	{ STAGE_TEST_MP18,       0, L_MPMENU_304 }, // Cradle
-	{ STAGE_EXTRA5,          0, L_MPMENU_313 }, // Aztec
-	{ STAGE_TEST_MP20,       0, L_MPMENU_308 }, // Citadel
-	{ STAGE_TEST_MP19,       0, L_MPMENU_301 }, // Labyrinth
-	{ STAGE_EXTRA7,          0, L_MPMENU_316 }, // Icicle Pyramid
-	{ STAGE_TEST_MP8,        0, L_MPMENU_323 }, // Cliff Base
-	// Bonus
-	{ STAGE_24,              0, L_MPMENU_319 }, // Kakariko Village (Stormy)
-	{ STAGE_TEST_MP7,        0, L_MPMENU_321 }, // Dark Noon Mod Valley
-	{ STAGE_TEST_ARCH,       0, L_MPMENU_324 }, // Suburb
-	{ STAGE_TEST_DEST,       0, L_MPMENU_325 }, // Training Day
-	{ STAGE_EXTRA16,         0, L_MPMENU_327 }, // Runway
-	{ STAGE_EXTRA17,         0, L_MPMENU_328 }, // Control
-	{ STAGE_EXTRA18,         0, L_MPMENU_329 }, // Tawfret Ruins
-	{ STAGE_EXTRA19,         0, L_MPMENU_330 }, // Targitzan's Temple
-	{ STAGE_EXTRA20,         0, L_MPMENU_331 }, // Junkyard
-	{ STAGE_EXTRA21,         0, L_MPMENU_332 }, // Steel Mill
-	{ STAGE_EXTRA22,         0, L_MPMENU_333 }, // Mall
-	{ STAGE_EXTRA23,         0, L_MPMENU_334 }, // Tunnels
-	{ STAGE_EXTRA24,         0, L_MPMENU_335 }, // Rogue
-	{ STAGE_EXTRA25,         0, L_MPMENU_336 }, // Paradox
-	{ STAGE_EXTRA26,         0, L_MPMENU_337 }, // War Colors
-	{ STAGE_TEST_LAM,        0, L_MPMENU_338 }, // Grand Library
-	// Random
-	{ STAGE_MP_RANDOM_MULTI, 0, L_MPMENU_294 }, // Random Multi
-	{ STAGE_MP_RANDOM_SOLO,  0, L_MPMENU_295 }, // Random Solo
-	{ STAGE_MP_RANDOM_GEX,   0, L_MPMENU_317 }, // Random GoldenEye X
-#endif
-	{ 1,                   0,                          L_MPMENU_136 }, // "Random"
-};
+struct mparena *g_MpArenas_AIO = NULL;
+s32 g_NumMpArenas_AIO = 0;
 
-struct mparena* g_MpArenas = g_MpArenas_AIO;
+struct mparena* g_MpArenas = g_MpArenas_Vanilla;
 
 // Helper function to switch between vanilla and AIO arena lists
 void mpSetArenaMode(bool useAIO)
@@ -245,11 +157,7 @@ s32 mpGetNumStages(void)
 		return ARRAYCOUNT(g_MpArenas_Vanilla);
 	}
 
-#ifdef PLATFORM_N64
-	return 17;
-#else // All Solos in Multi Mod (71 Stage + 4 Random)
-	return 75;
-#endif
+	return g_NumMpArenas_AIO;
 }
 
 s16 mpChooseRandomStage(void)
@@ -377,32 +285,37 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 {
 	// Vanilla groups (17 arenas)
 	static struct optiongroup groups_vanilla[] = {
-		{ 0,  L_MPMENU_116 }, // "Dark"
-		{ 13, L_MPMENU_117 }, // "Classic"
-		{ 16, L_MPMENU_118 }, // "Random"
+		{ 0,  L_MPMENU_116, NULL }, // "Dark"
+		{ 13, L_MPMENU_117, NULL }, // "Classic"
+		{ 16, L_MPMENU_118, NULL }, // "Random"
 	};
 
-	// AIO groups (75 arenas)
-	static struct optiongroup groups_aio[] = {
-		{ 0,  L_MPMENU_116  }, // "Dark"
-		{ 13, L_OPTIONS_117 }, // "Solo Missions"
-		{ 27, L_MPMENU_117  }, // "Classic"
-		{ 32, L_MPMENU_296  }, // "GoldenEye X"
-		{ 43, L_MPMENU_297  }, // "GoldenEye X Bonus"
-		{ 55, L_MPMENU_326  }, // "Bonus"
-		{ 71, L_MPMENU_118  }, // "Random"
-	};
-
-	// Select which groups array to use based on active arena list
+	static struct optiongroup dynamic_groups[32];
 	struct optiongroup *groups;
 	s32 numgroups;
 	
-	if (g_MpArenas == g_MpArenas_Vanilla) {
+	if (g_NumMpArenaGroups == 0) {
+		// No groups defined - use vanilla hardcoded groups
 		groups = groups_vanilla;
 		numgroups = ARRAYCOUNT(groups_vanilla);
 	} else {
-		groups = groups_aio;
-		numgroups = ARRAYCOUNT(groups_aio);
+		// Use groups from modconfig.txt
+		numgroups = g_NumMpArenaGroups < 32 ? g_NumMpArenaGroups : 32;
+		
+		for (s32 i = 0; i < numgroups; i++) {
+			dynamic_groups[i].offset = g_MpArenaGroups[i].startindex;
+			
+			// Use langid if specified, otherwise use literal name pointer
+			if (g_MpArenaGroups[i].langid) {
+				dynamic_groups[i].langid = g_MpArenaGroups[i].langid;
+				dynamic_groups[i].customname = NULL;
+			} else {
+				dynamic_groups[i].langid = 0;
+				dynamic_groups[i].customname = g_MpArenaGroups[i].name;
+			}
+		}
+		
+		groups = dynamic_groups;
 	}
 
 	s32 i;
@@ -423,6 +336,9 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 		for (i = 0; i < mpGetNumStages(); i++) {
 			if (challengeIsFeatureUnlocked(g_MpArenas[i].requirefeature)) {
 				if (count == data->list.value) {
+					if (g_MpArenas[i].customname) {
+						return (uintptr_t)g_MpArenas[i].customname;
+					}
 					return (uintptr_t)langGet(g_MpArenas[i].name);
 				}
 
@@ -478,7 +394,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 				count++;
 			}
 		}
-		return (uintptr_t)langGet(groups[count].name);
+		return (uintptr_t)getOptionGroupText(&groups[count]);
 	case MENUOP_GETGROUPSTARTINDEX:
 		groupindex = data->list.value;
 
@@ -492,6 +408,9 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 #endif
 
 		for (i = 0; i < groups[groupindex].offset; i++) {
+			if (i >= mpGetNumStages()) {
+				break;
+			}
 			if (challengeIsFeatureUnlocked(g_MpArenas[i].requirefeature)) {
 				count++;
 			}
@@ -2609,20 +2528,34 @@ char *mpMenuTextMpconfigMarquee(struct menuitem *item)
 #if VERSION >= VERSION_NTSC_1_0
 		if (scenarionum <= 5 && arenanum != -1 && numsims >= 0 && filename[0] != '\0' && numsims <= MAX_BOTS) {
 			// "%s:  Scenario: %s   Arena: %s    Simulants: %d"
+			char *arenaName;
+			if (g_MpArenas[arenanum].customname) {
+				arenaName = g_MpArenas[arenanum].customname;
+			} else {
+				arenaName = langGet(g_MpArenas[arenanum].name);
+			}
+
 			sprintf(g_StringPointer, langGet(L_MPMENU_140),
 					filename,
 					langGet(g_MpScenarioOverviews[scenarionum].name),
-					langGet(g_MpArenas[arenanum].name),
+					arenaName,
 					numsims);
 		} else {
 			return "";
 		}
 #else
 		// "%s:  Scenario: %s   Arena: %s    Simulants: %d"
+		char *arenaName;
+		if (g_MpArenas[arenanum].customname) {
+			arenaName = g_MpArenas[arenanum].customname;
+		} else {
+			arenaName = langGet(g_MpArenas[arenanum].name);
+		}
+
 		sprintf(g_StringPointer, langGet(L_MPMENU_140),
 				filename,
 				langGet(g_MpScenarioOverviews[scenarionum].name),
-				langGet(g_MpArenas[arenanum].name),
+				arenaName,
 				numsims);
 #endif
 
@@ -3241,8 +3174,8 @@ MenuItemHandlerResult mpAddChangeSimulantMenuHandler(s32 operation, struct menui
 	s32 count = 0;
 
 	struct optiongroup groups[] = {
-		{ 0, L_MPMENU_103 }, // "Normal Simulants"
-		{ 6, L_MPMENU_104 }, // "Special Simulants"
+		{ 0, L_MPMENU_103, NULL }, // "Normal Simulants"
+		{ 6, L_MPMENU_104, NULL }, // "Special Simulants"
 	};
 
 	s32 botnum;
@@ -3323,7 +3256,7 @@ MenuItemHandlerResult mpAddChangeSimulantMenuHandler(s32 operation, struct menui
 		data->list.value = 2;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
-		return (uintptr_t)langGet(groups[data->list.value].name);
+		return (uintptr_t)getOptionGroupText(&groups[data->list.value]);
 	case MENUOP_GETGROUPSTARTINDEX:
 		for (i = 0; i < groups[data->list.value].offset; i++) {
 			if (challengeIsFeatureUnlocked(g_BotProfiles[i].requirefeature)) {
@@ -5393,8 +5326,19 @@ char *mpMenuTextArenaName(struct menuitem *item)
 
 	for (i = 0; i != mpGetNumStages(); i++) {
 		if (g_MpArenas[i].stagenum == g_MpSetup.stagenum) {
+			if (g_MpArenas[i].customname && g_MpArenas[i].customname[0]) {
+				return g_MpArenas[i].customname;
+			}
 			return langGet(g_MpArenas[i].name);
 		}
+	}
+
+	// No match found - return first arena name as default
+	if (mpGetNumStages() > 0) {
+		if (g_MpArenas[0].customname && g_MpArenas[0].customname[0]) {
+			return g_MpArenas[0].customname;
+		}
+		return langGet(g_MpArenas[0].name);
 	}
 
 	return "\n";

@@ -1420,8 +1420,8 @@ struct menudialogdef g_FrFailedMenuDialog = {
 MenuItemHandlerResult ciOfficeInformationMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	struct optiongroup groups[2] = {
-		{ 0, L_MPMENU_421 }, // "Character Profiles"
-		{ 0, L_MPMENU_422 }, // "Other Information"
+		{ 0, L_MPMENU_421, NULL }, // "Character Profiles"
+		{ 0, L_MPMENU_422, NULL }, // "Other Information"
 	};
 
 	s32 numunlockedchrbios = ciGetNumUnlockedChrBios();
@@ -1459,7 +1459,7 @@ MenuItemHandlerResult ciOfficeInformationMenuHandler(s32 operation, struct menui
 		data->list.value = 2;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
-		return (uintptr_t) langGet(groups[data->list.value].name);
+		return (uintptr_t) langGet(groups[data->list.value].langid);
 	case MENUOP_GETGROUPSTARTINDEX:
 		data->list.groupstartindex = data->list.value == 0 ? 0 : numunlockedchrbios;
 		break;
@@ -2577,8 +2577,8 @@ struct menudialogdef g_HtCompletedMenuDialog = {
 MenuItemHandlerResult ciHangarInformationMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	struct optiongroup groups[2] = {
-		{ 0, L_MPMENU_419 }, // "Locations"
-		{ 0, L_MPMENU_420 }, // "Vehicles"
+		{ 0, L_MPMENU_419, NULL }, // "Locations"
+		{ 0, L_MPMENU_420, NULL }, // "Vehicles"
 	};
 
 	s32 bioindex;
@@ -2610,7 +2610,7 @@ MenuItemHandlerResult ciHangarInformationMenuHandler(s32 operation, struct menui
 		data->list.value = 2;
 		break;
 	case MENUOP_GETOPTGROUPTEXT:
-		return (uintptr_t) langGet(groups[data->list.value].name);
+		return (uintptr_t) langGet(groups[data->list.value].langid);
 	case MENUOP_GETGROUPSTARTINDEX:
 		data->list.groupstartindex = data->list.value == 0 ? 0 : groups[1].offset;
 		break;

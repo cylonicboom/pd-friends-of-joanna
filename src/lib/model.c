@@ -1,5 +1,7 @@
 #include <ultra64.h>
 #include "constants.h"
+#include "platform.h"
+#include "system.h"
 #include "game/game_096700.h"
 #include "game/acosfasinf.h"
 #include "game/quaternion.h"
@@ -17,6 +19,9 @@
 #include "lib/model.h"
 #include "data.h"
 #include "types.h"
+
+#define DEBUG_MODELS(fmt, ...) \
+	do { if (g_DebugModels) sysLogPrintf(LOG_NOTE, fmt, ##__VA_ARGS__); } while (0)
 
 /**
  * -- Model Definitions --
@@ -572,6 +577,9 @@ void modelSetChrRotY(struct model *model, f32 angle)
 
 void modelSetScale(struct model *model, f32 scale)
 {
+	DEBUG_MODELS("modelSetScale: setting scale to %.4f (definition scale: %.4f, effective: %.4f)",
+		scale, model->definition ? model->definition->scale : 0.0f,
+		model->definition ? model->definition->scale * scale : scale);
 	model->scale = scale;
 }
 
