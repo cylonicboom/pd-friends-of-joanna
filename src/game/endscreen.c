@@ -762,7 +762,6 @@ void endscreenContinue(s32 context)
 	// we pressed continue. ie context is 2
 	} else {
 		DEBUG_ENDSCREEN("endscreenContinue: Branch context 2 (pressed continue) - context=%d\n", context);
-		DEBUG_ENDSCREEN("endscreenContinue: Branch context 2 (pressed continue) - context=%d\n", context);
 		switch (g_Vars.stagenum) {
 			case STAGE_DEEPSEA:
 				DEBUG_ENDSCREEN("endscreenContinue: STAGE_DEEPSEA case\n");
