@@ -17525,7 +17525,6 @@ s32 objTestForPickup(struct prop *prop)
 	// pickupby. This prevents the thrower from picking up their own projectile
 	// within the first second, unless it's immediately bounced or landed.
 	if ((obj->hidden & OBJHFLAG_PROJECTILE) && obj->projectile->pickuptimer240 > 0) {
-
 		if (obj->projectile->pickupby == NULL) {
 			if (obj->projectile->bouncecount == 0) {
 				return TICKOP_NONE;
