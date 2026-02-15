@@ -3794,8 +3794,9 @@ struct menudata_mpsetup {
 	u32 slotindex;
 	u32 slotcount;
 	u32 unke24;
-	u32 unke28;
-	u32 unke2c;
+};
+
+struct menudata_mpsetup_ext {
 	u8 showpresets;
 };
 
@@ -4012,6 +4013,7 @@ struct menu {
 		struct menudata_mpsetup mpsetup;
 	};
 
+	struct menudata_mpsetup_ext mpsetupext;
 };
 
 struct gamefile {
@@ -4126,6 +4128,11 @@ struct mpsetup {
 	/*0x800acba0*/ u8 weapons[NUM_MPWEAPONSLOTS];
 	/*0x800acba6*/ u8 paused;
 	/*0x800acba8*/ struct fileguid fileguid;
+#ifndef PLATFORM_N64
+	// Used to restore the non-player bits of chrslots upon entering Combat
+	// Simulator, after playing Co-Op/Counter-Op with a human sim.
+	u16 storedbotbits;
+#endif
 };
 
 struct bossfile {
@@ -6188,6 +6195,7 @@ struct extplayerconfig {
 	s32 extcontrols;
 	u32 crosshaircolour;
 	u32 crosshairsize;
+	f32 crosshairedgeboundary;
 	s32 crosshairhealth;
 	s32 usereloads;
 };
