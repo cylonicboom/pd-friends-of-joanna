@@ -2206,6 +2206,13 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		}
 		break;
 
+	case MENUOP_21:
+		// Skip Poplin (HEAD_ANKA via FOJO_HEAD_POPLIN) until model is implemented
+		if (g_FojoHeadOptions[data->carousel.value] == FOJO_HEAD_POPLIN) {
+			return 1;
+		}
+		break;
+
 	case MENUOP_GETOPTIONTEXT:
 		// Update last slot before returning name
 		g_FojoHeadOptions[g_FojoHeadCount] = fojoGetPlayerHead(g_MpPlayerNum);
