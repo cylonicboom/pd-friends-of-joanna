@@ -5948,14 +5948,6 @@ struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
 		(void *)&g_TeamMissionsOperativeModelMenuDialog,
 	},
 	{
-		MENUITEMTYPE_DROPDOWN,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Controller",
-		0,
-		optionsmenuhandlerController,
-	},
-	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,

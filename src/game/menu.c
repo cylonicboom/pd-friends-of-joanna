@@ -1606,8 +1606,10 @@ void menuPushDialog(struct menudialogdef *dialogdef)
 
 			menuOpenDialog(dialogdef, dialog, &g_Menus[g_MpPlayerNum]);
 
+#ifdef PLATFORM_N64
 			dialog->dstx = (viGetWidth() - dialog->width) / 2;
 			dialog->dsty = (viGetHeight() - dialog->height) / 2;
+#endif
 
 			g_Menus[g_MpPlayerNum].fm.unke40_00 = true;
 			sibling = dialogdef->nextsibling;
@@ -1628,7 +1630,9 @@ void menuPushDialog(struct menudialogdef *dialogdef)
 					menuOpenDialog(sibling, dialog, &g_Menus[g_MpPlayerNum]);
 
 					dialog->dstx = dialog->x = -SCREEN_320;
+#ifdef PLATFORM_N64
 					dialog->dsty = dialog->y = (viGetHeight() - dialog->height) / 2;
+#endif
 					dialog->type = 0;
 
 					sibling = sibling->nextsibling;

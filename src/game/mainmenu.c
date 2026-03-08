@@ -115,6 +115,7 @@ struct menudialogdef g_CiControlPlayer2MenuDialog;
 struct menudialogdef g_CinemaMenuDialog;
 #ifndef PLATFORM_N64
 extern struct menudialogdef g_ExtendedMenuDialog;
+MenuItemHandlerResult menuhandlerViewCredits(s32 operation, struct menuitem *item, union handlerdata *data);
 #endif
 
 extern const uintptr_t g_PlayerRoleNames[] = {
@@ -4949,16 +4950,6 @@ struct menuitem g_2PMissionOptionsHMenuItems[] = {
 		0,
 		(void *)&g_MissionDisplayOptionsMenuDialog,
 	},
-#ifndef PLATFORM_N64
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Extended\n",
-		0,
-		(void *)&g_ExtendedMenuDialog,
-	},
-#endif
 	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
@@ -5015,16 +5006,6 @@ struct menuitem g_2PMissionOptionsVMenuItems[] = {
 		0,
 		(void *)&g_2PMissionDisplayOptionsVMenuDialog,
 	},
-#ifndef PLATFORM_N64
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Extended\n",
-		0,
-		(void *)&g_ExtendedMenuDialog,
-	},
-#endif
 	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
@@ -5209,6 +5190,14 @@ struct menuitem g_CiOptionsMenuItems[] = {
 		(uintptr_t)"Extended\n",
 		7,
 		(void *)&g_ExtendedMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_BIGFONT | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Credits\n",
+		8,
+		menuhandlerViewCredits,
 	},
 #endif
 	{ MENUITEMTYPE_END },

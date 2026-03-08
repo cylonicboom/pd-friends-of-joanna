@@ -628,6 +628,14 @@ MenuItemHandlerResult optionsmenuhandlerController(s32 operation, struct menuite
 	return menuhandlerController(operation, item, data);
 }
 
+// Variant that keys off g_MpPlayerNum — for use in per-player setup menus
+// where g_ExtMenuPlayer is not set by the player-select dialog.
+MenuItemHandlerResult optionsmenuhandlerControllerMpPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	g_ExtMenuPlayer = g_MpPlayerNum;
+	return menuhandlerController(operation, item, data);
+}
+
 struct menuitem g_ExtendedControllerMenuItems[] = {
 	{
 		MENUITEMTYPE_DROPDOWN,
@@ -1858,7 +1866,7 @@ struct menudialogdef g_ExtendedBindsMenuDialog = {
 	(uintptr_t)g_ExtendedBindsMenuTitle,
 	g_ExtendedBindsMenuItems,
 	NULL,
-	MENUDIALOGFLAG_LITERAL_TEXT | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_IGNOREBACK,
+	MENUDIALOGFLAG_LITERAL_TEXT | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_IGNOREBACK | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
 	NULL,
 };
 
@@ -1867,6 +1875,18 @@ static MenuItemHandlerResult menuhandlerOpenControllerMenu(s32 operation, struct
 	if (operation == MENUOP_SET) {
 		g_ExtNextDialog = &g_ExtendedControllerMenuDialog;
 		menuPushDialog(&g_ExtendedSelectPlayerMenuDialog);
+	}
+	return 0;
+}
+
+// Variant for per-player contexts (e.g. team missions V menu) where the player
+// is already implicit from g_MpPlayerNum — skips the player-select step.
+static MenuItemHandlerResult menuhandlerOpenControllerMenuMpPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		g_ExtMenuPlayer = g_MpPlayerNum;
+		g_ExtendedControllerMenuTitle[7] = g_MpPlayerNum + '1';
+		menuPushDialog(&g_ExtendedControllerMenuDialog);
 	}
 	return 0;
 }
@@ -1880,6 +1900,16 @@ static MenuItemHandlerResult menuhandlerOpenGameMenu(s32 operation, struct menui
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerOpenGameMenuMpPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		g_ExtMenuPlayer = g_MpPlayerNum;
+		g_ExtendedGameMenuTitle[7] = g_MpPlayerNum + '1';
+		menuPushDialog(&g_ExtendedGameMenuDialog);
+	}
+	return 0;
+}
+
 static MenuItemHandlerResult menuhandlerOpenBindsMenu(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -1889,7 +1919,17 @@ static MenuItemHandlerResult menuhandlerOpenBindsMenu(s32 operation, struct menu
 	return 0;
 }
 
-static MenuItemHandlerResult menuhandlerViewCredits(s32 operation, struct menuitem *item, union handlerdata *data)
+static MenuItemHandlerResult menuhandlerOpenBindsMenuMpPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		g_ExtMenuPlayer = g_MpPlayerNum;
+		g_ExtendedBindsMenuTitle[7] = g_MpPlayerNum + '1';
+		menuPushDialog(&g_ExtendedBindsMenuDialog);
+	}
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerViewCredits(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
 		creditsRequestFojPreCredits();
@@ -1964,10 +2004,40 @@ struct menuitem g_ExtendedMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Credits\n",
+		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
+		L_OPTIONS_213, // "Back"
 		0,
-		menuhandlerViewCredits,
+		NULL,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menudialogdef g_ExtendedMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)"Extended Options",
+	g_ExtendedMenuItems,
+	NULL,
+	MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
+// Trimmed version for 2P vertical split and 3/4P: no Video or Mouse.
+struct menuitem g_ExtendedMenuVItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Audio\n",
+		0,
+		(void *)&g_ExtendedAudioMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Game\n",
+		0,
+		menuhandlerOpenGameMenuMpPlayer,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -1988,10 +2058,10 @@ struct menuitem g_ExtendedMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_ExtendedMenuDialog = {
+struct menudialogdef g_ExtendedMenuVDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)"Extended Options",
-	g_ExtendedMenuItems,
+	g_ExtendedMenuVItems,
 	NULL,
 	MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
