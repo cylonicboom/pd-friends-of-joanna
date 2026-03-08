@@ -920,6 +920,11 @@ Gfx *sightDrawClassic(Gfx *gdl, bool sighton, f32 crossx, f32 crossy)
 	const s32 halfw = (tconfig->width >> 1);
 #else
 	const s32 halfw = roundf((f32)(tconfig->width >> 1) * (SCREEN_ASPECT / videoGetAspect()));
+	u32 colour = SIGHT_COLOUR;
+	u8 cr = (colour >> 24) & 0xff;
+	u8 cg = (colour >> 16) & 0xff;
+	u8 cb = (colour >>  8) & 0xff;
+	u8 ca = (colour      ) & 0xff;
 #endif
 
 	if (!sighton) {
@@ -954,8 +959,17 @@ Gfx *sightDrawClassic(Gfx *gdl, bool sighton, f32 crossx, f32 crossy)
 
 	texSelect(&gdl, tconfig, 2, 0, 0, 1, NULL);
 
+#ifdef PLATFORM_N64
 	func0f0b278c(&gdl, spc4, spbc, tconfig->width, tconfig->height,
 			0, 0, 1, 0xff, 0xff, 0xff, 0x7f, tconfig->level > 0, 0);
+#else
+	// Use PRIMITIVE colour for RGB and TEXEL0*PRIMITIVE for alpha so the
+	// texture's baked-in colour is ignored and only its shape is used as a mask.
+	gDPSetPrimColor(gdl++, 0, 0, cr, cg, cb, ca);
+	gDPSetCombineMode(gdl++, G_CC_CUSTOM_02, G_CC_CUSTOM_02);
+	func0f0b2150(&gdl, spc4, spbc, tconfig->width, tconfig->height,
+			0, 0, 1, false, G_TX_RENDERTILE, false);
+#endif
 
 	gDPPipeSync(gdl++);
 	gDPSetColorDither(gdl++, G_CD_BAYER);
