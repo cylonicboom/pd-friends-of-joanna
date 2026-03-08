@@ -18,6 +18,8 @@
 #include "game/playermgr.h"
 #include "game/propobj.h"
 #include "bss.h"
+#include "lib/joy.h"
+#include "game/options.h"
 #include "lib/model.h"
 #include "lib/snd.h"
 #include "lib/rng.h"
@@ -970,6 +972,13 @@ void bwalkUpdateVertical(void)
 		fallspeed = g_Vars.currentplayer->bdeltapos.y;
 		newmanground = g_Vars.currentplayer->vv_manground;
 
+		u32 moonjumpbuttonpressed = cheatIsActive(CHEAT_MOONJUMP) &&
+			joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xffffffff & BUTTON_MOONJUMP);
+
+		if (moonjumpbuttonpressed) {
+			g_Vars.currentplayer->vv_manground += 15;
+		}
+
 		if (debugIsTurboModeEnabled()
 				&& g_Vars.currentplayer->bondforcespeed.x == 0
 				&& g_Vars.currentplayer->bondforcespeed.z == 0) {
@@ -992,9 +1001,26 @@ void bwalkUpdateVertical(void)
 			fallspeed = -fallspeed;
 		}
 
-		if (bwalkTryMoveUpwards(newmanground - g_Vars.currentplayer->vv_manground) == CDRESULT_NOCOLLISION) {
+		if (cheatIsActive(CHEAT_MOONJUMP) &&
+				joyGetButtonsPressedThisFrame(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xffffffff & BUTTON_TOGGLEGRAVITY)) {
+			g_NoFall[g_Vars.currentplayerstats->mpindex] = !g_NoFall[g_Vars.currentplayerstats->mpindex];
+			if (!g_NoFall[g_Vars.currentplayerstats->mpindex]) {
+				fallspeed = 0;
+			}
+		}
+
+		if (g_NoFall[g_Vars.currentplayerstats->mpindex]) {
+			newmanground = g_Vars.currentplayer->vv_ground;
+			fallspeed = 0;
+			// Reset fall timer so re-enabling gravity doesn't trigger instant death
+			g_Vars.currentplayer->isfalling = false;
+			g_Vars.currentplayer->fallstart = g_Vars.lvframe60;
+		} else if (bwalkTryMoveUpwards(newmanground - g_Vars.currentplayer->vv_manground) == CDRESULT_NOCOLLISION) {
 			// Falling
 			g_Vars.currentplayer->vv_manground = newmanground;
+			if (moonjumpbuttonpressed && fallspeed < 0) {
+				fallspeed *= -1;
+			}
 			g_Vars.currentplayer->bdeltapos.y = fallspeed;
 
 			if (g_Vars.currentplayer->isfalling == false) {

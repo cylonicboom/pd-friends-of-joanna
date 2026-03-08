@@ -11,12 +11,17 @@ u32 var8009e6b0[4];
 #endif
 
 struct g_vars g_Vars;
+bool g_NoFall[MAX_PLAYERS];
 
 struct fileguid g_GuidsToProcess[CONFIG_MAX_PROFILES] = {};
 u32 g_NumGuidsToProcess = 0;
 
 void varsInit(void)
 {
+	for (u32 i = 0; i < MAX_PLAYERS; i++) {
+		g_NoFall[i] = false;
+	}
+
 	g_Vars.diffframe60f = 1;
 	g_Vars.lvframe60 = 0;
 	g_Vars.lvframenum = 0;

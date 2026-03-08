@@ -61,7 +61,7 @@ struct cheat g_Cheats[] = {
 #else
 	{ L_MPWEAPONS_089, TIME(1 m, 12 s),   SOLOSTAGEINDEX_DEFENSE,        DIFF_A,  CHEATFLAG_TIMED                              }, // Super Shield
 #endif
-	// { L_MPWEAPONS_090, 0,                 SOLOSTAGEINDEX_DEFECTION,      DIFF_A,  CHEATFLAG_COMPLETION                         }, // Classic Sight
+	{ L_MPWEAPONS_215, 0,                 0,                             0,       CHEATFLAG_ALWAYSUNLOCKED                      }, // Moon Jump (FOJ, reuses classic sight slot)
 	{ L_MPWEAPONS_091, 0,                 SOLOSTAGEINDEX_AIRBASE,        DIFF_A,  CHEATFLAG_COMPLETION                         }, // Team Heads Only
 #if VERSION >= VERSION_NTSC_1_0
 	{ L_MPWEAPONS_092, TIME(7 m, 59 s),   SOLOSTAGEINDEX_RESCUE,         DIFF_PA, CHEATFLAG_TIMED                              }, // Play as Elvis
@@ -109,6 +109,10 @@ u32 cheatIsUnlocked(s32 cheat_id)
 {
 	struct cheat *cheat = &g_Cheats[cheat_id];
 	u32 unlocked = 0;
+
+	if (cheat->flags & CHEATFLAG_ALWAYSUNLOCKED) {
+		return 1;
+	}
 
 	if (cheat->flags & CHEATFLAG_FIRINGRANGE) {
 		if (frIsClassicWeaponUnlocked(cheat->time)) {
@@ -266,6 +270,10 @@ void cheatsReset(void)
 	} else {
 		g_CheatsActiveBank0 = 0;
 		g_CheatsActiveBank1 = 0;
+		// Allow moon jump in CI training if enabled
+		if (g_CheatsEnabledBank0 & (1 << CHEAT_MOONJUMP)) {
+			g_CheatsActiveBank0 |= (1 << CHEAT_MOONJUMP);
+		}
 	}
 
 	// Set any "always on" cheats to active and properly activate all active cheats
@@ -336,6 +344,17 @@ MenuItemHandlerResult cheatCheckboxMenuHandler(s32 operation, struct menuitem *i
 					g_CheatsEnabledBank1 = g_CheatsEnabledBank1 | 1 << item->param;
 				}
 			}
+
+			// Moon Jump is allowed in CI training and takes effect immediately
+			// without a level restart, so sync the active bank now.
+			if (item->param == CHEAT_MOONJUMP && g_Vars.stagenum == STAGE_CITRAINING) {
+				if (g_CheatsEnabledBank0 & (1 << CHEAT_MOONJUMP)) {
+					g_CheatsActiveBank0 |= (1 << CHEAT_MOONJUMP);
+				} else {
+					g_CheatsActiveBank0 &= ~(1 << CHEAT_MOONJUMP);
+					g_NoFall[0] = false;
+				}
+			}
 		}
 		break;
 	}
@@ -384,10 +403,18 @@ MenuItemHandlerResult cheatMenuHandleBuddyCheckbox(s32 operation, struct menuite
 	return 0;
 }
 
+static const char *cheatGetNameStr(s32 cheat_id)
+{
+	if (cheat_id == CHEAT_MOONJUMP) {
+		return "Moon Jump\n";
+	}
+	return langGet(g_Cheats[cheat_id].nametextid);
+}
+
 char *cheatGetNameIfUnlocked(struct menuitem *item)
 {
 	if (cheatIsUnlocked(item->param)) {
-		return langGet(g_Cheats[item->param].nametextid);
+		return (char *)cheatGetNameStr(item->param);
 	}
 
 	return langGet(L_MPWEAPONS_074); // "----------"
@@ -853,7 +880,7 @@ s32 cheatGetTime(s32 cheat_id)
 #if VERSION >= VERSION_NTSC_1_0
 char *cheatGetName(s32 cheat_id)
 {
-	return langGet(g_Cheats[cheat_id].nametextid);
+	return (char *)cheatGetNameStr(cheat_id);
 }
 #endif
 
@@ -966,6 +993,14 @@ struct menuitem g_CheatsFunMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		CHEAT_PLAYASELVIS,
+		0,
+		(uintptr_t)&cheatGetNameIfUnlocked,
+		0,
+		cheatCheckboxMenuHandler,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		CHEAT_MOONJUMP,
 		0,
 		(uintptr_t)&cheatGetNameIfUnlocked,
 		0,
@@ -1361,14 +1396,6 @@ struct menudialogdef g_CheatsClassicWeaponsMenuDialog = {
 };
 
 struct menuitem g_CheatsWeaponsMenuItems[] = {
-	{
-		MENUITEMTYPE_CHECKBOX,
-		CHEAT_CLASSICSIGHT,
-		0,
-		(uintptr_t)&cheatGetNameIfUnlocked,
-		0,
-		cheatCheckboxMenuHandler,
-	},
 	{
 		MENUITEMTYPE_CHECKBOX,
 		CHEAT_UNLIMITEDAMMOLAPTOP,

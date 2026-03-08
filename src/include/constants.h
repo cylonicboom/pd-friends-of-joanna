@@ -431,6 +431,7 @@
 #define CHEAT_JOSHIELD               13
 #define CHEAT_SUPERSHIELD            14
 #define CHEAT_CLASSICSIGHT           15
+#define CHEAT_MOONJUMP               15 // reuses classic sight slot (descheduled)
 #define CHEAT_TEAMHEADSONLY          16
 #define CHEAT_PLAYASELVIS            17
 #define CHEAT_ENEMYROCKETS           18
@@ -459,11 +460,12 @@
 #define CHEAT_RCP45                  41
 #define CHEAT_DUALWIELDALLGUNS       42
 
-#define CHEATFLAG_TIMED       0
-#define CHEATFLAG_ALWAYSON    1
-#define CHEATFLAG_TRANSFERPAK 2
-#define CHEATFLAG_COMPLETION  4
-#define CHEATFLAG_FIRINGRANGE 8
+#define CHEATFLAG_TIMED           0
+#define CHEATFLAG_ALWAYSON        1
+#define CHEATFLAG_TRANSFERPAK     2
+#define CHEATFLAG_COMPLETION      4
+#define CHEATFLAG_FIRINGRANGE     8
+#define CHEATFLAG_ALWAYSUNLOCKED  0x10 // FOJ: always unlocked regardless of save file
 
 #define CHECKSUM_PLACEHOLDER 0x99aabbcc
 
@@ -4796,8 +4798,10 @@ enum weaponnum {
 #define BUTTON_UI_ACCEPT      CONT_0010
 #define BUTTON_UI_CANCEL      CONT_0020
 
-#define BUTTON_EYELIDS        CONT_0040
-#define BUTTON_DROPITEM       CONT_0080
+#define BUTTON_EYELIDS          CONT_0040
+#define BUTTON_DROPITEM         CONT_0080
+#define BUTTON_MOONJUMP         CONT_0100
+#define BUTTON_TOGGLEGRAVITY    CONT_0200
 
 #define MOUSEAIM_CLASSIC 0 // crosshair moves around the screen in aim mode
 #define MOUSEAIM_LOCKED 1  // crosshair locked to the center of the screen in aim mode
