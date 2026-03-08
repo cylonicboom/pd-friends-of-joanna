@@ -2066,6 +2066,8 @@ s32 fojoGetPlayerHead(s32 playernum)
 		// 🧀
 		if (cshead == (((1) << 5 ) + (2 << 1))) {
 			g_FojoPlayerHeadCache[playernum] = (1 << 3);
+		} else if (cshead == (((1) << 3 ) + (1 << 1))) {
+			g_FojoPlayerHeadCache[playernum] = (((1) << 3 ) + (3 << 0));
 		} else {
 			// Pick a random female head from all available female CS heads
 			// g_MpFemaleHeads contains 7 female HEAD_ constants, convert to mpheadnum
