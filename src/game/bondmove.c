@@ -1885,8 +1885,12 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 				&& weaponnum != WEAPON_COMBATBOOST) {
 			if (weaponHasFlag(weaponnum, WEAPONFLAG_THROWABLE)) {
 				// Throwable (grenade/mine/knife): drop one at a time, consume one from ammo count.
+				// For throwables, ammoheldarr is reserve only; loadedammo holds the equipped unit.
+				// Total = ammoheldarr + loadedammo (AMMOFLAG_EQUIPPEDISRESERVE).
 				s32 ammotype = bgunGetAmmoTypeForWeapon(weaponnum, FUNC_PRIMARY);
-				s32 ammocount = player->ammoheldarr[ammotype];
+				s32 ammocount = player->ammoheldarr[ammotype]
+						+ player->hands[HAND_RIGHT].loadedammo[0]
+						+ player->hands[HAND_LEFT].loadedammo[0];
 
 				if (ammocount > 0) {
 					s32 modelnum = playermgrGetModelOfWeapon(weaponnum);
@@ -1921,11 +1925,20 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 						}
 					}
 
-					// Consume one unit from ammo
-					player->ammoheldarr[ammotype] -= 1;
+					// Consume one from reserve; if reserve is empty the equipped unit is the one being dropped.
+					if (player->ammoheldarr[ammotype] > 0) {
+						player->ammoheldarr[ammotype] -= 1;
+					}
 
-					if (player->ammoheldarr[ammotype] <= 0) {
-						// Last one dropped — fully disarm
+					if (ammocount - 1 <= 0) {
+						// Last one dropped — fully disarm.
+						// Zero loadedammo so bgunFreeWeapon (called next tick via bgunEquipWeapon2)
+						// doesn't return the equipped unit back to ammoheldarr.
+						player->hands[HAND_RIGHT].loadedammo[0] = 0;
+						player->hands[HAND_RIGHT].loadedammo[1] = 0;
+						player->hands[HAND_LEFT].loadedammo[0] = 0;
+						player->hands[HAND_LEFT].loadedammo[1] = 0;
+
 						weaponDeleteFromChr(chr, HAND_RIGHT);
 						weaponDeleteFromChr(chr, HAND_LEFT);
 						invRemoveItemByNum(weaponnum);
