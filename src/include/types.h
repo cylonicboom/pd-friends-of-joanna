@@ -1614,6 +1614,11 @@ struct weaponobj { // objtype 0x08
 	};
 
 	/*0x64*/ struct weaponobj *dualweapon; // other weapon when dual wielding
+
+#ifndef PLATFORM_N64
+	// When > 0, overrides the default pickup ammo quantity (used for player-dropped guns).
+	s16 ammo_qty;
+#endif
 };
 
 struct packedchr { // objtype 0x09

@@ -17077,6 +17077,12 @@ s32 weaponGetPickupAmmoQty(struct weaponobj *weapon)
 		return 0;
 	}
 
+#ifndef PLATFORM_N64
+	if (weapon->ammo_qty > 0) {
+		return weapon->ammo_qty;
+	}
+#endif
+
 	if (g_Vars.normmplayerisrunning) {
 		switch (ammotype) {
 		case AMMOTYPE_PISTOL:       qty = 10;          break;

@@ -1878,85 +1878,137 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 		s32 weaponnum = player->hands[0].gset.weaponnum;
 		struct chrdata *chr = player->prop->chr;
 
-		// Throw if B button (N64 B / Xbox B) or A button (accept/use) held
-		bool throw_items = (joyGetButtons(contpad1, B_BUTTON | A_BUTTON) & (B_BUTTON | A_BUTTON)) != 0;
+		// Hold B or A to throw; plain press drops at feet
+		bool throw_item = (joyGetButtons(contpad1, B_BUTTON | A_BUTTON) & (B_BUTTON | A_BUTTON)) != 0;
 
-		if (!weaponHasFlag(weaponnum, WEAPONFLAG_UNDROPPABLE) && weaponnum > WEAPON_UNARMED) {
-			// Delete weapon from hands FIRST (like bgunDisarm does)
-			weaponDeleteFromChr(chr, HAND_RIGHT);
-			weaponDeleteFromChr(chr, HAND_LEFT);
+		if (!weaponHasFlag(weaponnum, WEAPONFLAG_UNDROPPABLE) && weaponnum > WEAPON_UNARMED
+				&& weaponnum != WEAPON_COMBATBOOST) {
+			if (weaponHasFlag(weaponnum, WEAPONFLAG_THROWABLE)) {
+				// Throwable (grenade/mine/knife): drop one at a time, consume one from ammo count.
+				s32 ammotype = bgunGetAmmoTypeForWeapon(weaponnum, FUNC_PRIMARY);
+				s32 ammocount = player->ammoheldarr[ammotype];
 
-			// Create weapon prop to drop
-			s32 modelnum = playermgrGetModelOfWeapon(weaponnum);
-			if (modelnum >= 0) {
-				struct prop *prop = weaponCreateForChr(chr, modelnum, weaponnum,  OBJFLAG_WEAPON_AICANNOTUSE | OBJFLAG_WEAPON_NOAMMO, NULL, NULL);
+				if (ammocount > 0) {
+					s32 modelnum = playermgrGetModelOfWeapon(weaponnum);
 
-				if (prop && prop->obj) {
-					struct defaultobj *obj = prop->obj;
-					f32 angle = chrGetInverseTheta(chr);
+					if (modelnum >= 0) {
+						struct prop *prop = weaponCreateForChr(chr, modelnum, weaponnum, OBJFLAG_WEAPON_AICANNOTUSE, NULL, NULL);
 
-					objSetDropped(prop, DROPTYPE_DEFAULT);
+						if (prop && prop->obj) {
+							struct defaultobj *obj = prop->obj;
+							f32 angle = chrGetInverseTheta(chr);
 
-					// Set pickup restrictions BEFORE objDrop (like bgunDisarm does)
-					struct projectile *projectile = NULL;
+							objSetDropped(prop, DROPTYPE_DEFAULT);
 
-					// Get projectile pointer safely
-					if (obj->hidden & OBJHFLAG_EMBEDDED) {
-						projectile = obj->embedment->projectile;
-					} else if (obj->hidden & OBJHFLAG_PROJECTILE) {
-						projectile = obj->projectile;
+							// Prevent dropper from immediately picking it back up.
+							// pickupby = prop (the weapon itself) blocks everyone during the timer,
+							// since currentplayer->prop never equals the weapon prop.
+							if (obj->hidden & OBJHFLAG_PROJECTILE) {
+								obj->projectile->pickuptimer240 = TICKS(120);
+								obj->projectile->pickupby = prop;
+							}
+
+							objDrop(prop, false);
+
+							// Propel out of the player's body after objDrop sets world position
+							if (obj->hidden & OBJHFLAG_PROJECTILE) {
+								f32 speed = throw_item ? 10.0f : 5.0f;
+								prop->pos.x += sinf(angle) * 50.0f;
+								prop->pos.z += cosf(angle) * 50.0f;
+								obj->projectile->speed.x = sinf(angle) * speed;
+								obj->projectile->speed.z = cosf(angle) * speed;
+							}
+						}
 					}
 
-					if (projectile) {
-						// Find who the player is aiming at
-						struct prop *target_prop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+					// Consume one unit from ammo
+					player->ammoheldarr[ammotype] -= 1;
 
-						// Only use as target if it's a chr
-						if (target_prop && target_prop->type != PROPTYPE_PLAYER) {
-							target_prop = NULL;
+					if (player->ammoheldarr[ammotype] <= 0) {
+						// Last one dropped — fully disarm
+						weaponDeleteFromChr(chr, HAND_RIGHT);
+						weaponDeleteFromChr(chr, HAND_LEFT);
+						invRemoveItemByNum(weaponnum);
+
+						player->hands[1].state = HANDSTATE_IDLE;
+						player->hands[1].ejecttype = EJECTTYPE_GUN;
+						player->hands[0].ejectstate = EJECTSTATE_INIT;
+						player->hands[0].ejecttype = EJECTTYPE_GUN;
+						player->hands[0].state = HANDSTATE_IDLE;
+
+						bgunEquipWeapon2(HAND_RIGHT, WEAPON_UNARMED);
+						bgunEquipWeapon2(HAND_LEFT, WEAPON_NONE);
+						player->gunctrl.weaponnum = WEAPON_UNARMED;
+					}
+
+					player->isdropping = 1;
+					player->droptimer60 = TICKS(60);
+				}
+			} else {
+				// Regular gun: drop or throw the whole weapon.
+				// Snapshot loaded ammo before deleting from hands so we can encode it on the prop.
+				s16 loaded_ammo = (s16)(player->hands[HAND_RIGHT].loadedammo[0] + player->hands[HAND_LEFT].loadedammo[0]);
+				player->hands[HAND_RIGHT].loadedammo[0] = 0;
+				player->hands[HAND_RIGHT].loadedammo[1] = 0;
+				player->hands[HAND_LEFT].loadedammo[0] = 0;
+				player->hands[HAND_LEFT].loadedammo[1] = 0;
+
+				weaponDeleteFromChr(chr, HAND_RIGHT);
+				weaponDeleteFromChr(chr, HAND_LEFT);
+
+				s32 modelnum = playermgrGetModelOfWeapon(weaponnum);
+				if (modelnum >= 0) {
+					struct prop *prop = weaponCreateForChr(chr, modelnum, weaponnum, OBJFLAG_WEAPON_AICANNOTUSE, NULL, NULL);
+
+					if (prop && prop->obj) {
+						struct defaultobj *obj = prop->obj;
+						f32 angle = chrGetInverseTheta(chr);
+
+						// Encode loaded rounds so pickup gives exactly what was in the mag
+						prop->weapon->ammo_qty = loaded_ammo;
+
+						objSetDropped(prop, DROPTYPE_DEFAULT);
+
+						// Set pickup restrictions before objDrop
+						if (obj->hidden & OBJHFLAG_PROJECTILE) {
+							struct prop *target_prop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+
+							if (target_prop && target_prop->type != PROPTYPE_PLAYER) {
+								target_prop = NULL;
+							}
+
+							obj->projectile->pickuptimer240 = TICKS(300);
+							obj->projectile->pickupby = target_prop ? target_prop : prop;
 						}
 
-						projectile->pickuptimer240 = TICKS(300);  // 5 seconds
-						// If aiming at chr, let them pick it up. Otherwise block everyone (including us)
-						projectile->pickupby = target_prop ? target_prop : prop;
-					}
+						objDrop(prop, false);
 
-					objDrop(prop, false);
-
-					// Apply throw velocity AFTER objDrop to avoid it being overwritten
-					if (projectile) {
-						f32 throw_distance = throw_items? 800.0f: 100.0f;  // Medium throw distance
-						f32 offset_distance = 50.0f;
-						prop->pos.x += sinf(angle) * offset_distance;
-						prop->pos.z += cosf(angle) * offset_distance;
-
-						// Apply grenade-style throw velocity
-						projectile->speed.x = sinf(angle) * 13.333333015442f * (throw_distance / 1000);
-						projectile->speed.z = cosf(angle) * 13.333333015442f * (throw_distance / 1000);
+						// Apply velocity after objDrop
+						if (obj->hidden & OBJHFLAG_PROJECTILE) {
+							f32 speed = throw_item ? 13.333333015442f : 2.5f;
+							prop->pos.x += sinf(angle) * 50.0f;
+							prop->pos.z += cosf(angle) * 50.0f;
+							obj->projectile->speed.x = sinf(angle) * speed;
+							obj->projectile->speed.z = cosf(angle) * speed;
+						}
 					}
 				}
+
+				invRemoveItemByNum(weaponnum);
+
+				player->hands[1].state = HANDSTATE_IDLE;
+				player->hands[1].ejecttype = EJECTTYPE_GUN;
+				player->hands[0].ejectstate = EJECTSTATE_INIT;
+				player->hands[0].ejecttype = EJECTTYPE_GUN;
+				player->hands[0].state = HANDSTATE_IDLE;
+
+				bgunEquipWeapon2(HAND_RIGHT, WEAPON_UNARMED);
+				bgunEquipWeapon2(HAND_LEFT, WEAPON_NONE);
+				player->gunctrl.weaponnum = WEAPON_UNARMED;
+
+				player->isdropping = 1;
+				player->droptimer60 = TICKS(60);
 			}
-
-			// Remove from inventory
-			invRemoveItemByNum(weaponnum);
-
-			// Set hand states properly (like bgunDisarm does)
-			player->hands[1].state = HANDSTATE_IDLE;
-			player->hands[1].ejecttype = EJECTTYPE_GUN;
-			player->hands[0].ejectstate = EJECTSTATE_INIT;
-			player->hands[0].ejecttype = EJECTTYPE_GUN;
-			player->hands[0].state = HANDSTATE_IDLE;
-
-			// Equip unarmed (don't use bgunCycleBack - just go unarmed like disarm does)
-			bgunEquipWeapon2(HAND_RIGHT, WEAPON_UNARMED);
-			bgunEquipWeapon2(HAND_LEFT, WEAPON_NONE);
-
-			// Force immediate weapon change (bgunEquipWeapon2 only queues the switch)
-			player->gunctrl.weaponnum = WEAPON_UNARMED;
-
-			// Set drop cooldown
-			player->isdropping = 1;
-			player->droptimer60 = TICKS(60); // 1 second watchdog
 		}
 	}
 
