@@ -10,6 +10,12 @@
 #include "game/menu.h"
 #include "game/gamefile.h"
 #include "game/player.h"
+#include "game/credits.h"
+#include "game/title.h"
+#include "game/playermgr.h"
+#include "game/lv.h"
+#include "lib/main.h"
+#include "lib/vi.h"
 #include "lib/joy.h"
 #include "video.h"
 #include "input.h"
@@ -1881,6 +1887,21 @@ static MenuItemHandlerResult menuhandlerOpenBindsMenu(s32 operation, struct menu
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerViewCredits(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		creditsRequestFojPreCredits();
+		titleSetNextMode(TITLEMODE_SKIP);
+		setNumPlayers(1);
+		playermgrDisableTeamPlayers(false);
+		lvSetDifficulty(DIFF_A);
+		mainChangeToStage(STAGE_CREDITS);
+		viBlack(true);
+	}
+
+	return 0;
+}
+
 struct menuitem g_ExtendedMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -1929,6 +1950,22 @@ struct menuitem g_ExtendedMenuItems[] = {
 		(uintptr_t)"Key Bindings\n",
 		0,
 		menuhandlerOpenBindsMenu,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Credits\n",
+		0,
+		menuhandlerViewCredits,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,

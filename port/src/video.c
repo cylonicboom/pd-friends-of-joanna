@@ -79,7 +79,7 @@ s32 videoInit(void)
 		.wapi = wmAPI,
 		.rapi = renderingAPI,
 		.window_settings = {
-			.title = "Perfect Dark",
+			.title = "Friends of Joanna",
 			.width = vidWidth,
 			.height = vidHeight,
 			.x = 100,

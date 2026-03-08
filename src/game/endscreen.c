@@ -17,6 +17,7 @@
 #include "game/mainmenu.h"
 #include "game/filemgr.h"
 #include "game/endscreen.h"
+#include "game/credits.h"
 #include "game/stagetable.h"
 #include "game/lv.h"
 #include "game/mplayer/ingame.h"
@@ -811,6 +812,7 @@ void endscreenContinue(s32 context)
 				titleSetNextStage(g_MissionConfig.stagenum);
 				lvSetDifficulty(g_MissionConfig.difficulty);
 				titleSetNextMode(TITLEMODE_SKIP);
+				creditsRequestFojPreCredits();
 				mainChangeToStage(g_MissionConfig.stagenum);
 				viBlack(true);
 				break;

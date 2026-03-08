@@ -189,6 +189,58 @@ bool g_CreditsScrollStarted = false;
 bool g_CreditsAltTitleRequested = false;
 bool g_CreditsUsingAltTitle = false;
 
+bool g_FojPreCreditsRequested = false;
+bool g_FojCreditsActive = false;
+
+struct fojcredit {
+	u8 more : 1;
+	u8 retain : 2;
+	u8 durationindex : 2;
+	u8 style;
+	const char *text1;
+	const char *text2;
+};
+
+struct fojcredit g_FojCredits[] = {
+	// intro card
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "friends of joanna",                    "Catherine Reprobate" },
+
+	// testers - slide 1
+	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "testers",                              ""    },
+	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "alkamass",                             "graslu" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "redvox",                               "\n"  },
+
+	// testers - slide 2
+	{ 1, RETAIN_IN,   0, CREDITSTYLE_HEADING1,   "testers",                              ""    },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Adzy",                                 "Murk" },
+
+	// iamgreaser
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "rip that chrmask off",                 "iamgreaser" },
+
+	// decomp / port
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "perfect dark decompilation",           "Ryan Dwyer" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "perfect dark pc port",                 "fdsfdsfgs"  },
+
+	// writing
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "racousous writing",                    "Raine Stoltenberg" },
+
+
+	{ 1, RETAIN_NONE, 0, CREDITSTYLE_HEADING1,  "Mikado Dark's faceshoppers", ""   },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "wreck",               "jonaeru" },
+
+	// foslerfer
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "perfect dark zero's darkest agent",    "Foslerfer"  },
+
+	// PDZ model
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "pdz joanna dark / fosler head model",  "Johnny Thunder" },
+
+	// CIA HR manager
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "CIA HR manager",                       "0x0ada" },
+
+	// terminator
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_TERMINATOR, "",                                     "" },
+};
+
 void creditsMap4BgVertices(Vtx *vertices, f32 arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, f32 arg6)
 {
 	f32 a = arg2 * sinf(arg1) + arg3 * cosf(arg1);
@@ -1306,9 +1358,22 @@ struct credit *creditGetByRow(s32 row)
 	return &g_Credits[g_CreditsData->creditnum + row];
 }
 
+static struct fojcredit *fojcreditGetByRow(s32 row)
+{
+	s32 index = g_CreditsData->creditnum + row;
+
+	if (index < 0 || index >= (s32)ARRAYCOUNT(g_FojCredits)) {
+		return &g_FojCredits[ARRAYCOUNT(g_FojCredits) - 1];
+	}
+
+	return &g_FojCredits[index];
+}
+
 void creditsTickSlide(void)
 {
-	struct credit *credit = creditGetByRow(0);
+	struct credit *credit = g_FojCreditsActive
+		? (struct credit *)fojcreditGetByRow(0)
+		: creditGetByRow(0);
 	s32 i;
 	f32 durations[] = {4, 8, 12, 16}; // in seconds
 	f32 loadat = durations[credit->durationindex] + 2.0f + 0.142f * (g_CreditsData->numthisslide * 2 - 1);
@@ -1329,26 +1394,35 @@ void creditsTickSlide(void)
 		g_CreditsData->numthisslide = 1;
 
 		do {
-			credit = creditGetByRow(g_CreditsData->numthisslide - 1);
+			credit = g_FojCreditsActive
+				? (struct credit *)fojcreditGetByRow(g_CreditsData->numthisslide - 1)
+				: creditGetByRow(g_CreditsData->numthisslide - 1);
 
 			if (credit->more) {
 				g_CreditsData->numthisslide++;
 			}
 
 			if (credit && credit->style == CREDITSTYLE_TERMINATOR && g_CreditsData->numthisslide == 1) {
-				// Reached the end of the slides list
-				g_CreditsData->creditnum = 0;
+				if (g_FojCreditsActive) {
+					// FOJ pre-credits finished - transition to vanilla credits
+					g_FojCreditsActive = false;
+					credit = NULL;
+					creditsResetSlides();
+				} else {
+					// Reached the end of the slides list
+					g_CreditsData->creditnum = 0;
 
-				credit = NULL;
+					credit = NULL;
 
-				g_CreditsData->numthisslide = 1;
-				g_CreditsData->slideage = 0;
-				g_CreditsData->slidesenabled = false;
-				g_CreditsData->blacktimer60 = 0;
-				g_CreditsData->unk4208 = 0;
+					g_CreditsData->numthisslide = 1;
+					g_CreditsData->slideage = 0;
+					g_CreditsData->slidesenabled = false;
+					g_CreditsData->blacktimer60 = 0;
+					g_CreditsData->unk4208 = 0;
 
-				musicEndMenu();
-				musicStartPrimary(0);
+					musicEndMenu();
+					musicStartPrimary(0);
+				}
 			}
 		} while (credit && credit->more && g_CreditsData->numthisslide < 4);
 
@@ -1385,17 +1459,24 @@ Gfx *creditsDrawSlide(Gfx *gdl)
 	// Iterate the credits on this slide and populate the arrays
 	for (i = 0; i < g_CreditsData->numthisslide; i++) {
 		index = i * 2;
-		credits[i] = creditGetByRow(i);
+		if (g_FojCreditsActive) {
+			struct fojcredit *fc = fojcreditGetByRow(i);
+			credits[i] = (struct credit *)fc;
+			texts[index + 0] = (char *)fc->text1;
+			texts[index + 1] = (char *)fc->text2;
+		} else {
+			credits[i] = creditGetByRow(i);
 
-		if (credits[i] == NULL) {
-			g_CreditsData->creditnum = 0;
-			g_CreditsData->numthisslide = 1;
-			g_CreditsData->slideage = 0.0f;
-			return gdl;
+			if (credits[i] == NULL) {
+				g_CreditsData->creditnum = 0;
+				g_CreditsData->numthisslide = 1;
+				g_CreditsData->slideage = 0.0f;
+				return gdl;
+			}
+
+			texts[index + 0] = langGet(credits[i]->text1);
+			texts[index + 1] = langGet(credits[i]->text2);
 		}
-
-		texts[index + 0] = langGet(credits[i]->text1);
-		texts[index + 1] = langGet(credits[i]->text2);
 
 		// Choose first font
 		switch (credits[i]->style) {
@@ -1969,6 +2050,12 @@ void creditsReset(void)
 		g_CreditsData->blacktimer60 = TICKS(1140);
 	}
 
+	g_FojCreditsActive = g_FojPreCreditsRequested;
+
+	if (g_FojPreCreditsRequested) {
+		g_FojPreCreditsRequested = false;
+	}
+
 	playerConfigureVi();
 }
 
@@ -1979,4 +2066,13 @@ void creditsReset(void)
 void creditsRequestAltTitle(void)
 {
 	g_CreditsAltTitleRequested = true;
+}
+
+/**
+ * Instruct the credits system to play the Friends of Joanna pre-credits
+ * before the main Perfect Dark credits sequence.
+ */
+void creditsRequestFojPreCredits(void)
+{
+	g_FojPreCreditsRequested = true;
 }
