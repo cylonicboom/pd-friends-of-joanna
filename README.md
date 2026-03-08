@@ -1,10 +1,6 @@
 # MOD: Friends of Joanna
 
-4player co-op + counter-op. 
-
-Counter-op is highly experimental and mostly untested.
-
-[Co-op issues are filed in this project.](https://github.com/cylonicboom/perfect-dark-neon/issues?q=is%3Aissue%20state%3Aopen%20project%3Acylonicboom%2F2)
+Fork / Mod of the Perfect Dark PC Port, with extra cheese.
 
 [Setup instructions below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building--setup-friends-of-joanna)
 
