@@ -3777,7 +3777,7 @@ void mpplayerfileLoadWad(s32 playernum, struct savebuffer *buffer, s32 arg2)
 	g_PlayerConfigsArray[playernum].killmastermedals = savebufferReadBits(buffer, 18);
 	g_PlayerConfigsArray[playernum].survivormedals = savebufferReadBits(buffer, 16);
 	g_PlayerConfigsArray[playernum].controlmode = savebufferReadBits(buffer, 2);
-	g_PlayerConfigsArray[playernum].options = savebufferReadBits(buffer, 12);
+	g_PlayerConfigsArray[playernum].options = savebufferReadBits(buffer, 32);
 
 #ifndef PLATFORM_N64
 	// override with PC controls if enabled in the config
@@ -3924,7 +3924,7 @@ void mpplayerfileSaveWad(s32 playernum, struct savebuffer *buffer)
 	savebufferOr(buffer, ((controlmode == CONTROLMODE_PC) ? CONTROLMODE_11 : controlmode), 2);
 #endif
 
-	savebufferOr(buffer, g_PlayerConfigsArray[playernum].options, 12);
+	savebufferOr(buffer, g_PlayerConfigsArray[playernum].options, 32);
 
 	for (i = 0; i < ARRAYCOUNT(g_MpChallenges); i++) {
 		for (j = 1; j < MAX_PLAYERS + 1; j++) {

@@ -18,6 +18,7 @@ s32 optionsGetShowGunFunction(s32 mpchrnum);
 s32 optionsGetAlwaysShowTarget(s32 mpchrnum);
 s32 optionsGetShowZoomRange(s32 mpchrnum);
 s32 optionsGetPaintball(s32 mpchrnum);
+s32 optionsGetClassicSight(s32 mpchrnum);
 s32 optionsGetShowMissionTime(s32 mpchrnum);
 u8 optionsGetInGameSubtitles(void);
 u8 optionsGetCutsceneSubtitles(void);

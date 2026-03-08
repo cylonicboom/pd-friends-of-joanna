@@ -608,7 +608,7 @@ u32 currentPlayerGetSight(void)
 		return SIGHT_NONE;
 	}
 
-	if (cheatIsActive(CHEAT_CLASSICSIGHT)) {
+	if (optionsGetClassicSight(g_Vars.currentplayerstats->mpindex)) {
 		return SIGHT_CLASSIC;
 	}
 

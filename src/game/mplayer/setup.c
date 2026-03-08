@@ -1925,6 +1925,14 @@ struct menuitem g_MpControlMenuItems[] = {
 		menuhandlerMpControlCheckbox,
 	},
 	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_MPWEAPONS_090, // "Classic Sight"
+		OPTION_CLASSICSIGHT,
+		menuhandlerMpControlCheckbox,
+	},
+	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
 		0,
@@ -5963,27 +5971,6 @@ struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
 		0,
 		(void *)&g_MpControlMenuDialog,
 	},
-	// tabling this for now
-	// becuase this is a rabbit hole of design decisions and work
-	// {
-	// 	MENUITEMTYPE_SELECTABLE,
-	// 	0,
-	// 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-	// 	L_MPMENU_034, // "Player Options"
-	// 	0,
-	// 	(void *)&g_MpPlayerOptionsMenuDialog,
-	// },
-	// // also removing stats for now
-	// // until I implement the stats system
-	// // in team missions
-	// {
-	// 	MENUITEMTYPE_SELECTABLE,
-	// 	0,
-	// 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-	// 	L_MPMENU_035, // "Statistics"
-	// 	0,
-	// 	(void *)&g_MpPlayerStatsMenuDialog,
-	// },
 	{
 		MENUITEMTYPE_SEPARATOR,
 		0,

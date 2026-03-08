@@ -94,6 +94,10 @@ s32 optionsGetPaintball(s32 mpchrnum)
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_PAINTBALL) != 0;
 }
 
+s32 optionsGetClassicSight(s32 mpchrnum) {
+	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_CLASSICSIGHT) != 0;
+}
+
 s32 optionsGetShowMissionTime(s32 mpchrnum)
 {
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_SHOWMISSIONTIME) != 0;
