@@ -20,6 +20,7 @@
 #include "game/propobj.h"
 #include "game/savebuffer.h"
 #include "bss.h"
+#include "input.h"
 #include "lib/crash.h"
 #include "lib/joy.h"
 #include "lib/vi.h"
@@ -46,6 +47,9 @@ u32 var8009cca4;
 Vtx *g_PdLogoVertices[NUM_FRAMEBUFFERS];
 Col *g_PdLogoColours[NUM_FRAMEBUFFERS];
 s32 g_PdLogoVtxColIndex;
+
+static s32 g_LegalStaticTime = 0;
+static s32 g_LegalStaticTicks = 0;
 
 #if VERSION == VERSION_JPN_FINAL
 f32 var8009d34cjf;
@@ -172,7 +176,51 @@ void titleInitLegal(void)
 #endif
 }
 
+void titleInitLegal2(void)
+{
+	musicQueueStopAllEvent();
+	var800624f4 = 1;
+	g_TitleTimer = 0;
+	g_TitleButtonPressed = false;
+	g_TitleFastForward = false;
+
+#if VERSION == VERSION_PAL_BETA
+	// Play a sound if player has successfully enabled the crash screen.
+	// This is done in mainInit by holding all four C buttons.
+	if (g_CrashEnabled) {
+		sndStart(var80095200, SFX_8113, 0, -1, -1, -1.0f, -1, -1);
+	}
+#endif
+}
+
+void titleInitLegalStatic(void)
+{
+	musicQueueStopAllEvent();
+	var800624f4 = 1;
+	g_TitleTimer = 0;
+	g_TitleButtonPressed = false;
+	g_TitleFastForward = false;
+
+#if VERSION == VERSION_PAL_BETA
+	// Play a sound if player has successfully enabled the crash screen.
+	// This is done in mainInit by holding all four C buttons.
+	if (g_CrashEnabled) {
+		sndStart(var80095200, SFX_8113, 0, -1, -1, -1.0f, -1, -1);
+	}
+#endif
+}
+
 void titleExitLegal(void)
+{
+	// empty
+}
+
+void titleExitLegal2(void)
+{
+	// empty
+}
+
+void titleExitLegalStatic(void)
 {
 	// empty
 }
@@ -186,7 +234,23 @@ void titleTickLegal(void)
 
 	g_TitleTimer += g_Vars.lvupdate60;
 
+	if (g_TitleTimer > TICKS(80)) {
+		// this goes to LEGALSTATIC, which goes to LEGAL2, which goes to CHECK_CONTROLLERS
+		titleSetNextMode(TITLEMODE_LEGAL2);
+	}
+}
+
+void titleTickLegal2(void)
+{
+	viSetFovY(60);
+	viSetAspect(TITLE_ASPECT);
+	viSetZRange(100, 10000);
+	viSetUseZBuf(false);
+
+	g_TitleTimer += g_Vars.lvupdate60;
+
 	if (g_TitleTimer > TICKS(180)) {
+		// ... goes to CHECK_CONTROLLERS
 		titleSetNextMode(TITLEMODE_CHECKCONTROLLERS);
 	}
 }
@@ -312,8 +376,7 @@ struct legalelement g_LegalElements[] = {
 	{ -1,  296, 0, 1, LEGALELEMENTTYPE_WHITETEXTSM, L_OPTIONS_075 }, // "tm"
 	{ -1,  299, 0, 1, LEGALELEMENTTYPE_WHITETEXTLG, L_OPTIONS_074 }, // "NOT DETECTED"
 #else
-	{ 266, 296, 0, 1, LEGALELEMENTTYPE_WHITETEXTSM, L_OPTIONS_075 }, // "tm"
-	{ 286, 299, 0, 1, LEGALELEMENTTYPE_WHITETEXTLG, L_OPTIONS_074 }, // "NOT DETECTED"
+	{ 298, 299, 0, 1, LEGALELEMENTTYPE_WHITETEXTLG, L_OPTIONS_074 }, // "NOT DETECTED"
 #endif
 	{ 69,  320, 1, 1, LEGALELEMENTTYPE_LINE,        0             },
 	{ 69,  328, 0, 1, LEGALELEMENTTYPE_BLUETEXTMD,  L_OPTIONS_087 }, // "The Rarewere Logo and Perfect Dark are ..."
@@ -404,6 +467,240 @@ Gfx *titleRenderLegal(Gfx *gdl)
 				font2 = g_FontHandelGothicLg;
 				break;
 			}
+#if !defined(PLATFORM_N64) && defined(VERSION_HASH)
+				if (elem->textid == L_OPTIONS_076) {
+					elem->textptr = "N64 EXPANSION PAK tm";
+				}
+#endif
+
+			if (elem->type == LEGALELEMENTTYPE_LINE) {
+				gdl = text0f153780(gdl);
+#if VERSION == VERSION_JPN_FINAL
+				gdl = text0f153a34(gdl, elem->x, elem->y - 1, viGetWidth(), elem->y + 1, 0x7f7fff7f);
+#else
+				gdl = text0f153a34(gdl, elem->x, elem->y, viGetWidth(), elem->y + 2, 0x7f7fff7f);
+#endif
+				gdl = text0f153628(gdl);
+			} else if (elem->type == LEGALELEMENTTYPE_DOLBYLOGO) {
+				gdl = text0f153780(gdl);
+
+				gDPPipeSync(gdl++);
+				gDPSetTexturePersp(gdl++, G_TP_NONE);
+				gDPSetAlphaCompare(gdl++, G_AC_NONE);
+				gDPSetTextureLOD(gdl++, G_TL_TILE);
+				gDPSetTextureConvert(gdl++, G_TC_FILT);
+
+				texSelect(&gdl, &g_TexGeneralConfigs[47], 1, 0, 2, 1, 0);
+
+				gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+				gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+				gDPSetTextureFilter(gdl++, G_TF_POINT);
+
+				gSPTextureRectangle(gdl++,
+						elem->x << 2,
+						elem->y << 2,
+						(elem->x + 64) << 2,
+						(elem->y + 24) << 2,
+						G_TX_RENDERTILE, 0, 0x0300, 0x0400, -0x0400);
+
+				gdl = text0f153628(gdl);
+			} else if (elem->type == LEGALELEMENTTYPE_RARELOGO) {
+				gdl = text0f153780(gdl);
+
+				gDPPipeSync(gdl++);
+				gDPSetTexturePersp(gdl++, G_TP_NONE);
+				gDPSetAlphaCompare(gdl++, G_AC_NONE);
+				gDPSetTextureLOD(gdl++, G_TL_TILE);
+				gDPSetTextureConvert(gdl++, G_TC_FILT);
+
+				texSelect(&gdl, &g_TexGeneralConfigs[49], 1, 0, 2, 1, 0);
+
+				gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+				gDPSetCombineMode(gdl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+				gDPSetTextureFilter(gdl++, G_TF_POINT);
+
+				gSPTextureRectangle(gdl++,
+						elem->x << 2,
+						elem->y << 2,
+						(elem->x + 32) << 2,
+						(elem->y + 42) << 2,
+						G_TX_RENDERTILE, 0, 0x0540, 0x0400, -0x0400);
+
+				gdl = text0f153628(gdl);
+			} else {
+#ifdef PLATFORM_N64
+#define ELEM_TEXT langGet(elem->textid)
+#else
+#define ELEM_TEXT (char *)(elem->textptr ? elem->textptr : langGet(elem->textid))
+#endif
+#if VERSION == VERSION_JPN_FINAL
+				u32 stack;
+				x = elem->x == -1 ? prevx : elem->x;
+				y = elem->y - 1;
+
+				if (elem->type == LEGALELEMENTTYPE_WHITETEXTLG || elem->type == LEGALELEMENTTYPE_WHITETEXTSM) {
+					y -= 3;
+
+					var8007fad0 = 2;
+					var80080108jf = 2;
+
+					if (elem->x == -1) {
+						x += 24;
+					}
+
+					gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, colour, viGetWidth(), viGetHeight(), 0, 0);
+
+					var8007fad0 = 1;
+					var80080108jf = 1;
+				} else {
+					gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, (colour & 0xffffff00) | ((colour & 0xff) * 2 / 3), viGetWidth(), viGetHeight(), 0, 0);
+
+					x = elem->x == -1 ? prevx : elem->x;
+					y = elem->y;
+					gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, colour, viGetWidth(), viGetHeight(), 0, 0);
+
+					prevx = x;
+				}
+#elif VERSION >= VERSION_PAL_FINAL
+				u32 stack;
+				// Render a darker copy of the text one pixel above
+				x = elem->x == -1 ? prevx : elem->x;
+				y = elem->y - 1;
+				gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, (colour & 0xffffff00) | ((colour & 0xff) * 2 / 3), viGetWidth(), viGetHeight(), 0, 0);
+
+				// Render the text properly
+				x = elem->x == -1 ? prevx : elem->x;
+				y = elem->y;
+				gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, colour, viGetWidth(), viGetHeight(), 0, 0);
+
+				prevx = x;
+#elif VERSION >= VERSION_PAL_BETA
+				x = elem->x == -1 ? prevx : elem->x;
+				y = elem->y;
+				gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, colour, viGetWidth(), viGetHeight(), 0, 0);
+				prevx = x;
+#else
+				x = elem->x;
+				y = elem->y;
+				gdl = textRenderProjected(gdl, &x, &y, ELEM_TEXT, font1, font2, colour, viGetWidth(), viGetHeight(), 0, 0);
+#endif
+			}
+		}
+
+#ifndef PLATFORM_N64
+		gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
+#endif
+
+		gdl = text0f153780(gdl);
+	}
+
+	g_LegalStaticTicks++;
+	if (g_LegalStaticTicks > 40) {
+		s32 legalstatic = g_LegalStaticTime * 255 / TICKS(180);
+		g_LegalStaticTime++;
+
+		if (legalstatic > 255) {
+			legalstatic = 255;
+		}
+
+		gdl = bviewDrawStatic(gdl, 0x4fffffff, legalstatic);
+	}
+
+	return gdl;
+}
+
+static void titleUpdateTextPtrs(struct legalelement *elem) {
+#if !defined(PLATFORM_N64) && defined(VERSION_HASH)
+				if (elem->textid == L_OPTIONS_084) {
+					elem->textptr = VERSION_HASH " (" VERSION_TARGET ")";
+				} else if (elem->textid == L_OPTIONS_083) {
+					elem->textptr = VERSION_ROMID;
+				} else if (elem->textid == L_OPTIONS_082) {
+					elem->textptr = "Friends of Joanna (" VERSION_BRANCH ")";
+				} else if (elem->textid == L_OPTIONS_077) {
+					elem->textptr = "Perfect Dark Mod Identification";
+				} else if (elem->textid == L_OPTIONS_085) {
+					elem->textptr = "Catherine Reprobate";
+				} else if (elem->textid == L_OPTIONS_076) {
+					elem->textptr = "                         FRIENDS";
+				}
+#endif
+}
+
+Gfx *titleRenderLegal2(Gfx *gdl)
+{
+#if VERSION >= VERSION_PAL_BETA
+	s32 prevx = 0;
+#endif
+	struct legalelement *elem;
+	struct legalelement *end;
+	struct modelrenderdata renderdata = { NULL, true, 3 };
+	s32 x;
+	s32 y;
+	struct fontchar *font1;
+	struct font *font2;
+
+	if (g_LegalEnabled) {
+		gdl = titleClear(gdl);
+#if VERSION == VERSION_JPN_FINAL
+		gdl = func0f0d479c(gdl);
+#endif
+		gdl = text0f153628(gdl);
+
+#ifndef PLATFORM_N64
+		gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
+#endif
+
+		elem = g_LegalElements;
+		end = &g_LegalElements[ARRAYCOUNT(g_LegalElements)];
+
+		for (; elem < end; elem++) {
+			u32 colour = 0x7f7fffff;
+
+			switch (elem->type) {
+			case LEGALELEMENTTYPE_BLUETEXTSM:
+				font1 = g_CharsHandelGothicSm;
+				font2 = g_FontHandelGothicSm;
+				break;
+			case LEGALELEMENTTYPE_BLUETEXTMD:
+				font1 = g_CharsHandelGothicMd;
+				font2 = g_FontHandelGothicMd;
+				break;
+			case LEGALELEMENTTYPE_BLUETEXTLG:
+				font1 = g_CharsHandelGothicLg;
+				font2 = g_FontHandelGothicLg;
+				break;
+			case LEGALELEMENTTYPE_WHITETEXTLG:
+				font1 = g_CharsHandelGothicLg;
+				font2 = g_FontHandelGothicLg;
+				colour = 0xffffffff;
+
+				if (elem->textid == L_OPTIONS_074 || elem->textid == L_OPTIONS_073) {
+#if VERSION >= VERSION_PAL_BETA
+					prevx += 10;
+#endif
+
+					// TODO: get number of detected controllers
+					s32 ctrls[INPUT_MAX_CONNECTED_CONTROLLERS];
+					s32 numCtrls = inputGetConnectedControllers(ctrls);
+					if (numCtrls < 1) {
+						elem->textid = L_OPTIONS_074; // NOT DETECTED
+					} else {
+						elem->textid = L_OPTIONS_073; // DETECTED
+					}
+				}
+				break;
+			case LEGALELEMENTTYPE_WHITETEXTSM:
+				font1 = g_CharsHandelGothicSm;
+				font2 = g_FontHandelGothicSm;
+				colour = 0xffffffff;
+				break;
+			default:
+				font1 = g_CharsHandelGothicLg;
+				font2 = g_FontHandelGothicLg;
+				break;
+			}
+			titleUpdateTextPtrs(elem);
 
 			if (elem->type == LEGALELEMENTTYPE_LINE) {
 				gdl = text0f153780(gdl);
@@ -2532,6 +2829,12 @@ void titleTick(void)
 		case TITLEMODE_LEGAL:
 			titleExitLegal();
 			break;
+		case TITLEMODE_LEGAL2:
+			titleExitLegal2();
+			break;
+		case TITLEMODE_LEGALSTATIC:
+			titleExitLegalStatic();
+			break;
 		case TITLEMODE_CHECKCONTROLLERS:
 			titleExitCheckControllers();
 			break;
@@ -2585,6 +2888,12 @@ void titleTick(void)
 		case TITLEMODE_LEGAL:
 			titleInitLegal();
 			break;
+		case TITLEMODE_LEGAL2:
+			titleInitLegal2();
+			break;
+		case TITLEMODE_LEGALSTATIC:
+			titleInitLegalStatic();
+			break;
 		case TITLEMODE_CHECKCONTROLLERS:
 			titleInitCheckControllers();
 			break;
@@ -2619,6 +2928,9 @@ void titleTick(void)
 	switch (g_TitleMode) {
 	case TITLEMODE_LEGAL:
 		titleTickLegal();
+		break;
+	case TITLEMODE_LEGAL2:
+		titleTickLegal2();
 		break;
 	case TITLEMODE_CHECKCONTROLLERS:
 		titleTickCheckControllers();
@@ -2670,6 +2982,12 @@ void titleExit(void)
 	switch (g_TitleMode) {
 	case TITLEMODE_LEGAL:
 		titleExitLegal();
+		break;
+	case TITLEMODE_LEGAL2:
+		titleExitLegal2();
+		break;
+	case TITLEMODE_LEGALSTATIC:
+		titleExitLegalStatic();
 		break;
 	case TITLEMODE_CHECKCONTROLLERS:
 		titleExitCheckControllers();
@@ -2794,6 +3112,9 @@ Gfx *titleRender(Gfx *gdl)
 		switch (g_TitleMode) {
 		case TITLEMODE_LEGAL:
 			gdl = titleRenderLegal(gdl);
+			break;
+		case TITLEMODE_LEGAL2:
+			gdl = titleRenderLegal2(gdl);
 			break;
 		case TITLEMODE_CHECKCONTROLLERS:
 			gdl = titleRenderCheckControllers(gdl);
