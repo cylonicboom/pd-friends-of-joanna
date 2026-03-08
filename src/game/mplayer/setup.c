@@ -27,6 +27,7 @@
 #include "system.h"
 #include "input.h"
 #include "mpsetups.h"
+#include "optionsmenu.h"
 
 struct menuitem g_MpCharacterMenuItems[];
 struct menudialogdef g_MpAddSimulantMenuDialog;
@@ -293,7 +294,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 	static struct optiongroup dynamic_groups[32];
 	struct optiongroup *groups;
 	s32 numgroups;
-	
+
 	if (g_NumMpArenaGroups == 0) {
 		// No groups defined - use vanilla hardcoded groups
 		groups = groups_vanilla;
@@ -301,10 +302,10 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 	} else {
 		// Use groups from modconfig.txt
 		numgroups = g_NumMpArenaGroups < 32 ? g_NumMpArenaGroups : 32;
-		
+
 		for (s32 i = 0; i < numgroups; i++) {
 			dynamic_groups[i].offset = g_MpArenaGroups[i].startindex;
-			
+
 			// Use langid if specified, otherwise use literal name pointer
 			if (g_MpArenaGroups[i].langid) {
 				dynamic_groups[i].langid = g_MpArenaGroups[i].langid;
@@ -314,7 +315,7 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, u
 				dynamic_groups[i].customname = g_MpArenaGroups[i].name;
 			}
 		}
-		
+
 		groups = dynamic_groups;
 	}
 
@@ -5938,16 +5939,22 @@ struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
 		0,
 		(void *)&g_TeamMissionsOperativeModelMenuDialog,
 	},
-	// tabling this for now
-	// becuase this is a rabbit hole of design decisions and work
-	// {
-	// 	MENUITEMTYPE_SELECTABLE,
-	// 	0,
-	// 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-	// 	L_MPMENU_031, // "Character"
-	// 	0,
-	// 	(void *)&g_MpCharacterMenuDialog,
-	// },
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Controller",
+		0,
+		optionsmenuhandlerController,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_031, // "Character"
+		0,
+		(void *)&g_MpCharacterMenuDialog,
+	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,

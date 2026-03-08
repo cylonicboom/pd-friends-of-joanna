@@ -13,6 +13,7 @@
 #include "lib/joy.h"
 #include "video.h"
 #include "input.h"
+#include "optionsmenu.h"
 #include "config.h"
 
 static s32 g_ExtMenuPlayer = 0;
@@ -614,6 +615,11 @@ static MenuItemHandlerResult menuhandlerController(s32 operation, struct menuite
 	}
 
 	return 0;
+}
+
+MenuItemHandlerResult optionsmenuhandlerController(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	return menuhandlerController(operation, item, data);
 }
 
 struct menuitem g_ExtendedControllerMenuItems[] = {
