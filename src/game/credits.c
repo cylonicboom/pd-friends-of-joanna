@@ -207,19 +207,8 @@ struct fojcredit g_FojCredits[] = {
 
 
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Catherine Reprobate",                           "friend of joanna" },
-	// decomp / port
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Ryan Dwyer",                           "perfect dark decompilation" },
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "fdsfdsfgs",                            "perfect dark pc port" },
-
-	// iamgreaser
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "iamgreaser",                           "rip that chrmask off" },
-
-
 	// writing
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Raine Stoltenberg",                    "racousous writing"  },
-
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Jonaeru",                    "modloader base"  },
-
 
 
 	// foslerfer
@@ -231,8 +220,16 @@ struct fojcredit g_FojCredits[] = {
 	{ 1, RETAIN_NONE, 0, CREDITSTYLE_HEADING1,  "Mikado Dark's faceshoppers", ""   },
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "wreck",               "jonaeru" },
 
+	// iamgreaser
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "iamgreaser",                           "rip that chrmask off" },
+
 	// CIA HR manager
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "0x0ada",                               "CIA HR manager" },
+
+	// decomp / port
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Jonaeru",                    "modloader base"  },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Ryan Dwyer",                           "perfect dark decompilation" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "fdsfdsfgs",                            "perfect dark pc port" },
 
 	//
 	// special thanks
@@ -247,13 +244,13 @@ struct fojcredit g_FojCredits[] = {
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Brett Jones",                             "Dr. Doak" },
 
 
-	// testers - slide 1
-	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "testers",                              ""    },
+	// replicant behavioral auditors - slide 1
+	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "replicant behavioral auditors",                              ""    },
 	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "alkamass",                             "graslu" },
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "redvox",                               "frozen"  },
 
-	// testers - slide 2
-	{ 1, RETAIN_IN,   0, CREDITSTYLE_HEADING1,   "testers",                              ""    },
+	// replicant behavioral auditors - slide 2
+	{ 1, RETAIN_IN,   0, CREDITSTYLE_HEADING1,   "replicant behavioral auditors",                              ""    },
 	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Adzy",                                 "Murk" },
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Morrigan Aensland-Hill",                                 "Asuka Langley Soryu" },
 
