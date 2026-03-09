@@ -238,7 +238,8 @@ struct fojcredit g_FojCredits[] = {
 
 	{ 1, RETAIN_BOTH,  0, CREDITSTYLE_HEADING1,   "special thanks",                              ""    },
 	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "graslu",                             "frozen" },
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "N64 Vault",                             "Adzy" },
+	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "N64 Vault",                             "Adzy" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "axdoomer",                             "\n" },
 
 	{ 1, RETAIN_IN,  0, CREDITSTYLE_HEADING1,   "special thanks",                              ""    },
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Brett Jones",                             "Dr. Doak" },
