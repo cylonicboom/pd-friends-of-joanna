@@ -15,17 +15,14 @@ classic sight now moved to mp options section. need to enable theming options
 - [X] DONE: fix spawn defaults. Poplin / Anka should not be spawning in.
 - [X] FEAT: reroute Jon -> Velvet
 - [X] DONE mines / throwables don't preserve / give ammo on pickup.
-
-- [-] FEAT pre-intro profile setup screen / stretch: add better controller setup
+- [-] SKIP pre-intro profile setup screen / stretch: add better controller setup
 Added controller menu to setup screen
 might skip it
+- [-] SKIP FEAT setup color defaults for different Jos. Mikado pink / darkZer0 white / Jo robocop green / velvet ???
 
-- [ ] FEAT fosler as pdz jo
+- [ ] FEAT: WINDOWS BOOF PROG
+- [ ] FEAT WINDOWS fosler as pdz jo
 
-- [ ] FEAT setup color defaults for different Jos. Mikado pink / darkZer0 white / Jo robocop green / velvet ???
-
-
-- [ ] FEAT: BOOF PROG
 
 - [ ] BUG press start / respawn flow woes
 - [ ] BUG retest death by chicago drone

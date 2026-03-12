@@ -2300,6 +2300,49 @@ u32 g_MpFemaleHeads[] = {
 };
 
 /**
+ * Flush in-game stats for the current player into their mp profile.
+ * Called once per player at team mission end (parity with CS mpCalculateAwards).
+ */
+void teamCalculateAwards(void)
+{
+	if (!g_CheatsActiveBank0 && !g_CheatsActiveBank1) {
+		struct mpplayerconfig *mpplayer =
+				&g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex];
+		s32 numshots = mpstatsGetPlayerShotCountByRegion(SHOTREGION_TOTAL);
+		s32 numhits = mpstatsGetPlayerShotCountByRegion(SHOTREGION_HEAD)
+				+ mpstatsGetPlayerShotCountByRegion(SHOTREGION_BODY)
+				+ mpstatsGetPlayerShotCountByRegion(SHOTREGION_LIMB)
+				+ mpstatsGetPlayerShotCountByRegion(SHOTREGION_GUN)
+				+ mpstatsGetPlayerShotCountByRegion(SHOTREGION_HAT)
+				+ mpstatsGetPlayerShotCountByRegion(SHOTREGION_OBJECT);
+
+		mpplayer->kills         += g_Vars.currentplayerstats->killcount;
+		mpplayer->deaths        += g_Vars.currentplayer->deathcount;
+		mpplayer->gamesplayed++;
+		mpplayer->time          += playerGetMissionTime() / 60;
+		mpplayer->distance      += (u32)(g_Vars.currentplayerstats->distance / 10000.0f);
+		mpplayer->damagedealt   += (u32)(g_Vars.currentplayerstats->damtransmitted / 0.1f);
+		mpplayer->painreceived  += (u32)(g_Vars.currentplayerstats->damreceived / 0.1f);
+		mpplayer->headshots     += mpstatsGetPlayerShotCountByRegion(SHOTREGION_HEAD);
+		mpplayer->ammoused      += numshots;
+
+		if (numshots > 0) {
+			f32 accuracyfrac = numhits / (f32)numshots;
+
+			if (accuracyfrac > 1.0f) {
+				accuracyfrac = 1.0f;
+			}
+
+			if (mpplayer->gamesplayed < 2) {
+				mpplayer->accuracy = accuracyfrac * 1000.0f;
+			} else {
+				mpplayer->accuracy = ((accuracyfrac * 0.3f) + (mpplayer->accuracy / 1000.0f * 0.7f)) * 1000.0f;
+			}
+		}
+	}
+}
+
+/**
  * Calculate player awards, medals, and update character statistics.
  */
 void mpCalculateAwards(void)

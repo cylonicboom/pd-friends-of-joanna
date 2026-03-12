@@ -52,6 +52,7 @@ s32 mpFindMinInt(s32 playercount, s32 val0, s32 val1, s32 val2, s32 val3);
 s32 mpFindMaxFloat(s32 playercount, f32 val0, f32 val1, f32 val2, f32 val3);
 s32 mpFindMinFloat(s32 playercount, f32 val0, f32 val1, f32 val2, f32 val3);
 void mpCalculatePlayerTitle(struct mpplayerconfig *mpplayer);
+void teamCalculateAwards(void);
 void mpCalculateAwards(void);
 void mpEndMatch(void);
 s32 mpGetNumHeads2(void);

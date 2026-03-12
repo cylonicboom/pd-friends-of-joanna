@@ -46,6 +46,8 @@
 #include "game/zbuf.h"
 #include "game/game_1a78b0.h"
 #include "game/mplayer/mplayer.h"
+#include "game/mpstats.h"
+#include "game/player.h"
 #include "game/pak.h"
 #include "game/splat.h"
 #include "game/utils.h"
@@ -664,6 +666,8 @@ void mainEndStage(void)
 
 			for (i = 0; i < PLAYERCOUNT(); i++) {
 				setCurrentPlayerNum(i);
+
+				teamCalculateAwards();
 				printf("mainEndStage: before endscreenPushTeam (player %d)\n", i);
 				endscreenPushTeam();
 			}
