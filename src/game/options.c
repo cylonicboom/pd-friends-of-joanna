@@ -98,6 +98,11 @@ s32 optionsGetClassicSight(s32 mpchrnum) {
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_CLASSICSIGHT) != 0;
 }
 
+s32 optionsGetShowLives(s32 mpchrnum)
+{
+	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_SHOWLIVES) != 0;
+}
+
 s32 optionsGetShowMissionTime(s32 mpchrnum)
 {
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_SHOWMISSIONTIME) != 0;
@@ -205,6 +210,24 @@ void optionsSetPaintball(s32 mpchrnum, bool enable)
 		g_PlayerConfigsArray[mpchrnum].options |= OPTION_PAINTBALL;
 	} else {
 		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_PAINTBALL;
+	}
+}
+
+void optionsSetClassicSight(s32 mpchrnum, bool enable)
+{
+	if (enable) {
+		g_PlayerConfigsArray[mpchrnum].options |= OPTION_CLASSICSIGHT;
+	} else {
+		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_CLASSICSIGHT;
+	}
+}
+
+void optionsSetShowLives(s32 mpchrnum, bool enable)
+{
+	if (enable) {
+		g_PlayerConfigsArray[mpchrnum].options |= OPTION_SHOWLIVES;
+	} else {
+		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_SHOWLIVES;
 	}
 }
 

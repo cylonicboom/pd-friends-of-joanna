@@ -325,7 +325,9 @@ Gfx *hudmsgRenderZoomRange(Gfx *gdl, u32 alpha)
 
 s32 hudmsgIsTeamLivesVisible(void)
 {
-	return g_MissionConfig.isteam && g_MissionConfig.lives > 0;
+	return g_MissionConfig.isteam
+		&& g_MissionConfig.lives > 0
+		&& optionsGetShowLives(g_Vars.currentplayerstats->mpindex);
 }
 
 Gfx *hudmsgRenderLives(Gfx *gdl, u32 alpha)

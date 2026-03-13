@@ -711,6 +711,48 @@ MenuItemHandlerResult menuhandlerSightOnScreen(s32 operation, struct menuitem *i
 	return 0;
 }
 
+MenuItemHandlerResult menuhandlerClassicSight(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	u32 mpchrnum;
+
+	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
+		mpchrnum = g_Vars.currentplayerstats->mpindex;
+	} else {
+		mpchrnum = item->param3;
+	}
+
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetClassicSight(mpchrnum);
+	case MENUOP_SET:
+		optionsSetClassicSight(mpchrnum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+	}
+
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerShowLives(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	u32 mpchrnum;
+
+	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
+		mpchrnum = g_Vars.currentplayerstats->mpindex;
+	} else {
+		mpchrnum = item->param3;
+	}
+
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetShowLives(mpchrnum);
+	case MENUOP_SET:
+		optionsSetShowLives(mpchrnum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+	}
+
+	return 0;
+}
+
 MenuItemHandlerResult menuhandlerAutoAim(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	u32 mpchrnum;
@@ -4137,6 +4179,22 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		menuhandlerShowMissionTime,
 	},
 	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Classic Sight",
+		0x00000004,
+		menuhandlerClassicSight,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Lives",
+		0x00000004,
+		menuhandlerShowLives,
+	},
+	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
 		0,
@@ -4246,6 +4304,22 @@ struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
 		menuhandlerShowMissionTime,
 	},
 	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Classic Sight",
+		0x00000004,
+		menuhandlerClassicSight,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Lives",
+		0x00000004,
+		menuhandlerShowLives,
+	},
+	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
 		0,
@@ -4345,6 +4419,22 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		L_OPTIONS_212, // "Show Mission Time"
 		0x00000004,
 		menuhandlerShowMissionTime,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Classic Sight",
+		0x00000004,
+		menuhandlerClassicSight,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Lives",
+		0x00000004,
+		menuhandlerShowLives,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -4448,6 +4538,22 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		L_OPTIONS_212, // "Show Mission Time"
 		0x00000005,
 		menuhandlerShowMissionTime,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Classic Sight",
+		0x00000005,
+		menuhandlerClassicSight,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Lives",
+		0x00000005,
+		menuhandlerShowLives,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
