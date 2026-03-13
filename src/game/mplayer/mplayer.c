@@ -1651,6 +1651,7 @@ Gfx *mpRenderModalText(Gfx *gdl)
 			&& g_Vars.currentplayer->deathanimfinished
 			&& !(g_Vars.coopplayers[g_Vars.currentplayernum] && (!g_Vars.currentplayer->coopcanrestart || g_InCutscene))
 			&& !(g_Vars.antiplayers[g_Vars.currentplayernum] && g_InCutscene)
+			&& !(g_MissionConfig.lives > 0 && g_Vars.currentplayer->livesremaining == 0)
 			&& g_NumReasonsToEndMpMatch == 0) {
 		// Render "Press START" text
 		gdl = text0f153628(gdl);

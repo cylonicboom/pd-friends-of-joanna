@@ -5019,10 +5019,29 @@ Gfx *playerRenderHud(Gfx *gdl)
 								bool needBuddyAlive = !(g_MissionConfig.isteam && g_MissionConfig.lives != 0);
 							// For team missions with non-standard lives, allow respawn
 								if (g_MissionConfig.isteam && g_MissionConfig.lives != 0) {
-									g_Vars.currentplayer->coopcanrestart = true;
-									canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
-									if (canrestart) {
-										g_Vars.currentplayer->dostartnewlife = true;
+									// Unlimited lives (-1): always allow respawn
+									// Counted lives (1-100): only allow if lives remain
+									if (g_MissionConfig.lives == -1 || g_Vars.currentplayer->livesremaining > 0) {
+										g_Vars.currentplayer->coopcanrestart = true;
+										canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
+										if (canrestart) {
+											g_Vars.currentplayer->dostartnewlife = true;
+										}
+									} else {
+										// Out of lives - check if all allies are also out
+										bool any_ally_has_lives = false;
+										for (int i = 0; i < PLAYERCOUNT(); i++) {
+											if (!g_Vars.players[i]) continue;
+											if (g_Vars.antiplayers[i]) continue;
+											if (g_Vars.players[i] == g_Vars.currentplayer) continue;
+											if (!g_Vars.players[i]->isdead || g_Vars.players[i]->livesremaining > 0) {
+												any_ally_has_lives = true;
+												break;
+											}
+										}
+										if (!any_ally_has_lives) {
+											mainEndStage();
+										}
 									}
 								}
 							else if (!needBuddyAlive || (!g_Vars.bond->isdead || !g_Vars.coop->isdead)) {
