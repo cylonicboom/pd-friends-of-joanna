@@ -1801,7 +1801,7 @@ Gfx *lvRender(Gfx *gdl)
 	gDPSetScissor(gdl++, G_SC_NON_INTERLACE, 0, 0, viGetWidth(), viGetHeight());
 
 #ifndef PLATFORM_N64
-	if (videoGetDisplayFPS()) {
+	if (videoGetDisplayFPS() && !hudmsgIsTeamLivesVisible()) {
 		gdl = lvRenderFPS(gdl);
 	}
 #endif

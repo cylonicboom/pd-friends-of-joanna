@@ -323,6 +323,47 @@ Gfx *hudmsgRenderZoomRange(Gfx *gdl, u32 alpha)
 	return gdl;
 }
 
+s32 hudmsgIsTeamLivesVisible(void)
+{
+	return g_MissionConfig.isteam && g_MissionConfig.lives > 0;
+}
+
+Gfx *hudmsgRenderLives(Gfx *gdl, u32 alpha)
+{
+	s32 x;
+	s32 y;
+	s32 viewleft;
+	s32 viewtop;
+	u32 textcolour;
+	char buffer[16];
+	s32 playercount;
+
+	textcolour = (alpha * 160 / 255) | 0x00ff0000;
+
+	viewleft = viGetViewLeft() / g_ScaleX;
+	viewtop = viGetViewTop();
+	playercount = PLAYERCOUNT();
+
+	x = viewleft + g_HudPaddingX + 3;
+	y = viewtop + g_HudPaddingY + 2;
+
+	snprintf(buffer, sizeof(buffer), "lives:%d", g_Vars.currentplayer->livesremaining);
+
+#ifndef PLATFORM_N64
+	if (playercount < 2 || (playercount == 2 && optionsGetScreenSplit() == SCREENSPLIT_HORIZONTAL)) {
+		gSPExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT, g_HudAlignModeL);
+	}
+#endif
+
+	gdl = textRender(gdl, &x, &y, buffer, g_CharsHandelGothicSm, g_FontHandelGothicSm, textcolour, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+
+#ifndef PLATFORM_N64
+	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
+#endif
+
+	return gdl;
+}
+
 Gfx *hudmsgRenderBox(Gfx *gdl, s32 x1, s32 y1, s32 x2, s32 y2, f32 bgopacity, u32 bordercolour, f32 textopacity)
 {
 	f32 f0;
@@ -1646,6 +1687,10 @@ Gfx *hudmsgsRender(Gfx *gdl)
 
 		if (hudmsgIsZoomRangeVisible()) {
 			gdl = hudmsgRenderZoomRange(gdl, timerthing);
+		}
+
+		if (hudmsgIsTeamLivesVisible()) {
+			gdl = hudmsgRenderLives(gdl, timerthing);
 		}
 
 		gdl = countdownTimerRender(gdl);
