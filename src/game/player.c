@@ -4441,6 +4441,7 @@ void playerTick(bool arg0)
 					switch (g_MissionConfig.lives) {
 					case -1: // Unlimited
 						// Always allow respawn
+						chrsClearRefsToPlayer(g_Vars.currentplayernum);
 						g_Vars.currentplayer->respawnpending = true;
 						g_Vars.currentplayer->dostartnewlife = false;
 						break;
@@ -4475,9 +4476,11 @@ void playerTick(bool arg0)
 							g_Vars.currentplayer->livesremaining--;
 						}
 
+						// Clear AI references to dead player to prevent null pointer access
+						chrsClearRefsToPlayer(g_Vars.currentplayernum);
+
 						// Check if player has lives remaining
-						if (g_Vars.currentplayer->livesremaining > 0 ||
-						    (g_MissionConfig.lives == -1)) {
+						if (g_Vars.currentplayer->livesremaining > 0) {
 							// Has lives left - allow respawn
 							g_Vars.currentplayer->respawnpending = true;
 							g_Vars.currentplayer->dostartnewlife = true;
