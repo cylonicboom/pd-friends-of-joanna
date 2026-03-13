@@ -2600,7 +2600,7 @@ MenuItemHandlerResult menuhandlerTeamPlayerRolesHub(s32 operation, struct menuit
 MenuItemHandlerResult menuhandlerTeamStartMission(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		if (!g_MissionConfig.stagenum) {
+		if (!g_MissionConfig.stagenum || g_MissionConfig.stagenum == STAGE_CITRAINING) {
 			g_MissionConfig.stagenum = STAGE_DEFECTION;
 		}
 		g_MissionConfig.pdmode = true;
@@ -2676,8 +2676,8 @@ void teamMissionConfigStrUpdateMarquee()
 	if (nextstagenum == 0) {
 	   nextstagenum = STAGE_DEFECTION;
 	}
-	// Reset Duel to Defection only in team missions mode (Duel is solo-only)
-	if (g_MissionConfig.isteam && nextstagenum == STAGE_DUEL) {
+	// Reset invalid stages to Defection in team missions mode
+	if (g_MissionConfig.isteam && (nextstagenum == STAGE_DUEL || nextstagenum == STAGE_CITRAINING)) {
 	   nextstagenum = STAGE_DEFECTION;
 	   g_MissionConfig.stagenum = STAGE_DEFECTION;
 	}
