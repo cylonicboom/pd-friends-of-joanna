@@ -19,10 +19,10 @@ classic sight now moved to mp options section. need to enable theming options
 Added controller menu to setup screen
 might skip it
 - [-] SKIP FEAT setup color defaults for different Jos. Mikado pink / darkZer0 white / Jo robocop green / velvet ???
+- [X] DONE BUG press start / respawn flow woes
+- [X] DONE BUG retest death by chicago drone
 
 - [ ] FEAT: WINDOWS BOOF PROG
 - [ ] FEAT WINDOWS fosler as pdz jo
 
 
-- [ ] BUG press start / respawn flow woes
-- [ ] BUG retest death by chicago drone
