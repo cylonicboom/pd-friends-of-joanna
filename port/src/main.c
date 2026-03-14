@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 #include <PR/ultratypes.h>
 #include <PR/ultrasched.h>
 #include <PR/os_message.h>
@@ -99,6 +100,11 @@ static void cleanup(void)
 	// TODO: actually shut down all subsystems
 }
 
+static void handleTermSignal(int sig)
+{
+	exit(0);
+}
+
 int main(int argc, const char **argv)
 {
 	sysInitArgs(argc, argv);
@@ -136,6 +142,9 @@ int main(int argc, const char **argv)
 
 
 	atexit(cleanup);
+
+	signal(SIGINT, handleTermSignal);
+	signal(SIGTERM, handleTermSignal);
 
 	bootCreateSched();
 

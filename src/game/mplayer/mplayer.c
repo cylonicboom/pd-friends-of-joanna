@@ -163,7 +163,9 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
 
 #define PLAYER_EXT_PROFILE_DEFAULT { \
 	.fileguid = 0, \
-	.handicap = 0x80, \
+	.handicap_prop = { .u8 = 0x80 }, \
+	.classicsight_prop = { .u8 = 0 }, \
+	.showlives_prop = { .u8 = 0 }, \
 };
 
 struct extplayerprofile g_ExtendedProfiles[CONFIG_MAX_PROFILES];
@@ -202,11 +204,23 @@ struct extprofileproperty {
 
 static void mpExtendedProfileInitHandicap(s32 profileindex,  s32 playernum)
 {
-	g_PlayerConfigsArray[playernum].handicap = &g_ExtendedProfiles[profileindex].handicap;
+	g_PlayerConfigsArray[playernum].handicap = &g_ExtendedProfiles[profileindex].handicap_prop.u8;
+}
+
+static void mpExtendedProfileInitClassicSight(s32 profileindex, s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].classicsight = &g_ExtendedProfiles[profileindex].classicsight_prop.u8;
+}
+
+static void mpExtendedProfileInitShowLives(s32 profileindex, s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].showlives = &g_ExtendedProfiles[profileindex].showlives_prop.u8;
 }
 
 struct extprofileproperty g_ExtendedProfileProperties[] = {
 	{ CFG_U8, "Handicap", 0x80, 0, 255, &mpExtendedProfileInitHandicap},
+	{ CFG_U8, "ClassicSight", 0, 0, 1, &mpExtendedProfileInitClassicSight},
+	{ CFG_U8, "ShowLives", 0, 0, 1, &mpExtendedProfileInitShowLives},
 }; // these must be in the same order as the extendedprofile struct, ignoring the fileguid
 
 static inline s32 getExtendedProfileIndexFromFileGuid(const struct fileguid* fileguid)
@@ -3816,7 +3830,7 @@ void mpplayerfileLoadWad(s32 playernum, struct savebuffer *buffer, s32 arg2)
 	g_PlayerConfigsArray[playernum].killmastermedals = savebufferReadBits(buffer, 18);
 	g_PlayerConfigsArray[playernum].survivormedals = savebufferReadBits(buffer, 16);
 	g_PlayerConfigsArray[playernum].controlmode = savebufferReadBits(buffer, 2);
-	g_PlayerConfigsArray[playernum].options = savebufferReadBits(buffer, 32);
+	g_PlayerConfigsArray[playernum].options = savebufferReadBits(buffer, 12);
 
 #ifndef PLATFORM_N64
 	// override with PC controls if enabled in the config
@@ -3963,7 +3977,7 @@ void mpplayerfileSaveWad(s32 playernum, struct savebuffer *buffer)
 	savebufferOr(buffer, ((controlmode == CONTROLMODE_PC) ? CONTROLMODE_11 : controlmode), 2);
 #endif
 
-	savebufferOr(buffer, g_PlayerConfigsArray[playernum].options, 32);
+	savebufferOr(buffer, g_PlayerConfigsArray[playernum].options, 12);
 
 	for (i = 0; i < ARRAYCOUNT(g_MpChallenges); i++) {
 		for (j = 1; j < MAX_PLAYERS + 1; j++) {

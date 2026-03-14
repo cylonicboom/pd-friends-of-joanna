@@ -95,12 +95,12 @@ s32 optionsGetPaintball(s32 mpchrnum)
 }
 
 s32 optionsGetClassicSight(s32 mpchrnum) {
-	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_CLASSICSIGHT) != 0;
+	return g_PlayerConfigsArray[mpchrnum].classicsight ? *g_PlayerConfigsArray[mpchrnum].classicsight : 0;
 }
 
 s32 optionsGetShowLives(s32 mpchrnum)
 {
-	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_SHOWLIVES) != 0;
+	return g_PlayerConfigsArray[mpchrnum].showlives ? *g_PlayerConfigsArray[mpchrnum].showlives : 0;
 }
 
 s32 optionsGetShowMissionTime(s32 mpchrnum)
@@ -215,19 +215,15 @@ void optionsSetPaintball(s32 mpchrnum, bool enable)
 
 void optionsSetClassicSight(s32 mpchrnum, bool enable)
 {
-	if (enable) {
-		g_PlayerConfigsArray[mpchrnum].options |= OPTION_CLASSICSIGHT;
-	} else {
-		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_CLASSICSIGHT;
+	if (g_PlayerConfigsArray[mpchrnum].classicsight) {
+		*g_PlayerConfigsArray[mpchrnum].classicsight = enable ? 1 : 0;
 	}
 }
 
 void optionsSetShowLives(s32 mpchrnum, bool enable)
 {
-	if (enable) {
-		g_PlayerConfigsArray[mpchrnum].options |= OPTION_SHOWLIVES;
-	} else {
-		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_SHOWLIVES;
+	if (g_PlayerConfigsArray[mpchrnum].showlives) {
+		*g_PlayerConfigsArray[mpchrnum].showlives = enable ? 1 : 0;
 	}
 }
 

@@ -497,6 +497,30 @@ MenuItemHandlerResult menuhandlerMpWeaponSetDropdown(s32 operation, struct menui
 	return 0;
 }
 
+MenuItemHandlerResult menuhandlerMpClassicSight(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetClassicSight(g_MpPlayerNum);
+	case MENUOP_SET:
+		optionsSetClassicSight(g_MpPlayerNum, data->checkbox.value);
+	}
+
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerMpShowLives(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetShowLives(g_MpPlayerNum);
+	case MENUOP_SET:
+		optionsSetShowLives(g_MpPlayerNum, data->checkbox.value);
+	}
+
+	return 0;
+}
+
 MenuItemHandlerResult menuhandlerMpControlCheckbox(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	s32 val;
@@ -1929,8 +1953,16 @@ struct menuitem g_MpControlMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_090, // "Classic Sight"
-		OPTION_CLASSICSIGHT,
-		menuhandlerMpControlCheckbox,
+		0,
+		menuhandlerMpClassicSight,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Lives",
+		0,
+		menuhandlerMpShowLives,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,

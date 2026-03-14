@@ -4057,7 +4057,7 @@ struct mpplayerconfig {
 	/*0x44*/ u8 controlmode;
 	/*0x45*/ s8 contpad1;
 	/*0x46*/ s8 contpad2;
-	/*0x48*/ u32 options;
+	/*0x48*/ u16 options;
 	/*0x4c*/ struct fileguid fileguid;
 	/*0x54*/ u32 kills;
 	/*0x58*/ u32 deaths;
@@ -4080,6 +4080,8 @@ struct mpplayerconfig {
 	/*0x96*/ u8 newtitle;
 	/*0x97*/ u8 gunfuncs[6];
 	/*0x9d*/ u8* handicap;
+	u8* classicsight;
+	u8* showlives;
 	s32 teamagentindex;
 	s32 configindex;
 };
@@ -6229,9 +6231,11 @@ struct extplayerprofile {
 	union {
 		struct {
 			struct fileguid fileguid;
-			u8 handicap;
+			extplayerprop handicap_prop;
+			extplayerprop classicsight_prop;
+			extplayerprop showlives_prop;
 		};
-		extplayerprop ptr[2];
+		extplayerprop ptr[4];
 	};
 };
 
