@@ -69,6 +69,7 @@ extern char modDirs[64][FS_MAXPATH + 1];
 static u8 *romDataSeg;
 static u32 romDataSegSize;
 static const char *romName = ROMDATA_ROM_NAME;
+s32 loadingFileNum;
 
 enum loadsource {
 	SRC_UNLOADED = 0,
@@ -1062,6 +1063,10 @@ void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *o
 		fileNum = fileNum & 0xFFFF;
 	}
 
+	loadingFileNum = fileNum;
+	const char *fname = (fileNum >= 1 && fileNum < ROMDATA_MAX_FILES) ? fileSlots[modNum][fileNum].name : "???";
+	sysLogPrintf(LOG_NOTE, "romdataFilePreprocess: fileNum=%04x modNum=%d name=%s loadType=%d size=%u",
+		fileNum, modNum, fname ? fname : "(null)", loadType, size);
 	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) {
 		sysLogPrintf(LOG_ERROR, "romdataFilePreprocess: invalid file num %d", fileNum);
 		return;
@@ -1129,6 +1134,32 @@ s32 romdataFileGetNumForName(const char *name)
 	for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
 		if (fileSlots[g_ModNum][i].name && !strcmp(fileSlots[g_ModNum][i].name, name)) {
 			return i;
+		}
+	}
+
+	return -1;
+}
+
+s32 romdataFileGetNumForNameAnyMod(const char *name)
+{
+	if (!name || !name[0]) {
+		return -1;
+	}
+
+	for (s32 mod = 0; mod <= (s32)g_NumModDirs; ++mod) {
+		for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
+			if (fileSlots[mod][i].name) {
+				// Exact match
+				if (!strcmp(fileSlots[mod][i].name, name)) {
+					return i;
+				}
+				// Also match against basename for mod files
+				// (stored as "mod:modname::files/Filename")
+				const char *slash = strrchr(fileSlots[mod][i].name, '/');
+				if (slash && !strcmp(slash + 1, name)) {
+					return i;
+				}
+			}
 		}
 	}
 
@@ -1205,7 +1236,7 @@ u32 romdataFileGetEstimatedSize(const u32 size, const u32 loadtype)
 {
 #ifdef PLATFORM_64BIT
 	switch (loadtype) {
-	case LOADTYPE_BG:	   return (u32)(size * 1.1f);
+	case LOADTYPE_BG:	 return (u32)(size * 1.1f);
 	case LOADTYPE_TILES: return (u32)(size * 1.1f);
 	case LOADTYPE_LANG:  return (u32)(size * 1.3f);
 	case LOADTYPE_SETUP: return (u32)(size * 1.5f);
@@ -1214,6 +1245,10 @@ u32 romdataFileGetEstimatedSize(const u32 size, const u32 loadtype)
 	case LOADTYPE_GUN: return (u32)(size * 1.7f);
 	default:
 		sysLogPrintf(LOG_WARNING, "romdataFileGetEstimatedSize: wrong loadtype %d", loadtype);
+	}
+#else
+	if (loadtype == LOADTYPE_MODEL) {
+		return (u32)(size * 1.1f);
 	}
 #endif
 	return size;

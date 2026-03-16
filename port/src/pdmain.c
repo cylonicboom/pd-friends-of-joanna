@@ -82,10 +82,13 @@
 #include "system.h"
 #include "mod.h"
 #include "fs.h"
+#include "video.h"
+#include "input.h"
 
 extern u32 g_NumModDirs;
 extern u8 *g_MempHeap;
 extern u32 g_MempHeapSize;
+extern bool gfx_external_textures_enabled;
 
 void rngSetSeed(u32 seed);
 
@@ -601,6 +604,11 @@ void mainTick(void)
 	s32 i;
 
 	if (g_MainChangeToStageNum < 0) {
+		if (inputKeyJustPressed(VK_F2) && inputGetKeyModState() & KM_SHIFT) {
+			bool enabled = videoGetExternalTextures();
+			videoSetExternalTextures(!enabled);
+		}
+
 		frametimeCalculate();
 		profileReset();
 		profileSetMarker(PROFILE_MAINTICK_START);

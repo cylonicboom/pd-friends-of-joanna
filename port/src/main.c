@@ -20,6 +20,7 @@
 #include "system.h"
 #include "utils.h"
 #include "game/mplayer/setup.h"
+#include "ext_tex.h"
 
 u32 g_OsMemSize = 0;
 s32 g_OsMemSizeMb = 16;
@@ -135,6 +136,10 @@ int main(int argc, const char **argv)
 	inputInit();
 	audioInit();
 	romdataInit();
+	if (extTexInit() > 0) {
+		extern bool gfx_external_textures_enabled;
+		gfx_external_textures_enabled = true;
+	}
 
 	g_ValidGbcRomFound = romdataCheckGbcRom();
 

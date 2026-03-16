@@ -18,6 +18,7 @@ u8 *romdataFileGetData(s32 fileNum);
 s32 romdataFileGetSize(s32 fileNum);
 
 s32 romdataFileGetNumForName(const char *name);
+s32 romdataFileGetNumForNameAnyMod(const char *name);
 s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum);
 
 u8 *romdataSegGetData(const char *segName);

@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <limits.h>
 
+#include "gbiex.h"
+
 #include "preprocess/common.h"
 #include "preprocess/gbi.h"
 
@@ -33,6 +35,7 @@ static u32 dstVtxOffset;
 
 static struct texaddr texAddrs[64];
 static int numTexAddrs;
+extern s32 loadingFileNum;
 
 void gbiReset(void)
 {
@@ -172,8 +175,9 @@ void gbiGdlRewriteAddrs(u8 *dst, u32 offset)
 	} while (!CMD_IS_ENDDL(cmd));
 }
 
-u32 gbiConvertGdl(u8 *dst, u32 dstpos, u8 *src, u32 srcpos, int segment_cmds)
+u32 gbiConvertGdl(u8 *dst, u32 dstpos, u8 *src, u32 srcpos, u8 segment_cmds)
 {
+	sysLogPrintf(LOG_NOTE, "gbiConvertGdl: ENTER loadingFileNum=%04x srcpos=%08x segment_cmds=%d", (u16)loadingFileNum, srcpos, segment_cmds);
 	dstpos = ALIGN8(dstpos);
 
 	u64 *n64_cmd = (u64*)&src[srcpos];
@@ -182,6 +186,20 @@ u32 gbiConvertGdl(u8 *dst, u32 dstpos, u8 *src, u32 srcpos, int segment_cmds)
 
 	do {
 		cmd = PD_BE64(*n64_cmd);
+
+		if (CMD_IS_SETTIMG(cmd)) {
+			u32 addr = cmd & 0xffffffff;
+			u16 texnum = cmd & 0xfffff;
+			if (cmd & 0x5000000) {
+				sysLogPrintf(LOG_NOTE, "gbiConvertGdl: SETTIMG MATCH texnum=%05x addr=%08x loadingFileNum=%04x", texnum, addr, (u16)loadingFileNum);
+				gDPSetTextureInfoEXT(host_cmd, G_TEXTYPE_MODEL, loadingFileNum, texnum, 0);
+				dstpos += sizeof(*host_cmd) * HOST_DWORDS_PER_CMD;
+				host_cmd += HOST_DWORDS_PER_CMD;
+			} else {
+				sysLogPrintf(LOG_NOTE, "gbiConvertGdl: SETTIMG SKIP (no 0x5000000) cmd=%016llx addr=%08x texnum=%05x loadingFileNum=%04x",
+					(unsigned long long)cmd, addr, texnum, (u16)loadingFileNum);
+			}
+		}
 
 #if HOST_DWORDS_PER_CMD == 2
 		host_cmd[0] = ((cmd & 0xffffffff00000000) >> 32);

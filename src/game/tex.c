@@ -10,6 +10,10 @@
 #include "types.h"
 #include "platform.h"
 
+#ifndef PLATFORM_N64
+#include "ext_tex.h"
+#endif
+
 #define TXMODE_WRAP   0
 #define TXMODE_CLAMP  1
 #define TXMODE_MIRROR 2
@@ -418,7 +422,9 @@ s32 texModeToGbiMode(s32 txmode)
 
 Gfx *texWriteTileFromDefinition(Gfx *gdl, struct tex *tex, s32 offset, s32 shifts, s32 shiftt, s32 min)
 {
-	struct texture *s0 = &g_Textures[tex->texturenum];
+	static struct texture stubTexConfig = {0};
+	struct texture *s0 = tex->texturenum < NUM_TEXTURES
+		? &g_Textures[tex->texturenum] : &stubTexConfig;
 	s32 masks;
 	s32 maskt;
 	s32 line;
@@ -498,6 +504,8 @@ Gfx *texWriteLoadToTmemAddr(Gfx *gdl, struct tex *tex, s32 tmemoffset)
 
 	texGetDepthAndSize(tex, &depth, &len);
 
+	gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, 0, tex->texturenum, 0);
+
 	if (tex->lutmodeindex == 0) {
 		gDPSetTextureImage(gdl++, tex->gbiformat, depth, 1, tex->data);
 
@@ -541,15 +549,8 @@ Gfx *texWriteLoadToTmemAddr(Gfx *gdl, struct tex *tex, s32 tmemoffset)
 			gDPLoadBlock(gdl++, 5, 0, 0, len - 1, 0);
 		}
 
-		{
-			s32 tmp = len;
-			s32 a2 = (u32)(0x3ff - tex->unk0a) < len ? (u32)(0x3ff - tex->unk0a) : 0;
-
-			tmp -= a2;
-
-			gDPLoadSync(gdl++);
-			gDPLoadTLUT06(gdl++, tmp, a2, tex->unk0a + tmp, a2);
-		}
+		gDPLoadSync(gdl++);
+		gDPLoadTLUT07(gdl++, tex->tlutoffset, tex->numcolors + 1);
 	}
 
 	return gdl;
@@ -601,66 +602,6 @@ Gfx *texWriteTileLods(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offse
 		}
 
 		tmemoffset += bytes;
-	}
-
-	return gdl;
-}
-
-Gfx *texWriteLoadToTmemZero(Gfx *gdl, struct tex *tex)
-{
-	s32 depth;
-	s32 len;
-
-	texGetDepthAndSize(tex, &depth, &len);
-
-	if (tex->lutmodeindex == 0) {
-		gDPSetTextureImage(gdl++, tex->gbiformat, depth, 1, tex->data);
-
-		if (!g_TexPipeSynced) {
-			gDPPipeSync(gdl++);
-			g_TexPipeSynced = true;
-		}
-
-		if (depth == G_IM_SIZ_16b) {
-			gDPLoadSync(gdl++);
-			gDPLoadBlock(gdl++, G_TX_LOADTILE, 0, 0, len - 1, 0);
-		} else {
-			if (texTrySetTileState(5, 0, depth, 0, 0, 0, 0, 0, 0, 0, 0)) {
-				gDPSetTile(gdl++, G_IM_FMT_RGBA, depth, 0, 0x0000, 5, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
-			}
-
-			gDPLoadSync(gdl++);
-			gDPLoadBlock(gdl++, 5, 0, 0, len - 1, 0);
-		}
-	} else {
-		gDPSetTextureImage(gdl++, tex->gbiformat, depth, 1, tex->data);
-
-		if (!g_TexPipeSynced) {
-			gDPPipeSync(gdl++);
-			g_TexPipeSynced = true;
-		}
-
-		if (depth == G_IM_SIZ_16b) {
-			gDPLoadSync(gdl++);
-			gDPLoadBlock(gdl++, G_TX_LOADTILE, 0, 0, len - 1, 0);
-		} else {
-			if (texTrySetTileState(5, 0, depth, 0, 0, 0, 0, 0, 0, 0, 0)) {
-				gDPSetTile(gdl++, G_IM_FMT_RGBA, depth, 0, 0x0000, 5, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
-			}
-
-			gDPLoadSync(gdl++);
-			gDPLoadBlock(gdl++, 5, 0, 0, len - 1, 0);
-		}
-
-		{
-			s32 tmp = len;
-			s32 a2 = (u32)(0x3ff - tex->unk0a) < len ? (u32)(0x3ff - tex->unk0a) : 0;
-
-			tmp -= a2;
-
-			gDPLoadSync(gdl++);
-			gDPLoadTLUT06(gdl++, tmp, a2, tex->unk0a + tmp, a2);
-		}
 	}
 
 	return gdl;
@@ -734,7 +675,7 @@ Gfx *texHandleType1(Gfx *gdl, struct tex *tex1, s32 smode, s32 tmode, s32 offset
 	s32 size = texGetSizeInBytes(tex2, 0);
 	s32 tile = 0;
 
-	gdl = texWriteLoadToTmemZero(gdl, tex2);
+	gdl = texWriteLoadToTmemAddr(gdl, tex2, 0);
 	gDPTileSync(gdl++);
 	gdl = texWriteLoadToTmemAddr(gdl, tex1, size);
 
@@ -790,7 +731,7 @@ Gfx *texHandleType0(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offset,
 
 Gfx *texHandleType4(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offset)
 {
-	gdl = texWriteLoadToTmemZero(gdl, tex);
+	gdl = texWriteLoadToTmemAddr(gdl, tex, 0);
 	gdl = texWriteTile(gdl, tex, smode, tmode, offset, 0);
 
 	gDPPipeSync(gdl++);
@@ -801,7 +742,7 @@ Gfx *texHandleType4(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offset)
 
 Gfx *texHandleType3(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offset)
 {
-	gdl = texWriteLoadToTmemZero(gdl, tex);
+	gdl = texWriteLoadToTmemAddr(gdl, tex, 0);
 	gdl = texWriteTile(gdl, tex, smode, tmode, offset, 0);
 	gdl = texWriteTile(gdl, tex, smode, tmode, offset, 1);
 
@@ -898,6 +839,28 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 
 			tex1 = texFindInPool(texturenum, pool);
 
+#ifndef PLATFORM_N64
+			// For extended textures beyond NUM_TEXTURES, the normal decompress
+			// path rejects them. Create a stub tex so the rendering pipeline
+			// can emit gDPSetTextureInfoEXT and the ext_tex system can provide
+			// the replacement PNG at the renderer level.
+			static struct tex extTexStub1;
+			static u8 extTexStubData1[8192];
+			if (tex1 == NULL && texturenum >= NUM_TEXTURES
+					&& extTexExists(G_TEXTYPE_GENERAL, 0, texturenum)) {
+				u16 extW = 32, extH = 32;
+				extTexGetDimensions(G_TEXTYPE_GENERAL, 0, texturenum, &extW, &extH);
+				memset(&extTexStub1, 0, sizeof(extTexStub1));
+				extTexStub1.texturenum = texturenum;
+				extTexStub1.data = extTexStubData1;
+				extTexStub1.width = (u8)extW;
+				extTexStub1.height = (u8)extH;
+				extTexStub1.numlods = 1;
+				extTexStub1.depth = G_IM_SIZ_16b;
+				tex1 = &extTexStub1;
+			}
+#endif
+
 			if (tex1 != NULL) {
 				spf4 = tex1->unk0c_03;
 			} else {
@@ -924,6 +887,24 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 					texturenum2 = (ingdl->words.w1 >> 12) & 0xfff;
 					texLoadFromTextureNum(texturenum2, pool);
 					tex2 = texFindInPool(texturenum2, pool);
+
+#ifndef PLATFORM_N64
+					static struct tex extTexStub2;
+					static u8 extTexStubData2[8192];
+					if (tex2 == NULL && texturenum2 >= NUM_TEXTURES
+							&& extTexExists(G_TEXTYPE_GENERAL, 0, texturenum2)) {
+						u16 extW2 = 32, extH2 = 32;
+						extTexGetDimensions(G_TEXTYPE_GENERAL, 0, texturenum2, &extW2, &extH2);
+						memset(&extTexStub2, 0, sizeof(extTexStub2));
+						extTexStub2.texturenum = texturenum2;
+						extTexStub2.data = extTexStubData2;
+						extTexStub2.width = (u8)extW2;
+						extTexStub2.height = (u8)extH2;
+						extTexStub2.numlods = 1;
+						extTexStub2.depth = G_IM_SIZ_16b;
+						tex2 = &extTexStub2;
+					}
+#endif
 
 					if (tex2 != NULL) {
 						min = (ingdl->words.w1 >> 24) & 0xff;
