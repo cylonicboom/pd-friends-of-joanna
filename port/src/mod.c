@@ -1547,6 +1547,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	snprintf(name, sizeof(name), "%04x.bin", num);
 
 	s32 fileNum = romdataFileGetNumForNameInMod(name, g_ModNum);
+	sysLogPrintf(LOG_NOTE, "modTextureLoad: tex=%04x name=%s fileNum=%d modNum=%d", num, name, fileNum, g_ModNum);
 
 	if (fileNum > 0) {
 		DEBUG_MODELS("modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, g_ModNum);
@@ -1558,7 +1559,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 			// take care of it (return 0). This avoids unnecessary memcpy and keeps vanilla behavior.
 			if (data >= g_RomFile && data < g_RomFile + g_RomFileSize) {
 				// It's a ROM pointer, so no external replacement was found/loaded.
-				// Return 0 to let the caller (texdecompress) handle it via DMA.
+				sysLogPrintf(LOG_NOTE, "modTextureLoad: tex=%04x ROM pointer, using vanilla", num);
 				return 0;
 			}
 
@@ -1576,9 +1577,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 			}
 		} else {
 			// File is in filetable but romdataFileLoad returned NULL.
-			// This means it was rejected by context (e.g. wrong stage/mod).
-			// We MUST return 0 here to let the game use the vanilla asset (or fail gracefully),
-			// instead of falling back to a blind search which would bypass the context check.
+			sysLogPrintf(LOG_NOTE, "modTextureLoad: tex=%04x fileNum=%d romdataFileLoad returned NULL", num, fileNum);
 			return 0;
 		}
 	}

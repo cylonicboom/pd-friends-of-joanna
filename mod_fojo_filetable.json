@@ -105,9 +105,111 @@
       "prefix": "solo / team missions"
     },
     {
+      "name": "UsetupritZ",
+      "path": "INTRO:files/UsetupritZ|SOLO:files/UsetupritZ|COOP:files/UsetupritZ|TEAM:files/UsetupritZ|ANTI:files/UsetupritZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupritZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupsevZ",
+      "path": "INTRO:files/UsetupsevZ|SOLO:files/UsetupsevZ|COOP:files/UsetupsevZ|TEAM:files/UsetupsevZ|ANTI:files/UsetupsevZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupsevZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupshoZ",
+      "path": "INTRO:files/UsetupshoZ|SOLO:files/UsetupshoZ|COOP:files/UsetupshoZ|TEAM:files/UsetupshoZ|ANTI:files/UsetupshoZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupshoZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupwaxZ",
+      "path": "INTRO:files/UsetupwaxZ|SOLO:files/UsetupwaxZ|COOP:files/UsetupwaxZ|TEAM:files/UsetupwaxZ|ANTI:files/UsetupwaxZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupwaxZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupaztZ",
+      "path": "INTRO:files/UsetupaztZ|SOLO:files/UsetupaztZ|COOP:files/UsetupaztZ|TEAM:files/UsetupaztZ|ANTI:files/UsetupaztZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupaztZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupcaveZ",
+      "path": "INTRO:files/UsetupcaveZ|SOLO:files/UsetupcaveZ|COOP:files/UsetupcaveZ|TEAM:files/UsetupcaveZ|ANTI:files/UsetupcaveZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupcaveZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupdamZ",
+      "path": "INTRO:files/UsetupdamZ|SOLO:files/UsetupdamZ|COOP:files/UsetupdamZ|TEAM:files/UsetupdamZ|ANTI:files/UsetupdamZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupdamZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "bgdata",
+      "path": "files/bgdata",
+      "description": "Background data",
+      "replaces": "bgdata",
+      "prefix": "always"
+    },
+    {
       "name": "CheadFoslerferZ",
       "path": "files/CheadFoslerferZ",
       "description": "Fosler Dark head model",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadgreyZ",
+      "path": "files/CheadgreyZ",
+      "description": "Mikado Dark head model (replaces head_grey)",
+      "replaces": "CheadgreyZ",
+      "prefix": "always"
+    },
+    {
+      "name": "0c58.bin",
+      "path": "textures/0c58.bin",
+      "description": "Mikado texture",
+      "type": "texture",
+      "textureId": "0x0c58",
+      "prefix": "always"
+    },
+    {
+      "name": "0c59.bin",
+      "path": "textures/0c59.bin",
+      "description": "Mikado texture",
+      "type": "texture",
+      "textureId": "0x0c59",
+      "prefix": "always"
+    },
+    {
+      "name": "0c5a.bin",
+      "path": "textures/0c5a.bin",
+      "description": "Mikado texture",
+      "type": "texture",
+      "textureId": "0x0c5a",
+      "prefix": "always"
+    },
+    {
+      "name": "0c5b.bin",
+      "path": "textures/0c5b.bin",
+      "description": "Mikado texture",
+      "type": "texture",
+      "textureId": "0x0c5b",
       "prefix": "always"
     }
   ],
