@@ -3102,11 +3102,11 @@ struct headorbody {
 	/*0x00*/ u16 canvaryheight : 1;
 	/*0x00*/ u16 type : 3;
 	/*0x00*/ u16 height : 8;
-	/*0x02*/ u16 filenum;
+	/*0x02*/ u32 filenum;
 	/*0x04*/ f32 scale;
 	/*0x08*/ f32 animscale;
 	/*0x0c*/ struct modeldef *modeldef;
-	/*0x10*/ u16 handfilenum;
+	/*0x10*/ u32 handfilenum;
 };
 
 struct stagetableentry {

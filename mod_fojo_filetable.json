@@ -103,6 +103,12 @@
       "stageId": "0x2d",
       "stageName": "extra spawns, QOL changes for coop mode",
       "prefix": "solo / team missions"
+    },
+    {
+      "name": "CheadFoslerferZ",
+      "path": "files/CheadFoslerferZ",
+      "description": "Fosler Dark head model",
+      "prefix": "always"
     }
   ],
   "imports": []

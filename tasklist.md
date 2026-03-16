@@ -22,6 +22,11 @@ might skip it
 - [X] DONE BUG press start / respawn flow woes
 - [X] DONE BUG retest death by chicago drone
 
+- [ ] BUG WINDOWS bat launcher doesn't work.
+- [ ] BUG WINDOWS team missions carousel / head selection doesn't work
+- [ ] FEAT autoaim scale
+- [ ] BUG: disable moonjump
+
 - [ ] FEAT: WINDOWS BOOF PROG
 - [ ] FEAT WINDOWS fosler as pdz jo
 
