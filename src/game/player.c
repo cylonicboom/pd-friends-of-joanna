@@ -1349,8 +1349,8 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		return;
 	}
 
-	sysLogPrintf(LOG_NOTE, "FoJo playerChooseBodyAndHead: playernum=%d normmplayerisrunning=%d isteam=%d",
-		g_Vars.currentplayernum, g_Vars.normmplayerisrunning, g_MissionConfig.isteam);
+	// sysLogPrintf(LOG_NOTE, "FoJo playerChooseBodyAndHead: playernum=%d normmplayerisrunning=%d isteam=%d",
+	//	g_Vars.currentplayernum, g_Vars.normmplayerisrunning, g_MissionConfig.isteam);
 
 	if (g_Vars.normmplayerisrunning) {
 		if (g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].base.mpheadnum < mpGetNumHeads2()) {
@@ -1406,8 +1406,8 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 	if (selectedindex >= 0 && selectedindex < maxindex) {
 		s32 mpheadnum = g_FojoHeadOptions[selectedindex];
 		coophead = mpGetHeadId(mpheadnum);
-		sysLogPrintf(LOG_NOTE, "FoJo spawn: mpindex=%d teamagentindex=%d mpheadnum=%d coophead=%d",
-			g_Vars.currentplayerstats->mpindex, selectedindex, mpheadnum, coophead);
+		// sysLogPrintf(LOG_NOTE, "FoJo spawn: mpindex=%d teamagentindex=%d mpheadnum=%d coophead=%d",
+		//	g_Vars.currentplayerstats->mpindex, selectedindex, mpheadnum, coophead);
 	}
 
 	switch (outfit) {

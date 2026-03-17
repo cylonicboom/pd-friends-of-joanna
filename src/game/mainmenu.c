@@ -2135,7 +2135,7 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		// Initialize head options if not already done
 		if (g_FojoHeadCount == 0) {
 			fojoInitHeadOptions();
-			sysLogPrintf(LOG_NOTE, "FoJo carousel: initialized %d head options (count+1=%d)", g_FojoHeadCount, g_FojoHeadCount + 1);
+			// sysLogPrintf(LOG_NOTE, "FoJo carousel: initialized %d head options (count+1=%d)", g_FojoHeadCount, g_FojoHeadCount + 1);
 		}
 		// Fixed options + 1 for player's CS profile head
 		data->carousel.value = g_FojoHeadCount + 1;
@@ -2194,7 +2194,7 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 
 		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = selectedindex;
 		data->carousel.value = selectedindex;
-		sysLogPrintf(LOG_NOTE, "FoJo carousel SET: player %d -> index %d (mpheadnum=%d)", g_MpPlayerNum, selectedindex, g_FojoHeadOptions[selectedindex]);
+		// sysLogPrintf(LOG_NOTE, "FoJo carousel SET: player %d -> index %d (mpheadnum=%d)", g_MpPlayerNum, selectedindex, g_FojoHeadOptions[selectedindex]);
 		// Fall through to MENUOP_FOCUS
 	case MENUOP_FOCUS:
 		// Initialize head options if needed

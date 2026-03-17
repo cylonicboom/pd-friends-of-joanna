@@ -177,7 +177,7 @@ void gbiGdlRewriteAddrs(u8 *dst, u32 offset)
 
 u32 gbiConvertGdl(u8 *dst, u32 dstpos, u8 *src, u32 srcpos, u8 segment_cmds)
 {
-	sysLogPrintf(LOG_NOTE, "gbiConvertGdl: ENTER loadingFileNum=%04x srcpos=%08x segment_cmds=%d", (u16)loadingFileNum, srcpos, segment_cmds);
+	// sysLogPrintf(LOG_NOTE, "gbiConvertGdl: ENTER loadingFileNum=%04x srcpos=%08x segment_cmds=%d", (u16)loadingFileNum, srcpos, segment_cmds);
 	dstpos = ALIGN8(dstpos);
 
 	u64 *n64_cmd = (u64*)&src[srcpos];

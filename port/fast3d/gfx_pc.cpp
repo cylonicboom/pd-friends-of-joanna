@@ -1873,12 +1873,12 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
 
 	// Log all non-NONE texture info for debugging
 	if (type != 0) {
-		sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: type=%d id=%04x texnum=%05x enabled=%d exists=%d",
-			type, id, texnum, gfx_external_textures_enabled, extTexExists(type, id, texnum));
+		// sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: type=%d id=%04x texnum=%05x enabled=%d exists=%d",
+		//	type, id, texnum, gfx_external_textures_enabled, extTexExists(type, id, texnum));
 	}
 
 	if (gfx_external_textures_enabled && extTexExists(type, id, texnum)) {
-		sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: EXT TEX HIT type=%d id=%04x texnum=%04x", type, id, texnum);
+		// sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: EXT TEX HIT type=%d id=%04x texnum=%04x", type, id, texnum);
 		loaded_texture.type = type;
 		loaded_texture.id = id;
 		loaded_texture.texnum = texnum;
@@ -1892,7 +1892,7 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
 	}
 	else {
 		if (type == G_TEXTYPE_MODEL) {
-			sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: EXT TEX MISS type=MODEL id=%04x texnum=%04x", id, texnum);
+			// sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: EXT TEX MISS type=MODEL id=%04x texnum=%04x", id, texnum);
 		}
 		loaded_texture.addr = rdp.texture_to_load.addr;
 		loaded_texture.ext_key = make_key(0, type, id, texnum);
@@ -2362,7 +2362,7 @@ static void gfx_run_dl(Gfx* cmd) {
                 break;
             }
             case G_SETTEXINFO_EXT: {
-                sysLogPrintf(LOG_NOTE, "G_SETTEXINFO_EXT: type=%d idmask=%d id=%d texnum=%05x", C0(0,8), C0(8,8), C1(20,12), C1(0,20));
+                // sysLogPrintf(LOG_NOTE, "G_SETTEXINFO_EXT: type=%d idmask=%d id=%d texnum=%05x", C0(0,8), C0(8,8), C1(20,12), C1(0,20));
                 gfx_dp_set_texture_info(C0(0, 8), C0(8, 8), C1(20, 12), C1(0, 20));
                 break;
             }

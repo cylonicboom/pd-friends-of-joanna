@@ -96,11 +96,11 @@ struct ExtTexture *lookupModelTex(u16 fileNum, s32 texNum)
 	}
 
 	if (modelTex == NULL) {
-		sysLogPrintf(LOG_NOTE, "lookupModelTex: NO model entry for fileNum=%04x (texNum=%04x), numModels=%d", fileNum, texNum, numModels);
+		// sysLogPrintf(LOG_NOTE, "lookupModelTex: NO model entry for fileNum=%04x (texNum=%04x), numModels=%d", fileNum, texNum, numModels);
 		if (numModels > 0) {
 			for (int i = 0; i < numModels; ++i) {
-				sysLogPrintf(LOG_NOTE, "  modelTextures[%d]: fileNum=%04x modelName=%s basePath=%s numTex=%d",
-					i, modelTextures[i].fileNum, modelTextures[i].modelName, modelTextures[i].basePath, modelTextures[i].numTextures);
+				// sysLogPrintf(LOG_NOTE, "  modelTextures[%d]: fileNum=%04x modelName=%s basePath=%s numTex=%d",
+				//	i, modelTextures[i].fileNum, modelTextures[i].modelName, modelTextures[i].basePath, modelTextures[i].numTextures);
 			}
 		}
 		return NULL;
@@ -111,8 +111,8 @@ struct ExtTexture *lookupModelTex(u16 fileNum, s32 texNum)
 			return &modelTex->textures[i];
 	}
 
-	sysLogPrintf(LOG_NOTE, "lookupModelTex: model fileNum=%04x (%s) found but texNum=%04x not in %d textures",
-		fileNum, modelTex->modelName, texNum, modelTex->numTextures);
+	// sysLogPrintf(LOG_NOTE, "lookupModelTex: model fileNum=%04x (%s) found but texNum=%04x not in %d textures",
+	//	fileNum, modelTex->modelName, texNum, modelTex->numTextures);
 	return NULL;
 }
 
@@ -143,7 +143,7 @@ u8 extTexExists(u8 type, u16 id, s32 texnum)
 	struct ExtTexture *tex = getExtTexture(type, id, texnum);
 	u8 exists = tex && tex->texnum >= 0;
 	if (type == G_TEXTYPE_MODEL) {
-		sysLogPrintf(LOG_NOTE, "extTexExists: type=MODEL id=%04x texnum=%04x => %s", id, texnum, exists ? "YES" : "NO");
+		// sysLogPrintf(LOG_NOTE, "extTexExists: type=MODEL id=%04x texnum=%04x => %s", id, texnum, exists ? "YES" : "NO");
 	}
 	return exists;
 }
