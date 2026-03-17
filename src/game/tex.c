@@ -12,6 +12,7 @@
 
 #ifndef PLATFORM_N64
 #include "ext_tex.h"
+#include <string.h>
 #endif
 
 #define TXMODE_WRAP   0

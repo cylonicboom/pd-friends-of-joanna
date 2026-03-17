@@ -217,6 +217,9 @@ struct fojcredit g_FojCredits[] = {
 	// PDZ model
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Johnny Thunder",                       "pdz demake when" },
 
+	// external textures
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "rafcq",                       "'external' developments" },
+
 	{ 1, RETAIN_NONE, 0, CREDITSTYLE_HEADING1,  "Mikado Dark's faceshoppers", ""   },
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "wreck",               "jonaeru" },
 
