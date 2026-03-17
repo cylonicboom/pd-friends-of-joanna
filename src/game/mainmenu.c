@@ -1,6 +1,7 @@
 #include <ultra64.h>
 #include <stdlib.h>
 #include "constants.h"
+#include "system.h"
 #include "game/bondgun.h"
 #include "game/bossfile.h"
 #include "game/challenge.h"
@@ -1747,6 +1748,7 @@ MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenuHub(s32 operation, struct
 MenuItemHandlerResult menuhandlerBuddyOptionsPlayerMenu(s32 operation, struct menuitem *item, union handlerdata *data, s32 playernum) {
    switch (operation) {
    case MENUOP_SET:
+      break;
    }
    return 0;
 }
@@ -2037,10 +2039,8 @@ char *fojoGetHeadName(s32 optionindex)
 		return "Velvet Dark";
 	case FOJO_HEAD_MIKADO:
 		return "Mikado Dark";
-	// case FOJO_HEAD_POPLIN:
-	// 	return "Poplin Dark";
 	case FOJO_HEAD_FOSLER:
-		return "Fosler Dark";
+		return "Poplin Dark";
 	// case FOJO_HEAD_CASS:
 	// 	return "Cassandra de Vries";
 	default:
@@ -2135,12 +2135,18 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		// Initialize head options if not already done
 		if (g_FojoHeadCount == 0) {
 			fojoInitHeadOptions();
+			sysLogPrintf(LOG_NOTE, "FoJo carousel: initialized %d head options (count+1=%d)", g_FojoHeadCount, g_FojoHeadCount + 1);
 		}
 		// Fixed options + 1 for player's CS profile head
 		data->carousel.value = g_FojoHeadCount + 1;
 		break;
 
 	case MENUOP_11:
+		// Initialize head options if needed
+		if (g_FojoHeadCount == 0) {
+			fojoInitHeadOptions();
+		}
+
 		// Update the last slot with player's appropriate head
 		g_FojoHeadOptions[g_FojoHeadCount] = fojoGetPlayerHead(g_MpPlayerNum);
 
@@ -2149,8 +2155,11 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		g_Menus[g_MpPlayerNum].menumodel.newroty = diffframe;
 		g_Menus[g_MpPlayerNum].menumodel.curroty = diffframe;
 
-		// Get the carousel value being selected (passed via data parameter)
-		selectedindex = data->carousel.value;
+		// Read selected index from the player config (canonical source)
+		// NOTE: data->carousel.value is uninitialized here when no left/right
+		// input occurred this frame, since menuitemCarouselTick only populates
+		// data via MENUOP_SET when inputs->leftright != 0.
+		selectedindex = g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex;
 		maxindex = g_FojoHeadCount + 1;
 		if (selectedindex >= 0 && selectedindex < maxindex) {
 			s32 mpheadnum = g_FojoHeadOptions[selectedindex];
@@ -2185,6 +2194,7 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 
 		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = selectedindex;
 		data->carousel.value = selectedindex;
+		sysLogPrintf(LOG_NOTE, "FoJo carousel SET: player %d -> index %d (mpheadnum=%d)", g_MpPlayerNum, selectedindex, g_FojoHeadOptions[selectedindex]);
 		// Fall through to MENUOP_FOCUS
 	case MENUOP_FOCUS:
 		// Initialize head options if needed
