@@ -1872,8 +1872,8 @@ struct menudialogdef g_TeamMissionsOperativeModelMenuDialog = {
 #define FOJO_HEAD_VELVET    MPHEAD_VD           // 0x0b - Velvet Dark
 #define FOJO_HEAD_MIKADO    0x4b                // Japanese Jo (from AIO detection)
 #define FOJO_HEAD_POPLIN    MPHEAD_ANKA      // 0x03 - Poplin Dark (stub in Anka for now)
-// #define FOJO_HEAD_FOSLER    MPHEAD_FOSLER    // TODO: assign slot
-#define FOJO_HEAD_CASS      MPHEAD_CASSANDRA    // TODO: assign slot
+#define FOJO_HEAD_FOSLER    0x4c    // TODO: assign slot
+// #define FOJO_HEAD_CASS      MPHEAD_CASSANDRA    // TODO: assign slot
 
 // Array of female heads for the carousel (max 5 slots: up to 4 fixed + player's CS head)
 // Last slot is for player's CS head, Mikado slot is conditional on AIO
@@ -2037,12 +2037,12 @@ char *fojoGetHeadName(s32 optionindex)
 		return "Velvet Dark";
 	case FOJO_HEAD_MIKADO:
 		return "Mikado Dark";
-	case FOJO_HEAD_POPLIN:
-		return "Poplin Dark";
-	// case FOJO_HEAD_FOSLER:
-	// 	return "darkZer0";
-	case FOJO_HEAD_CASS:
-		return "Cassandra de Vries";
+	// case FOJO_HEAD_POPLIN:
+	// 	return "Poplin Dark";
+	case FOJO_HEAD_FOSLER:
+		return "Fosler Dark";
+	// case FOJO_HEAD_CASS:
+	// 	return "Cassandra de Vries";
 	default:
 		return "Unknown";
 	}
@@ -2054,13 +2054,8 @@ void fojoInitHeadOptions(void)
 	g_FojoHeadCount = 0;
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_JOANNA;
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_VELVET;
-
-	// Only include Mikado if AIO is detected
-	if (g_AIOPresent) {
-		g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_MIKADO;
-	}
-
-	// g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_POPLIN;
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_MIKADO;
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_FOSLER;
 	// Last slot reserved for player's CS head (added in fojoGetPlayerHead)
 }
 
@@ -2252,10 +2247,6 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		break;
 
 	case MENUOP_21:
-		// Skip Poplin (HEAD_ANKA via FOJO_HEAD_POPLIN) until model is implemented
-		if (g_FojoHeadOptions[data->carousel.value] == FOJO_HEAD_POPLIN) {
-			return 1;
-		}
 		break;
 
 	case MENUOP_GETOPTIONTEXT:

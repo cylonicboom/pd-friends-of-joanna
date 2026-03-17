@@ -1907,6 +1907,9 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 			menumodel->loaddelay--;
 
 			if (menumodel->loaddelay == 0) {
+#ifndef PLATFORM_N64
+				videoResetTextureCache();
+#endif
 				if (MENUMODELPARAMS_GET_FILENUM(menumodel->newparams) == 0xffff || MENUMODELPARAMS_HAS_MASTER_HEADBODY(menumodel->newparams)) {
 					if (MENUMODELPARAMS_HAS_MASTER_HEADBODY(menumodel->newparams)) {
 						headnum = MENUMODELPARAMS_GET_MASTER_HEADNUM(menumodel->newparams);
