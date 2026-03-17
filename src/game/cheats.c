@@ -998,14 +998,14 @@ struct menuitem g_CheatsFunMenuItems[] = {
 		0,
 		cheatCheckboxMenuHandler,
 	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		CHEAT_MOONJUMP,
-		0,
-		(uintptr_t)&cheatGetNameIfUnlocked,
-		0,
-		cheatCheckboxMenuHandler,
-	},
+	// {
+	// 	MENUITEMTYPE_CHECKBOX,
+	// 	CHEAT_MOONJUMP,
+	// 	0,
+	// 	(uintptr_t)&cheatGetNameIfUnlocked,
+	// 	0,
+	// 	cheatCheckboxMenuHandler,
+	// },
 	{
 		MENUITEMTYPE_CHECKBOX,
 		CHEAT_SLOMO,
