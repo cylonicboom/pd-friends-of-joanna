@@ -28,6 +28,7 @@ might skip it
 - [-] WONTFIX BUG WINDOWS bat launcher doesn't work.
 - [X] DONE fix mikado head height
 - [X] DONE fix poplin head height
+- [ ] FEAT legal screen tweaks
 - [ ] DEFER FEAT: WINDOWS BOOF PROG
 - [ ] DEFER FEAT autoaim scale
 - [ ] DEFER new agent screen
