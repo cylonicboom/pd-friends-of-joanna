@@ -2887,6 +2887,8 @@
 #define MPHEAD_GRIFFEY      0x48
 #define MPHEAD_MOTO         0x49
 #define MPHEAD_WINNER       0x4a
+#define MPHEAD_MIKADO       0x4b
+#define MPHEAD_POPLIN       0x4c
 
 #define MPLOCKTYPE_NONE       0
 #define MPLOCKTYPE_LASTWINNER 1

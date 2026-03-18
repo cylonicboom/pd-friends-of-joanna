@@ -1437,7 +1437,8 @@ MenuItemHandlerResult ciOfficeInformationMenuHandler(s32 operation, struct menui
 		break;
 	case MENUOP_GETOPTIONTEXT:
 		if (data->list.value < numunlockedchrbios) {
-			chrbio = ciGetChrBioByBodynum(ciGetChrBioBodynumBySlot(data->list.value));
+			struct biocharid *ch = ciGetChrBioBySlot(data->list.value);
+			chrbio = ciGetChrBio(ch);
 			return (uintptr_t) langGet(chrbio->name);
 		} else {
 			miscbio = ciGetMiscBio(ciGetMiscBioIndexBySlot(data->list.value - numunlockedchrbios));
@@ -1528,9 +1529,10 @@ struct menudialogdef g_NowSafeMenuDialog = {
 
 MenuDialogHandlerResult ciCharacterProfileMenuDialog(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
-	u32 bodynum = ciGetChrBioBodynumBySlot(g_ChrBioSlot);
+	struct biocharid *ch = ciGetChrBioBySlot(g_ChrBioSlot);
+	u32 bodynum = ch->bodynum;
 	u32 mpbodynum = mpGetMpbodynumByBodynum(bodynum);
-	u32 mpheadnum = mpGetMpheadnumByMpbodynum(mpbodynum);
+	u32 mpheadnum = (ch->mpheadnum >= 0) ? ch->mpheadnum : mpGetMpheadnumByMpbodynum(mpbodynum);
 	f32 x;
 	f32 y;
 	f32 scale;
@@ -1692,7 +1694,7 @@ MenuDialogHandlerResult ciCharacterProfileMenuDialog(s32 operation, struct menud
 
 char *ciMenuTextChrBioName(struct menuitem *item)
 {
-	struct chrbio *bio = ciGetChrBioByBodynum(ciGetChrBioBodynumBySlot(g_ChrBioSlot));
+	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
 	sprintf(g_StringPointer, "%s\n", langGet(bio->name));
 
 	return g_StringPointer;
@@ -1700,7 +1702,7 @@ char *ciMenuTextChrBioName(struct menuitem *item)
 
 char *ciMenuTextChrBioAge(struct menuitem *item)
 {
-	struct chrbio *bio = ciGetChrBioByBodynum(ciGetChrBioBodynumBySlot(g_ChrBioSlot));
+	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
 	sprintf(g_StringPointer, "%s\n", langGet(bio->age));
 
 	return g_StringPointer;
@@ -1708,7 +1710,7 @@ char *ciMenuTextChrBioAge(struct menuitem *item)
 
 char *ciMenuTextChrBioRace(struct menuitem *item)
 {
-	struct chrbio *bio = ciGetChrBioByBodynum(ciGetChrBioBodynumBySlot(g_ChrBioSlot));
+	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
 	sprintf(g_StringPointer, "%s\n", langGet(bio->race));
 
 	return g_StringPointer;

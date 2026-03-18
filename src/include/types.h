@@ -4697,6 +4697,11 @@ struct chrbio {
 	u32 description;
 };
 
+struct biocharid {
+	u32 bodynum;
+	s32 mpheadnum; // -1 = use default head for body
+};
+
 struct ranking {
 	struct mpchrconfig *mpchr;
 	union {

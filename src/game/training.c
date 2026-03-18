@@ -2324,9 +2324,24 @@ void frIncrementNumShots(void)
 	g_FrData.numshotssincetopup++;
 }
 
-bool ciIsChrBioUnlocked(u32 bodynum)
+static struct biocharid g_ChrBioCharacters[] = {
+	{ BODY_DARK_COMBAT, MPHEAD_DARK_COMBAT }, // Joanna Dark
+	{ BODY_DARK_COMBAT, MPHEAD_VD },           // Velvet Dark
+	{ BODY_DARK_COMBAT, MPHEAD_MIKADO },       // Mikado Dark
+	{ BODY_DARK_COMBAT, MPHEAD_POPLIN },       // Poplin Dark
+	{ BODY_JONATHAN,    -1 },
+	{ BODY_CARRINGTON,  -1 },
+	{ BODY_CASSANDRA,   -1 },
+	{ BODY_TRENT,       -1 },
+	{ BODY_DRCAROLL,    -1 },
+	{ BODY_THEKING,     -1 },
+	{ BODY_MRBLONDE,    -1 },
+	{ BODY_PRESIDENT,   -1 },
+};
+
+static bool ciIsBioCharUnlocked(struct biocharid *ch)
 {
-	switch (bodynum) {
+	switch (ch->bodynum) {
 	case BODY_DARK_COMBAT:
 	case BODY_CARRINGTON:
 		return true;
@@ -2349,9 +2364,15 @@ bool ciIsChrBioUnlocked(u32 bodynum)
 	return false;
 }
 
+bool ciIsChrBioUnlocked(u32 bodynum)
+{
+	struct biocharid ch = { bodynum, -1 };
+	return ciIsBioCharUnlocked(&ch);
+}
+
 u8 g_ChrBioSlot = 0;
 
-struct chrbio *ciGetChrBioByBodynum(u32 bodynum)
+struct chrbio *ciGetChrBio(struct biocharid *ch)
 {
 #ifdef AVOID_UB
 	static
@@ -2371,61 +2392,88 @@ struct chrbio *ciGetChrBioByBodynum(u32 bodynum)
 		/*9*/ { L_DISH_161, L_DISH_162, L_DISH_163, L_DISH_164 }, // The U.S. President
 #else
 		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Joanna Dark
-		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Velvet Dark
-		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Mikado Dark
-		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Poplin Dark
-		/*1*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226 }, // Jonathan
-		/*2*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230 }, // Daniel Carrington
-		/*3*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234 }, // Cassandra De Vries
-		/*4*/ { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238 }, // Trent Easton
-		/*5*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242 }, // Dr. Caroll
-		/*6*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246 }, // Elvis
-		/*7*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250 }, // Mr. Blonde
-		/*8*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254 }, // Mr. Blonde (repeat)
-		/*9*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258 }, // The U.S. President
+		/*1*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Velvet Dark
+		/*2*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Mikado Dark
+		/*3*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Poplin Dark
+		/*4*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226 }, // Jonathan
+		/*5*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230 }, // Daniel Carrington
+		/*6*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234 }, // Cassandra De Vries
+		/*7*/ { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238 }, // Trent Easton
+		/*8*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242 }, // Dr. Caroll
+		/*9*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246 }, // Elvis
+		/*10*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250 }, // Mr. Blonde
+		/*11*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254 }, // Mr. Blonde (repeat)
+		/*12*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258 }, // The U.S. President
 #endif
 	};
 
-	switch (bodynum) {
-	case BODY_DARK_COMBAT:
-		return &bios[0];
+	if (ch->bodynum == BODY_DARK_COMBAT) {
+		if (ch->mpheadnum == MPHEAD_VD)     return &bios[1];
+		if (ch->mpheadnum == MPHEAD_MIKADO) return &bios[2];
+		if (ch->mpheadnum == MPHEAD_POPLIN) return &bios[3];
+		return &bios[0]; // Joanna (default)
+	}
+
+	switch (ch->bodynum) {
 	case BODY_JONATHAN:
-		return &bios[1+3];
+		return &bios[4];
 	case BODY_CARRINGTON:
-		return &bios[2+3];
+		return &bios[5];
 	case BODY_CASSANDRA:
-		return &bios[3+3];
+		return &bios[6];
 	case BODY_TRENT:
-		return &bios[4+3];
+		return &bios[7];
 	case BODY_DRCAROLL:
-		return &bios[5+3];
+		return &bios[8];
 	case BODY_THEKING:
-		return &bios[6+3];
+		return &bios[9];
 	case BODY_MRBLONDE:
 		if (ciIsStageComplete(SOLOSTAGEINDEX_CRASHSITE)) {
-			return &bios[8+3];
+			return &bios[11];
 		}
-		return &bios[7+3];
+		return &bios[10];
 	case BODY_PRESIDENT:
-		return &bios[9+3];
+		return &bios[12];
 	}
 
 	return NULL;
 }
 
+struct chrbio *ciGetChrBioByBodynum(u32 bodynum)
+{
+	struct biocharid ch = { bodynum, -1 };
+	return ciGetChrBio(&ch);
+}
+
+struct biocharid *ciGetChrBioBySlot(s32 slot)
+{
+	s32 index = -1;
+
+	for (s32 i = 0; i < ARRAYCOUNT(g_ChrBioCharacters); i++) {
+		if (ciIsBioCharUnlocked(&g_ChrBioCharacters[i])) {
+			index++;
+		}
+
+		if (index == slot) {
+			return &g_ChrBioCharacters[i];
+		}
+	}
+
+	return &g_ChrBioCharacters[0];
+}
+
 char *ciGetChrBioDescription(void)
 {
-	struct chrbio *bio = ciGetChrBioByBodynum(ciGetChrBioBodynumBySlot(g_ChrBioSlot));
+	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
 	return langGet(bio->description);
 }
 
 s32 ciGetNumUnlockedChrBios(void)
 {
 	s32 count = 0;
-	s32 bodynum;
 
-	for (bodynum = 0; bodynum < g_NumHeadsAndBodies - 1; bodynum++) {
-		if (ciIsChrBioUnlocked(bodynum)) {
+	for (s32 i = 0; i < ARRAYCOUNT(g_ChrBioCharacters); i++) {
+		if (ciIsBioCharUnlocked(&g_ChrBioCharacters[i])) {
 			count++;
 		}
 	}
@@ -2435,20 +2483,7 @@ s32 ciGetNumUnlockedChrBios(void)
 
 s32 ciGetChrBioBodynumBySlot(s32 slot)
 {
-	s32 index = -1;
-	s32 bodynum;
-
-	for (bodynum = 0; bodynum < g_NumHeadsAndBodies - 1; bodynum++) {
-		if (ciIsChrBioUnlocked(bodynum)) {
-			index++;
-		}
-
-		if (index == slot) {
-			return bodynum;
-		}
-	}
-
-	return 0;
+	return ciGetChrBioBySlot(slot)->bodynum;
 }
 
 struct miscbio *ciGetMiscBio(s32 index)

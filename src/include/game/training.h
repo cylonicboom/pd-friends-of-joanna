@@ -67,6 +67,8 @@ void frCalculateHit(struct defaultobj *obj, struct coord *hitpos, f32 maulerchar
 void frIncrementNumShots(void);
 bool ciIsChrBioUnlocked(u32 bodynum);
 struct chrbio *ciGetChrBioByBodynum(u32 bodynum);
+struct chrbio *ciGetChrBio(struct biocharid *ch);
+struct biocharid *ciGetChrBioBySlot(s32 slot);
 char *ciGetChrBioDescription(void);
 s32 ciGetNumUnlockedChrBios(void);
 s32 ciGetChrBioBodynumBySlot(s32 slot);
