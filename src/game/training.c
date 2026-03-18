@@ -2378,32 +2378,32 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 	static
 #endif
 	struct chrbio bios[] = {
-		// name, race, age, profile
+		// name, race, age, profile, flags
 #if VERSION >= VERSION_PAL_BETA
-		/*0*/ { L_DISH_125, L_DISH_126, L_DISH_127, L_DISH_128 }, // Joanna Dark
-		/*1*/ { L_DISH_129, L_DISH_130, L_DISH_131, L_DISH_132 }, // Jonathan
-		/*2*/ { L_DISH_133, L_DISH_134, L_DISH_135, L_DISH_136 }, // Daniel Carrington
-		/*3*/ { L_DISH_137, L_DISH_138, L_DISH_139, L_DISH_140 }, // Cassandra De Vries
-		/*4*/ { L_DISH_141, L_DISH_142, L_DISH_143, L_DISH_144 }, // Trent Easton
-		/*5*/ { L_DISH_145, L_DISH_146, L_DISH_147, L_DISH_148 }, // Dr. Caroll
-		/*6*/ { L_DISH_149, L_DISH_150, L_DISH_151, L_DISH_152 }, // Elvis
-		/*7*/ { L_DISH_153, L_DISH_154, L_DISH_155, L_DISH_156 }, // Mr. Blonde
-		/*8*/ { L_DISH_157, L_DISH_158, L_DISH_159, L_DISH_160 }, // Mr. Blonde (repeat)
-		/*9*/ { L_DISH_161, L_DISH_162, L_DISH_163, L_DISH_164 }, // The U.S. President
+		/*0*/ { L_DISH_125, L_DISH_126, L_DISH_127, L_DISH_128, 0 }, // Joanna Dark
+		/*1*/ { L_DISH_129, L_DISH_130, L_DISH_131, L_DISH_132, 0 }, // Jonathan
+		/*2*/ { L_DISH_133, L_DISH_134, L_DISH_135, L_DISH_136, 0 }, // Daniel Carrington
+		/*3*/ { L_DISH_137, L_DISH_138, L_DISH_139, L_DISH_140, 0 }, // Cassandra De Vries
+		/*4*/ { L_DISH_141, L_DISH_142, L_DISH_143, L_DISH_144, 0 }, // Trent Easton
+		/*5*/ { L_DISH_145, L_DISH_146, L_DISH_147, L_DISH_148, 0 }, // Dr. Caroll
+		/*6*/ { L_DISH_149, L_DISH_150, L_DISH_151, L_DISH_152, 0 }, // Elvis
+		/*7*/ { L_DISH_153, L_DISH_154, L_DISH_155, L_DISH_156, 0 }, // Mr. Blonde
+		/*8*/ { L_DISH_157, L_DISH_158, L_DISH_159, L_DISH_160, 0 }, // Mr. Blonde (repeat)
+		/*9*/ { L_DISH_161, L_DISH_162, L_DISH_163, L_DISH_164, 0 }, // The U.S. President
 #else
-		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Joanna Dark
-		/*1*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Velvet Dark
-		/*2*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Mikado Dark
-		/*3*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Poplin Dark
-		/*4*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226 }, // Jonathan
-		/*5*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230 }, // Daniel Carrington
-		/*6*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234 }, // Cassandra De Vries
-		/*7*/ { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238 }, // Trent Easton
-		/*8*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242 }, // Dr. Caroll
-		/*9*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246 }, // Elvis
-		/*10*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250 }, // Mr. Blonde
-		/*11*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254 }, // Mr. Blonde (repeat)
-		/*12*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258 }, // The U.S. President
+		/*1*/ { (uintptr_t)"Joanna Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #027 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nHighly trained but inexperienced. Reactions superb. Proficient with a variety of weapons. Very competent all-round agent. Highest recorded training scores resulted in the creation of a new class of training grade. The embodiment of the Carrington Institute's ideal agent, hence the call sign 'Perfect Dark.'\n", CHRBIO_FLAG_LITERAL },
+		/*1*/ { (uintptr_t)"Velvet Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #042 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nSister combat replicant to agent Perfect Dark. Experiences are transferred between locally active friend agents. Variation between agents may reduce psychological intrusions regarding their nature, but cause occasional glitches during memory transfer. More research must be conducted with experimental control agent 'Jonathan.' Couches at the institute are made with the highest quality velvet, hence the call sign 'Velvet Dark.'\n", CHRBIO_FLAG_LITERAL },
+		/*2*/ { (uintptr_t)"Mikado Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #101 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nTokyo's instantiation of the Perfect Dark combat agent but with localized experiential modules. Likeness and personality is influenced by an amalgamation of Japanese cultural media training data collected from the years 1980-1990. Some of the agent's training data has been back ported to the other Perfect Dark agents to aid in better cooperation between friends. The perfect embodiment of Japanese corporate values, hence the call sign 'Mikado Dark.'\n", CHRBIO_FLAG_LITERAL },
+		/*3*/ { (uintptr_t)"Poplin Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Unassigned\n\n|Profile -\n\nFirst-generation dataDyne-produced autonomous combat agent. Pre-loaded with extracted Joanna Dark personality and skill models. Mission to destroy the [redacted] in Africa was successful, but the agent was retired after found to have suffered from data contamination. Given this agent's inextricable moral compass, they can still can be repurposed for emergencies if their friends' lives are at risk, hence the call sign 'Poplin Dark.'\n", CHRBIO_FLAG_LITERAL },
+		/*4*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226, 0 }, // Jonathan
+		/*5*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230, 0 }, // Daniel Carrington
+		/*6*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234, 0 }, // Cassandra De Vries
+		/*7*/ { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238, 0 }, // Trent Easton
+		/*8*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242, 0 }, // Dr. Caroll
+		/*9*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246, 0 }, // Elvis
+		/*10*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250, 0 }, // Mr. Blonde
+		/*11*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254, 0 }, // Mr. Blonde (repeat)
+		/*12*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258, 0 }, // The U.S. President
 #endif
 	};
 
@@ -2465,7 +2465,7 @@ struct biocharid *ciGetChrBioBySlot(s32 slot)
 char *ciGetChrBioDescription(void)
 {
 	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
-	return langGet(bio->description);
+	return chrBioText(bio->description, bio->flags);
 }
 
 s32 ciGetNumUnlockedChrBios(void)

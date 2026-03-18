@@ -1439,7 +1439,7 @@ MenuItemHandlerResult ciOfficeInformationMenuHandler(s32 operation, struct menui
 		if (data->list.value < numunlockedchrbios) {
 			struct biocharid *ch = ciGetChrBioBySlot(data->list.value);
 			chrbio = ciGetChrBio(ch);
-			return (uintptr_t) langGet(chrbio->name);
+			return (uintptr_t) chrBioText(chrbio->name, chrbio->flags);
 		} else {
 			miscbio = ciGetMiscBio(ciGetMiscBioIndexBySlot(data->list.value - numunlockedchrbios));
 			return (uintptr_t) langGet(miscbio->name);
@@ -1695,7 +1695,7 @@ MenuDialogHandlerResult ciCharacterProfileMenuDialog(s32 operation, struct menud
 char *ciMenuTextChrBioName(struct menuitem *item)
 {
 	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
-	sprintf(g_StringPointer, "%s\n", langGet(bio->name));
+	sprintf(g_StringPointer, "%s\n", chrBioText(bio->name, bio->flags));
 
 	return g_StringPointer;
 }
@@ -1703,7 +1703,7 @@ char *ciMenuTextChrBioName(struct menuitem *item)
 char *ciMenuTextChrBioAge(struct menuitem *item)
 {
 	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
-	sprintf(g_StringPointer, "%s\n", langGet(bio->age));
+	sprintf(g_StringPointer, "%s\n", chrBioText(bio->age, bio->flags));
 
 	return g_StringPointer;
 }
@@ -1711,7 +1711,7 @@ char *ciMenuTextChrBioAge(struct menuitem *item)
 char *ciMenuTextChrBioRace(struct menuitem *item)
 {
 	struct chrbio *bio = ciGetChrBio(ciGetChrBioBySlot(g_ChrBioSlot));
-	sprintf(g_StringPointer, "%s\n", langGet(bio->race));
+	sprintf(g_StringPointer, "%s\n", chrBioText(bio->race, bio->flags));
 
 	return g_StringPointer;
 }

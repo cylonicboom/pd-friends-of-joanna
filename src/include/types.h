@@ -4690,11 +4690,14 @@ struct hangarbio {
 	u32 unk0c;
 };
 
+#define CHRBIO_FLAG_LITERAL 0x1
+
 struct chrbio {
-	u32 name;
-	u32 race;
-	u32 age;
-	u32 description;
+	uintptr_t name;
+	uintptr_t race;
+	uintptr_t age;
+	uintptr_t description;
+	u32 flags;
 };
 
 struct biocharid {

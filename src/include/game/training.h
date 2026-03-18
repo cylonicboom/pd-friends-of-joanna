@@ -3,6 +3,7 @@
 #include <ultra64.h>
 #include "data.h"
 #include "types.h"
+#include "game/lang.h"
 
 extern u8 g_FrIsValidWeapon;
 extern s32 g_FrWeaponNum;
@@ -72,6 +73,11 @@ struct biocharid *ciGetChrBioBySlot(s32 slot);
 char *ciGetChrBioDescription(void);
 s32 ciGetNumUnlockedChrBios(void);
 s32 ciGetChrBioBodynumBySlot(s32 slot);
+
+static inline char *chrBioText(uintptr_t val, u32 flags)
+{
+	return (flags & CHRBIO_FLAG_LITERAL) ? (char *)val : langGet((u32)val);
+}
 struct miscbio *ciGetMiscBio(s32 index);
 bool ciIsMiscBioUnlocked(s32 index);
 s32 ciGetNumUnlockedMiscBios(void);
