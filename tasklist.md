@@ -21,13 +21,18 @@ might skip it
 - [-] SKIP FEAT setup color defaults for different Jos. Mikado pink / darkZer0 white / Jo robocop green / velvet ???
 - [X] DONE BUG press start / respawn flow woes
 - [X] DONE BUG retest death by chicago drone
+- [X] DONE BUG WINDOWS team missions carousel / head selection doesn't work
+- [X] FEAT WINDOWS fosler as pdz jo
+- [X] DONE BUG: disable moonjump
 
+- [X] DONEfix mikado head height
+- [X] DONEfix poplin head height
 - [ ] BUG WINDOWS bat launcher doesn't work.
-- [ ] BUG WINDOWS team missions carousel / head selection doesn't work
+- [ ] TEST WINDOWS / LINUX friend of jo carousel / head selection / spawning
 - [ ] FEAT autoaim scale
-- [ ] BUG: disable moonjump
+- [ ] integrate flavor text
+- [ ] FEAT: new agent picture
 
 - [ ] FEAT: WINDOWS BOOF PROG
-- [ ] FEAT WINDOWS fosler as pdz jo
 
 

@@ -3107,6 +3107,7 @@ struct headorbody {
 	/*0x08*/ f32 animscale;
 	/*0x0c*/ struct modeldef *modeldef;
 	/*0x10*/ u32 handfilenum;
+	s32 yoffset;
 };
 
 struct stagetableentry {

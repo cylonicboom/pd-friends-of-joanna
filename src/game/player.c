@@ -1631,6 +1631,9 @@ void playerTickChrBody(void)
 			if (headnum >= 0) {
 				headmodeldef = modeldefLoad(g_HeadsAndBodies[headnum].filenum, allocation + offset1, offset2 - offset1, &texpool);
 				offset1 = ALIGN64(fileGetLoadedSize(g_HeadsAndBodies[headnum].filenum) + offset1);
+				// sysLogPrintf(LOG_NOTE, "DEBUG player.c 1P path: loaded headnum=%d bodynum=%d yoffset=%d, calling bodyCalculateHeadOffset",
+				//	headnum, bodynum, g_HeadsAndBodies[headnum].yoffset);
+				bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 			}
 
 			modelAllocateRwData(bodymodeldef);
@@ -1670,19 +1673,21 @@ void playerTickChrBody(void)
 			} else if (sp60) {
 				headmodeldef = func0f18e57c(headnum, &headnum);
 			} else if (g_Vars.normmplayerisrunning && IS8MB()) {
+				// sysLogPrintf(LOG_NOTE, "DEBUG player.c: normmplay+8MB path headnum=%d bodynum=%d yoffset=%d", headnum, bodynum, g_HeadsAndBodies[headnum].yoffset);
 				g_HeadsAndBodies[headnum].modeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
 				headmodeldef = g_HeadsAndBodies[headnum].modeldef;
 				g_FileInfo[g_HeadsAndBodies[headnum].filenum].loadedsize = 0;
 				bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 			} else {
-				if (g_HeadsAndBodies[headnum].modeldef == NULL) {
-					g_HeadsAndBodies[headnum].modeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
-				}
-
+				// sysLogPrintf(LOG_NOTE, "DEBUG player.c: else path headnum=%d bodynum=%d yoffset=%d", headnum, bodynum, g_HeadsAndBodies[headnum].yoffset);
+				g_HeadsAndBodies[headnum].modeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
 				headmodeldef = g_HeadsAndBodies[headnum].modeldef;
+				bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 			}
 		}
 
+		// sysLogPrintf(LOG_NOTE, "DEBUG player.c: about to call body0f02ce8c bodynum=%d headnum=%d bodymodeldef=%p headmodeldef=%p",
+		//	bodynum, headnum, (void *)bodymodeldef, (void *)headmodeldef);
 		g_Vars.currentplayer->model00d4 = body0f02ce8c(bodynum, headnum, bodymodeldef, headmodeldef, false, model, true, true);
 
 		chr0f020b14(g_Vars.currentplayer->prop, g_Vars.currentplayer->model00d4, &g_Vars.currentplayer->prop->pos,

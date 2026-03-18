@@ -458,6 +458,10 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 			p = modConfigParseFileValue(p, token, &tmp, modNum);
 			if (!p) return NULL;
 			item->handfilenum = tmp | (modNum << 16);
+		} else if (!strcmp(token, "yoffset")) {
+			PARSE_INT("HeadsAndBodies", "yoffset", tmp, -1000, 1000, NULL);
+			item->yoffset = tmp;
+			// sysLogPrintf(LOG_NOTE, "DEBUG modconfig: parsed yoffset=%d for slot", tmp);
 		} else if (!strcmp(token, "name")) {
 			// Parse name
 			p = strParseToken(p, token, NULL);
@@ -807,9 +811,9 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 					g_MpHeads = new_array;
 					g_NumMpHeads = slotNum + 1;
 					memset(&g_MpHeads[oldNum], 0, (g_NumMpHeads - oldNum) * sizeof(struct mphead));
-					sysLogPrintf(LOG_NOTE, "DEBUG: Expanded g_MpHeads from %d to %d for slotNum=%d", oldNum, g_NumMpHeads, slotNum);
+					// sysLogPrintf(LOG_NOTE, "DEBUG: Expanded g_MpHeads from %d to %d for slotNum=%d", oldNum, g_NumMpHeads, slotNum);
 				} else {
-					sysLogPrintf(LOG_ERROR, "DEBUG: Failed to expand g_MpHeads for slotNum=%d", slotNum);
+					// sysLogPrintf(LOG_ERROR, "DEBUG: Failed to expand g_MpHeads for slotNum=%d", slotNum);
 				}
 			}
 

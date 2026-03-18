@@ -19,6 +19,7 @@
 #include "lib/rng.h"
 #include "lib/mtx.h"
 #include "lib/ailist.h"
+#include "system.h"
 #include "lib/anim.h"
 #include "lib/collision.h"
 #include "data.h"
@@ -172,6 +173,9 @@ struct model *body0f02ce8c(s32 bodynum, s32 headnum, struct modeldef *bodymodeld
 	struct modelnode *node = NULL;
 	u32 stack[2];
 
+	// sysLogPrintf(LOG_NOTE, "DEBUG body0f02ce8c ENTER bodynum=%d headnum=%d bodymodeldef=%p headmodeldef=%p isplayer=%d",
+	//	bodynum, headnum, (void *)bodymodeldef, (void *)headmodeldef, isplayer);
+
 	if (cheatIsActive(CHEAT_DKMODE)) {
 		scale *= 0.8f;
 	}
@@ -196,18 +200,19 @@ struct model *body0f02ce8c(s32 bodynum, s32 headnum, struct modeldef *bodymodeld
 					bodymodeldef->rwdatalen += headmodeldef->rwdatalen;
 				} else if (headnum > 0) {
 					if (headmodeldef == NULL) {
+						// sysLogPrintf(LOG_NOTE, "DEBUG body0f02ce8c: headmodeldef is NULL, loading fresh for headnum=%d normmplay=%d", headnum, g_Vars.normmplayerisrunning);
 						if (g_Vars.normmplayerisrunning && !IS4MB()) {
 							headmodeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
 							g_HeadsAndBodies[headnum].modeldef = headmodeldef;
 							g_FileInfo[g_HeadsAndBodies[headnum].filenum].loadedsize = 0;
 							bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 						} else {
-							if (g_HeadsAndBodies[headnum].modeldef == NULL) {
-								g_HeadsAndBodies[headnum].modeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
-							}
-
-							headmodeldef = g_HeadsAndBodies[headnum].modeldef;
+							headmodeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
+							g_HeadsAndBodies[headnum].modeldef = headmodeldef;
+							bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 						}
+					} else {
+						// sysLogPrintf(LOG_NOTE, "DEBUG body0f02ce8c: headmodeldef NOT NULL (%p), SKIPPING bodyCalculateHeadOffset for headnum=%d", (void *)headmodeldef, headnum);
 					}
 
 					modelAllocateRwData(headmodeldef);
@@ -642,6 +647,9 @@ void bodyCalculateHeadOffset(struct modeldef *headmodeldef, s32 headnum, s32 bod
 	struct modelrodata_bbox *bbox;
 	s32 i;
 
+	// sysLogPrintf(LOG_NOTE, "DEBUG bodyCalculateHeadOffset ENTER headnum=%d bodynum=%d headtype=%d bodytype=%d yoffset=%d",
+	//	headnum, bodynum, g_HeadsAndBodies[headnum].type, g_HeadsAndBodies[bodynum].type, g_HeadsAndBodies[headnum].yoffset);
+
 #if VERSION >= VERSION_JPN_FINAL
 	offset = 0;
 
@@ -673,11 +681,13 @@ void bodyCalculateHeadOffset(struct modeldef *headmodeldef, s32 headnum, s32 bod
 
 	if ((s16)(*(s32 *)&headmodeldef->skel) == SKEL_HEAD) {
 #if VERSION >= VERSION_JPN_FINAL
-		if (g_HeadsAndBodies[headnum].type == g_HeadsAndBodies[bodynum].type && offset == 0) {
+		if (g_HeadsAndBodies[headnum].type == g_HeadsAndBodies[bodynum].type && offset == 0 && g_HeadsAndBodies[headnum].yoffset == 0) {
+			// sysLogPrintf(LOG_NOTE, "DEBUG bodyCalculateHeadOffset EARLY RETURN (JPN) same type & offset=0 & yoffset=0");
 			return;
 		}
 #else
-		if (g_HeadsAndBodies[headnum].type == g_HeadsAndBodies[bodynum].type) {
+		if (g_HeadsAndBodies[headnum].type == g_HeadsAndBodies[bodynum].type && g_HeadsAndBodies[headnum].yoffset == 0) {
+			// sysLogPrintf(LOG_NOTE, "DEBUG bodyCalculateHeadOffset EARLY RETURN same type & yoffset=0");
 			return;
 		}
 #endif
@@ -761,6 +771,10 @@ void bodyCalculateHeadOffset(struct modeldef *headmodeldef, s32 headnum, s32 bod
 					|| g_HeadsAndBodies[headnum].type == HEADBODYTYPE_MRBLONDE)) {
 			offset -= 5;
 		}
+
+		offset += g_HeadsAndBodies[headnum].yoffset;
+
+		// sysLogPrintf(LOG_NOTE, "DEBUG bodyCalculateHeadOffset final offset=%d (yoffset=%d)", offset, g_HeadsAndBodies[headnum].yoffset);
 
 		// Apply the offset
 		if (offset != 0) {
