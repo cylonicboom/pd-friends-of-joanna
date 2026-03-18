@@ -25,14 +25,14 @@ might skip it
 - [X] FEAT WINDOWS fosler as pdz jo
 - [X] DONE BUG: disable moonjump
 
-- [X] DONEfix mikado head height
-- [X] DONEfix poplin head height
-- [ ] BUG WINDOWS bat launcher doesn't work.
-- [ ] TEST WINDOWS / LINUX friend of jo carousel / head selection / spawning
-- [ ] FEAT autoaim scale
-- [ ] integrate flavor text
-- [ ] FEAT: new agent picture
+- [-] WONTFIX BUG WINDOWS bat launcher doesn't work.
+- [X] DONE fix mikado head height
+- [X] DONE fix poplin head height
+- [ ] DEFER FEAT: WINDOWS BOOF PROG
+- [ ] DEFER FEAT autoaim scale
+- [ ] DEFER new agent screen
+- [x] DONE integrate flavor text
 
-- [ ] FEAT: WINDOWS BOOF PROG
+- [ ] TEST WINDOWS / LINUX friend of jo carousel / head selection / spawning
 
 
