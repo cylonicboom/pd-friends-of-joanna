@@ -6236,8 +6236,9 @@ struct extplayerprofile {
 			extplayerprop handicap_prop;
 			extplayerprop classicsight_prop;
 			extplayerprop showlives_prop;
+			extplayerprop teamagentindex_prop;
 		};
-		extplayerprop ptr[4];
+		extplayerprop ptr[5];
 	};
 };
 

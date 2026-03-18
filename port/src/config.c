@@ -42,10 +42,28 @@ static inline struct configentry *configFindEntry(const char *key)
 static inline struct configentry *configAddEntry(const char *key)
 {
 	if (numSettings < CONFIG_MAX_SETTINGS) {
-		struct configentry *cfg = &settings[numSettings++];
+		const char *delim = strrchr(key, '.');
+		s32 seclen = delim ? (delim - key) : 0;
+
+		// Insert after the last entry in the same section to keep sections contiguous
+		s32 insertAt = numSettings;
+		for (s32 i = numSettings - 1; i >= 0; i--) {
+			if (settings[i].seclen == seclen && !strncasecmp(settings[i].key, key, seclen)) {
+				insertAt = i + 1;
+				break;
+			}
+		}
+
+		if (insertAt < numSettings) {
+			memmove(&settings[insertAt + 1], &settings[insertAt],
+				(numSettings - insertAt) * sizeof(struct configentry));
+		}
+
+		struct configentry *cfg = &settings[insertAt];
+		memset(cfg, 0, sizeof(*cfg));
 		snprintf(cfg->key, CONFIG_MAX_KEYNAME, "%s", key);
-		const char *delim = strrchr(cfg->key, '.');
-		cfg->seclen = delim ? (delim - cfg->key) : 0;
+		cfg->seclen = seclen;
+		numSettings++;
 		return cfg;
 	}
 	if (!configMaxWarningLogged) {

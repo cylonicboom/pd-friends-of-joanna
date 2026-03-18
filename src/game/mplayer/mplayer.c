@@ -166,6 +166,7 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
 	.handicap_prop = { .u8 = 0x80 }, \
 	.classicsight_prop = { .u8 = 0 }, \
 	.showlives_prop = { .u8 = 0 }, \
+	.teamagentindex_prop = { .s32 = -1 }, \
 };
 
 struct extplayerprofile g_ExtendedProfiles[CONFIG_MAX_PROFILES];
@@ -217,10 +218,21 @@ static void mpExtendedProfileInitShowLives(s32 profileindex, s32 playernum)
 	g_PlayerConfigsArray[playernum].showlives = &g_ExtendedProfiles[profileindex].showlives_prop.u8;
 }
 
+static void mpExtendedProfileInitTeamAgentIndex(s32 profileindex, s32 playernum)
+{
+	s32 val = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
+	if (val < 0) {
+		val = playernum;
+		g_ExtendedProfiles[profileindex].teamagentindex_prop.s32 = val;
+	}
+	g_PlayerConfigsArray[playernum].teamagentindex = val;
+}
+
 struct extprofileproperty g_ExtendedProfileProperties[] = {
 	{ CFG_U8, "Handicap", 0x80, 0, 255, &mpExtendedProfileInitHandicap},
 	{ CFG_U8, "ClassicSight", 0, 0, 1, &mpExtendedProfileInitClassicSight},
 	{ CFG_U8, "ShowLives", 0, 0, 1, &mpExtendedProfileInitShowLives},
+	{ CFG_S32, "TeamAgentIndex", -1, -1, 10, &mpExtendedProfileInitTeamAgentIndex},
 }; // these must be in the same order as the extendedprofile struct, ignoring the fileguid
 
 static inline s32 getExtendedProfileIndexFromFileGuid(const struct fileguid* fileguid)
@@ -309,38 +321,36 @@ static inline s32 mpExtendedProfileRegister(struct fileguid *fileguid, s32 arg0,
 				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_u8;
 				configRegisterU8Int(key, (u8*)&g_ExtendedProfiles[configindex].ptr[i+1].u8, g_ExtendedProfileProperties[i].min_u8, g_ExtendedProfileProperties[i].max_u8);
 			}
-			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
 			break;
 		case CFG_S32:
 			if (playerslug) {
 				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_s32;
 				configRegisterInt(key, (s32*)&g_ExtendedProfiles[configindex].ptr[i+1].s32, g_ExtendedProfileProperties[i].min_s32, g_ExtendedProfileProperties[i].max_s32);
 			}
-			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
 			break;
 		case CFG_U32:
 			if (playerslug) {
 				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_u32;
 				configRegisterUInt(key, (u32*)&g_ExtendedProfiles[configindex].ptr[i+1].u32, g_ExtendedProfileProperties[i].min_u32, g_ExtendedProfileProperties[i].max_u32);
 			}
-			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
 			break;
 		case CFG_F32:
 			if (playerslug) {
 				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_f32;
 				configRegisterFloat(key, (f32*)&g_ExtendedProfiles[configindex].ptr[i+1].f32, g_ExtendedProfileProperties[i].min_f32, g_ExtendedProfileProperties[i].max_f32);
 			}
-			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
 			break;
 		case CFG_STR:
 			if (playerslug) {
 				g_ExtendedProfiles[configindex].ptr[i+1] = (extplayerprop)g_ExtendedProfileProperties[i].initialvalue_str;
 				configRegisterString(key, (char*)g_ExtendedProfiles[configindex].ptr[i+1].string, sizeof(g_ExtendedProfiles[configindex].ptr[i]));
 			}
-			if (g_ExtendedProfileProperties[i].initfunc) g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
 			break;
 		}
 		if (playerslug) configLoadKey(CONFIG_PATH, key);
+		if (playernum >= 0 && g_ExtendedProfileProperties[i].initfunc) {
+			g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+		}
 	}
 
 	// Validate player head after profile load - filter HEAD_GREY if AIO not present

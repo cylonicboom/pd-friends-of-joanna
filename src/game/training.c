@@ -2371,6 +2371,9 @@ struct chrbio *ciGetChrBioByBodynum(u32 bodynum)
 		/*9*/ { L_DISH_161, L_DISH_162, L_DISH_163, L_DISH_164 }, // The U.S. President
 #else
 		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Joanna Dark
+		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Velvet Dark
+		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Mikado Dark
+		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222 }, // Poplin Dark
 		/*1*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226 }, // Jonathan
 		/*2*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230 }, // Daniel Carrington
 		/*3*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234 }, // Cassandra De Vries
@@ -2387,24 +2390,24 @@ struct chrbio *ciGetChrBioByBodynum(u32 bodynum)
 	case BODY_DARK_COMBAT:
 		return &bios[0];
 	case BODY_JONATHAN:
-		return &bios[1];
+		return &bios[1+3];
 	case BODY_CARRINGTON:
-		return &bios[2];
+		return &bios[2+3];
 	case BODY_CASSANDRA:
-		return &bios[3];
+		return &bios[3+3];
 	case BODY_TRENT:
-		return &bios[4];
+		return &bios[4+3];
 	case BODY_DRCAROLL:
-		return &bios[5];
+		return &bios[5+3];
 	case BODY_THEKING:
-		return &bios[6];
+		return &bios[6+3];
 	case BODY_MRBLONDE:
 		if (ciIsStageComplete(SOLOSTAGEINDEX_CRASHSITE)) {
-			return &bios[8];
+			return &bios[8+3];
 		}
-		return &bios[7];
+		return &bios[7+3];
 	case BODY_PRESIDENT:
-		return &bios[9];
+		return &bios[9+3];
 	}
 
 	return NULL;

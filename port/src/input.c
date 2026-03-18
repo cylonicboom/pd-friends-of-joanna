@@ -210,7 +210,8 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode)
 		{ CK_STICK_YPOS,    SDL_SCANCODE_UP,     0                   },
 		{ CK_4000,          SDL_SCANCODE_LSHIFT, 0                   },
 		{ CK_2000,          SDL_SCANCODE_LCTRL,  0                   },
-		{ CK_DROPITEM,      SDL_SCANCODE_G,      0                   }
+		{ CK_DROPITEM,      SDL_SCANCODE_G,      0                   },
+		{ CK_0040,          SDL_SCANCODE_T,      0                   }
 	};
 
 	static const u32 pcjoybinds[][2] = {
@@ -229,6 +230,7 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode)
 		{ CK_CANCEL, SDL_CONTROLLER_BUTTON_B             },
 		{ CK_8000,   SDL_CONTROLLER_BUTTON_LEFTSTICK     },
 		{ CK_DROPITEM, SDL_CONTROLLER_BUTTON_RIGHTSTICK  },
+		{ CK_0040,   SDL_CONTROLLER_BUTTON_BACK,         } // blinking
 	};
 
 	static const u32 n64kbbinds[][3] = {

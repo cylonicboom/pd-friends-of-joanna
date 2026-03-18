@@ -47,6 +47,7 @@
 u8 g_InventoryWeapon;
 extern struct menuitem g_MpPlayerSetup4MbMenuItems[];
 extern u32 g_MpFemaleHeads[];
+extern struct extplayerprofile g_ExtendedProfiles[];
 
 // Forward declarations for female head carousel
 MenuItemHandlerResult menuhandlerTeamOperativeHeadPlayer1(s32 operation, struct menuitem *item, union handlerdata *data);
@@ -2193,6 +2194,9 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation, struct menuite
 		}
 
 		g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = selectedindex;
+		if (g_PlayerConfigsArray[g_MpPlayerNum].configindex >= 0) {
+			g_ExtendedProfiles[g_PlayerConfigsArray[g_MpPlayerNum].configindex].teamagentindex_prop.s32 = selectedindex;
+		}
 		data->carousel.value = selectedindex;
 		// sysLogPrintf(LOG_NOTE, "FoJo carousel SET: player %d -> index %d (mpheadnum=%d)", g_MpPlayerNum, selectedindex, g_FojoHeadOptions[selectedindex]);
 		// Fall through to MENUOP_FOCUS
