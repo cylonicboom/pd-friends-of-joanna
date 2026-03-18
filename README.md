@@ -1,13 +1,6 @@
 # MOD: Friends of Joanna
-###### Sometimes, the best man for the job is a woman... and her friends.
 
 Fork / Mod of the Perfect Dark PC Port, with extra cheese.
-
-[Setup instructions below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building--setup-friends-of-joanna)
-
-
-
-
 ## 4-Player Counter + Co Operative
 
 Re-experience the magic of Rare's Perfect Dark, vicariously through your friends, in 4-player split screen.
@@ -36,11 +29,9 @@ Defend your workplace from meddling Carrington Institute terrorists.   The dataD
 
 ## Status
 
-The game is in a mostly functional state, with both singleplayer and split-screen multiplayer modes fully working. 
-
 The 2-4 player mode, Team Missions, is fully completable with any surviving Operative (ie Jo / `CHR_BOND` or co-op character) character.
 
-Note: AI-controlled co-op buddies have been temporarily removed. TODO: see ROAD TO 1.0
+Note: AI-controlled co-op buddies have been temporarily removed. 
 
 There are minor graphics- and gameplay-related issues, and possibly occasional crashes.
 
@@ -48,7 +39,7 @@ There are minor graphics- and gameplay-related issues, and possibly occasional c
 
 - 4-player co-op / counter-op mode: `Team Missions`
 - 4 playable CI Combat agents in Team Missions / Solo Missions: `Perfect Dark`, `Velvet Dark`, `Mikado Dark`, `Poplin Dark`
-- Play as Combat Simulator character in Team Missions / Solo Missions*
+- Play as Combat Simulator character in Team Missions / Solo Missions [*](#sometimes-the-best-man-for-the-job-is-a-woman-and-her-friends)
 - Eyelid toggling (`BACK`)
 - Classic sights are first-class citizens and can be color-themed
 - Drop / Throw Item  (`RS_CLICK` / `RS_CLICK + A`)
@@ -64,9 +55,17 @@ Other platforms may work but are not tested or guaranteed to work.
 ## Running
 
 
-TODO: powershell launcher, shell launcher, bat launcher
+Requirement: Powershell
 
-TODO: Drop rom in data dir
+````
+# windows only: one-time step to enable scripts
+Set-ExecutionPolicy Unrestricted -Scope CurrentUser
+
+# the actual launcher:
+.\run-fojo.ps1
+````
+
+Drop rom in data dir
 
 Optionally, you can also put your Perfect Dark for GameBoy Color ROM named `pd.gbc` in the `data` directory if you want to emulate having the Nintendo 64's Transfer Pak and unlock some cheats automatically.
 
@@ -111,17 +110,66 @@ Controls can be rebound in `pd.ini`. Default control scheme is as follows:
 ## Building / Setup Friends of Joanna
 
 
-Because Friends of Joanna requires setup file changes, the n64 rom must also be built (`n64-friends-of-joanna`) For the sake of convinience, these instructions have you clone two work trees, one for the PC port and one for the N64 version.
+Because Friends of Joanna requires setup file changes, the n64 rom must also be built (`fojo-ailists`) For the sake of convinience, these instructions have you clone two work trees, one for the PC port and one for the N64 version.
+
+This project has two main branches:
+
+#### `fojo`
+Based on `port`, this is where all the engine changes, aicmd changes, other mod code goes.
+#### `fojo-ailists`
+Based on `master`, this is where setup / ailist changes for stages go
+#### [`docker-caroll`](https://github.com/cylonicboom/docker-caroll/tree/fojo)
+
+The two must be built seperately and the setup files copied to the data directory.
+
+For my own sanity, I cobbled together some helper build scripts for building Perfect Dark projects.
+
+Place this in your profile or shell rc:
+You'll want to adjust for your platform. This is my MacOS setup:
+````
+# perfect-dark is forever
+
+# ryan dwyer's pdtools
+# technically only needed for mouse-injector pipelines but 
+# docker-caroll will yell at you if these aren't defined
+export PATH="$PATH:$HOME/src/pd/pdtools/bin"
+#define PDTOOLS for docker-caroll scripts
+export PDTOOLS="$HOME/src/pd/pdtools"
+
+# reference n64 decomp workspace
+export PD="$HOME/src/pd/perfect-dark"
+export PATH=$PATH:${HOME}/src/pd/tools/docker-caroll
+
+
+# docker-caroll / pc-port uses these to setup Friends of Joanna mods
+export PD_MODDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/mods"
+export PD_SAVEDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/"
+export PD_BASEDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/"
+export PD_ROMFILE="$HOME/Library/Application Support/perfectdark-friends-of-joanna/pd.ntsc-final.z64"
+````
+
+My invocation to rebuild looks like this:
+
+```
+# run this from inside friends of jo project
+pdt build-port --root $(realpath .)
+```
+
+...and a clean rebuild:
+```
+# run this from inside friends of jo project
+pdt build-port --root $(realpath .) --clean
+```
 
 
 ### Build Friends of Joanna PC Port
 
-[Follow PC port instructions as below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building)
+[Follow PC port instructions as below.](#building)
 
 ### Build Friends of Joanna N64 Rom
 
-- Clone the N64 repo: `https://github.com/cylonicboom/perfect-dark-neon -b n64-friends-of-joanna n64-friends-of-joanna`
-- [Setup and build the PD tree as you'd normally setup an N64 rom](https://github.com/cylonicboom/perfect-dark-neon/tree/n64-friends-of-joanna?tab=readme-ov-file#installation-requirements)
+- Clone the N64 repo: `https://github.com/cylonicboom/pd-friends-of-joanna -b fojo-ailists fojo-ailists`
+- [Setup and build the PD tree as you'd normally setup an N64 rom](https://github.com/N64decomp/port/tree/n64-friends-of-joanna?tab=readme-ov-file#installation-requirements)
 - Copy the built rom to your data dir.
 
 Assuming you're using `docker-caroll`, you can use this oneliner to rebuild Friends of Joanna, the setup files, and a mod layout
@@ -129,14 +177,9 @@ Assuming you're using `docker-caroll`, you can use this oneliner to rebuild Frie
 `pd build-port --clean --root $FRIENDSOFJOANNA && pd psake --tasklist foj --root $FRIENDSOFJOANNA64`
 
 
-### Running Friends of Joanna
-
-- ps1 launcher / bat launcher / shell launcher
-
 ## Building
 
-
-Build instructions follow upstream decomp / pc port.
+### Build instructions follow upstream decomp / pc port.
 
 ### Windows
 
@@ -232,12 +275,14 @@ It might be possible to build and run the game on platforms that are not specifi
 
 ## Friends of Joanna Credits
 
+#### Catherine Reprobate
+concept / developer
 
 #### Raine Stoltenberg
 co-writing / editing
 
 #### iamgreaser 
-for the concurrent 4-player counter-op effort I borrowed some patches from
+concurrent 4-player counter-op effort I borrowed some patches from
 
 #### Foslerfer
 Poplin Dark likeness
@@ -249,3 +294,6 @@ Poplin Dark model / imported from Silvo
 Upstream Perfect Dark PC Port: https://github.com/fgsfdsfgs/perfect_dark
 #### Ryan Dwyer
 Perfect Dark Decomp: https://gitlab.com/ryandwyer/perfect-dark
+
+#
+###### * Sometimes, the best man for the job is a woman... and her friends.
