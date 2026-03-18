@@ -765,14 +765,14 @@ static void import_texture_ci4(int tile, const LoadedTexture& loaded_texture, bo
 
 	uint32_t width = rdp.texture_tile[tile].width;
 	uint32_t height = rdp.texture_tile[tile].height;
-	uint32_t size_bytes = ((width + 1) * height) / 2;
+	uint32_t tmem_line_bytes = rdp.texture_tile[tile].line_size_bytes;
 
-	if (is_rect) {
-		uint32_t result_line_size = rdp.texture_tile[tile].line_size_bytes;
-
-		size_bytes = loaded_texture.size_bytes;
-		width = result_line_size * 2;
-		height = size_bytes / result_line_size;
+	// The tile dimensions from gDPSetTileSize may exceed the actual loaded data
+	// (e.g. font glyphs use a 32x32 tile but each glyph is much smaller).
+	// When this happens, derive dimensions from the TMEM line size instead.
+	if (tmem_line_bytes > 0 && (is_rect || tmem_line_bytes * 2 < width)) {
+		width = tmem_line_bytes * 2;
+		height = loaded_texture.size_bytes / tmem_line_bytes;
 	}
 
 	const uint32_t line_size = (width + 1) / 2;
@@ -1458,11 +1458,8 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
                 }
             }
 
-			uint32_t tex_w = is_rect ? tex_width[t] : tex_width2[t];
-			uint32_t tex_h = is_rect ? tex_height[t] : tex_height2[t];
-
-			buf_vbo[buf_vbo_len++] = u / tex_w;
-			buf_vbo[buf_vbo_len++] = v / tex_h;
+            buf_vbo[buf_vbo_len++] = u / tex_width[t];
+            buf_vbo[buf_vbo_len++] = v / tex_height[t];
         }
 
         if (use_fog) {
