@@ -221,7 +221,7 @@ static void mpExtendedProfileInitShowLives(s32 profileindex, s32 playernum)
 static void mpExtendedProfileInitTeamAgentIndex(s32 profileindex, s32 playernum)
 {
 	s32 val = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
-	if (val < 0) {
+	if (val < 0 || g_ExtendedProfiles[profileindex].fileguid.deviceserial == 0xFFFF) {
 		val = playernum;
 		g_ExtendedProfiles[profileindex].teamagentindex_prop.s32 = val;
 	}
