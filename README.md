@@ -1,66 +1,72 @@
 # MOD: Friends of Joanna
+###### Sometimes, the best man for the job is a woman... and her friends.
 
 Fork / Mod of the Perfect Dark PC Port, with extra cheese.
 
 [Setup instructions below.](https://github.com/cylonicboom/perfect-dark-neon/tree/port-friends-of-joanna?tab=readme-ov-file#building--setup-friends-of-joanna)
 
-# Perfect Dark port
 
-This repository contains a work-in-progress port of the [Perfect Dark decompilation](https://github.com/n64decomp/perfect_dark) to modern platforms.
 
-To run the port, you must already have a Perfect Dark ROM, specifically one of the following:
-* `ntsc-final`/`US V1.1`/`US Rev 1` (md5 `e03b088b6ac9e0080440efed07c1e40f`).  
-  **This is the recommended version to use**.  
-  Called `NTSC version 8.7 final` on the boot screen.
-* `ntsc-1.0`/`US V1.0` (md5 `7f4171b0c8d17815be37913f535e4e93`).  
-  Technically supported, but not recommended.  
-  Called `NTSC version 8.7 final` on the boot screen as well.
-* `jpn-final` (md5 `538d2b75945eae069b29c46193e74790`).  
-  Technically supported, but requires a separate custom-built executable.  
-  Called `JPN version 8.9 final` on the boot screen.
-* `pal-final` (md5 `d9b5cd305d228424891ce38e71bc9213`).  
-  Technically supported, but requires a separate custom-built executable.  
-  Called `PAL 8.7 final` on the boot screen.
+
+## 4-Player Counter + Co Operative
+
+Re-experience the magic of Rare's Perfect Dark, vicariously through your friends, in 4-player split screen.
+                                           
+
+
+### to: Carrington Institute Perfect Agents
+
+
+Rescue a dataDyne scientist from forced 'cognitive reconditioning' and save the world with up to 3 of your human friends.  Take care not to be captured and reconditioned yourself. Each agent sent into the field is issued at minimum a Replicant Engram Portable Reprogrammer. Agents are expected to recover or retire captured units and are empowered with discretion to choose their own equipment.
+                                           
+
+### to: dataDyne Employees:
+
+
+Defend your workplace from meddling Carrington Institute terrorists.   The dataDyne Corporation is committed to enabling its employees to execute their service life with integrity with our first-in-class amenities: free ammunition and a Dignified Blameless Termination capsule.
+
+                                           
+### Accessible for all skill levels
+
+- Handicap Sliders
+
+- Universal Perfect Dark difficulty sliders  
+
+- Configurable Respawn: vanilla shared health bar, number of lives, or brute force the level with unlimited respawns
 
 ## Status
 
-The game is in a mostly functional state, with both singleplayer and split-screen multiplayer modes fully working.  
+The game is in a mostly functional state, with both singleplayer and split-screen multiplayer modes fully working. 
+
+The 2-4 player mode, Team Missions, is fully completable with any surviving Operative (ie Jo / `CHR_BOND` or co-op character) character.
+
+Note: AI-controlled co-op buddies have been temporarily removed. TODO: see ROAD TO 1.0
+
 There are minor graphics- and gameplay-related issues, and possibly occasional crashes.
 
 **The following extra features are implemented:**
-* mouselook;
-* dual analog controller support;
-* widescreen resolution support;
-* configurable field of view;
-* 60 FPS support, including fixes for some framerate-related issues;
-* fixes for a couple original bugs and crashes;
-* basic mod support, currently enough to load a few custom levels;
-* slightly expanded memory heap size;
-* experimental high framerate support (up to 240 FPS):
-  * enable `Uncap Tickrate` in `Extended Video Options` to activate;
-  * in practice the game will have issues running faster than ~165 FPS, so use VSync or `Video.FramerateLimit` to cap it.
-* emulate the Transfer Pak functionality the game has on the Nintendo 64 to unlock some cheats automatically.
+
+- 4-player co-op / counter-op mode: `Team Missions`
+- 4 playable CI Combat agents in Team Missions / Solo Missions: `Perfect Dark`, `Velvet Dark`, `Mikado Dark`, `Poplin Dark`
+- Play as Combat Simulator character in Team Missions / Solo Missions*
+- Eyelid toggling (`BACK`)
+- Classic sights are first-class citizens and can be color-themed
+- Drop / Throw Item  (`RS_CLICK` / `RS_CLICK + A`)
 
 **The following platforms are officially supported and tested:**
 * Windows 7+: i686, x86_64
-* Linux: i686, x86_64
-* MacOS: x86_64 (OS 10.9+), arm64 (OS 11.0+)
-* Nintendo Switch: arm64
+* Linux:  x86_64
+* MacOS:  arm64 (OS 11.0+)
+
+Other platforms may work but are not tested or guaranteed to work.
 
 
 ## Running
 
-You must already have a Perfect Dark ROM to run the game, as specified above.  
 
-This assumes that you're using an x86_64 build. If you aren't, replace `x86_64` below with your arch (e.g. `i686`).
+TODO: powershell launcher, shell launcher, bat launcher
 
-1. Create a directory named `data` next to `pd.x86_64` if it's not there.
-2. Put your Perfect Dark NTSC ROM named `pd.ntsc-final.z64` into it.
-3. Run the `pd.x86_64` executable.
-
-If you want to use a PAL or JPN ROM instead, put them into the `data` directory and run the appropriate executable:
-* PAL: ROM name `pd.pal-final.z64`, executable name `pd.pal.x86_64`.
-* JPN: ROM name `pd.jpn-final.z64`, executable name `pd.jpn.x86_64`.
+TODO: Drop rom in data dir
 
 Optionally, you can also put your Perfect Dark for GameBoy Color ROM named `pd.gbc` in the `data` directory if you want to emulate having the Nintendo 64's Transfer Pak and unlock some cheats automatically.
 
@@ -69,12 +75,6 @@ Optionally, you can move the data folder to `~/.local/share/perfectdark` on Linu
 Additional information can be found in the [wiki](https://github.com/fgsfdsfgs/perfect_dark/wiki).
 
 A GPU supporting OpenGL 3.0/ES3.0 or above is required to run the port.
-
-### Installing the Nintendo Switch version
-
-The Nintendo Switch build ZIP comes with all 3 regions in different folders: `perfectdark`, `perfectdark_pal` and `perfectdark_jpn`.
-
-Take the folder for the region you want and put it into the `/switch` folder on your SD card, then put your ROM into the `data` folder inside of the folder you extracted as described above.
 
 ## Controls
 
@@ -97,6 +97,9 @@ Controls can be rebound in `pd.ini`. Default control scheme is as follows:
 | Crouch cycle     | N/A                    | LS Click                 | `0x80000000` (Extra)      |
 | Half-Crouch      | Shift                  | N/A                      | `0x40000000` (Extra)      |
 | Full-Crouch      | Control                | N/A                      | `0x20000000` (Extra)      |
+| Toggle Eyelids   | G + E                  | RS Click + A             | `0x00400000` (Extra)      |
+| Drop Item        | G                      | RS Click                 | `0x00800000` (Extra)      |
+| Throw Item       | G + E                  | RS Click + A             | `0x00800000 \| A` (Extra) |
 | Reload           | R                      | X                        | X `(0x40)`                |
 | Previous weapon  | Mousewheel forward     | B                        | D-Left                    |
 | Next weapon      | Mousewheel back        | Y                        | Y `(0x80)`                |
@@ -128,10 +131,12 @@ Assuming you're using `docker-caroll`, you can use this oneliner to rebuild Frie
 
 ### Running Friends of Joanna
 
-`build/pd --moddir $FRIENDSOFJOANNA64/build/$ROMID/mod`
-
+- ps1 launcher / bat launcher / shell launcher
 
 ## Building
+
+
+Build instructions follow upstream decomp / pc port.
 
 ### Windows
 
@@ -188,6 +193,9 @@ Assuming you're using `docker-caroll`, you can use this oneliner to rebuild Frie
 
 ### Nintendo Switch
 
+
+WARNING: Friends of Joanna is completely untested on Nintendo Switch
+
 1. Set up the [devkitA64 environment](https://devkitpro.org/wiki/Getting_Started).
    * On Windows you can do it under MSYS2 or WSL, usually MSYS2 is recommended.
    * If using MSYS2, make sure to use the **MSYS2** shell, **not** MINGW32 or MINGW64.
@@ -223,18 +231,21 @@ It might be possible to build and run the game on platforms that are not specifi
 
 
 ## Friends of Joanna Credits
-- iamgreaser for the concurrent 4-player counter-op effort I borrowed some patches from
 
-## Credits
 
-* the original [decompilation project](https://github.com/n64decomp/perfect_dark) authors;
-* Ryan Dwyer for the above, additional help, and `pd-extract`;
-* doomhack for the only other publicly available [PD porting effort](https://github.com/doomhack/perfect_dark) I could find;
-* [sm64-port](https://github.com/sm64-port/sm64-port) authors for the audio mixer and some other changes;
-* [Ship of Harkinian team](https://github.com/Kenix3/libultraship/tree/main/src/fast), Emill and MaikelChan for the libultraship version of fast3d that this port uses;
-* lieff for [minimp3](https://github.com/lieff/minimp3);
-* Mouse Injector and 1964GEPD authors for some of the 60FPS- and mouselook-related fixes;
-* Raf for the 64-bit port;
-* NicNamSam for the icon;
-* everyone who has submitted pull requests and issues to this repository and tested the port;
-* probably more I'm forgetting.
+#### Raine Stoltenberg
+co-writing / editing
+
+#### iamgreaser 
+for the concurrent 4-player counter-op effort I borrowed some patches from
+
+#### Foslerfer
+Poplin Dark likeness
+
+#### Johnny Thunder
+Poplin Dark model / imported from Silvo
+
+#### fgsfdsfgs
+Upstream Perfect Dark PC Port: https://github.com/fgsfdsfgs/perfect_dark
+#### Ryan Dwyer
+Perfect Dark Decomp: https://gitlab.com/ryandwyer/perfect-dark
