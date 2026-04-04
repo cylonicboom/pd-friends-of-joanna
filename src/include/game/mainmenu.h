@@ -97,7 +97,7 @@ MenuItemHandlerResult menuhandlerSoundMode(s32 operation, struct menuitem *item,
 s32 fojoGetPlayerHead(s32 playernum);
 void fojoInitHeadOptions(void);
 
-extern s32 g_FojoHeadOptions[5];
+extern s32 g_FojoHeadOptions[NUM_FOJO_HEADS];
 extern s32 g_FojoHeadCount;
 
 #endif

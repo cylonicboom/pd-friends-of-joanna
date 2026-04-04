@@ -1869,18 +1869,10 @@ struct menudialogdef g_TeamMissionsOperativeModelMenuDialog = {
 	NULL,
 };
 
-// Female-only head indices for Friends of Joanna carousel
-// These map to mpheadnum values from Combat Simulator
-#define FOJO_HEAD_JOANNA    MPHEAD_DARK_COMBAT  // 0x00 - Joanna Dark
-#define FOJO_HEAD_VELVET    MPHEAD_VD           // 0x0b - Velvet Dark
-#define FOJO_HEAD_MIKADO    0x4b                // Japanese Jo (from AIO detection)
-#define FOJO_HEAD_POPLIN    MPHEAD_ANKA      // 0x03 - Poplin Dark (stub in Anka for now)
-#define FOJO_HEAD_FOSLER    0x4c    // TODO: assign slot
-// #define FOJO_HEAD_CASS      MPHEAD_CASSANDRA    // TODO: assign slot
 
 // Array of female heads for the carousel (max 5 slots: up to 4 fixed + player's CS head)
 // Last slot is for player's CS head, Mikado slot is conditional on AIO
-s32 g_FojoHeadOptions[5] = {0};
+s32 g_FojoHeadOptions[NUM_FOJO_HEADS] = {0};
 s32 g_FojoHeadCount = 0;
 
 // Cache for converted male->female heads per player
@@ -1960,25 +1952,30 @@ char *fojoMenuTextDeathCount(struct menuitem *item)
 	u8 bodynum = g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum;
 	s32 bodyindex = mpGetBodyId(bodynum);
 
-	sprintf(buffer, "CI Combat Unit #%04x-%x-%u", shifted, bodyindex, deaths);		// Compress consecutive '00' to '0' in the middle field
-		char *src = buffer;
-		char *dst = buffer;
-		bool changed;
-		do {
-			changed = false;
-			src = dst = buffer;
-			while (*src) {
-				if (src[0] == '0' && src[1] == '0' && src > buffer && src[-1] != '-' && src[2] != '-' && src[2] != '\0') {
-					*dst++ = '0';
-					src += 2;
-					changed = true;
-				} else {
-					*dst++ = *src++;
+	if (selectedindex == FOJO_INDEX_CALICO) {
+		sprintf(buffer, "CI Combat Unit #200x-0A1F-%u", deaths);		// Compress consecutive '00' to '0' in the middle field
+	} else {
+		sprintf(buffer, "CI Combat Unit #%04x-%x-%u", shifted, bodyindex, deaths);		// Compress consecutive '00' to '0' in the middle field
+			char *src = buffer;
+			char *dst = buffer;
+			bool changed;
+			do {
+				changed = false;
+				src = dst = buffer;
+				while (*src) {
+					if (src[0] == '0' && src[1] == '0' && src > buffer && src[-1] != '-' && src[2] != '-' && src[2] != '\0') {
+						*dst++ = '0';
+						src += 2;
+						changed = true;
+					} else {
+						*dst++ = *src++;
+					}
 				}
-			}
-			*dst = '\0';
-		} while (changed);
+				*dst = '\0';
+			} while (changed);
+		}
 	}
+
 
 	return buffer;
 }
@@ -2040,10 +2037,10 @@ char *fojoGetHeadName(s32 optionindex)
 		return "Velvet Dark";
 	case FOJO_HEAD_MIKADO:
 		return "Mikado Dark";
-	case FOJO_HEAD_FOSLER:
+	case FOJO_HEAD_POPLIN:
 		return "Poplin Dark";
-	// case FOJO_HEAD_CASS:
-	// 	return "Cassandra de Vries";
+	case FOJO_HEAD_CALICO:
+		return "Calico Dark";
 	default:
 		return "Unknown";
 	}
@@ -2056,7 +2053,8 @@ void fojoInitHeadOptions(void)
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_JOANNA;
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_VELVET;
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_MIKADO;
-	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_FOSLER;
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_POPLIN;
+	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_CALICO;
 	// Last slot reserved for player's CS head (added in fojoGetPlayerHead)
 }
 

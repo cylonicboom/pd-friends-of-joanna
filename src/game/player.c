@@ -1392,7 +1392,7 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 
 	// Use Team Operative carousel selection for coop head
 	s32 selectedindex = g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].teamagentindex;
-	extern s32 g_FojoHeadOptions[5];
+	extern s32 g_FojoHeadOptions[NUM_FOJO_HEADS];
 	extern s32 g_FojoHeadCount;
 	extern void fojoInitHeadOptions(void);
 
@@ -5058,7 +5058,7 @@ Gfx *playerRenderHud(Gfx *gdl)
 							else if (!needBuddyAlive || (!g_Vars.bond->isdead || !g_Vars.coop->isdead)) {
 								// Check for button press to respawn
 								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
-								
+
 								f32 totalhealth;
 								u32 buddyplayernum = g_Vars.bondplayernum;
 								u32 prevplayernum = g_Vars.currentplayernum;

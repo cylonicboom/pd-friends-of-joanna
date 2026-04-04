@@ -2889,6 +2889,25 @@
 #define MPHEAD_WINNER       0x4a
 #define MPHEAD_MIKADO       0x4b
 #define MPHEAD_POPLIN       0x4c
+#define MPHEAD_CALICO       0x4d
+
+// Female-only head mappings for Friends of Joanna carousel
+// These map to mpheadnum values from Combat Simulator
+#define FOJO_HEAD_JOANNA    MPHEAD_DARK_COMBAT  // 0x00 - Joanna Dark
+#define FOJO_HEAD_VELVET    MPHEAD_VD           // 0x0b - Velvet Dark
+// TODO: replace with resolveMpHead("head_name) once ready
+#define FOJO_HEAD_MIKADO    0x4b                // Japanese Jo (from PD+/JPN/AIO)
+#define FOJO_HEAD_POPLIN    0x4c                // PDZ Jo (Fosler)
+#define FOJO_HEAD_CALICO    0x4d                // TBD dD-originated Jo (Catherine)
+
+
+#define FOJO_INDEX_JOANNA    0
+#define FOJO_INDEX_VELVET    1
+#define FOJO_INDEX_MIKADO    2
+#define FOJO_INDEX_POPLIN    3
+#define FOJO_INDEX_CALICO    4
+
+#define NUM_FOJO_HEADS FOJO_INDEX_CALICO + 2
 
 #define MPLOCKTYPE_NONE       0
 #define MPLOCKTYPE_LASTWINNER 1

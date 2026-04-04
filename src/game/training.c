@@ -2329,6 +2329,7 @@ static struct biocharid g_ChrBioCharacters[] = {
 	{ BODY_DARK_COMBAT, MPHEAD_VD },           // Velvet Dark
 	{ BODY_DARK_COMBAT, MPHEAD_MIKADO },       // Mikado Dark
 	{ BODY_DARK_COMBAT, MPHEAD_POPLIN },       // Poplin Dark
+	{ BODY_DARK_COMBAT, MPHEAD_CALICO },       // Calico Dark
 	{ BODY_JONATHAN,    -1 },
 	{ BODY_CARRINGTON,  -1 },
 	{ BODY_CASSANDRA,   -1 },
@@ -2395,6 +2396,7 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 		/*1*/ { (uintptr_t)"Velvet Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #042 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nSister combat replicant to agent Perfect Dark. Experiences are transferred between locally active friend agents. Variation between agents may reduce psychological intrusions regarding their nature, but cause occasional glitches during memory transfer. More research must be conducted with experimental control agent 'Jonathan.' Couches at the institute are made with the highest quality velvet, hence the call sign 'Velvet Dark.'\n", CHRBIO_FLAG_LITERAL },
 		/*2*/ { (uintptr_t)"Mikado Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #101 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nTokyo's instantiation of the Perfect Dark combat agent but with localized experiential modules. Their likeness and personality is influenced by an amalgamation of Japanese cultural media training data collected from the years 1980-1990. Some of the agent's training data has been back ported to the other Perfect Dark agents to aid in better cooperation between friends. The perfect embodiment of Japanese corporate values, hence the call sign 'Mikado Dark.'\n", CHRBIO_FLAG_LITERAL },
 		/*3*/ { (uintptr_t)"Poplin Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"20 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Unassigned\n\n|Profile -\n\nFirst-generation dataDyne-produced autonomous combat agent. Pre-loaded with extracted Joanna Dark personality and skill models. Mission to destroy the [redacted] in Africa was successful, but the agent was retired after found to have suffered from data contamination. Given this agent's inextricable moral compass, they can still can be repurposed for emergencies if their friends' lives are at risk, hence the call sign 'Poplin Dark.'\n", CHRBIO_FLAG_LITERAL },
+		/*4*/ { (uintptr_t)"Calico Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"27 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Unassigned\n\n|Profile -\n\n'\n", CHRBIO_FLAG_LITERAL },
 		/*4*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226, 0 }, // Jonathan
 		/*5*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230, 0 }, // Daniel Carrington
 		/*6*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234, 0 }, // Cassandra De Vries
@@ -2411,6 +2413,7 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 		if (ch->mpheadnum == MPHEAD_VD)     return &bios[1];
 		if (ch->mpheadnum == MPHEAD_MIKADO) return &bios[2];
 		if (ch->mpheadnum == MPHEAD_POPLIN) return &bios[3];
+		if (ch->mpheadnum == MPHEAD_CALICO) return &bios[4];
 		return &bios[0]; // Joanna (default)
 	}
 

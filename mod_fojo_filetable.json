@@ -170,7 +170,13 @@
     {
       "name": "CheadFoslerferZ",
       "path": "files/CheadFoslerferZ",
-      "description": "Fosler Dark head model",
+      "description": "Poplin Dark head model",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadCatherineZ",
+      "path": "files/CheadCatherineZ",
+      "description": "Calico Dark head model",
       "prefix": "always"
     },
     {
