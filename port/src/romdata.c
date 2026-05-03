@@ -1196,12 +1196,18 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
 			p += pathLen;
 
-			if (nameLen == searchLen && !strncmp(entryName, name, nameLen)) {
+			// nameLen on the wire includes the trailing null terminator;
+			// compare against searchLen + 1 (or just use strcmp since
+			// entryName is null-terminated).
+			if (nameLen > 0 && entryName[nameLen - 1] == '\0' && !strcmp(entryName, name)) {
 				return id;
 			}
 
 			// Also try matching basename if the input name has a path
-			if (searchLen > nameLen && name[searchLen - nameLen - 1] == '/' && !strncmp(entryName, name + searchLen - nameLen, nameLen)) {
+			size_t entryNameStrLen = (nameLen > 0) ? nameLen - 1 : 0;
+			if (searchLen > entryNameStrLen && entryNameStrLen > 0 &&
+					name[searchLen - entryNameStrLen - 1] == '/' &&
+					!strncmp(entryName, name + searchLen - entryNameStrLen, entryNameStrLen)) {
 				return id;
 			}
 		}

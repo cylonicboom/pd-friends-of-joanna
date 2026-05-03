@@ -180,10 +180,9 @@
       "prefix": "always"
     },
     {
-      "name": "CheadgreyZ",
-      "path": "files/CheadgreyZ",
-      "description": "Mikado Dark head model (replaces head_grey)",
-      "replaces": "CheadgreyZ",
+      "name": "CheadMikadoZ",
+      "path": "files/CheadMikadoZ",
+      "description": "Mikado Dark head model",
       "prefix": "always"
     },
     {
