@@ -38,7 +38,12 @@ There are minor graphics- and gameplay-related issues, and possibly occasional c
 **The following extra features are implemented:**
 
 - 4-player co-op / counter-op mode: `Team Missions`
-- 4 playable CI Combat agents in Team Missions / Solo Missions: `Perfect Dark`, `Velvet Dark`, `Mikado Dark`, `Poplin Dark`
+- 4 playable CI Combat agents in Team Missions / Solo Missions: 
+  - `Perfect Dark`
+  - `Velvet Dark`
+  - `Mikado Dark`
+  - `Poplin Dark`
+  - `Calico Dark`
 - Play as Combat Simulator character in Team Missions / Solo Missions [*](#sometimes-the-best-man-for-the-job-is-a-woman-and-her-friends)
 - Eyelid toggling (`BACK`)
 - Classic sights are first-class citizens and can be color-themed
@@ -161,122 +166,30 @@ pdt build-port --root $(realpath .)
 pdt build-port --root $(realpath .) --clean
 ```
 
+You can use this oneliner to rebuild Friends of Joanna, the setup files, and a mod layout
 
-### Build Friends of Joanna PC Port
+`pd build-port --clean --root $FRIENDSOFJOANNA && pd psake --tasklist foj --root $FRIENDSOFJOANNA64`
 
-[Follow PC port instructions as below.](#building)
 
+
+### Build Friends of Joanna PC Port without `docker-caroll`
+
+Follow PC port instructions as below.
+
+#### [`fgsfdsfds/perfect_dark@port`](https://github.com/fgsfdsfgs/perfect_dark) vanilla pc port build instructions
+#### [`ryandwyer/perfect_dark@master`](https://gitlab.com/ryandwyer/perfect-dark) n64 decomp build instructions
 ### Build Friends of Joanna N64 Rom
 
 - Clone the N64 repo: `https://github.com/cylonicboom/pd-friends-of-joanna -b fojo-ailists fojo-ailists`
 - [Setup and build the PD tree as you'd normally setup an N64 rom](https://github.com/N64decomp/port/tree/n64-friends-of-joanna?tab=readme-ov-file#installation-requirements)
 - Copy the built rom to your data dir.
-
-Assuming you're using `docker-caroll`, you can use this oneliner to rebuild Friends of Joanna, the setup files, and a mod layout
-
-`pd build-port --clean --root $FRIENDSOFJOANNA && pd psake --tasklist foj --root $FRIENDSOFJOANNA64`
-
-
-## Building
-
-### Build instructions follow upstream decomp / pc port.
-
-### Windows
-
-1. Install [MSYS2](https://www.msys2.org).
-2. Open the `MINGW64` prompt if building for x86_64, or the `MINGW32` prompt if building for i686. (**NOTE:** _do not_ use the `MSYS` prompt)
-3. Install dependencies:  
-   `pacman -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-SDL2 mingw-w64-x86_64-zlib mingw-w64-x86_64-cmake mingw-w64-x86_64-python3 mingw-w64-i686-toolchain mingw-w64-i686-SDL2 mingw-w64-i686-zlib mingw-w64-i686-cmake mingw-w64-i686-python3 make git`
-4. Get the source code:  
-   `git clone --recursive https://github.com/fgsfdsfgs/perfect_dark.git && cd perfect_dark`
-5. Run `cmake -G"Unix Makefiles" -Bbuild .`.
-   * Add ` -DROMID=pal-final` or ` -DROMID=jpn-final` at the end of the command if you want to build a PAL or JPN executable respectively.\
-6. Run `cmake --build build -j4 -- -O`.
-7. The resulting executable will be at `build/pd.x86_64.exe` (or at `build/pd.i686.exe` if building for i686).
-8. If you don't know where you downloaded the source to, you can run `explorer .` to open the current directory.
-
-### Linux / OSX
-
-1. Ensure you have gcc, g++ (version 10.0+), make, cmake, git, python3 and SDL2 (version 2.0.12+), libGL and ZLib installed on your system.
-   * If you wish to crosscompile, you will also need to have libraries and compilers for the target platform installed, e.g. `gcc-multilib` and `g++-multilib` for x86_64 -> i686 crosscompilation.
-2. Get the source code:  
-   `git clone --recursive https://github.com/fgsfdsfgs/perfect_dark.git && cd perfect_dark`
-3. Run the following command:
-   * ```cmake -G"Unix Makefiles" -Bbuild .```
-   * Add ` -DROMID=pal-final` or ` -DROMID=jpn-final` at the end of the command if you want to build a PAL or JPN executable respectively.
-   * Add ` -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32` at the end of the command if you want to crosscompile from x86_64 to x86.
-4. Run `cmake --build build -j4`.
-5. The resulting executable will be at `build/pd.<arch>` (for example `build/pd.x86_64`).
-
-### MacOS
-
-1. Set up Homebrew.
-2. Install dependencies:
-   * Execute command: `brew install cmake gcc python3 zlib git`
-3. Install SDL2:
-   * Execute commands:
-     ```
-     wget http://libsdl.org/release/SDL2-2.30.9.dmg -O SDL2.dmg
-     hdiutil mount SDL2.dmg
-     sudo cp -vr /Volumes/SDL2/SDL2.framework /Library/Frameworks
-     hdiutil detach /Volumes/SDL2
-     ```
-   * This installs SDL2 system-wide and this is how the automatic builds are done. The game will also look for it in the executable path, so you could
-     download it locally instead.
-4. Get the source code:  
-   `git clone --recursive https://github.com/fgsfdsfgs/perfect_dark.git && cd perfect_dark`
-5. Configure:
-   * Execute command: `cmake -G"Unix Makefiles" -Bbuild -DCMAKE_OSX_ARCHITECTURES=x86_64 .`
-   * Replace `x86_64` with `arm64` if building for an ARM64 Mac.
-   * Add ` -DROMID=pal-final` or ` -DROMID=jpn-final` at the end of the command if you want to build a PAL or JPN executable respectively.
-6. Build:
-   * Execute command: `cmake --build build --target pd -j4 --clean-first`
-7. The resulting executable will be at `build/pd.<arch>` (for example `build/pd.x86_64`).
-   * You might need to execute `chmod +x build/pd.x86-64` before you can run it.
-
-### Nintendo Switch
-
-
-WARNING: Friends of Joanna is completely untested on Nintendo Switch
-
-1. Set up the [devkitA64 environment](https://devkitpro.org/wiki/Getting_Started).
-   * On Windows you can do it under MSYS2 or WSL, usually MSYS2 is recommended.
-   * If using MSYS2, make sure to use the **MSYS2** shell, **not** MINGW32 or MINGW64.
-2. Install host dependencies:
-   * On MSYS2: execute command `pacman -Syuu && pacman -S git make cmake python3`
-   * On Linux: use your package manager as normal to install the above dependencies.
-3. Install Switch toolchain and dependencies:
-   * Execute commands:
-     ```
-     dkp-pacman -Syuu
-     dkp-pacman -S devkitA64 libnx switch-zlib switch-sdl2 switch-cmake dkp-toolchain-vars
-     ```
-   * If in MSYS2 or `dkp-pacman` doesn't work, replace it with just `pacman`.
-4. Get the source code:  
-   `git clone --recursive https://github.com/fgsfdsfgs/perfect_dark.git && cd perfect_dark`
-5. Ensure devkitA64 environment variables are set:
-   * Execute command: `source /opt/devkitpro/switchvars.sh`
-   * If your `$DEVKITPRO` path is different, substitute that instead or set the variables manually.
-6. Configure:
-   * Execute command: `aarch64-none-elf-cmake -G"Unix Makefiles" -Bbuild .`
-   * Add ` -DROMID=pal-final` or ` -DROMID=jpn-final` at the end of the command if you want to build a PAL or JPN executable respectively.
-7. Build:
-   * Execute command: `make -C build -j4`
-8. The resulting executable will be at `build/pd.arm64.nro`.
-
-### Notes
-
-Alternate compilers or toolchains can be specified by passing `-DCMAKE_TOOLCHAIN_FILE=whatever` as normal. The port does not build with Visual Studio.
-
-You will need to provide a `jpn-final` or `pal-final` ROM to run executables built for those regions, named `pd.jpn-final.z64` or `pd.pal-final.z64`.
-
-It might be possible to build and run the game on platforms that are not specified in the supported platforms list (e.g. Linux on armv7), but this has not been tested.
+- Copy built setup files into `mod/files` and copy to your data dir
 
 
 ## Friends of Joanna Credits
 
 #### Catherine Reprobate
-concept / developer
+concept / developer / Calico Dark Likeness
 
 #### Raine Stoltenberg
 co-writing / editing
@@ -292,6 +205,7 @@ Poplin Dark model / imported from Silvo
 
 #### fgsfdsfgs
 Upstream Perfect Dark PC Port: https://github.com/fgsfdsfgs/perfect_dark
+
 #### Ryan Dwyer
 Perfect Dark Decomp: https://gitlab.com/ryandwyer/perfect-dark
 
