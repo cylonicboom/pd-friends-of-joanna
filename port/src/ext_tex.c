@@ -452,7 +452,9 @@ void extTexFree()
 static void extTexScanDir(const char *dirPath, s32 *maxModels)
 {
 	sysLogPrintf(LOG_NOTE, "extTexScanDir: scanning '%s'", dirPath);
-	DIR *dr = opendir(dirPath);
+	char buf[FS_MAXPATH];
+	strncpy(buf, fsFullPath(dirPath), FS_MAXPATH);
+	DIR *dr = opendir(buf);
 	if (!dr) {
 		sysLogPrintf(LOG_NOTE, "extTexScanDir: FAILED to open '%s'", dirPath);
 		return;
@@ -469,7 +471,10 @@ static void extTexScanDir(const char *dirPath, s32 *maxModels)
 		entryCount++;
 		struct stat stbuf;
 		snprintf(filepath, sizeof(filepath), "%s/%s", dirPath, name);
-		if (stat(filepath, &stbuf) == -1) {
+		char *buf = sysMemAlloc(FS_MAXPATH);
+		strncpy(buf, fsFullPath(filepath), FS_MAXPATH);
+		strncpy(filepath, buf, FS_MAXPATH);
+		if (stat(buf, &stbuf) == -1) {
 			sysLogPrintf(LOG_WARNING, "extTexScanDir: stat failed: %s", filepath);
 			continue;
 		}
