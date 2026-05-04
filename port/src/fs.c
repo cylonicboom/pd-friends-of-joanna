@@ -218,8 +218,9 @@ s32 fsInit(void)
 	// get path to base dir and expand it if needed
 	const char *path = sysArgGetString("--basedir");
 	if (!path) {
+		path = "$H";
 		// check if there's a `data` directory in working directory or homeDir, otherwise default to exe directory
-		path = "$E/" DEFAULT_BASEDIR_NAME;
+		// path = "$E/" DEFAULT_BASEDIR_NAME;
 		if (!portable) {
 			if (fsFileSize("./" DEFAULT_BASEDIR_NAME) >= 0) {
 				path = "./" DEFAULT_BASEDIR_NAME;
@@ -268,6 +269,10 @@ s32 fsInit(void)
 	sysLogPrintf(LOG_NOTE, "base dir: %s", baseDir);
 	sysLogPrintf(LOG_NOTE, "save dir: %s", saveDir);
 
+	if (numModDirs == 0) {
+		numModDirs = 1;
+		strcpy(modDirs[0], "$H/mods/mod_fojo");
+	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
 
