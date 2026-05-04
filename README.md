@@ -39,7 +39,7 @@ There are minor graphics- and gameplay-related issues, and possibly occasional c
 
 - 4-player co-op / counter-op mode: `Team Missions`
 - 4 playable CI Combat agents in Team Missions / Solo Missions: 
-  - `Perfect Dark`
+  - `Joanna Dark`
   - `Velvet Dark`
   - `Mikado Dark`
   - `Poplin Dark`
