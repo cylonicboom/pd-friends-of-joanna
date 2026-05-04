@@ -5,11 +5,13 @@ Fork / Mod of the Perfect Dark PC Port, with extra cheese.
 
 Re-experience the magic of Rare's Perfect Dark, vicariously through your friends, in 4-player split screen.
                                            
-<img width="854" height="480" alt="image" src="https://github.com/user-attachments/assets/78f8ebb9-a81c-4807-a27d-cd44a5440745" />
-<img width="854" height="480" alt="image" src="https://github.com/user-attachments/assets/2d6f1a57-a09b-4f42-bedf-9f24dcb4c763" />
-<img width="854" height="480" alt="image" src="https://github.com/user-attachments/assets/765313f7-dea6-4c4e-bde7-6ef6b8f25cd9" />
-<img width="854" height="480" alt="image" src="https://github.com/user-attachments/assets/e2e31068-c254-4597-8642-d5c989fc6267" />
-<img width="854" height="480" alt="image" src="https://github.com/user-attachments/assets/adf9448f-9c51-4d51-91db-ce75d699fed0" />
+<!-- <div style="text-align: right"> -->
+<img width="215" height="120" alt="image" src="https://github.com/user-attachments/assets/78f8ebb9-a81c-4807-a27d-cd44a5440745" />
+<img width="215" height="120" alt="image" src="https://github.com/user-attachments/assets/2d6f1a57-a09b-4f42-bedf-9f24dcb4c763" />
+<img width="215" height="120" alt="image" src="https://github.com/user-attachments/assets/765313f7-dea6-4c4e-bde7-6ef6b8f25cd9" />
+<img width="215" height="120" alt="image" src="https://github.com/user-attachments/assets/e2e31068-c254-4597-8642-d5c989fc6267" />
+<img width="215" height="120" alt="image" src="https://github.com/user-attachments/assets/adf9448f-9c51-4d51-91db-ce75d699fed0" />
+<!-- </div> -->
 
 
 
@@ -43,19 +45,21 @@ Note: AI-controlled co-op buddies have been temporarily removed.
 There are minor graphics- and gameplay-related issues, and possibly occasional crashes.
 
 **The following extra features are implemented:**
+#
 
-- 4-player co-op / counter-op mode: `Team Missions`
-- 4 playable CI Combat agents in Team Missions / Solo Missions: 
-  - `Joanna Dark`
-  - `Velvet Dark`
-  - `Mikado Dark`
-  - `Poplin Dark`
-  - `Calico Dark`
-- Play as Combat Simulator character in Team Missions / Solo Missions [*](#sometimes-the-best-man-for-the-job-is-a-woman-and-her-friends)
-- Eyelid toggling (`BACK`)
-- Classic sights are first-class citizens and can be color-themed
-- Drop / Throw Item  (`RS_CLICK` / `RS_CLICK + A`)
+### 4-player co-op / counter-op mode: `Team Missions`
+### 4 playable CI Combat agents in Team Missions / Solo Missions: 
+#### `Joanna Dark`
+#### `Velvet Dark`
+#### `Mikado Dark`
+#### `Poplin Dark`
+#### `Calico Dark`
+### Play as Combat Simulator character in Team Missions / Solo Missions [*](#sometimes-the-best-man-for-the-job-is-a-woman-and-her-friends)
+### Eyelid toggling (`BACK`)
+### Classic sights are first-class citizens and can be color-themed
+### Drop / Throw Item  (`RS_CLICK` / `RS_CLICK + A`)
 
+#
 **The following platforms are officially supported and tested:**
 * Windows 7+: i686, x86_64
 * Linux:  x86_64
