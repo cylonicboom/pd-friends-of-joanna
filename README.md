@@ -74,7 +74,7 @@ Drop rom in data dir
 
 Optionally, you can also put your Perfect Dark for GameBoy Color ROM named `pd.gbc` in the `data` directory if you want to emulate having the Nintendo 64's Transfer Pak and unlock some cheats automatically.
 
-Optionally, you can move the data folder to `~/.local/share/perfectdark` on Linux or `~/Library/Application Support/perfectdark` on MacOS.
+Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna` on MacOS.
 
 Additional information can be found in the [wiki](https://github.com/fgsfdsfgs/perfect_dark/wiki).
 
