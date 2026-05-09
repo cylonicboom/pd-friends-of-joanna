@@ -25,3 +25,6 @@ CheadMikadoZ
 0c59.bin
 0c5a.bin
 0c5b.bin
+.gdb_history
+.github/
+callgrind.out.*
