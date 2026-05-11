@@ -1,5 +1,5 @@
 modname "mod_fojo"
-modversion "1.0"
+modversion "0.3.1"
 
 # Mod: Friends of Joanna
 # stage fixes for Friends of Joanna
@@ -11,9 +11,32 @@ modversion "1.0"
 # setup Mikado Dark
 HeadsAndBodies {
     slotnum 0x4b
-    name "head_grey"
-    filenum "CheadgreyZ"
+    name "head_mikado"
+    filenum "CheadMikadoZ"
+    ismale 0
+    type 1
 }
+
+# setup Poplin Dark
+HeadsAndBodies {
+    slotnum 0x4c
+    name "head_foslerfer"
+    filenum "CheadFoslerferZ"
+    ismale 0
+    type 1
+    yoffset -54
+}
+
+# setup Calico Dark
+HeadsAndBodies {
+    slotnum 0x4d
+    name "head_catherine"
+    filenum "CheadCatherineZ"
+    ismale 0
+    type 1
+    yoffset -54
+}
+
 
 # 0.0
 # CI Training
@@ -34,6 +57,13 @@ stage 0x30 {
 # extra spawn
 stage 0x33 {
     setupfile "UsetupearZ"
+}
+
+# 1.3
+# extraction
+# 🧑🏻‍🦰 👩🏻‍🦰
+stage 0x22 {
+    setupfile "UsetuparkZ"
 }
 
 # 2.1
