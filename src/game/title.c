@@ -19,6 +19,9 @@
 #include "game/lang.h"
 #include "game/propobj.h"
 #include "game/savebuffer.h"
+#include "game/menu.h"
+#include "game/mplayer/mplayer.h"
+#include "game/filelist.h"
 #include "bss.h"
 #include "input.h"
 #include "lib/crash.h"
@@ -279,7 +282,7 @@ void titleTickCheckControllers(void)
 		if ((joyGetConnectedControllers() & 1) == 0) {
 			titleSetNextMode(TITLEMODE_NOCONTROLLER);
 		} else {
-			titleSetNextMode(TITLEMODE_RARELOGO);
+			titleSetNextMode(TITLEMODE_PROFILESELECT);
 		}
 	}
 }
@@ -621,6 +624,8 @@ static void titleUpdateTextPtrs(struct legalelement *elem) {
 					elem->textptr = "Perfect Dark Mod Identification";
 				} else if (elem->textid == L_OPTIONS_085) {
 					elem->textptr = "Catherine Reprobate";
+				} else if (elem->textid == L_OPTIONS_093) {
+					elem->textptr = "baeddel institute cultural outreach mission <<<";
 				} else if (elem->textid == L_OPTIONS_076) {
 					elem->textptr = "                         FRIENDS";
 				}
@@ -2720,6 +2725,66 @@ void titleExitNoExpansion(void)
 }
 #endif
 
+void titleExitProfileSelect(void) {
+	// NOTE: Do not call playermgrReset() here. titleTick() invokes the exit
+	// function as soon as a mode change is scheduled, but then keeps ticking
+	// the current (PROFILESELECT) mode for several more frames until the new
+	// mode actually applies. menuTick dereferences g_Vars.currentplayer, so
+	// nulling it now would crash on the very next tick. The next stage init
+	// (lv.c) will rebuild player state when leaving STAGE_TITLE.
+}
+
+extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
+extern struct menudialogdef g_FojoTitleProfileSelectMenu;
+
+void titleTickProfileSelect(void) {
+	// Skip menuTick once a mode change is pending; the exit fn (or simply
+	// transition state) means the player/menu state is no longer valid to tick.
+	if (titleIsChangingMode()) {
+		return;
+	}
+	menuTick();
+	if (g_Menus[g_MpPlayerNum].depth == 0) {
+		// If the player backed out without loading or saving a profile,
+		// re-push the hub dialog instead of advancing the title sequence.
+		if (g_PlayerConfigsArray[0].fileguid.fileid == 0) {
+			menuPushRootDialog(&g_FojoTitleProfileSelectMenu, MENUROOT_FILEMGR);
+			return;
+		}
+		titleSetNextMode(TITLEMODE_RARELOGO);
+	}
+}
+
+void titleInitProfileSelect(void) {
+	extern u8 EXT_SEG _fonthandelgothicxsSegmentRomStart, EXT_SEG _fonthandelgothicxsSegmentRomEnd;
+
+	playermgrAllocatePlayers(1);
+	setCurrentPlayerNum(0);
+	g_Menus[g_MpPlayerNum].fm.filetypeplusone = 0;
+
+	// textReset() for STAGE_TITLE only loads Sm/Md/Lg fonts; menus also need the Xs font.
+	if (g_FontHandelGothicXs == NULL) {
+		textLoadFont(REF_SEG _fonthandelgothicxsSegmentRomStart, REF_SEG _fonthandelgothicxsSegmentRomEnd,
+				&g_FontHandelGothicXs, &g_CharsHandelGothicXs, false);
+	}
+
+	filelistCreate(0, FILETYPE_GAME);
+	mpInit(false);
+
+	// Set MP player names to "Player 1" through 4 if blank
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_PlayerConfigsArray[i].base.name[0] == '\0') {
+			sprintf(g_PlayerConfigsArray[i].base.name, "%s %d\n", langGet(L_MISC_437), i + 1);
+		}
+	}
+	menuReset();
+	menuPushRootDialog(&g_FojoTitleProfileSelectMenu, MENUROOT_FILEMGR);
+}
+
+Gfx *titleRenderProfileSelect(Gfx* gdl) {
+	return menuRender(gdl);
+}
+
 #if VERSION >= VERSION_JPN_FINAL
 void titleTickNoExpansion(void)
 {
@@ -2855,6 +2920,9 @@ void titleTick(void)
 			titleExitNoExpansion();
 			break;
 #endif
+		case TITLEMODE_PROFILESELECT:
+			titleExitProfileSelect();
+			break;
 		}
 
 		if (g_TitleMode != TITLEMODE_CHECKCONTROLLERS) {
@@ -2917,6 +2985,9 @@ void titleTick(void)
 			titleInitNoExpansion();
 			break;
 #endif
+		case TITLEMODE_PROFILESELECT:
+			titleInitProfileSelect();
+			break;
 		}
 
 		if (g_TitleMode != TITLEMODE_CHECKCONTROLLERS && g_TitleMode != TITLEMODE_SKIP) {
@@ -2955,6 +3026,9 @@ void titleTick(void)
 	case TITLEMODE_SKIP:
 		viSetUseZBuf(false);
 		titleSetNextMode(TITLEMODE_RARELOGO);
+		break;
+	case TITLEMODE_PROFILESELECT:
+		titleTickProfileSelect();
 		break;
 	}
 }
@@ -3012,6 +3086,9 @@ void titleExit(void)
 	case TITLEMODE_RAREPRESENTS1:
 	case TITLEMODE_RAREPRESENTS2:
 		titleExitRarePresents();
+		break;
+	case TITLEMODE_PROFILESELECT:
+		titleExitProfileSelect();
 		break;
 	}
 
@@ -3140,6 +3217,9 @@ Gfx *titleRender(Gfx *gdl)
 			gdl = titleRenderNoExpansion(gdl);
 			break;
 #endif
+		case TITLEMODE_PROFILESELECT:
+			gdl = titleRenderProfileSelect(gdl);
+			break;
 		}
 	}
 

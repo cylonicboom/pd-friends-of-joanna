@@ -12,6 +12,7 @@
 #include "game/game_0b0fd0.h"
 #include "game/game_1531a0.h"
 #include "game/gamefile.h"
+#include "game/mplayer/setup.h"
 #include "game/inv.h"
 #include "game/lang.h"
 #include "game/lv.h"
@@ -1820,6 +1821,85 @@ struct menudialogdef g_TeamMissionPlayerProfilesHubMenu = {
 	g_TeamMissionsPlayerSetupMenuItems,
 	menudialogTeamPlayerProfiles,
 	MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_LITERAL_TEXT,
+	NULL,
+};
+
+/* intro profile picker
+ */
+
+extern struct menudialogdef g_MpPlayerNameMenuDialog;
+extern struct menudialogdef g_MpLoadPlayerMenuDialog;
+
+static char g_FojoTitleProfileTitleBuf[64];
+
+static char *fojoTitleProfileGetTitle(void *dialogoritem)
+{
+	// s32 count = (g_FileLists[0] != NULL) ? g_FileLists[0]->numfiles : 0;
+	// if (count <= 0) {
+	// 	return "Are you sure?";
+	// }
+	sprintf(g_FojoTitleProfileTitleBuf, "get to the dropship");
+	return g_FojoTitleProfileTitleBuf;
+}
+
+static char* fojoTitleProfileGetMarquee(void *dialogritem) {
+	s32 count = (g_FileLists[0] != NULL) ? g_FileLists[0]->numfiles : 0;
+	return "Are you sure?\n";
+	if (count <= 0) {
+		return "Are you sure?\n";
+	}
+}
+
+struct menuitem g_FojoTitleProfileSelectMenuItems[] = {
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_030, // "Name"
+		(uintptr_t)&mpGetCurrentPlayerName,
+		(void *)&g_MpPlayerNameMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_MPMENU_029, // "Load Player"
+		0,
+		(void *)&g_MpLoadPlayerMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		0,
+		(uintptr_t)&mpMenuTextSavePlayerOrCopy,
+		0,
+		menuhandlerMpSavePlayer,
+	},
+	{
+		MENUITEMTYPE_MARQUEE,
+		0,
+		MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES ,
+		(uintptr_t)&fojoTitleProfileGetMarquee,
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menudialogdef g_FojoTitleProfileSelectMenu = {
+	MENUDIALOGTYPE_DEFAULT,
+	(uintptr_t)&fojoTitleProfileGetTitle,
+	g_FojoTitleProfileSelectMenuItems,
+	menudialogTeamPlayerProfiles,
+	MENUDIALOGFLAG_STARTSELECTS,
 	NULL,
 };
 

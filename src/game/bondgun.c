@@ -3660,7 +3660,15 @@ u32 bgunCalculateGunMemCapacity(void)
 			 return g_BgunGunMemBaseSizeDefault + 25 * 1024;
 		}
 #else
-		return g_BgunGunMemBaseSizeDefault + stageGetCurrent()->extragunmem;
+		{
+			// stageGetCurrent() returns NULL for non-level stages (e.g. STAGE_TITLE
+			// when the profile-select menu opens gun mem for menu models).
+			struct stagetableentry *stage = stageGetCurrent();
+			if (stage != NULL) {
+				return g_BgunGunMemBaseSizeDefault + stage->extragunmem;
+			}
+			return g_BgunGunMemBaseSizeDefault;
+		}
 #endif
 	}
 

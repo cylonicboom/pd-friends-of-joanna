@@ -15,24 +15,24 @@ define setup
   file /home/catherine/src/pd/perfect-dark-foj/build/pd.x86_64
 end
 
-set args \
-  --moddir $PD_MODDIR/mod_fojo \
-  --savedir $PD_SAVEDIR \
-  --basedir $PD_BASEDIR \
-  --rom-file $PD_ROMFILE \
-  --skip-intro
-
-set args \
-  --moddir $PD_MODDIR/mod_aio \
-  --moddir $PD_MODDIR/mod_gex \
-  --moddir $PD_MODDIR/mod_kakariko \
-  --moddir $PD_MODDIR/mod_dark_noon \
-  --moddir $PD_MODDIR/mod_goldfinger_64 \
-  --moddir $PD_MODDIR/mod_fojo \
-  --savedir $PD_SAVEDIR \
-  --basedir $PD_BASEDIR \
-  --rom-file $PD_ROMFILE \
-  --skip-intro
+#set args \
+#  --moddir $PD_MODDIR/mod_fojo \
+#  --savedir $PD_SAVEDIR \
+#  --basedir $PD_BASEDIR \
+#  --rom-file $PD_ROMFILE \
+#  --skip-intro
+#
+#set args \
+#  --moddir $PD_MODDIR/mod_aio \
+#  --moddir $PD_MODDIR/mod_gex \
+#  --moddir $PD_MODDIR/mod_kakariko \
+#  --moddir $PD_MODDIR/mod_dark_noon \
+#  --moddir $PD_MODDIR/mod_goldfinger_64 \
+#  --moddir $PD_MODDIR/mod_fojo \
+#  --savedir $PD_SAVEDIR \
+#  --basedir $PD_BASEDIR \
+#  --rom-file $PD_ROMFILE \
+#  --skip-intro
 
 
 # set logging for stderr and stdout
