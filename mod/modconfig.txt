@@ -32,6 +32,7 @@ HeadsAndBodies {
     slotnum 0x4d
     name "head_catherine"
     filenum "CheadCatherineZ"
+    scale .9
     ismale 0
     type 1
     yoffset -54
