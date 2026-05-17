@@ -2392,20 +2392,20 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 		/*8*/ { L_DISH_157, L_DISH_158, L_DISH_159, L_DISH_160, 0 }, // Mr. Blonde (repeat)
 		/*9*/ { L_DISH_161, L_DISH_162, L_DISH_163, L_DISH_164, 0 }, // The U.S. President
 #else
-		/*1*/ { (uintptr_t)"Joanna Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #027 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nHighly trained but inexperienced. Reactions superb. Proficient with a variety of weapons. Very competent all-round agent. Highest recorded training scores resulted in the creation of a new class of training grade. The embodiment of the Carrington Institute's ideal agent, hence the call sign 'Perfect Dark.'\n", CHRBIO_FLAG_LITERAL },
+		/*0*/ { (uintptr_t)"Joanna Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #027 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nHighly trained but inexperienced. Reactions superb. Proficient with a variety of weapons. Very competent all-round agent. Highest recorded training scores resulted in the creation of a new class of training grade. The embodiment of the Carrington Institute's ideal agent, hence the call sign 'Perfect Dark.'\n", CHRBIO_FLAG_LITERAL },
 		/*1*/ { (uintptr_t)"Velvet Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #042 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nSister combat replicant to agent Perfect Dark. Experiences are transferred between locally active friend agents. Variation between agents may reduce psychological intrusions regarding their nature, but cause occasional glitches during memory transfer. More research must be conducted with experimental control agent 'Jonathan.' Couches at the institute are made with the highest quality velvet, hence the call sign 'Velvet Dark.'\n", CHRBIO_FLAG_LITERAL },
 		/*2*/ { (uintptr_t)"Mikado Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #101 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\n\n|Profile -\n\nTokyo's instantiation of the Perfect Dark combat agent but with localized experiential modules. Their likeness and personality is influenced by an amalgamation of Japanese cultural media training data collected from the years 1980-1990. Some of the agent's training data has been back ported to the other Perfect Dark agents to aid in better cooperation between friends. The perfect embodiment of Japanese corporate values, hence the call sign 'Mikado Dark.'\n", CHRBIO_FLAG_LITERAL },
 		/*3*/ { (uintptr_t)"Poplin Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"20 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Unassigned\n\n|Profile -\n\nFirst-generation dataDyne-produced autonomous combat agent. Pre-loaded with extracted Joanna Dark personality and skill models. Mission to destroy the [redacted] in Africa was successful, but the agent was retired after found to have suffered from data contamination. Given this agent's inextricable moral compass, they can still can be repurposed for emergencies if their friends' lives are at risk, hence the call sign 'Poplin Dark.'\n", CHRBIO_FLAG_LITERAL },
-		/*4*/ { (uintptr_t)"Calico Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"27 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Unassigned\n\n|Profile -\n\n'\n", CHRBIO_FLAG_LITERAL },
-		/*4*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226, 0 }, // Jonathan
-		/*5*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230, 0 }, // Daniel Carrington
-		/*6*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234, 0 }, // Cassandra De Vries
-		/*7*/ { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238, 0 }, // Trent Easton
-		/*8*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242, 0 }, // Dr. Caroll
-		/*9*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246, 0 }, // Elvis
-		/*10*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250, 0 }, // Mr. Blonde
-		/*11*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254, 0 }, // Mr. Blonde (repeat)
-		/*12*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258, 0 }, // The U.S. President
+		/*4*/ { (uintptr_t)"Calico Dark", (uintptr_t)"Replicant (Human Female)", (uintptr_t)"27 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Unassigned\n\n|Profile -\n\n\n", CHRBIO_FLAG_LITERAL },
+		/*5*/  { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226, 0 }, // Jonathan
+		/*6*/  { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230, 0 }, // Daniel Carrington
+		/*7*/  { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234, 0 }, // Cassandra De Vries
+		/*8*/  { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238, 0 }, // Trent Easton
+		/*9*/  { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242, 0 }, // Dr. Caroll
+		/*10*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246, 0 }, // Elvis
+		/*11*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250, 0 }, // Mr. Blonde
+		/*12*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254, 0 }, // Mr. Blonde (repeat)
+		/*13*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258, 0 }, // The U.S. President
 #endif
 	};
 
@@ -2419,24 +2419,24 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 
 	switch (ch->bodynum) {
 	case BODY_JONATHAN:
-		return &bios[4];
-	case BODY_CARRINGTON:
 		return &bios[5];
-	case BODY_CASSANDRA:
+	case BODY_CARRINGTON:
 		return &bios[6];
-	case BODY_TRENT:
+	case BODY_CASSANDRA:
 		return &bios[7];
-	case BODY_DRCAROLL:
+	case BODY_TRENT:
 		return &bios[8];
-	case BODY_THEKING:
+	case BODY_DRCAROLL:
 		return &bios[9];
+	case BODY_THEKING:
+		return &bios[10];
 	case BODY_MRBLONDE:
 		if (ciIsStageComplete(SOLOSTAGEINDEX_CRASHSITE)) {
-			return &bios[11];
+			return &bios[12];
 		}
-		return &bios[10];
+		return &bios[11];
 	case BODY_PRESIDENT:
-		return &bios[12];
+		return &bios[13];
 	}
 
 	return NULL;
