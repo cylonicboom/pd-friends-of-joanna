@@ -22,6 +22,7 @@ HeadsAndBodies {
     slotnum 0x4c
     name "head_foslerfer"
     filenum "CheadFoslerferZ"
+    scale .9
     ismale 0
     type 1
     yoffset -54
