@@ -1838,16 +1838,20 @@ static char *fojoTitleProfileGetTitle(void *dialogoritem)
 	// if (count <= 0) {
 	// 	return "Are you sure?";
 	// }
-	sprintf(g_FojoTitleProfileTitleBuf, "get to the dropship");
+	sprintf(g_FojoTitleProfileTitleBuf, "the dropship is waiting\n");
 	return g_FojoTitleProfileTitleBuf;
 }
 
+static char g_FojoTitleProfileMarqueeBuf[64];
 static char* fojoTitleProfileGetMarquee(void *dialogritem) {
 	s32 count = (g_FileLists[0] != NULL) ? g_FileLists[0]->numfiles : 0;
-	return "Are you sure?\n";
 	if (count <= 0) {
-		return "Are you sure?\n";
+		return "onboard them now\n";
+	} else if (count == 1) {
+		return "are they ready?\n";
 	}
+	sprintf(g_FojoTitleProfileMarqueeBuf, "there's %d of them\n" ,count);
+	return g_FojoTitleProfileMarqueeBuf;
 }
 
 struct menuitem g_FojoTitleProfileSelectMenuItems[] = {
