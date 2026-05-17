@@ -1693,6 +1693,21 @@ void chrHandleJointPositioned(s32 joint, Mtxf *mtx)
 			}
 		}
 
+		// Apply per-head scale from modconfig HeadsAndBodies entries.
+		// Multiplies the neck joint matrix, scaling the head only (same trick DK mode uses).
+		// A value of 1.0 leaves the head unchanged.
+		// Note: chr->headnum is s8; cast through u8 so modded indices > 127 (which
+		// wrap to negative in s8) still resolve to their true unsigned index.
+		if (joint == neckjoint) {
+			s32 hn = (u8)g_CurModelChr->headnum;
+			if (hn < g_NumHeadsAndBodies) {
+				f32 headscale = g_HeadsAndBodies[hn].scale;
+				if (headscale > 0.0f && headscale != 1.0f) {
+					scale *= headscale;
+				}
+			}
+		}
+
 		if (joint == lshoulderjoint || joint == rshoulderjoint || joint == waistjoint || joint == neckjoint) {
 			xrot = 0.0f;
 			yrot = 0.0f;

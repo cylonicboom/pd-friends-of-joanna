@@ -1851,6 +1851,73 @@ void menuUnsetModel(struct menumodel *menumodel)
 Lights1 var80071468 = gdSPDefLights1(0x96, 0x96, 0x96, 0xff, 0xff, 0xff, 0xb2, 0x4d, 0x2e);
 
 /**
+ * Per-head scale hook for menu model previews. Mirrors the in-game
+ * chrHandleJointPositioned scale path so modconfig 'scale' on a HeadsAndBodies
+ * entry also applies to character previews in profile / buddy menus.
+ *
+ * Scales the neck joint (mtxindex 0 for SkelChr) so only the head subtree is
+ * affected. Other joints pass through unchanged.
+ */
+static struct menumodel *g_CurMenuModelForScale = NULL;
+static void (*g_PrevModelJointPositionedFunc)(s32, Mtxf *) = NULL;
+
+static void menuHandleJointPositionedForScale(s32 mtxindex, Mtxf *mtx)
+{
+	s32 hn;
+
+	if (g_CurMenuModelForScale == NULL) {
+		return;
+	}
+
+	// Apply only at the root joint so the entire head (or the head subtree
+	// of a head+body preview) is scaled uniformly.
+	if (mtxindex != 0) {
+		return;
+	}
+
+	hn = g_CurMenuModelForScale->headnum;
+
+	// Head-only preview path (head picker): headnum is -1 and the model
+	// loaded is identified by the filenum encoded in curparams. Resolve
+	// back to a HeadsAndBodies entry by matching filenum.
+	if (hn < 0) {
+		u32 filenum = MENUMODELPARAMS_GET_FILENUM(g_CurMenuModelForScale->curparams);
+		if (filenum != 0 && filenum != 0xffff) {
+			s32 i;
+			for (i = 0; i < g_NumHeadsAndBodies; i++) {
+				if (g_HeadsAndBodies[i].filenum == filenum) {
+					hn = i;
+					break;
+				}
+			}
+		}
+	}
+
+	{
+		u32 filenum = MENUMODELPARAMS_GET_FILENUM(g_CurMenuModelForScale->curparams);
+		(void)filenum;
+	}
+	{
+		u32 filenum = MENUMODELPARAMS_GET_FILENUM(g_CurMenuModelForScale->curparams);
+		(void)filenum;
+	}
+	{
+		u32 filenum = MENUMODELPARAMS_GET_FILENUM(g_CurMenuModelForScale->curparams);
+		(void)filenum;
+	}
+	{
+		u32 filenum = MENUMODELPARAMS_GET_FILENUM(g_CurMenuModelForScale->curparams);
+		(void)filenum;
+	}
+	if (hn >= 0 && hn < g_NumHeadsAndBodies) {
+		f32 headscale = g_HeadsAndBodies[hn].scale;
+		if (headscale > 0.0f && headscale != 1.0f) {
+			mtx00015f04(headscale, mtx);
+		}
+	}
+}
+
+/**
  * Render the hudpiece as well as any models within dialogs.
  */
 Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
@@ -2413,7 +2480,17 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 		renderdata.unk00 = &menumodel->mtx;
 		renderdata.unk10 = menumodel->bodymodel.matrices;
 
+		// Install per-head scale hook (modconfig HeadsAndBodies 'scale'). The
+		// joint-positioned callback fires during matrix setup, not during the
+		// later modelRender, so we must wrap modelSetMatricesWithAnim.
+		g_PrevModelJointPositionedFunc = g_ModelJointPositionedFunc;
+		g_CurMenuModelForScale = menumodel;
+		g_ModelJointPositionedFunc = &menuHandleJointPositionedForScale;
+
 		modelSetMatricesWithAnim(&renderdata, &menumodel->bodymodel);
+
+		g_ModelJointPositionedFunc = g_PrevModelJointPositionedFunc;
+		g_CurMenuModelForScale = NULL;
 
 		if (menumodel->bodymodeldef->skel == &g_SkelHudPiece) {
 			// Update the hudpiece's liquid texture
