@@ -1426,7 +1426,7 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		break;
 	case OUTFIT_TRENCH:
 		*bodynum = BODY_DARK_TRENCH;
-		*headnum = solo ? HEAD_DARK_COMBAT : coophead;
+		*headnum =  coophead;
 		break;
 	case OUTFIT_FROCK_RIPPED:
 		*bodynum = BODY_DARK_RIPPED;
