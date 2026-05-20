@@ -117,6 +117,8 @@ s32 g_FemaleGuardHeads[] = {
 	HEAD_ANKA,
 	HEAD_EILEEN_T,
 	HEAD_EILEEN_H,
+	FOJO_HEAD_CALICO,
+	FOJO_HEAD_POPLIN,
 	-1,
 };
 

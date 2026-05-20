@@ -21,6 +21,8 @@
 #define MOD_ANIMATIONS_DIR "animations"
 #define MOD_SEQUENCES_DIR "sequences"
 
+s32 g_TexModNum = -1;
+
 extern struct stagemusic g_StageTracks[];
 extern struct stageallocation g_StageAllocations8Mb[];
 extern s32 g_MainIsBooting;
@@ -50,6 +52,12 @@ extern s8 g_PropExplosionTypes[];
 struct texturesurfaceconfig g_VanillaTextures[NUM_TEXTURES];
 struct modelstate g_ModelStatesOriginal[NUM_MODELS];
 s8 g_PropExplosionTypesOriginal[NUM_MODELS];
+
+static struct { char *name; s32 id; } *g_ModHeadNames = NULL;
+static s32 g_NumModHeadNames = 0;
+
+static struct { char *name; u32 filenum; } *g_ModHandFileNames = NULL;
+static s32 g_NumModHandFileNames = 0;
 
 // Per-mod cached config data (parsed once at boot, then just copied on modSwitch)
 struct modelstate g_ModelStates_PerMod[64][NUM_MODELS];
@@ -410,6 +418,20 @@ void modResetMplayerArrays(void)
 		g_NumMpArenas_AIO = 0;
 	}
 
+	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+		free(g_ModHeadNames[i].name);
+	}
+	free(g_ModHeadNames);
+	g_ModHeadNames = NULL;
+	g_NumModHeadNames = 0;
+
+	for (s32 i = 0; i < g_NumModHandFileNames; ++i) {
+		free(g_ModHandFileNames[i].name);
+	}
+	free(g_ModHandFileNames);
+	g_ModHandFileNames = NULL;
+	g_NumModHandFileNames = 0;
+
 	for (s32 i = 0; i < g_NumImportedAssets; ++i) {
 		if (g_ImportedAssets[i]) {
 			free(g_ImportedAssets[i]);
@@ -417,6 +439,15 @@ void modResetMplayerArrays(void)
 	}
 	g_NumImportedAssets = 0;
 }
+
+struct modconfigslotinfo {
+	s32 slotNum;
+	s32 bodySlotNum;
+	s32 bodyName;
+	s32 bodyHeadNum;
+	u8 requireFeature;
+	char handName[64];
+};
 
 static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbody *item, s32 modNum, char *nameOut, s32 *slotNumOut)
 {
@@ -733,6 +764,82 @@ static struct { char *name; s32 id; } g_VanillaHeadNames[] = {
 	{ "head_phelps", HEAD_PHELPS },
 	{ NULL, -1 }
 };
+
+s32 modLookupHeadByName(const char *name)
+{
+	if (!name || !name[0]) return -1;
+
+	// Check vanilla names
+	for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
+		if (!strcmp(name, g_VanillaHeadNames[i].name)) {
+			// Find which MpHead slot points to this HeadsAndBodies index
+			for (s32 j = 0; j < g_NumMpHeads; ++j) {
+				if (g_MpHeads[j].headnum == g_VanillaHeadNames[i].id) {
+					return j;
+				}
+			}
+			return -1;
+		}
+	}
+
+	// Check dynamic mod names
+	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+		if (!strcmp(name, g_ModHeadNames[i].name)) {
+			for (s32 j = 0; j < g_NumMpHeads; ++j) {
+				if (g_MpHeads[j].headnum == g_ModHeadNames[i].id) {
+					return j;
+				}
+			}
+			return -1;
+		}
+	}
+
+	return -1;
+}
+
+s32 modLookupHandFileByName(const char *name)
+{
+	if (!name || !name[0]) return -1;
+
+	for (s32 i = 0; i < g_NumModHandFileNames; ++i) {
+		if (!strcmp(name, g_ModHandFileNames[i].name)) {
+			return (s32)g_ModHandFileNames[i].filenum;
+		}
+	}
+
+	return -1;
+}
+
+s32 modLookupBodyByName(const char *name)
+{
+	if (!name || !name[0]) return -1;
+
+	// Check vanilla names
+	for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
+		if (!strcmp(name, g_VanillaHeadNames[i].name)) {
+			for (s32 j = 0; j < g_NumMpBodies; ++j) {
+				if (g_MpBodies[j].bodynum == g_VanillaHeadNames[i].id) {
+					return j;
+				}
+			}
+			return -1;
+		}
+	}
+
+	// Check dynamic mod names
+	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+		if (!strcmp(name, g_ModHeadNames[i].name)) {
+			for (s32 j = 0; j < g_NumMpBodies; ++j) {
+				if (g_MpBodies[j].bodynum == g_ModHeadNames[i].id) {
+					return j;
+				}
+			}
+			return -1;
+		}
+	}
+
+	return -1;
+}
 
 static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 {
@@ -1716,6 +1823,73 @@ s32 modNumFromStage(s32 stagenum) {
 
 	sysLogPrintf(LOG_NOTE, "modNumFromStage: stage 0x%02x -> mod %d", stagenum, modnum);
 	return modnum;
+}
+
+s32 modLoadHeadAndBodyConfigs(void)
+{
+	s32 loaded = 0;
+	modResetMplayerArrays();
+	modScanAllMods();
+
+	for (s32 i = 0; i < g_NumModDirs; ++i) {
+		char path[FS_MAXPATH];
+		snprintf(path, sizeof(path), "%s/modconfig.txt", modDirs[i]);
+
+		u32 len = 0;
+		char *data = fsFileLoad(path, &len);
+		if (!data) continue;
+
+		char token[UTIL_MAX_TOKEN + 1];
+		char *p = strParseToken(data, token, NULL);
+		s32 foundInThisMod = 0;
+
+		while (p && token[0]) {
+			if (!strcmp(token, "MpArena")) {
+				// Skip arenas - using vanilla list
+				p = modConfigSkipBlock(p, token);
+				continue;
+			} else if (!strcmp(token, "MpArenaGroup")) {
+				// Skip arena groups - using vanilla list
+				p = modConfigSkipBlock(p, token);
+				continue;
+			} else if (!strcmp(token, "MpHeads")) {
+				sysLogPrintf(LOG_WARNING, "modconfig: MpHeads is deprecated, use HeadsAndBodies with slotnum + requirefeature");
+				p = modConfigSkipBlock(p, token);
+				continue;
+			} else if (!strcmp(token, "MpBodies")) {
+				sysLogPrintf(LOG_WARNING, "modconfig: MpBodies is deprecated, use HeadsAndBodies with bodyslotnum + requirefeature");
+				p = modConfigSkipBlock(p, token);
+				continue;
+			} else if (!strcmp(token, "HeadsAndBodies")) {
+				p = modConfigParseHeadsAndBodies(p, token, i);
+				foundInThisMod = 1;
+				continue;
+			} else if (!strcmp(token, "stage")) {
+				// Skip stage number, then skip the block
+				p = strParseToken(p, token, NULL); // skip stage number
+				p = modConfigSkipBlock(p, token);
+				continue;
+			} else if (!strcmp(token, "texture")) {
+				p = modConfigSkipBlock(p, token);
+				continue;
+			}
+
+			p = strParseToken(p, token, NULL);
+		}
+
+		if (foundInThisMod) {
+			loaded = 1;
+			sysLogPrintf(LOG_NOTE, "modLoadHeadAndBodyConfigs: loaded from '%s' (modname: '%s')", modDirs[i], g_ModNames[i]);
+		}
+
+		sysMemFree(data);
+	}
+
+	if (!loaded) {
+		sysLogPrintf(LOG_ERROR, "modLoadHeadAndBodyConfigs: no modconfig.txt found in any of %d dirs", g_NumModDirs);
+	}
+
+	return loaded;
 }
 
 void modSwitch(s32 modnum, s32 stagenum) {
