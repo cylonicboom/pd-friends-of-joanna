@@ -1,5 +1,6 @@
 #include <ultra64.h>
 #include "constants.h"
+#include "mod.h"
 #include "game/atan2f.h"
 #include "game/bg.h"
 #include "game/bondgun.h"
@@ -2324,12 +2325,21 @@ void frIncrementNumShots(void)
 	g_FrData.numshotssincetopup++;
 }
 
+// Cached MpHeads slot indices for FoJo female heads. Filled in by
+// fojoInitChrBioCharacters() once modconfig.txt has registered them;
+// stays -1 if the active mod set doesn't include a given head, in which
+// case the corresponding g_ChrBioCharacters entry will fall through to
+// the default Joanna bio.
+static s32 g_FojoMpHeadMikado = -1;
+static s32 g_FojoMpHeadPoplin = -1;
+static s32 g_FojoMpHeadCalico = -1;
+
 static struct biocharid g_ChrBioCharacters[] = {
 	{ BODY_DARK_COMBAT, MPHEAD_DARK_COMBAT }, // Joanna Dark
 	{ BODY_DARK_COMBAT, MPHEAD_VD },           // Velvet Dark
-	{ BODY_DARK_COMBAT, MPHEAD_MIKADO },       // Mikado Dark
-	{ BODY_DARK_COMBAT, MPHEAD_POPLIN },       // Poplin Dark
-	{ BODY_DARK_COMBAT, MPHEAD_CALICO },       // Calico Dark
+	{ BODY_DARK_COMBAT, -1 },                  // Mikado Dark (resolved at runtime)
+	{ BODY_DARK_COMBAT, -1 },                  // Poplin Dark (resolved at runtime)
+	{ BODY_DARK_COMBAT, -1 },                  // Calico Dark (resolved at runtime)
 	{ BODY_JONATHAN,    -1 },
 	{ BODY_CARRINGTON,  -1 },
 	{ BODY_CASSANDRA,   -1 },
@@ -2339,6 +2349,17 @@ static struct biocharid g_ChrBioCharacters[] = {
 	{ BODY_MRBLONDE,    -1 },
 	{ BODY_PRESIDENT,   -1 },
 };
+
+void fojoInitChrBioCharacters(void)
+{
+	g_FojoMpHeadMikado = modLookupHeadByName("head_mikado");
+	g_FojoMpHeadPoplin = modLookupHeadByName("head_foslerfer");
+	g_FojoMpHeadCalico = modLookupHeadByName("head_catherine");
+
+	g_ChrBioCharacters[2].mpheadnum = g_FojoMpHeadMikado;
+	g_ChrBioCharacters[3].mpheadnum = g_FojoMpHeadPoplin;
+	g_ChrBioCharacters[4].mpheadnum = g_FojoMpHeadCalico;
+}
 
 static bool ciIsBioCharUnlocked(struct biocharid *ch)
 {
@@ -2410,10 +2431,10 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 	};
 
 	if (ch->bodynum == BODY_DARK_COMBAT) {
-		if (ch->mpheadnum == MPHEAD_VD)     return &bios[1];
-		if (ch->mpheadnum == MPHEAD_MIKADO) return &bios[2];
-		if (ch->mpheadnum == MPHEAD_POPLIN) return &bios[3];
-		if (ch->mpheadnum == MPHEAD_CALICO) return &bios[4];
+		if (ch->mpheadnum == MPHEAD_VD)                          return &bios[1];
+		if (g_FojoMpHeadMikado >= 0 && ch->mpheadnum == g_FojoMpHeadMikado) return &bios[2];
+		if (g_FojoMpHeadPoplin >= 0 && ch->mpheadnum == g_FojoMpHeadPoplin) return &bios[3];
+		if (g_FojoMpHeadCalico >= 0 && ch->mpheadnum == g_FojoMpHeadCalico) return &bios[4];
 		return &bios[0]; // Joanna (default)
 	}
 

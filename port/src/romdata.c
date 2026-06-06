@@ -61,6 +61,65 @@
 static bool g_DebugFileLoad = false;
 #define DEBUG_FLOAD(...) if (g_DebugFileLoad) { sysLogPrintf(LOG_NOTE, __VA_ARGS__); }
 
+#define FT_HASH_BITS  11
+#define FT_HASH_SIZE  (1u << FT_HASH_BITS)          // 2048 buckets
+#define FT_HASH_MASK  (FT_HASH_SIZE - 1)
+#define FT_POOL_MAX   ROMDATA_MAX_FILES
+
+struct ftEntry {
+	const char *name;   // points into externalFileTableData (not owned)
+	u16         nameLen;
+	u16         fileId;
+	struct ftEntry *next;
+};
+
+static struct ftEntry  ftPool[FT_POOL_MAX];
+static struct ftEntry *ftBuckets[FT_HASH_SIZE];
+static u32             ftPoolUsed;
+
+static inline u32 ftHash(const char *s, u32 len)
+{
+	u32 h = 0x811c9dc5u; // FNV offset basis
+	for (u32 i = 0; i < len; i++) {
+		h ^= (u8)s[i];
+		h *= 0x01000193u; // FNV prime
+	}
+	return h & FT_HASH_MASK;
+}
+
+static inline void ftInsert(const char *name, u16 nameLen, u16 fileId)
+{
+	if (ftPoolUsed >= FT_POOL_MAX) {
+		sysLogPrintf(LOG_WARNING, "ftInsert: pool exhausted (%u entries)", ftPoolUsed);
+		return;
+	}
+	u32 bucket = ftHash(name, nameLen);
+	struct ftEntry *e = &ftPool[ftPoolUsed++];
+	e->name    = name;
+	e->nameLen = nameLen;
+	e->fileId  = fileId;
+	e->next    = ftBuckets[bucket];
+	ftBuckets[bucket] = e;
+}
+
+// Returns file ID or -1
+static inline s32 ftLookup(const char *name, u32 nameLen)
+{
+	u32 bucket = ftHash(name, nameLen);
+	for (struct ftEntry *e = ftBuckets[bucket]; e; e = e->next) {
+		if (e->nameLen == nameLen && !strncmp(e->name, name, nameLen)) {
+			return e->fileId;
+		}
+	}
+	return -1;
+}
+
+static inline void ftReset(void)
+{
+	memset(ftBuckets, 0, sizeof(ftBuckets));
+	ftPoolUsed = 0;
+}
+
 u8 *g_RomFile;
 u32 g_RomFileSize;
 
@@ -96,6 +155,129 @@ struct romfile {
 	const struct romfilepatch *patches;
 	u32 numpatches;
 };
+
+#define ROMSOURCES_MAX 8
+
+struct romsource {
+	char id[16];
+	char filename[64];
+	u8  *data;
+	u32  size;
+	u32  expectedSize;
+	u8   flags;       // bit0=required, bit1=strict
+	u8   fallback;    // 0=skip, 1=vanilla, 2=error
+	u8   mounted;
+};
+
+struct romaltsource {
+	u8  romIdx;       // 0xff = none
+	u8  compression;  // 0=raw, 1=rzip(1173)
+	u32 offset;
+	u32 size;
+};
+
+// MOD_TEX_MAP_MAX_MODS bounds both the per-mod texture map and the
+// per-mod altSource array. modIdx 0 is the base/global table; 1..64
+// correspond to --moddir entries (FS_MAXMODDIRS = 64).
+#define MOD_TEX_MAP_MAX_MODS 65
+
+static struct romsource g_RomSources[ROMSOURCES_MAX];
+static u32 g_NumRomSources;
+// Per-mod altSource: [modIdx][localFileId]. modIdx 0 = base/global table.
+static struct romaltsource g_FileAltSource[MOD_TEX_MAP_MAX_MODS][ROMDATA_MAX_FILES];
+
+struct modTexMapEntry {
+	u16 localTexId;
+	u16 portTexId;
+};
+
+struct modTexMap {
+	u32 count;
+	struct modTexMapEntry *entries;  // sorted ascending by localTexId
+};
+
+static struct modTexMap g_ModTexMap[MOD_TEX_MAP_MAX_MODS];
+
+// Look up portTexId for a given (modIdx, localTexId). Returns
+// localTexId unchanged if the mod has no map or the id is absent.
+u16 modTexMapLookup(s32 modIdx, u16 localTexId)
+{
+	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return localTexId;
+	const struct modTexMap *m = &g_ModTexMap[modIdx];
+	if (!m->count || !m->entries) return localTexId;
+	// binary search
+	s32 lo = 0;
+	s32 hi = (s32)m->count - 1;
+	while (lo <= hi) {
+		s32 mid = (lo + hi) >> 1;
+		u16 k = m->entries[mid].localTexId;
+		if (k == localTexId) return m->entries[mid].portTexId;
+		if (k < localTexId) lo = mid + 1;
+		else hi = mid - 1;
+	}
+	return localTexId;
+}
+
+static void romSourcesInit(void)
+{
+	g_NumRomSources = 0;
+	for (u32 m = 0; m < MOD_TEX_MAP_MAX_MODS; m++) {
+		for (u32 i = 0; i < ROMDATA_MAX_FILES; i++) {
+			g_FileAltSource[m][i].romIdx = 0xff;
+		}
+	}
+}
+
+static s32 romSourceFind(const char *id)
+{
+	for (u32 i = 0; i < g_NumRomSources; i++) {
+		if (!strcmp(g_RomSources[i].id, id)) {
+			return (s32)i;
+		}
+	}
+	return -1;
+}
+
+static void romSourcesMount(void)
+{
+	for (u32 i = 0; i < g_NumRomSources; i++) {
+		struct romsource *rs = &g_RomSources[i];
+		if (rs->mounted || !rs->filename[0]) continue;
+
+		rs->data = fsFileLoad(rs->filename, &rs->size);
+		if (!rs->data) {
+			char tmp[FS_MAXPATH];
+			snprintf(tmp, sizeof(tmp), "$B/roms/%s", rs->filename);
+			rs->data = fsFileLoad(tmp, &rs->size);
+		}
+		if (!rs->data) {
+			char tmp[FS_MAXPATH];
+			snprintf(tmp, sizeof(tmp), "$B/%s", rs->filename);
+			rs->data = fsFileLoad(tmp, &rs->size);
+		}
+
+		if (!rs->data) {
+			sysLogPrintf(LOG_WARNING, "romSource '%s': file '%s' not found", rs->id, rs->filename);
+			if (rs->flags & 1) {
+				sysFatalError("Required ROM source '%s' (%s) is missing", rs->id, rs->filename);
+			}
+			continue;
+		}
+
+		if (rs->expectedSize && rs->size != rs->expectedSize) {
+			sysLogPrintf(LOG_WARNING, "romSource '%s': size %u != expected %u",
+			             rs->id, rs->size, rs->expectedSize);
+			if (rs->flags & 2) {
+				sysFatalError("Strict ROM source '%s' size mismatch (%u != %u)",
+				              rs->id, rs->size, rs->expectedSize);
+			}
+		}
+
+		rs->mounted = 1;
+		sysLogPrintf(LOG_NOTE, "romSource '%s' mounted from '%s' (%u bytes)",
+		             rs->id, rs->filename, rs->size);
+	}
+}
 
 /* patches for individual files; applied on file load, before preprocFuncs, but */
 /* after unzip; only applied when loading from a ROM file                       */
@@ -358,6 +540,352 @@ static inline s32 romdataLoadExternalFileList(void)
 static u8 *externalFileTableData = NULL;
 static u32 externalFileTableSize = 0;
 
+// Storage for per-mod fragment buffers so engine pointers (names,
+// paths) into them stay valid for the program's lifetime.
+static u8 *g_ModFileTableData[MOD_TEX_MAP_MAX_MODS];
+
+static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
+{
+	if (!data || size < 12) return 0;
+
+	const bool isGlobal = (ownerModIdx < 0);
+	if (!isGlobal && (ownerModIdx < 0 || ownerModIdx >= MOD_TEX_MAP_MAX_MODS)) {
+		sysLogPrintf(LOG_ERROR, "romdataParseFileTable: invalid ownerModIdx=%d", ownerModIdx);
+		return 0;
+	}
+
+	u8 *dataEnd = data + size;
+	if (memcmp(data, "PDFT", 4) != 0) {
+		sysLogPrintf(LOG_ERROR, "Invalid file table magic (mod=%d)", ownerModIdx);
+		return 0;
+	}
+
+	u32 version = PD_BE32(*(u32*)(data + 4));
+	u32 numFiles = PD_BE32(*(u32*)(data + 8));
+	u8 *p = data + 12;
+
+	u32 numRomSources = 0;
+	if (version >= 2) {
+		if (p + 4 > dataEnd) {
+			sysLogPrintf(LOG_ERROR, "PDFT v2 header truncated (mod=%d)", ownerModIdx);
+			return 0;
+		}
+		numRomSources = PD_BE32(*(u32*)p); p += 4;
+	}
+
+	sysLogPrintf(LOG_NOTE, "Loading file table v%u: %u files, %u romSources (mod=%d, %s)",
+	             version, numFiles, numRomSources, ownerModIdx,
+	             isGlobal ? "global" : "per-mod");
+
+	if (isGlobal) {
+		romSourcesInit();
+	}
+
+	if (version >= 2) {
+		u8 fragRomIdxMap[256];
+		memset(fragRomIdxMap, 0xff, sizeof(fragRomIdxMap));
+		(void)isGlobal;
+
+		for (u32 i = 0; i < numRomSources; ++i) {
+			if (p + 1 > dataEnd) break;
+			u8 idLen = *p++;
+			if (p + idLen > dataEnd) break;
+			char *rsId = (char*)p;
+			p += idLen;
+			if (p + 1 > dataEnd) break;
+			u8 fnLen = *p++;
+			if (p + fnLen > dataEnd) break;
+			char *rsFn = (char*)p;
+			p += fnLen;
+			if (p + 4 + 1 + 1 + 2 > dataEnd) break;
+			u32 expectedSize = PD_BE32(*(u32*)p); p += 4;
+			u8 rsFlags = *p++;
+			u8 rsFallback = *p++;
+			p += 2; // reserved
+
+			s32 existing = -1;
+			for (u32 k = 0; k < g_NumRomSources; ++k) {
+				if (!strcmp(g_RomSources[k].id, rsId)) {
+					existing = (s32)k;
+					break;
+				}
+			}
+			s32 globalIdx;
+			if (existing >= 0) {
+				globalIdx = existing;
+			} else if (g_NumRomSources < ROMSOURCES_MAX) {
+				globalIdx = (s32)g_NumRomSources;
+				struct romsource *rs = &g_RomSources[globalIdx];
+				memset(rs, 0, sizeof(*rs));
+				strncpy(rs->id, rsId, sizeof(rs->id) - 1);
+				strncpy(rs->filename, rsFn, sizeof(rs->filename) - 1);
+				rs->expectedSize = expectedSize;
+				rs->flags = rsFlags;
+				rs->fallback = rsFallback;
+				g_NumRomSources++;
+			} else {
+				sysLogPrintf(LOG_WARNING, "Too many romSources (max %d), dropping '%s'",
+				             ROMSOURCES_MAX, rsId);
+				globalIdx = -1;
+			}
+			if (i < 256 && globalIdx >= 0) {
+				fragRomIdxMap[i] = (u8)globalIdx;
+			}
+		}
+
+		if (isGlobal && g_NumRomSources > 0) {
+			romSourcesMount();
+		}
+
+		static u8 *s_fragRomIdxMapPtr;
+		s_fragRomIdxMapPtr = fragRomIdxMap;
+		(void)s_fragRomIdxMapPtr;
+
+		if (isGlobal) {
+			ftReset();
+		}
+
+		for (u32 i = 0; i < numFiles; ++i) {
+			if (p + 16 > dataEnd) break;
+
+			u32 id = PD_BE32(*(u32*)p); p += 4;
+			u32 flags = PD_BE32(*(u32*)p); p += 4;
+			u32 offset = PD_BE32(*(u32*)p); p += 4;
+			u32 fileSize = PD_BE32(*(u32*)p); p += 4;
+
+			u16 nameLen = PD_BE16(*(u16*)p); p += 2;
+			char *name = (char*)p;
+			p += nameLen;
+
+			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
+			char *path = (char*)p;
+			p += pathLen;
+
+			u8  altRomIdx = 0xff;
+			u32 altOffset = 0;
+			u32 altSize = 0;
+			u8  altCompression = 0;
+			if (flags & 4) {
+				if (p + 1 + 4 + 4 + 1 > dataEnd) {
+					sysLogPrintf(LOG_ERROR, "PDFT v2 source tail truncated for id %u (mod=%d)",
+					             id, ownerModIdx);
+					return 0;
+				}
+				u8 fragIdx = *p++;
+				altRomIdx = (fragIdx < 256) ? fragRomIdxMap[fragIdx] : 0xff;
+				altOffset = PD_BE32(*(u32*)p); p += 4;
+				altSize   = PD_BE32(*(u32*)p); p += 4;
+				altCompression = *p++;
+
+				if (id < ROMDATA_MAX_FILES && altRomIdx != 0xff) {
+					s32 altSlot = isGlobal ? 0 : ownerModIdx;
+					struct romaltsource *as = &g_FileAltSource[altSlot][id];
+					as->romIdx = altRomIdx;
+					as->offset = altOffset;
+					as->size = altSize;
+					as->compression = altCompression;
+				}
+			}
+
+			if (id >= ROMDATA_MAX_FILES) {
+				continue;
+			}
+
+			bool hasExport = false;
+			const char *pathAfterDoubleColon = NULL;
+			const char *modConstraint = NULL;
+
+			if (isGlobal && (flags & 2) && pathLen > 1) {
+				if (strstr(path, "export")) hasExport = true;
+				const char *modPrefix = strstr(path, "mod:");
+				if (modPrefix) modConstraint = modPrefix + 4;
+				const char *separator = strstr(path, "::");
+				if (separator) pathAfterDoubleColon = separator + 2;
+			}
+
+			s32 modLo = isGlobal ? 0 : ownerModIdx;
+			s32 modHi = isGlobal ? (s32)g_NumModDirs : ownerModIdx;
+
+			for (s32 mod = modLo; mod <= modHi; ++mod) {
+				if (flags & 1) {
+					fileSlots[mod][id].data = g_RomFile + offset;
+					fileSlots[mod][id].size = fileSize;
+					fileSlots[mod][id].source = SRC_UNLOADED;
+				}
+
+				if ((flags & 2) && pathLen > 1) {
+					if (isGlobal && hasExport && modConstraint && pathAfterDoubleColon) {
+						const char *currentModName = NULL;
+						if (mod > 0 && mod <= (s32)g_NumModDirs && modDirs[mod - 1][0]) {
+							currentModName = strrchr(modDirs[mod - 1], '/');
+							if (currentModName) currentModName++;
+							else currentModName = modDirs[mod - 1];
+						}
+						bool isOwner = false;
+						if (currentModName) {
+							size_t modNameLen = strlen(currentModName);
+							if (strncmp(modConstraint, currentModName, modNameLen) == 0) {
+								char next = modConstraint[modNameLen];
+								if (next == ',' || next == ':') isOwner = true;
+							}
+						}
+						fileSlots[mod][id].name = isOwner ? path : pathAfterDoubleColon;
+					} else {
+						fileSlots[mod][id].name = path;
+					}
+				} else if (nameLen > 1) {
+					fileSlots[mod][id].name = name;
+				}
+			}
+
+			if (nameLen > 0) {
+				ftInsert(name, nameLen, (u16)id);
+			}
+		}
+
+		sysLogPrintf(LOG_NOTE, "File table hash: %u entries in %u buckets", ftPoolUsed, FT_HASH_SIZE);
+	} else {
+		// version < 2: legacy v1 layout
+		ftReset();
+		for (u32 i = 0; i < numFiles; ++i) {
+			if (p + 16 > dataEnd) break;
+			u32 id = PD_BE32(*(u32*)p); p += 4;
+			u32 flags = PD_BE32(*(u32*)p); p += 4;
+			u32 offset = PD_BE32(*(u32*)p); p += 4;
+			u32 fileSize = PD_BE32(*(u32*)p); p += 4;
+			u16 nameLen = PD_BE16(*(u16*)p); p += 2;
+			char *name = (char*)p; p += nameLen;
+			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
+			char *path = (char*)p; p += pathLen;
+
+			if (id >= ROMDATA_MAX_FILES) continue;
+
+			s32 modLo = isGlobal ? 0 : ownerModIdx;
+			s32 modHi = isGlobal ? (s32)g_NumModDirs : ownerModIdx;
+			for (s32 mod = modLo; mod <= modHi; ++mod) {
+				if (flags & 1) {
+					fileSlots[mod][id].data = g_RomFile + offset;
+					fileSlots[mod][id].size = fileSize;
+					fileSlots[mod][id].source = SRC_UNLOADED;
+				}
+				if ((flags & 2) && pathLen > 1) {
+					fileSlots[mod][id].name = path;
+				} else if (nameLen > 1) {
+					fileSlots[mod][id].name = name;
+				}
+			}
+			if (nameLen > 0) {
+				ftInsert(name, nameLen, (u16)id);
+			}
+		}
+	}
+
+	if (version >= 3) {
+		if (p + 4 > dataEnd) {
+			sysLogPrintf(LOG_ERROR, "PDFT v3 romTexMap header truncated (mod=%d)", ownerModIdx);
+			return 1;
+		}
+		u32 numTexMap = PD_BE32(*(u32*)p); p += 4;
+		if ((size_t)(dataEnd - p) < (size_t)numTexMap * 4) {
+			sysLogPrintf(LOG_ERROR, "PDFT v3 romTexMap body truncated (count=%u, mod=%d)",
+			             numTexMap, ownerModIdx);
+			return 1;
+		}
+
+		if (isGlobal) {
+			p += (size_t)numTexMap * 4;
+			sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (global, ignored)", numTexMap);
+			return 1;
+		}
+
+		struct modTexMap *m = &g_ModTexMap[ownerModIdx];
+		if (m->entries) {
+			sysMemFree(m->entries);
+			m->entries = NULL;
+			m->count = 0;
+		}
+		if (numTexMap > 0) {
+			m->entries = sysMemAlloc(sizeof(struct modTexMapEntry) * numTexMap);
+			if (!m->entries) {
+				sysLogPrintf(LOG_ERROR, "Failed to allocate romTexMap (%u entries, mod=%d)",
+				             numTexMap, ownerModIdx);
+				return 1;
+			}
+			for (u32 i = 0; i < numTexMap; ++i) {
+				u16 localId = PD_BE16(*(u16*)p); p += 2;
+				u16 portId  = PD_BE16(*(u16*)p); p += 2;
+				m->entries[i].localTexId = localId;
+				m->entries[i].portTexId  = portId;
+			}
+			m->count = numTexMap;
+			for (u32 i = 1; i < m->count; ++i) {
+				struct modTexMapEntry e = m->entries[i];
+				s32 j = (s32)i - 1;
+				while (j >= 0 && m->entries[j].localTexId > e.localTexId) {
+					m->entries[j + 1] = m->entries[j];
+					--j;
+				}
+				m->entries[j + 1] = e;
+			}
+		}
+
+		sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (mod=%d)", numTexMap, ownerModIdx);
+	}
+
+	return 1;
+}
+
+static s32 romdataLoadModFileTable(s32 modIdx)
+{
+	if (modIdx < 0 || (u32)modIdx >= g_NumModDirs) return 0;
+	if (!modDirs[modIdx][0]) return 0;
+	if (modIdx >= MOD_TEX_MAP_MAX_MODS) {
+		sysLogPrintf(LOG_WARNING, "romdataLoadModFileTable: modIdx %d exceeds MOD_TEX_MAP_MAX_MODS", modIdx);
+		return 0;
+	}
+
+	char relPath[FS_MAXPATH + 32];
+	snprintf(relPath, sizeof(relPath), "%s/filetable.dat", modDirs[modIdx]);
+	char fullPath[FS_MAXPATH + 32];
+	strncpy(fullPath, fsFullPath(relPath), sizeof(fullPath) - 1);
+	fullPath[sizeof(fullPath) - 1] = '\0';
+
+	FILE *f = fopen(fullPath, "rb");
+	if (!f) {
+		sysLogPrintf(LOG_NOTE, "romdataLoadModFileTable: no fragment at %s", fullPath);
+		return 0;
+	}
+	fseek(f, 0, SEEK_END);
+	long fsz = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	if (fsz < 12) {
+		fclose(f);
+		return 0;
+	}
+	u8 *buf = sysMemZeroAlloc((u32)fsz + 1);
+	if (!buf) {
+		fclose(f);
+		return 0;
+	}
+	fread(buf, 1, (size_t)fsz, f);
+	fclose(f);
+
+	sysLogPrintf(LOG_NOTE, "Loading per-mod filetable: %s (%ld bytes)", fullPath, fsz);
+
+	if (!romdataParseFileTable(buf, (u32)fsz, modIdx)) {
+		sysLogPrintf(LOG_ERROR, "Failed to parse per-mod filetable: %s", fullPath);
+		sysMemFree(buf);
+		return 0;
+	}
+
+	// Retain ownership; names/paths are referenced into this buffer.
+	if (g_ModFileTableData[modIdx]) {
+		sysMemFree(g_ModFileTableData[modIdx]);
+	}
+	g_ModFileTableData[modIdx] = buf;
+	return 1;
+}
+
 static inline s32 romdataLoadExternalFileTable(void)
 {
 	u32 size = 0;
@@ -525,7 +1053,18 @@ static inline void romdataInitFiles(void)
 	}
 
 	// Then overlay external file table
-	if (romdataLoadExternalFileTable()) {
+	s32 globalLoaded = romdataLoadExternalFileTable();
+
+	// Per-mod PDFT v3 fragments: each --moddir may ship its own
+	// filetable.dat. They overlay on top of the global table and
+	// only populate fileSlots[modIdx][...] for their own mod row
+	// (modIdx is 0-based, matching modDirs[] / g_ModNum).
+	for (u32 i = 0; i < g_NumModDirs; ++i) {
+		if (i >= MOD_TEX_MAP_MAX_MODS) break;
+		romdataLoadModFileTable((s32)i);
+	}
+
+	if (globalLoaded) {
 		return;
 	}
 
@@ -687,7 +1226,7 @@ static char g_FileLoadModPrefix[32] = "MOD_FOJO";
 static const char *romdataGetContextPrefix(void)
 {
 	const char *context;
-	
+
 	// Check for Boot
 	if (g_MainIsBooting) {
 		context = "BOOT";
@@ -734,7 +1273,7 @@ static const char *romdataGetContextPrefix(void)
 
 	// Default to Solo
 	context = "SOLO";
-	
+
 done:
 	DEBUG_FLOAD("romdataGetContextPrefix: stage=%d, normmplayerisrunning=%d, mplayerisrunning=%d, isteam=%d, isanti=%d -> context=%s\n",
 		g_StageNum, g_Vars.normmplayerisrunning, g_Vars.mplayerisrunning, g_MissionConfig.isteam, g_MissionConfig.isanti, context);
@@ -1031,14 +1570,14 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 			fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
 			// external file; do not apply patches to this
 			fileSlots[modNum][fileNum].numpatches = 0;
-		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d, g_NotLoadMod=%d)", 
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d, g_NotLoadMod=%d)",
 			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
 	}
 
 	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
 		// tried and failed, fall back to ROM
 		fileSlots[modNum][fileNum].source = SRC_ROM;
-		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d, g_NotLoadMod=%d)", 
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d, g_NotLoadMod=%d)",
 			fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
 	}
 	}
@@ -1112,7 +1651,7 @@ void romdataFileFree(s32 fileNum)
 
 void romdataFileFreeForSolo(void)
 {
-	DEBUG_FLOAD("romdataFileFreeForSolo: Resetting files for mod %d (g_StageNum=0x%02x, restartlevel=%d)", 
+	DEBUG_FLOAD("romdataFileFreeForSolo: Resetting files for mod %d (g_StageNum=0x%02x, restartlevel=%d)",
 		g_ModNum, g_StageNum, g_Vars.restartlevel);
 	romdataResetMod(g_ModNum);
 }
@@ -1142,20 +1681,26 @@ s32 romdataFileGetNumForName(const char *name)
 
 s32 romdataFileGetNumForNameAnyMod(const char *name)
 {
+	printf("romdataFileGetNumForNameAnyMod: begin");
 	if (!name || !name[0]) {
+		printf("romdataFileGetNumForNameAnyMod: %s != %s, ret -1", name, name[0]);
 		return -1;
 	}
 
 	for (s32 mod = 0; mod <= (s32)g_NumModDirs; ++mod) {
 		for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
 			if (fileSlots[mod][i].name) {
+				printf("romdataFileGetNumForNameAnyMod: checking %s (%x) in mod %x\n", fileSlots[mod][i].name, i, mod);
 				// Exact match
 				if (!strcmp(fileSlots[mod][i].name, name)) {
+					printf("romdataFileGetNumForNameAnyMod: found %s (%x) in mod %s\n", fileSlots[mod][i].name, i, mod);
 					return i;
 				}
 				// Also match against basename for mod files
 				// (stored as "mod:modname::files/Filename")
 				const char *slash = strrchr(fileSlots[mod][i].name, '/');
+				if (slash)
+					printf("romdataFileGetNumForNameAnyMod: slash %s, slash+1 %s, name %s", slash, slash+1, name);
 				if (slash && !strcmp(slash + 1, name)) {
 					return i;
 				}
@@ -1179,15 +1724,34 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 	// Try to find in external file table first (supports separate name vs path)
 	if (externalFileTableData) {
 		u8 *data = externalFileTableData;
+		u8 *dataEnd = data + externalFileTableSize;
+		u32 version = PD_BE32(*(u32*)(data + 4));
 		u32 numFiles = PD_BE32(*(u32*)(data + 8));
 		u8 *p = data + 12;
 		size_t searchLen = strlen(name);
 
+		// Skip romSources block (v2+)
+		if (version >= 2) {
+			if (p + 4 > dataEnd) goto extDone;
+			u32 numRomSources = PD_BE32(*(u32*)p); p += 4;
+			for (u32 i = 0; i < numRomSources; ++i) {
+				if (p + 1 > dataEnd) goto extDone;
+				u8 idLen = *p++;
+				if (p + idLen > dataEnd) goto extDone;
+				p += idLen;
+				if (p + 1 > dataEnd) goto extDone;
+				u8 fnLen = *p++;
+				if (p + fnLen + 4 + 1 + 1 + 2 > dataEnd) goto extDone;
+				p += fnLen + 4 + 1 + 1 + 2; // size, flags, fallback, reserved
+			}
+		}
+
 		for (u32 i = 0; i < numFiles; ++i) {
-			if (p + 16 > data + externalFileTableSize) break;
+			if (p + 16 > dataEnd) break;
 
 			u32 id = PD_BE32(*(u32*)p); p += 4;
-			p += 12; // flags, offset, filesize
+			u32 flags = PD_BE32(*(u32*)p); p += 4;
+			p += 8; // offset, filesize
 
 			u16 nameLen = PD_BE16(*(u16*)p); p += 2;
 			char *entryName = (char*)p;
@@ -1195,6 +1759,11 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
 			p += pathLen;
+
+			if (flags & 4) {
+				if (p + 10 > dataEnd) break;
+				p += 10; // altRomIdx(1) + altOffset(4) + altSize(4) + altCompression(1)
+			}
 
 			// nameLen on the wire includes the trailing null terminator;
 			// compare against searchLen + 1 (or just use strcmp since
@@ -1212,9 +1781,17 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 			}
 		}
 	}
+extDone:
 
 	for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
-		if (fileSlots[modNum][i].name && !strcmp(fileSlots[modNum][i].name, name)) {
+		const char *slotName = fileSlots[modNum][i].name;
+		if (!slotName) continue;
+		if (!strcmp(slotName, name)) {
+			return i;
+		}
+		// Match basename if slot stores a full/prefixed path
+		const char *slash = strrchr(slotName, '/');
+		if (slash && !strcmp(slash + 1, name)) {
 			return i;
 		}
 	}

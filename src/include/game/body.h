@@ -8,6 +8,8 @@ void bodiesInit(void);
 
 void bodiesReset(s32 stagenum);
 
+void fojoPatchGuardHeads(void);
+
 u32 bodyGetRace(s32 bodynum);
 bool bodyLoad(s32 bodynum);
 struct model *body0f02ce8c(s32 bodynum, s32 headnum, struct modeldef *bodymodeldef, struct modeldef *headmodeldef, bool sunglasses, struct model *model, bool isplayer, u8 varyheight);

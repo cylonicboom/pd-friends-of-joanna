@@ -2087,6 +2087,33 @@ char *fojoMenuTextHeadName(struct menuitem *item)
 	return fojoGetHeadName(selectedindex);
 }
 
+// Map a FoJo carousel slot to the modconfig head_* name.
+// Slots map to fixed names; resolution happens at runtime so a modconfig
+// that omits any of these heads simply produces an empty slot.
+static const char *fojoHeadConfigName(s32 optionindex)
+{
+	switch (optionindex) {
+	case FOJO_INDEX_JOANNA: return NULL; // built-in, no modconfig name
+	case FOJO_INDEX_VELVET: return NULL; // built-in, no modconfig name
+	case FOJO_INDEX_MIKADO: return "head_mikado";
+	case FOJO_INDEX_POPLIN: return "head_foslerfer";
+	case FOJO_INDEX_CALICO: return "head_catherine";
+	default: return NULL;
+	}
+}
+
+static const char *fojoHeadDisplayName(s32 optionindex)
+{
+	switch (optionindex) {
+	case FOJO_INDEX_JOANNA: return "Joanna Dark";
+	case FOJO_INDEX_VELVET: return "Velvet Dark";
+	case FOJO_INDEX_MIKADO: return "Mikado Dark";
+	case FOJO_INDEX_POPLIN: return "Poplin Dark";
+	case FOJO_INDEX_CALICO: return "Calico Dark";
+	default: return "Unknown";
+	}
+}
+
 // Get the name for a head option in the carousel
 char *fojoGetHeadName(s32 optionindex)
 {
@@ -2111,34 +2138,30 @@ char *fojoGetHeadName(s32 optionindex)
 		return buffer;
 	}
 
-	// Fixed heads
-	s32 mpheadnum = g_FojoHeadOptions[optionindex];
-
-	switch (mpheadnum) {
-	case FOJO_HEAD_JOANNA:
-		return "Joanna Dark";
-	case FOJO_HEAD_VELVET:
-		return "Velvet Dark";
-	case FOJO_HEAD_MIKADO:
-		return "Mikado Dark";
-	case FOJO_HEAD_POPLIN:
-		return "Poplin Dark";
-	case FOJO_HEAD_CALICO:
-		return "Calico Dark";
-	default:
-		return "Unknown";
-	}
+	return (char *)fojoHeadDisplayName(optionindex);
 }
 
-// Initialize the head options array based on AIO detection
+// Initialize the head options array based on what modconfig.txt actually
+// registered. Heads added by mods are looked up by name; missing heads are
+// skipped so the carousel only shows usable options.
 void fojoInitHeadOptions(void)
 {
 	g_FojoHeadCount = 0;
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_JOANNA;
 	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_VELVET;
-	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_MIKADO;
-	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_POPLIN;
-	g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_CALICO;
+
+	for (s32 idx = FOJO_INDEX_MIKADO; idx <= FOJO_INDEX_CALICO; ++idx) {
+		const char *cfgName = fojoHeadConfigName(idx);
+		if (!cfgName) continue;
+		s32 mpheadnum = modLookupHeadByName(cfgName);
+		if (mpheadnum < 0) {
+			sysLogPrintf(LOG_NOTE, "fojoInitHeadOptions: skipping '%s' (not registered)", cfgName);
+			continue;
+		}
+		if (g_FojoHeadCount < NUM_FOJO_HEADS - 1) {
+			g_FojoHeadOptions[g_FojoHeadCount++] = mpheadnum;
+		}
+	}
 	// Last slot reserved for player's CS head (added in fojoGetPlayerHead)
 }
 

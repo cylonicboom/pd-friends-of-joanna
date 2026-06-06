@@ -810,6 +810,25 @@ s32 modLookupHandFileByName(const char *name)
 	return -1;
 }
 
+s32 modLookupHeadnumByName(const char *name)
+{
+	if (!name || !name[0]) return -1;
+
+	for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
+		if (!strcmp(name, g_VanillaHeadNames[i].name)) {
+			return g_VanillaHeadNames[i].id;
+		}
+	}
+
+	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+		if (!strcmp(name, g_ModHeadNames[i].name)) {
+			return g_ModHeadNames[i].id;
+		}
+	}
+
+	return -1;
+}
+
 s32 modLookupBodyByName(const char *name)
 {
 	if (!name || !name[0]) return -1;
@@ -873,10 +892,20 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 
 	s32 replaceIndex = -1;
 	if (name[0]) {
+		// Check vanilla names first
 		for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
 			if (!strcmp(name, g_VanillaHeadNames[i].name)) {
 				replaceIndex = g_VanillaHeadNames[i].id;
 				break;
+			}
+		}
+		// Then check dynamic mod names
+		if (replaceIndex < 0) {
+			for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+				if (!strcmp(name, g_ModHeadNames[i].name)) {
+					replaceIndex = g_ModHeadNames[i].id;
+					break;
+				}
 			}
 		}
 	}
@@ -899,6 +928,19 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 		g_HeadsAndBodies = new_array;
 		g_HeadsAndBodies[g_NumHeadsAndBodies] = tempItem;
 		g_NumHeadsAndBodies++;
+
+		// Register name for future lookups (modLookupHeadByName etc.)
+		if (name[0]) {
+			void *tmp = realloc(g_ModHeadNames, (g_NumModHeadNames + 1) * sizeof(*g_ModHeadNames));
+			if (tmp) {
+				g_ModHeadNames = tmp;
+				g_ModHeadNames[g_NumModHeadNames].name = strDuplicate(name);
+				g_ModHeadNames[g_NumModHeadNames].id = g_NumHeadsAndBodies - 1;
+				g_NumModHeadNames++;
+				sysLogPrintf(LOG_NOTE, "modconfig: registered head name '%s' -> HeadsAndBodies[%d]",
+				             name, g_NumHeadsAndBodies - 1);
+			}
+		}
 	}
 
 	if (slotNum >= 0) {
@@ -928,6 +970,29 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 				s32 headBodyIndex = (replaceIndex >= 0) ? replaceIndex : (g_NumHeadsAndBodies - 1);
 				g_MpHeads[slotNum].headnum = headBodyIndex;
 				g_MpHeads[slotNum].requirefeature = 0;
+			}
+		}
+	} else if (replaceIndex < 0) {
+		// New entry with no explicit slot: auto-append to MpHeads.
+		// Lets a modconfig add heads to the selection menu without
+		// having to pick a free slot manually.
+		if (g_MpHeads == g_MpHeadsOriginal) {
+			struct mphead *new_array = malloc(g_NumMpHeads * sizeof(struct mphead));
+			if (new_array) {
+				memcpy(new_array, g_MpHeadsOriginal, g_NumMpHeads * sizeof(struct mphead));
+				g_MpHeads = new_array;
+			}
+		}
+
+		if (g_MpHeads != g_MpHeadsOriginal) {
+			struct mphead *new_array = realloc(g_MpHeads, (g_NumMpHeads + 1) * sizeof(struct mphead));
+			if (new_array) {
+				g_MpHeads = new_array;
+				g_MpHeads[g_NumMpHeads].headnum = g_NumHeadsAndBodies - 1;
+				g_MpHeads[g_NumMpHeads].requirefeature = 0;
+				g_NumMpHeads++;
+				sysLogPrintf(LOG_NOTE, "modconfig: auto-appended head '%s' to MpHeads[%d]",
+				             name, g_NumMpHeads - 1);
 			}
 		}
 	}

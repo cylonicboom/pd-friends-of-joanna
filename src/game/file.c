@@ -4117,6 +4117,11 @@ u32 g_FileTable[] = {
 uintptr_t g_FileTable[NUM_FILES + 1]; // TODO: this is only used to get the filenum, remove this
 #endif // PLATFORM_N64
 
+// Stash the full (modNum << 16) | fileId value for fileLoad,
+// since fileLoad recovers filenum via pointer math on g_FileTable
+// which only gives the raw fileId without the modNum encoding.
+static s32 g_FileLoadEncodedFilenum = 0;
+
 romptr_t fileGetRomAddress(s32 filenum)
 {
 #ifdef PLATFORM_N64

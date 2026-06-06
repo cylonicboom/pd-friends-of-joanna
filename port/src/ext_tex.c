@@ -30,6 +30,7 @@ struct ExtTexture
 	u16 width;
 	u16 height;
 	char extension[5];
+	s8 ownerMod;
 };
 
 struct ModelTextures
@@ -42,6 +43,7 @@ struct ModelTextures
 };
 
 static struct ExtTexture extTextures[MAX_EXT_TEX];
+static s32 g_ExtTexCurrentModIndex = -1; // set during extTexScanDir for readModelTextures
 
 static struct ModelTextures *modelTextures;
 static s32 numModels;
@@ -146,6 +148,15 @@ u8 extTexExists(u8 type, u16 id, s32 texnum)
 		// sysLogPrintf(LOG_NOTE, "extTexExists: type=MODEL id=%04x texnum=%04x => %s", id, texnum, exists ? "YES" : "NO");
 	}
 	return exists;
+}
+
+s8 extTexGetOwnerMod(u8 type, u16 id, s32 texnum)
+{
+	struct ExtTexture *tex = getExtTexture(type, id, texnum);
+	if (tex && tex->texnum >= 0) {
+		return tex->ownerMod;
+	}
+	return -1;
 }
 
 u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height)

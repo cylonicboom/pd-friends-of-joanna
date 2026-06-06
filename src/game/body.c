@@ -23,6 +23,7 @@
 #include "lib/anim.h"
 #include "lib/collision.h"
 #include "data.h"
+#include "mod.h"
 #include "types.h"
 
 s32 g_NumActiveHeadsPerGender;
@@ -112,13 +113,16 @@ s32 g_MaleGuardTeamHeads[] = {
 	-1,
 };
 
+// FoJo additions (Calico/Poplin) are appended at runtime by
+// fojoPatchGuardHeads() after modconfig.txt has registered them, so this
+// list only carries the vanilla heads at startup.
 s32 g_FemaleGuardHeads[] = {
 	HEAD_LESLIE_S,
 	HEAD_ANKA,
 	HEAD_EILEEN_T,
 	HEAD_EILEEN_H,
-	FOJO_HEAD_CALICO,
-	FOJO_HEAD_POPLIN,
+	-1, // placeholder slot for FoJo Calico
+	-1, // placeholder slot for FoJo Poplin
 	-1,
 };
 
@@ -139,6 +143,37 @@ s32 g_FemGuardHeads[3] = {
 	HEAD_JULIANNE,
 	HEAD_LAURA,
 };
+
+// Fill the FoJo placeholder slots in g_FemaleGuardHeads with whatever
+// HeadsAndBodies indices the active modconfig actually registered for
+// Calico (head_catherine) and Poplin (head_foslerfer). Slots whose names
+// don't resolve get compacted out so the random-pick logic never lands on
+// a -1 sentinel.
+void fojoPatchGuardHeads(void)
+{
+	static const struct { const char *name; s32 placeholderSlot; } slots[] = {
+		{ "head_catherine",  4 }, // Calico
+		{ "head_foslerfer",  5 }, // Poplin
+	};
+
+	for (s32 i = 0; i < (s32)(sizeof(slots) / sizeof(slots[0])); ++i) {
+		s32 headnum = modLookupHeadnumByName(slots[i].name);
+		if (headnum >= 0) {
+			g_FemaleGuardHeads[slots[i].placeholderSlot] = headnum;
+		}
+	}
+
+	// Compact: shift entries down so leading slots are valid and the array
+	// terminates at the first -1 (matches bodiesInit's count loop).
+	s32 dst = 0;
+	for (s32 src = 0; g_FemaleGuardHeads[src] != -1; ++src) {
+		if (g_FemaleGuardHeads[src] >= 0) {
+			g_FemaleGuardHeads[dst++] = g_FemaleGuardHeads[src];
+		}
+	}
+	g_FemaleGuardHeads[dst] = -1;
+	g_NumFemaleGuardHeads = dst;
+}
 
 u32 bodyGetRace(s32 bodynum)
 {
