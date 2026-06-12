@@ -1932,8 +1932,8 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 	s32 totalfilelen;
 	struct texpool texpool;
 	s32 bodyfilelen2;
-	u16 bodyfilenum;
-	u16 headfilenum;
+	u32 bodyfilenum;
+	u32 headfilenum;
 	s32 bodynum;
 	s32 headnum;
 

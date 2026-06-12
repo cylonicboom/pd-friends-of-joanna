@@ -449,10 +449,14 @@ struct modconfigslotinfo {
 	char handName[64];
 };
 
-static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbody *item, s32 modNum, char *nameOut, s32 *slotNumOut)
+// Returns updated p. Sets *skipEntry=1 if the entry should be discarded
+// (e.g. file not found). On hard parse failure (unknown key, malformed
+// value), returns NULL with *skipEntry left as 0.
+static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbody *item, s32 modNum, char *nameOut, struct modconfigslotinfo *slotInfo, s32 *skipEntry)
 {
 	s32 tmp = 0;
 	f32 tmpf = 0.0f;
+	if (skipEntry) *skipEntry = 0;
 
 	while (p && token[0] && strcmp(token, "}") != 0) {
 		if (!strcmp(token, "ismale")) {
@@ -460,9 +464,22 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 			item->ismale = tmp;
 		} else if (!strcmp(token, "slotnum")) {
 			PARSE_INT("HeadsAndBodies", "slotnum", tmp, 0, 255, NULL);
-			if (slotNumOut) *slotNumOut = tmp;
-		} else if (!strcmp(token, "unk00_01")) {
-			PARSE_INT("HeadsAndBodies", "unk00_01", tmp, 0, 1, NULL);
+			if (slotInfo) slotInfo->slotNum = tmp;
+		} else if (!strcmp(token, "requirefeature")) {
+			PARSE_INT("HeadsAndBodies", "requirefeature", tmp, 0, 255, NULL);
+			if (slotInfo) slotInfo->requireFeature = tmp;
+		} else if (!strcmp(token, "bodyslotnum")) {
+			PARSE_INT("HeadsAndBodies", "bodyslotnum", tmp, 0, 255, NULL);
+			if (slotInfo) slotInfo->bodySlotNum = tmp;
+		} else if (!strcmp(token, "bodyname")) {
+			PARSE_INT("HeadsAndBodies", "bodyname", tmp, 0, 0xFFFF, NULL);
+			if (slotInfo) slotInfo->bodyName = tmp;
+		} else if (!strcmp(token, "bodyheadnum")) {
+			PARSE_INT("HeadsAndBodies", "bodyheadnum", tmp, 0, 0xFFFF, NULL);
+			if (slotInfo) slotInfo->bodyHeadNum = tmp;
+		} else if (!strcmp(token, "hasownhead") || !strcmp(token, "unk00_01")) {
+			// `unk00_01` is the legacy field name kept for back-compat.
+			PARSE_INT("HeadsAndBodies", "hasownhead", tmp, 0, 1, NULL);
 			item->unk00_01 = tmp;
 		} else if (!strcmp(token, "canvaryheight")) {
 			PARSE_INT("HeadsAndBodies", "canvaryheight", tmp, 0, 1, NULL);
@@ -475,7 +492,12 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 			item->height = tmp;
 		} else if (!strcmp(token, "filenum")) {
 			p = modConfigParseFileValue(p, token, &tmp, modNum);
-			if (!p) return NULL;
+			if (!p) {
+				sysLogPrintf(LOG_WARNING, "modconfig: HeadsAndBodies '%s': filenum unresolved, skipping entry",
+				             nameOut && nameOut[0] ? nameOut : "?");
+				if (skipEntry) *skipEntry = 1;
+				return NULL;
+			}
 			item->filenum = tmp | (modNum << 16);
 		} else if (!strcmp(token, "scale")) {
 			p = modConfigParseFloatValue(p, token, &tmpf);
@@ -487,14 +509,21 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 			item->animscale = tmpf;
 		} else if (!strcmp(token, "handfilenum")) {
 			p = modConfigParseFileValue(p, token, &tmp, modNum);
-			if (!p) return NULL;
+			if (!p) {
+				sysLogPrintf(LOG_WARNING, "modconfig: HeadsAndBodies '%s': handfilenum unresolved, skipping entry",
+				             nameOut && nameOut[0] ? nameOut : "?");
+				if (skipEntry) *skipEntry = 1;
+				return NULL;
+			}
 			item->handfilenum = tmp | (modNum << 16);
+			if (slotInfo) {
+				strncpy(slotInfo->handName, strUnquote(token), 63);
+				slotInfo->handName[63] = '\0';
+			}
 		} else if (!strcmp(token, "yoffset")) {
 			PARSE_INT("HeadsAndBodies", "yoffset", tmp, -1000, 1000, NULL);
 			item->yoffset = tmp;
-			// sysLogPrintf(LOG_NOTE, "DEBUG modconfig: parsed yoffset=%d for slot", tmp);
 		} else if (!strcmp(token, "name")) {
-			// Parse name
 			p = strParseToken(p, token, NULL);
 			if (nameOut) {
 				strncpy(nameOut, strUnquote(token), 63);
@@ -866,7 +895,11 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 	memset(&tempItem, 0, sizeof(tempItem));
 	char name[64] = "";
 
-	s32 slotNum = -1;
+	struct modconfigslotinfo slotInfo = { -1, -1, -1, -1, 0, "" };
+
+	// Save the position right before the opening '{' so we can recover by
+	// skipping the entire block if a non-fatal parse error occurs.
+	char *blockStart = p;
 
 	// eat opening bracket
 	p = strParseToken(p, token, NULL);
@@ -875,7 +908,15 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 	}
 
 	p = strParseToken(p, token, NULL);
-	p = modConfigParseHeadOrBodyEntry(p, token, &tempItem, modNum, name, &slotNum);
+	s32 skipEntry = 0;
+	p = modConfigParseHeadOrBodyEntry(p, token, &tempItem, modNum, name, &slotInfo, &skipEntry);
+
+	if (skipEntry) {
+		// Soft failure: skip to end of block and continue parsing the modconfig.
+		sysLogPrintf(LOG_WARNING, "modconfig: skipping HeadsAndBodies '%s' (mod %d) due to unresolved file reference",
+		             name[0] ? name : "?", modNum);
+		return modConfigSkipBlock(blockStart, token);
+	}
 
 	if (!p || token[0] != '}') {
 		sysLogPrintf(LOG_ERROR, "modconfig: unterminated HeadsAndBodies block");
@@ -911,7 +952,7 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 	}
 
 	if (replaceIndex >= 0) {
-		// Overwrite existing head
+		// Overwrite existing head/body entry
 		if (g_NumHeadsAndBodies > replaceIndex) {
 			g_HeadsAndBodies[replaceIndex] = tempItem;
 			sysLogPrintf(LOG_NOTE, "modconfig: replaced %s (index %d) with imported asset", name, replaceIndex);
@@ -943,7 +984,31 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 		}
 	}
 
-	if (slotNum >= 0) {
+	// Register hand file name for future lookups (modLookupHandFileByName)
+	if (slotInfo.handName[0]) {
+		s32 replaced = 0;
+		for (s32 i = 0; i < g_NumModHandFileNames; ++i) {
+			if (!strcmp(slotInfo.handName, g_ModHandFileNames[i].name)) {
+				g_ModHandFileNames[i].filenum = tempItem.handfilenum;
+				replaced = 1;
+				break;
+			}
+		}
+		if (!replaced) {
+			void *tmp = realloc(g_ModHandFileNames, (g_NumModHandFileNames + 1) * sizeof(*g_ModHandFileNames));
+			if (tmp) {
+				g_ModHandFileNames = tmp;
+				g_ModHandFileNames[g_NumModHandFileNames].name = strDuplicate(slotInfo.handName);
+				g_ModHandFileNames[g_NumModHandFileNames].filenum = tempItem.handfilenum;
+				g_NumModHandFileNames++;
+			}
+		}
+	}
+
+	s32 headBodyIndex = (replaceIndex >= 0) ? replaceIndex : (g_NumHeadsAndBodies - 1);
+
+	// Head-slot linking
+	if (slotInfo.slotNum >= 0) {
 		if (g_MpHeads == g_MpHeadsOriginal) {
 			struct mphead *new_array = malloc(g_NumMpHeads * sizeof(struct mphead));
 			if (new_array) {
@@ -953,29 +1018,23 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 		}
 
 		if (g_MpHeads != g_MpHeadsOriginal) {
-			if (slotNum >= g_NumMpHeads) {
+			if (slotInfo.slotNum >= g_NumMpHeads) {
 				s32 oldNum = g_NumMpHeads;
-				struct mphead *new_array = realloc(g_MpHeads, (slotNum + 1) * sizeof(struct mphead));
+				struct mphead *new_array = realloc(g_MpHeads, (slotInfo.slotNum + 1) * sizeof(struct mphead));
 				if (new_array) {
 					g_MpHeads = new_array;
-					g_NumMpHeads = slotNum + 1;
+					g_NumMpHeads = slotInfo.slotNum + 1;
 					memset(&g_MpHeads[oldNum], 0, (g_NumMpHeads - oldNum) * sizeof(struct mphead));
-					// sysLogPrintf(LOG_NOTE, "DEBUG: Expanded g_MpHeads from %d to %d for slotNum=%d", oldNum, g_NumMpHeads, slotNum);
-				} else {
-					// sysLogPrintf(LOG_ERROR, "DEBUG: Failed to expand g_MpHeads for slotNum=%d", slotNum);
 				}
 			}
 
-			if (slotNum < g_NumMpHeads) {
-				s32 headBodyIndex = (replaceIndex >= 0) ? replaceIndex : (g_NumHeadsAndBodies - 1);
-				g_MpHeads[slotNum].headnum = headBodyIndex;
-				g_MpHeads[slotNum].requirefeature = 0;
+			if (slotInfo.slotNum < g_NumMpHeads) {
+				g_MpHeads[slotInfo.slotNum].headnum = headBodyIndex;
+				g_MpHeads[slotInfo.slotNum].requirefeature = slotInfo.requireFeature;
 			}
 		}
-	} else if (replaceIndex < 0) {
-		// New entry with no explicit slot: auto-append to MpHeads.
-		// Lets a modconfig add heads to the selection menu without
-		// having to pick a free slot manually.
+	} else if (replaceIndex < 0 && slotInfo.bodySlotNum < 0) {
+		// New entry with no explicit slot and no body slot: auto-append to MpHeads.
 		if (g_MpHeads == g_MpHeadsOriginal) {
 			struct mphead *new_array = malloc(g_NumMpHeads * sizeof(struct mphead));
 			if (new_array) {
@@ -988,11 +1047,51 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 			struct mphead *new_array = realloc(g_MpHeads, (g_NumMpHeads + 1) * sizeof(struct mphead));
 			if (new_array) {
 				g_MpHeads = new_array;
-				g_MpHeads[g_NumMpHeads].headnum = g_NumHeadsAndBodies - 1;
-				g_MpHeads[g_NumMpHeads].requirefeature = 0;
+				g_MpHeads[g_NumMpHeads].headnum = headBodyIndex;
+				g_MpHeads[g_NumMpHeads].requirefeature = slotInfo.requireFeature;
 				g_NumMpHeads++;
 				sysLogPrintf(LOG_NOTE, "modconfig: auto-appended head '%s' to MpHeads[%d]",
 				             name, g_NumMpHeads - 1);
+			}
+		}
+	}
+
+	// Body-slot linking
+	if (slotInfo.bodySlotNum >= 0) {
+		// bodyslotnum 1 is a flag meaning "auto-assign next available slot"
+		s32 bodySlot = slotInfo.bodySlotNum;
+		if (bodySlot == 1) {
+			bodySlot = g_NumMpBodies;
+		}
+
+		if (g_MpBodies == g_MpBodiesOriginal) {
+			struct mpbody *new_array = malloc(g_NumMpBodies * sizeof(struct mpbody));
+			if (new_array) {
+				memcpy(new_array, g_MpBodiesOriginal, g_NumMpBodies * sizeof(struct mpbody));
+				g_MpBodies = new_array;
+			}
+		}
+
+		if (g_MpBodies != g_MpBodiesOriginal) {
+			if (bodySlot >= g_NumMpBodies) {
+				s32 oldNum = g_NumMpBodies;
+				struct mpbody *new_array = realloc(g_MpBodies, (bodySlot + 1) * sizeof(struct mpbody));
+				if (new_array) {
+					g_MpBodies = new_array;
+					g_NumMpBodies = bodySlot + 1;
+					memset(&g_MpBodies[oldNum], 0, (g_NumMpBodies - oldNum) * sizeof(struct mpbody));
+				}
+			}
+
+			if (bodySlot < g_NumMpBodies) {
+				g_MpBodies[bodySlot].bodynum = headBodyIndex;
+				g_MpBodies[bodySlot].requirefeature = slotInfo.requireFeature;
+				if (slotInfo.bodyName >= 0) {
+					g_MpBodies[bodySlot].name = slotInfo.bodyName;
+				}
+				if (slotInfo.bodyHeadNum >= 0) {
+					g_MpBodies[bodySlot].headnum = slotInfo.bodyHeadNum;
+				}
 			}
 		}
 	}
@@ -1572,13 +1671,26 @@ void modCacheAllConfigs(void)
 s32 modConfigLoad(const char *fname)
 {
 	u32 dataLen = 0;
+
+	// Resolve where this call will actually look. fsFullPath consults
+	// fsModFullPath, which probes modDirs[g_ModNum] first and falls
+	// back to other mod dirs — so a "not found" here is meaningful
+	// only when paired with the directory that was searched.
+	const char *resolvedPath = fsFullPath(fname);
+	const char *activeModDir = (g_ModNum >= 0 && g_ModNum < (s32)g_NumModDirs) ? modDirs[g_ModNum] : "(none)";
+	const char *activeModName = (g_ModNum >= 0 && g_ModNum < 64 && g_ModNames[g_ModNum][0]) ? g_ModNames[g_ModNum] : "(unnamed)";
+
 	char *data = fsFileLoad(fname, &dataLen);
 	if (!data) {
-		sysLogPrintf(LOG_NOTE, "modconfig: Failed to load '%s' for mod %d", fname, g_ModNum);
+		sysLogPrintf(LOG_NOTE,
+				"modconfig: probe miss for '%s' (g_ModNum=%d '%s' modDir='%s' resolved='%s') — "
+				"caller may try another mod dir",
+				fname, g_ModNum, activeModName, activeModDir, resolvedPath);
 		return false;
 	}
 
-	sysLogPrintf(LOG_NOTE, "modconfig: Successfully loaded '%s' (%u bytes) for mod %d", fname, dataLen, g_ModNum);
+	sysLogPrintf(LOG_NOTE, "modconfig: loaded '%s' (%u bytes) for mod %d '%s' from '%s'",
+			fname, dataLen, g_ModNum, activeModName, resolvedPath);
 
 	s32 modnum = g_ModNum;
 

@@ -340,6 +340,12 @@ void readModelTextures(const char *path, s16 fileNum, s32 *modelOffset, struct M
 		// no extension: skip
 		if (err) continue;
 
+		// Grow before write to avoid OOB at modelTex->textures[numTextures].
+		if (modelTex->numTextures >= MAX_TEX) {
+			MAX_TEX *= 2;
+			modelTex->textures = sysMemRealloc(modelTex->textures, MAX_TEX * sizeof(struct ExtTexture));
+		}
+
 		setTex(modelTex->textures, modelTex->numTextures, texNum, extension);
 
 		// Read PNG dimensions from file header
@@ -350,19 +356,14 @@ void readModelTextures(const char *path, s16 fileNum, s32 *modelOffset, struct M
 		modelTex->numTextures++;
 
 		// Also register as a general texture so head models (which use
-		// G_TEXTYPE_GENERAL via texWriteLoadToTmemAddr) can find them
-		if (texNum >= 0 && texNum < MAX_EXT_TEX) {
+		// G_TEXTYPE_GENERAL via texWriteLoadToTmemAddr) can find them.
+		// First-writer-wins: don't overwrite if already registered by another mod.
+		if (texNum >= 0 && texNum < MAX_EXT_TEX && extTextures[texNum].texnum < 0) {
 			setTex(extTextures, texNum, texNum, extension);
 			extTextures[texNum].width = modelTex->textures[modelTex->numTextures - 1].width;
 			extTextures[texNum].height = modelTex->textures[modelTex->numTextures - 1].height;
 			sysLogPrintf(LOG_NOTE, "readModelTextures: also registered texnum=%04x as GENERAL (%dx%d)", texNum,
 				extTextures[texNum].width, extTextures[texNum].height);
-		}
-
-		// allocate more memory for model textures if needed
-		if (modelTex->numTextures > MAX_TEX) {
-			MAX_TEX *= 2;
-			modelTex->textures = sysMemRealloc(modelTex->textures, MAX_TEX * sizeof(struct ExtTexture));
 		}
 	}
 	closedir(dr);

@@ -10,6 +10,7 @@
 
 extern u8 g_StageModFlags[256];
 extern char g_ModNames[64][64];
+extern s32 g_TexModNum;
 
 struct animtableentry;
 

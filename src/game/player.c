@@ -1676,7 +1676,7 @@ void playerTickChrBody(void)
 				// sysLogPrintf(LOG_NOTE, "DEBUG player.c: normmplay+8MB path headnum=%d bodynum=%d yoffset=%d", headnum, bodynum, g_HeadsAndBodies[headnum].yoffset);
 				g_HeadsAndBodies[headnum].modeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
 				headmodeldef = g_HeadsAndBodies[headnum].modeldef;
-				g_FileInfo[g_HeadsAndBodies[headnum].filenum].loadedsize = 0;
+				g_FileInfo[g_HeadsAndBodies[headnum].filenum & 0xFFFF].loadedsize = 0;
 				bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 			} else {
 				// sysLogPrintf(LOG_NOTE, "DEBUG player.c: else path headnum=%d bodynum=%d yoffset=%d", headnum, bodynum, g_HeadsAndBodies[headnum].yoffset);

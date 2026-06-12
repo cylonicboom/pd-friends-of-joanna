@@ -241,7 +241,7 @@ struct model *body0f02ce8c(s32 bodynum, s32 headnum, struct modeldef *bodymodeld
 						if (g_Vars.normmplayerisrunning && !IS4MB()) {
 							headmodeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);
 							g_HeadsAndBodies[headnum].modeldef = headmodeldef;
-							g_FileInfo[g_HeadsAndBodies[headnum].filenum].loadedsize = 0;
+							g_FileInfo[g_HeadsAndBodies[headnum].filenum & 0xFFFF].loadedsize = 0;
 							bodyCalculateHeadOffset(headmodeldef, headnum, bodynum);
 						} else {
 							headmodeldef = modeldefLoadToNew(g_HeadsAndBodies[headnum].filenum);

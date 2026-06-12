@@ -133,7 +133,8 @@ s32 loadingFileNum;
 enum loadsource {
 	SRC_UNLOADED = 0,
 	SRC_ROM,
-	SRC_EXTERNAL
+	SRC_EXTERNAL,
+	SRC_ALT_ROM,
 };
 
 struct romfilepatch {
@@ -577,10 +578,6 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 	             version, numFiles, numRomSources, ownerModIdx,
 	             isGlobal ? "global" : "per-mod");
 
-	if (isGlobal) {
-		romSourcesInit();
-	}
-
 	if (version >= 2) {
 		u8 fragRomIdxMap[256];
 		memset(fragRomIdxMap, 0xff, sizeof(fragRomIdxMap));
@@ -633,7 +630,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			}
 		}
 
-		if (isGlobal && g_NumRomSources > 0) {
+		if (g_NumRomSources > 0) {
 			romSourcesMount();
 		}
 
@@ -1153,6 +1150,8 @@ s32 romdataInit(void)
 		sysLogPrintf(LOG_NOTE, "File loading debugging enabled");
 	}
 
+	romSourcesInit();
+
 	const char *altRomName = sysArgGetString("--rom-file");
 	if (altRomName) {
 		romName = altRomName;
@@ -1572,6 +1571,43 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 			fileSlots[modNum][fileNum].numpatches = 0;
 		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d, g_NotLoadMod=%d)",
 			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+	}
+
+	// Try alternate-ROM data source if no loose file was found.
+	// Mod files baked into a custom z64 (e.g. gex.z64) are pointed at
+	// by g_FileAltSource[modIdx][localFileId] populated during PDFT v2/v3
+	// fragment parse. modNum 0 is the global/base table.
+	if (!out && fileNum >= 0 && fileNum < ROMDATA_MAX_FILES) {
+		s32 modSlot = (modNum >= 0 && modNum < MOD_TEX_MAP_MAX_MODS) ? modNum : 0;
+		struct romaltsource *as = &g_FileAltSource[modSlot][fileNum];
+		const char *asScope = "perMod";
+		if (as->romIdx == 0xff) {
+			as = &g_FileAltSource[0][fileNum];
+			asScope = "global";
+		}
+		sysLogPrintf(LOG_NOTE, "altRom lookup: modNum=%d fileNum=0x%x scope=%s romIdx=%u offset=0x%x size=%u comp=%u numRomSources=%u",
+			modNum, fileNum, asScope, as->romIdx, as->offset, as->size, as->compression, g_NumRomSources);
+		if (as->romIdx != 0xff && as->romIdx < g_NumRomSources) {
+			struct romsource *rs = &g_RomSources[as->romIdx];
+			sysLogPrintf(LOG_NOTE, "altRom rs: id=%s mounted=%d data=%p size=%u",
+				rs->id, rs->mounted, rs->data, rs->size);
+			if (rs->mounted && rs->data
+			    && (u64)as->offset + (u64)as->size <= (u64)rs->size) {
+				if (as->compression == 0) {
+					fileSlots[modNum][fileNum].data = rs->data + as->offset;
+					fileSlots[modNum][fileNum].size = as->size;
+					fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
+					fileSlots[modNum][fileNum].numpatches = 0;
+					out = fileSlots[modNum][fileNum].data;
+					sysLogPrintf(LOG_NOTE, "romdataFileLoad: file %d (%s) loaded from altRom '%s' at 0x%x (size=%u)",
+						fileNum, fileSlots[modNum][fileNum].name, rs->id, as->offset, as->size);
+				} else {
+					sysLogPrintf(LOG_WARNING,
+						"romdataFileLoad: file %d altRom compression=%u not implemented",
+						fileNum, as->compression);
+				}
+			}
+		}
 	}
 
 	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {

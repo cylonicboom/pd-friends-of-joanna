@@ -270,8 +270,9 @@ s32 fsInit(void)
 	sysLogPrintf(LOG_NOTE, "save dir: %s", saveDir);
 
 	if (numModDirs == 0) {
-		numModDirs = 1;
+		numModDirs = 2;
 		strcpy(modDirs[0], "$H/mods/mod_fojo");
+		strcpy(modDirs[1], "$H/mods/mod_gex_characters");
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
