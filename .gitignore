@@ -34,3 +34,6 @@ cmake-build-debug
 friends-of-joanna-v**
 .pdt.toml
 exported
+
+mod_**.json.bak*
+mod_gex_characters/textures
