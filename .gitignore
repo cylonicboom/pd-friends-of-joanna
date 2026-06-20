@@ -4,6 +4,7 @@
 *.exe
 export/
 pd.*.z64
+*.z64
 build
 .flatpak-builder
 extracted
@@ -32,3 +33,4 @@ cmake-build-debug
 .gdb_history
 friends-of-joanna-v**
 .pdt.toml
+exported

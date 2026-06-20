@@ -143,11 +143,7 @@ struct ExtTexture *getExtTexture(u8 type, u16 id, s32 texnum)
 u8 extTexExists(u8 type, u16 id, s32 texnum)
 {
 	struct ExtTexture *tex = getExtTexture(type, id, texnum);
-	u8 exists = tex && tex->texnum >= 0;
-	if (type == G_TEXTYPE_MODEL) {
-		// sysLogPrintf(LOG_NOTE, "extTexExists: type=MODEL id=%04x texnum=%04x => %s", id, texnum, exists ? "YES" : "NO");
-	}
-	return exists;
+	return tex && tex->texnum >= 0;
 }
 
 s8 extTexGetOwnerMod(u8 type, u16 id, s32 texnum)

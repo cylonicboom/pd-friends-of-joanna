@@ -53,7 +53,7 @@
 #error "This ROM version is unsupported."
 #endif
 
-#define ROMDATA_MAX_FILES 4096
+#define ROMDATA_MAX_FILES 8192
 
 #define GBC_ROM_NAME "pd.gbc"
 #define GBC_ROM_SIZE 4194304
@@ -217,6 +217,19 @@ u16 modTexMapLookup(s32 modIdx, u16 localTexId)
 		else hi = mid - 1;
 	}
 	return localTexId;
+}
+
+// Reverse lookup: portTexId -> localTexId. Linear scan since portTex space
+// is not sorted. Returns 0xffff if not found.
+u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId)
+{
+	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0xffff;
+	const struct modTexMap *m = &g_ModTexMap[modIdx];
+	if (!m->count || !m->entries) return 0xffff;
+	for (u32 i = 0; i < m->count; i++) {
+		if (m->entries[i].portTexId == portTexId) return m->entries[i].localTexId;
+	}
+	return 0xffff;
 }
 
 static void romSourcesInit(void)
@@ -1585,12 +1598,12 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 			as = &g_FileAltSource[0][fileNum];
 			asScope = "global";
 		}
-		sysLogPrintf(LOG_NOTE, "altRom lookup: modNum=%d fileNum=0x%x scope=%s romIdx=%u offset=0x%x size=%u comp=%u numRomSources=%u",
-			modNum, fileNum, asScope, as->romIdx, as->offset, as->size, as->compression, g_NumRomSources);
+		// sysLogPrintf(LOG_NOTE, "altRom lookup: modNum=%d fileNum=0x%x scope=%s romIdx=%u offset=0x%x size=%u comp=%u numRomSources=%u",
+		// 	modNum, fileNum, asScope, as->romIdx, as->offset, as->size, as->compression, g_NumRomSources);
 		if (as->romIdx != 0xff && as->romIdx < g_NumRomSources) {
 			struct romsource *rs = &g_RomSources[as->romIdx];
-			sysLogPrintf(LOG_NOTE, "altRom rs: id=%s mounted=%d data=%p size=%u",
-				rs->id, rs->mounted, rs->data, rs->size);
+			// sysLogPrintf(LOG_NOTE, "altRom rs: id=%s mounted=%d data=%p size=%u",
+			// 	rs->id, rs->mounted, rs->data, rs->size);
 			if (rs->mounted && rs->data
 			    && (u64)as->offset + (u64)as->size <= (u64)rs->size) {
 				if (as->compression == 0) {
@@ -1599,8 +1612,8 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 					fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
 					fileSlots[modNum][fileNum].numpatches = 0;
 					out = fileSlots[modNum][fileNum].data;
-					sysLogPrintf(LOG_NOTE, "romdataFileLoad: file %d (%s) loaded from altRom '%s' at 0x%x (size=%u)",
-						fileNum, fileSlots[modNum][fileNum].name, rs->id, as->offset, as->size);
+					// sysLogPrintf(LOG_NOTE, "romdataFileLoad: file %d (%s) loaded from altRom '%s' at 0x%x (size=%u)",
+					// 	fileNum, fileSlots[modNum][fileNum].name, rs->id, as->offset, as->size);
 				} else {
 					sysLogPrintf(LOG_WARNING,
 						"romdataFileLoad: file %d altRom compression=%u not implemented",
@@ -1639,9 +1652,9 @@ void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *o
 	}
 
 	loadingFileNum = fileNum;
-	const char *fname = (fileNum >= 1 && fileNum < ROMDATA_MAX_FILES) ? fileSlots[modNum][fileNum].name : "???";
-	sysLogPrintf(LOG_NOTE, "romdataFilePreprocess: fileNum=%04x modNum=%d name=%s loadType=%d size=%u",
-		fileNum, modNum, fname ? fname : "(null)", loadType, size);
+	// const char *fname = (fileNum >= 1 && fileNum < ROMDATA_MAX_FILES) ? fileSlots[modNum][fileNum].name : "???";
+	// sysLogPrintf(LOG_NOTE, "romdataFilePreprocess: fileNum=%04x modNum=%d name=%s loadType=%d size=%u",
+	// 	fileNum, modNum, fname ? fname : "(null)", loadType, size);
 	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) {
 		sysLogPrintf(LOG_ERROR, "romdataFilePreprocess: invalid file num %d", fileNum);
 		return;
@@ -1717,26 +1730,26 @@ s32 romdataFileGetNumForName(const char *name)
 
 s32 romdataFileGetNumForNameAnyMod(const char *name)
 {
-	printf("romdataFileGetNumForNameAnyMod: begin");
+	// printf("romdataFileGetNumForNameAnyMod: begin");
 	if (!name || !name[0]) {
-		printf("romdataFileGetNumForNameAnyMod: %s != %s, ret -1", name, name[0]);
+		// printf("romdataFileGetNumForNameAnyMod: %s != %s, ret -1", name, name[0]);
 		return -1;
 	}
 
 	for (s32 mod = 0; mod <= (s32)g_NumModDirs; ++mod) {
 		for (s32 i = 0; i < ROMDATA_MAX_FILES; ++i) {
 			if (fileSlots[mod][i].name) {
-				printf("romdataFileGetNumForNameAnyMod: checking %s (%x) in mod %x\n", fileSlots[mod][i].name, i, mod);
+				// printf("romdataFileGetNumForNameAnyMod: checking %s (%x) in mod %x\n", fileSlots[mod][i].name, i, mod);
 				// Exact match
 				if (!strcmp(fileSlots[mod][i].name, name)) {
-					printf("romdataFileGetNumForNameAnyMod: found %s (%x) in mod %s\n", fileSlots[mod][i].name, i, mod);
+					// printf("romdataFileGetNumForNameAnyMod: found %s (%x) in mod %s\n", fileSlots[mod][i].name, i, mod);
 					return i;
 				}
 				// Also match against basename for mod files
 				// (stored as "mod:modname::files/Filename")
 				const char *slash = strrchr(fileSlots[mod][i].name, '/');
-				if (slash)
-					printf("romdataFileGetNumForNameAnyMod: slash %s, slash+1 %s, name %s", slash, slash+1, name);
+				// if (slash)
+				// 	printf("romdataFileGetNumForNameAnyMod: slash %s, slash+1 %s, name %s", slash, slash+1, name);
 				if (slash && !strcmp(slash + 1, name)) {
 					return i;
 				}
@@ -1757,6 +1770,54 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 		return -1;
 	}
 
+	size_t searchLen = strlen(name);
+
+	const char *reqModName = NULL;
+	if (modNum >= 0 && (u32)modNum < g_NumModDirs && modDirs[modNum][0]) {
+		reqModName = strrchr(modDirs[modNum], '/');
+		if (reqModName) {
+			reqModName++;
+		} else {
+			reqModName = modDirs[modNum];
+		}
+	}
+
+	if (ftPoolUsed > 0) {
+		s32 id = ftLookup(name, (u32)searchLen + 1);
+		if (id >= 0 && id < ROMDATA_MAX_FILES) {
+			const char *entryPath = fileSlots[modNum][id].name;
+			if (entryPath && strncmp(entryPath, "mod:", 4) == 0 && reqModName) {
+				char prefix[128];
+				snprintf(prefix, sizeof(prefix), "mod:%s::", reqModName);
+				if (!strstr(entryPath, prefix)) {
+					id = -1;
+				}
+			}
+			if (id >= 0) {
+				return id;
+			}
+		}
+
+		const char *slash = strrchr(name, '/');
+		if (slash) {
+			u32 baseLen = (u32)(searchLen - (slash + 1 - name));
+			id = ftLookup(slash + 1, baseLen + 1);
+			if (id >= 0 && id < ROMDATA_MAX_FILES) {
+				const char *entryPath = fileSlots[modNum][id].name;
+				if (entryPath && strncmp(entryPath, "mod:", 4) == 0 && reqModName) {
+					char prefix[128];
+					snprintf(prefix, sizeof(prefix), "mod:%s::", reqModName);
+					if (!strstr(entryPath, prefix)) {
+						id = -1;
+					}
+				}
+				if (id >= 0) {
+					return id;
+				}
+			}
+		}
+	}
+
 	// Try to find in external file table first (supports separate name vs path)
 	if (externalFileTableData) {
 		u8 *data = externalFileTableData;
@@ -1764,7 +1825,6 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 		u32 version = PD_BE32(*(u32*)(data + 4));
 		u32 numFiles = PD_BE32(*(u32*)(data + 8));
 		u8 *p = data + 12;
-		size_t searchLen = strlen(name);
 
 		// Skip romSources block (v2+)
 		if (version >= 2) {

@@ -20,306 +20,6 @@
   ],
   "files": [
     {
-      "name": "CarmourguardZ",
-      "description": "armourguard; gex slot Cpres_securityZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cpres_securityZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cbaronsamedi2Z",
-      "description": "baronsamedi2; gex slot CdarksnowZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CdarksnowZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CbaronsamediZ",
-      "description": "baronsamedi; gex slot CddsniperZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CddsniperZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CbluecamguardZ",
-      "description": "bluecamguard; gex slot Cdd_shock_infZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cdd_shock_infZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CbluemanZ",
-      "description": "blueman; gex slot Ca51airmanZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Ca51airmanZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CbluewomanZ",
-      "description": "bluewoman; gex slot CfemlabtechZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CfemlabtechZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CboilerbondZ",
-      "description": "boilerbond; gex slot CoverallZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CoverallZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CboilertrevZ",
-      "description": "boilertrev; gex slot CtrentZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CtrentZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CborisZ",
-      "description": "boris; gex slot ClabtechZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "ClabtechZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcamguardZ",
-      "description": "camguard; gex slot Cofficeworker2Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cofficeworker2Z"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcardimanZ",
-      "description": "cardiman; gex slot Cnew1-------Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cnew1-------Z"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcardimanZ",
-      "description": "cardiman; gex slot Cpresident_cloneZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cpresident_cloneZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcardimanZ",
-      "description": "cardiman; gex slot CtestchrZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CtestchrZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcheckmanZ",
-      "description": "checkman; gex slot CfbiguyZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CfbiguyZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcisoldierZ",
-      "description": "gex slot CcisoldierZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CcisoldierZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CcommguardZ",
-      "description": "commguard; gex slot CcilabtechZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CcilabtechZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cconnery2Z",
-      "description": "connery2; gex slot CconneryZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CconneryZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cdalton2Z",
-      "description": "dalton2; gex slot CdaltonZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CdaltonZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cdark_combatZ",
-      "description": "gex slot Cdark_combatZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cdark_combatZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cdark_leatherZ",
-      "description": "gex slot Cdark_leatherZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cdark_leatherZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CddshockZ",
-      "description": "gex slot CddshockZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CddshockZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cdjbond2Z",
-      "description": "djbond2; gex slot CdjbondZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CdjbondZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CelfZ",
-      "description": "elf; gex slot Cdark_frockZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cdark_frockZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CeltonwaistcoatZ",
-      "description": "eltonwaistcoat; gex slot CelviswaistcoatZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CelviswaistcoatZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CelvisZ",
-      "description": "gex slot CelvisZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CelvisZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CfattechwomanZ",
-      "description": "fattechwoman; gex slot CstewardessZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CstewardessZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cgreatguard2Z",
-      "description": "greatguard2; gex slot Cdd_guardZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cdd_guardZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CgreatguardZ",
-      "description": "greatguard; gex slot Cdd_secguardZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cdd_secguardZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CgreyguardZ",
-      "description": "greyguard; gex slot CjonathonZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CjonathonZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CgreymanZ",
-      "description": "greyman; gex slot CciaguyZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CciaguyZ"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "CheadalanZ",
       "description": "alan; gex slot CheaddavecZ",
       "source": {
@@ -376,16 +76,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadgrahamZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cheadbrosnan2Z",
-      "description": "brosnan2; gex slot Ca51faceplateZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Ca51faceplateZ"
       },
       "prefix": "cs only"
     },
@@ -540,46 +230,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "CheaddwayneZ",
-      "description": "dwayne; gex slot Cnew2------Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cnew2------Z"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheaddwayneZ",
-      "description": "dwayne; gex slot Cnew3-----Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cnew3-----Z"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheaddwayneZ",
-      "description": "dwayne; gex slot Cnew4-----Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cnew4-----Z"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheaddwayneZ",
-      "description": "dwayne; gex slot Cnew5----Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cnew5----Z"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "CheadelfZ",
       "description": "elf; gex slot CheadbrianZ",
       "source": {
@@ -706,16 +356,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadjonesZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "Cheadkarl2Z",
-      "description": "karl2; gex slot Cnew6-------Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cnew6-------Z"
       },
       "prefix": "cs only"
     },
@@ -1046,6 +686,362 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadcassandraZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CarmourguardZ",
+      "description": "armourguard; gex slot Cpres_securityZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cpres_securityZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cbaronsamedi2Z",
+      "description": "baronsamedi2; gex slot CdarksnowZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CdarksnowZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CbaronsamediZ",
+      "description": "baronsamedi; gex slot CddsniperZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CddsniperZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CbluecamguardZ",
+      "description": "bluecamguard; gex slot Cdd_shock_infZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cdd_shock_infZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CbluemanZ",
+      "description": "blueman; gex slot Ca51airmanZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Ca51airmanZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CbluewomanZ",
+      "description": "bluewoman; gex slot CfemlabtechZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CfemlabtechZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CboilerbondZ",
+      "description": "boilerbond; gex slot CoverallZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CoverallZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CboilertrevZ",
+      "description": "boilertrev; gex slot CtrentZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CtrentZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CborisZ",
+      "description": "boris; gex slot ClabtechZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "ClabtechZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcamguardZ",
+      "description": "camguard; gex slot Cofficeworker2Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cofficeworker2Z"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcardimanZ",
+      "description": "cardiman; gex slot Cnew1-------Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cnew1-------Z"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcardimanZ",
+      "description": "cardiman; gex slot Cpresident_cloneZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cpresident_cloneZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcardimanZ",
+      "description": "cardiman; gex slot CtestchrZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CtestchrZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcheckmanZ",
+      "description": "checkman; gex slot CfbiguyZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CfbiguyZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcisoldierZ",
+      "description": "gex slot CcisoldierZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CcisoldierZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CcommguardZ",
+      "description": "commguard; gex slot CcilabtechZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CcilabtechZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cconnery2Z",
+      "description": "connery2; gex slot CconneryZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CconneryZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cdalton2Z",
+      "description": "dalton2; gex slot CdaltonZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CdaltonZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cdark_combatZ",
+      "description": "gex slot Cdark_combatZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cdark_combatZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cdark_leatherZ",
+      "description": "gex slot Cdark_leatherZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cdark_leatherZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CddshockZ",
+      "description": "gex slot CddshockZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CddshockZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cdjbond2Z",
+      "description": "djbond2; gex slot CdjbondZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CdjbondZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CelfZ",
+      "description": "elf; gex slot Cdark_frockZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cdark_frockZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CeltonwaistcoatZ",
+      "description": "eltonwaistcoat; gex slot CelviswaistcoatZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CelviswaistcoatZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CelvisZ",
+      "description": "gex slot CelvisZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CelvisZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CfattechwomanZ",
+      "description": "fattechwoman; gex slot CstewardessZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CstewardessZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cgreatguard2Z",
+      "description": "greatguard2; gex slot Cdd_guardZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cdd_guardZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CgreatguardZ",
+      "description": "greatguard; gex slot Cdd_secguardZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cdd_secguardZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CgreyguardZ",
+      "description": "greyguard; gex slot CjonathonZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CjonathonZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CgreymanZ",
+      "description": "greyman; gex slot CciaguyZ",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "CciaguyZ"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cheadbrosnan2Z",
+      "path": "files/Cheadbrosnan2Z",
+      "description": "brosnan2 (loose AIO model)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheaddwayneZ",
+      "description": "dwayne; gex slot Cnew2------Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cnew2------Z"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheaddwayneZ",
+      "description": "dwayne; gex slot Cnew3-----Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cnew3-----Z"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheaddwayneZ",
+      "description": "dwayne; gex slot Cnew4-----Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cnew4-----Z"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheaddwayneZ",
+      "description": "dwayne; gex slot Cnew5----Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cnew5----Z"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cheadkarl2Z",
+      "description": "karl2; gex slot Cnew6-------Z",
+      "source": {
+        "rom": "gex",
+        "lookup": "byName",
+        "alias": "Cnew6-------Z"
       },
       "prefix": "cs only"
     },
@@ -1610,27 +1606,153 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_0001.bin",
-      "description": "used by elf, oddjob, suitbond",
-      "type": "texture",
-      "textureId": "0x0001",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0001"
-      },
+      "name": "CheadbrosnanZ",
+      "path": "files/CheadbrosnanZ",
+      "description": "brosnan (loose AIO model, not in gex.z64)",
       "prefix": "cs only"
     },
     {
-      "name": "gex_0045.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0045",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0045"
-      },
+      "name": "CheaddonkeyZ",
+      "path": "files/CheaddonkeyZ",
+      "description": "donkey (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheadgaloreZ",
+      "path": "files/CheadgaloreZ",
+      "description": "galore (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheadmooreZ",
+      "path": "files/CheadmooreZ",
+      "description": "moore (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheadmrkaneZ",
+      "path": "files/CheadmrkaneZ",
+      "description": "mrkane (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheadparisZ",
+      "path": "files/CheadparisZ",
+      "description": "paris (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CheadsogunZ",
+      "path": "files/CheadsogunZ",
+      "description": "sogun (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CbondalpsZ",
+      "path": "files/CbondalpsZ",
+      "description": "bondalps (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CbondranchZ",
+      "path": "files/CbondranchZ",
+      "description": "bondranch (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ccarroll2Z",
+      "path": "files/Ccarroll2Z",
+      "description": "carroll2 (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ccarroll3Z",
+      "path": "files/Ccarroll3Z",
+      "description": "carroll3 (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CgaloreplaneZ",
+      "path": "files/CgaloreplaneZ",
+      "description": "galoreplane (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CgaloreranchZ",
+      "path": "files/CgaloreranchZ",
+      "description": "galoreranch (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cnatalya_elfZ",
+      "path": "files/Cnatalya_elfZ",
+      "description": "natalya_elf (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cnatalya_xmasZ",
+      "path": "files/Cnatalya_xmasZ",
+      "description": "natalya_xmas (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Cskedar2Z",
+      "path": "files/Cskedar2Z",
+      "description": "skedar2 (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "CsoguntronZ",
+      "path": "files/CsoguntronZ",
+      "description": "soguntron (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_blue_suitZ",
+      "path": "files/Ghand_blue_suitZ",
+      "description": "Ghand_blue_suit (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_bondalpsZ",
+      "path": "files/Ghand_bondalpsZ",
+      "description": "Ghand_bondalps (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_bondranchZ",
+      "path": "files/Ghand_bondranchZ",
+      "description": "Ghand_bondranch (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_bondwhiteZ",
+      "path": "files/Ghand_bondwhiteZ",
+      "description": "Ghand_bondwhite (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_bondZ",
+      "path": "files/Ghand_bondZ",
+      "description": "Ghand_bond (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_carollZ",
+      "path": "files/Ghand_carollZ",
+      "description": "Ghand_caroll (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_skedarZ",
+      "path": "files/Ghand_skedarZ",
+      "description": "Ghand_skedar (loose AIO model, not in gex.z64)",
+      "prefix": "cs only"
+    },
+    {
+      "name": "Ghand_soguntronZ",
+      "path": "files/Ghand_soguntronZ",
+      "description": "Ghand_soguntron (loose AIO model, not in gex.z64)",
       "prefix": "cs only"
     },
     {
@@ -1658,90 +1780,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_0116.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0116",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0116"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_01e7.bin",
-      "description": "used by CelvisZ",
-      "type": "texture",
-      "textureId": "0x01e7",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x01e7"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_01e8.bin",
-      "description": "used by CelvisZ",
-      "type": "texture",
-      "textureId": "0x01e8",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x01e8"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_01e9.bin",
-      "description": "used by CelvisZ",
-      "type": "texture",
-      "textureId": "0x01e9",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x01e9"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_01ea.bin",
-      "description": "used by CelvisZ",
-      "type": "texture",
-      "textureId": "0x01ea",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x01ea"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_01ee.bin",
-      "description": "used by CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x01ee",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x01ee"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0246.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0246",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0246"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_0283.bin",
       "description": "used by boris, santa",
       "type": "texture",
@@ -1754,494 +1792,14 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_02f2.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f2",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f2"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f3.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f3",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f3"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f4.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f4",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f4"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f5.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f5",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f5"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f6.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f6",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f6"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f7.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f7",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f7"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f8.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f8",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f8"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02f9.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02f9",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02f9"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02fa.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02fa",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02fa"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02fb.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02fb",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02fb"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02fc.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02fc",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02fc"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02fd.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02fd",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02fd"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02fe.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02fe",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02fe"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_02ff.bin",
-      "description": "used by CcisoldierZ, Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x02ff",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x02ff"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0300.bin",
-      "description": "used by Cdark_combatZ, Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0300",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0300"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0301.bin",
-      "description": "used by CcisoldierZ, Cdark_combatZ, CddshockZ",
-      "type": "texture",
-      "textureId": "0x0301",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0301"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0302.bin",
-      "description": "used by CcisoldierZ, Cdark_combatZ, CddshockZ",
-      "type": "texture",
-      "textureId": "0x0302",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0302"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0303.bin",
-      "description": "used by Cdark_combatZ, CddshockZ",
-      "type": "texture",
-      "textureId": "0x0303",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0303"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0304.bin",
-      "description": "used by CcisoldierZ, Cdark_combatZ, CddshockZ",
-      "type": "texture",
-      "textureId": "0x0304",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0304"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0305.bin",
-      "description": "used by CcisoldierZ, Cdark_combatZ, CddshockZ",
-      "type": "texture",
-      "textureId": "0x0305",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0305"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0306.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0306",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0306"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0307.bin",
-      "description": "used by Cdark_combatZ, Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0307",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0307"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0308.bin",
-      "description": "used by dalton2, djbond2, moore2",
-      "type": "texture",
-      "textureId": "0x0308",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0308"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0309.bin",
-      "description": "used by Cdark_leatherZ, djbond2",
-      "type": "texture",
-      "textureId": "0x0309",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0309"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_030a.bin",
-      "description": "used by Cdark_leatherZ, armourguard, bluecamguard, blueman, boilerbond, boilertrev, boris, camguard, cardiman, checkman, commguard, connery2, dalton2, djbond2, elf, greatguard, greatguard2, greyguard, greyman, jaws, lazenby, moonguard, moore2, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, suitbond, techman, timberbond, trevelyan, trevguard, valentin",
-      "type": "texture",
-      "textureId": "0x030a",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x030a"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_030b.bin",
-      "description": "used by Cdark_leatherZ, armourguard, bluecamguard, blueman, boilerbond, boilertrev, boris, camguard, cardiman, checkman, commguard, connery2, dalton2, djbond2, elf, greatguard, greatguard2, greyguard, greyman, jaws, lazenby, moonguard, moore2, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, suitbond, techman, timberbond, trevelyan, trevguard, valentin",
-      "type": "texture",
-      "textureId": "0x030b",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x030b"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_030c.bin",
-      "description": "used by Cdark_leatherZ, armourguard, bluecamguard, blueman, boilerbond, boilertrev, boris, camguard, cardiman, checkman, commguard, connery2, dalton2, djbond2, elf, greatguard, greatguard2, greyguard, greyman, jaws, lazenby, moonguard, moore2, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, suitbond, techman, timberbond, trevelyan, trevguard, valentin",
-      "type": "texture",
-      "textureId": "0x030c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x030c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_030d.bin",
-      "description": "used by Cdark_leatherZ, armourguard, bluecamguard, blueman, boilerbond, boilertrev, boris, camguard, cardiman, checkman, commguard, connery2, dalton2, djbond2, elf, greatguard, greatguard2, greyguard, greyman, jaws, lazenby, moonguard, moore2, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, suitbond, techman, timberbond, trevelyan, trevguard, valentin",
-      "type": "texture",
-      "textureId": "0x030d",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x030d"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_030e.bin",
-      "description": "used by Cdark_leatherZ, armourguard, bluecamguard, blueman, boilerbond, boris, camguard, cardiman, checkman, commguard, connery2, dalton2, djbond2, elf, greatguard, greatguard2, greyguard, greyman, jaws, lazenby, moonguard, moore2, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, suitbond, techman, timberbond, trevguard, valentin",
-      "type": "texture",
-      "textureId": "0x030e",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x030e"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_030f.bin",
-      "description": "used by Cdark_leatherZ, dalton2, djbond2, lazenby, mishkin, moore2",
-      "type": "texture",
-      "textureId": "0x030f",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x030f"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0310.bin",
-      "description": "used by Cdark_leatherZ, djbond2",
-      "type": "texture",
-      "textureId": "0x0310",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0310"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_0311.bin",
-      "description": "used by Cdark_leatherZ, connery2, dalton2, djbond2, greatguard, greatguard2, greyguard, jaws, lazenby, moore2",
+      "description": "used by greatguard2, greyguard, jaws",
       "type": "texture",
       "textureId": "0x0311",
       "source": {
         "rom": "gex",
         "lookup": "byId",
         "id": "0x0311"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0312.bin",
-      "description": "used by djbond2",
-      "type": "texture",
-      "textureId": "0x0312",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0312"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0313.bin",
-      "description": "used by Cdark_leatherZ, connery2, dalton2, djbond2, lazenby, moore2",
-      "type": "texture",
-      "textureId": "0x0313",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0313"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0314.bin",
-      "description": "used by connery2",
-      "type": "texture",
-      "textureId": "0x0314",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0314"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0315.bin",
-      "description": "used by connery2",
-      "type": "texture",
-      "textureId": "0x0315",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0315"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0316.bin",
-      "description": "used by connery2",
-      "type": "texture",
-      "textureId": "0x0316",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0316"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0317.bin",
-      "description": "used by connery2",
-      "type": "texture",
-      "textureId": "0x0317",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0317"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0318.bin",
-      "description": "used by connery2",
-      "type": "texture",
-      "textureId": "0x0318",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0318"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0319.bin",
-      "description": "used by connery2",
-      "type": "texture",
-      "textureId": "0x0319",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0319"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_031a.bin",
-      "description": "used by dalton2",
-      "type": "texture",
-      "textureId": "0x031a",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x031a"
       },
       "prefix": "cs only"
     },
@@ -2258,218 +1816,14 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_031d.bin",
-      "description": "used by moore2",
-      "type": "texture",
-      "textureId": "0x031d",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x031d"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_031e.bin",
-      "description": "used by Cdark_leatherZ, lazenby",
-      "type": "texture",
-      "textureId": "0x031e",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x031e"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_031f.bin",
-      "description": "used by Cdark_leatherZ",
-      "type": "texture",
-      "textureId": "0x031f",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x031f"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0320.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0320",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0320"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0321.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0321",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0321"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0322.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0322",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0322"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0330.bin",
-      "description": "used by CddshockZ, CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0330",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0330"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0331.bin",
-      "description": "used by CddshockZ, CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0331",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0331"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0332.bin",
-      "description": "used by CddshockZ, CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0332",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0332"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0333.bin",
-      "description": "used by CddshockZ, CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0333",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0333"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0334.bin",
-      "description": "used by CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0334",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0334"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0335.bin",
-      "description": "used by CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0335",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0335"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0336.bin",
-      "description": "used by CddshockZ, CheadddshockZ",
-      "type": "texture",
-      "textureId": "0x0336",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0336"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0337.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0337",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0337"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_0338.bin",
-      "description": "used by CddshockZ, natalya, suitbond, trevelyan",
+      "description": "used by natalya, suitbond, trevelyan",
       "type": "texture",
       "textureId": "0x0338",
       "source": {
         "rom": "gex",
         "lookup": "byId",
         "id": "0x0338"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0339.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0339",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0339"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_033c.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x033c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x033c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0343.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0343",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0343"
       },
       "prefix": "cs only"
     },
@@ -2758,270 +2112,6 @@
         "rom": "gex",
         "lookup": "byId",
         "id": "0x0373"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0374.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0374",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0374"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0375.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0375",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0375"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0376.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0376",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0376"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0377.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0377",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0377"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0378.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0378",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0378"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0379.bin",
-      "description": "used by CddshockZ",
-      "type": "texture",
-      "textureId": "0x0379",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0379"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_03cb.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x03cb",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x03cb"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_03f4.bin",
-      "description": "used by blackstealth, bluecamguard, boris, brown, camguard, checkman, commguard, galoreranch, greyman, mayday, mishkin, moonguard, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, stpguard, trevelyan, xenia",
-      "type": "texture",
-      "textureId": "0x03f4",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x03f4"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_040c.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x040c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x040c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_040d.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x040d",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x040d"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_040e.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x040e",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x040e"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_040f.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x040f",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x040f"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0410.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0410",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0410"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0411.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0411",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0411"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0412.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0412",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0412"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0413.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0413",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0413"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0414.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0414",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0414"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0415.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0415",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0415"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0416.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0416",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0416"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0417.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0417",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0417"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0419.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0419",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0419"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_041a.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x041a",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x041a"
       },
       "prefix": "cs only"
     },
@@ -3890,18 +2980,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_04c5.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x04c5",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x04c5"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_04c7.bin",
       "description": "used by navyguard",
       "type": "texture",
@@ -4082,18 +3160,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_04d9.bin",
-      "description": "used by oliveguard",
-      "type": "texture",
-      "textureId": "0x04d9",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x04d9"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_04da.bin",
       "description": "used by camguard",
       "type": "texture",
@@ -4167,7 +3233,7 @@
     },
     {
       "name": "gex_04e0.bin",
-      "description": "used by bluecamguard, camguard, commguard, navyguard, ourumov, rusguard",
+      "description": "used by bluecamguard, camguard, commguard, ourumov, rusguard",
       "type": "texture",
       "textureId": "0x04e0",
       "source": {
@@ -4911,7 +3977,7 @@
     },
     {
       "name": "gex_054b.bin",
-      "description": "used by brosnan2, suitbond",
+      "description": "used by suitbond",
       "type": "texture",
       "textureId": "0x054b",
       "source": {
@@ -5074,78 +4140,6 @@
         "rom": "gex",
         "lookup": "byId",
         "id": "0x0558"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_055b.bin",
-      "description": "used by CheadelvisZ",
-      "type": "texture",
-      "textureId": "0x055b",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x055b"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_055c.bin",
-      "description": "used by CheadelvisZ",
-      "type": "texture",
-      "textureId": "0x055c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x055c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_055d.bin",
-      "description": "used by CheadcarringtonZ",
-      "type": "texture",
-      "textureId": "0x055d",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x055d"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_055e.bin",
-      "description": "used by CheadcarringtonZ",
-      "type": "texture",
-      "textureId": "0x055e",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x055e"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_055f.bin",
-      "description": "used by CheadcarringtonZ",
-      "type": "texture",
-      "textureId": "0x055f",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x055f"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0560.bin",
-      "description": "used by CheadcarringtonZ",
-      "type": "texture",
-      "textureId": "0x0560",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0560"
       },
       "prefix": "cs only"
     },
@@ -5331,7 +4325,7 @@
     },
     {
       "name": "gex_057e.bin",
-      "description": "used by Cheadduncan2Z, baronsamedi",
+      "description": "used by baronsamedi",
       "type": "texture",
       "textureId": "0x057e",
       "source": {
@@ -5343,7 +4337,7 @@
     },
     {
       "name": "gex_057f.bin",
-      "description": "used by Cheadduncan2Z, baronsamedi",
+      "description": "used by baronsamedi",
       "type": "texture",
       "textureId": "0x057f",
       "source": {
@@ -5355,7 +4349,7 @@
     },
     {
       "name": "gex_0580.bin",
-      "description": "used by Cheadduncan2Z, baronsamedi",
+      "description": "used by baronsamedi",
       "type": "texture",
       "textureId": "0x0580",
       "source": {
@@ -5631,7 +4625,7 @@
     },
     {
       "name": "gex_05b3.bin",
-      "description": "used by Cheadduncan2Z, baronsamedi, baronsamedi2",
+      "description": "used by baronsamedi, baronsamedi2",
       "type": "texture",
       "textureId": "0x05b3",
       "source": {
@@ -5979,7 +4973,7 @@
     },
     {
       "name": "gex_05d6.bin",
-      "description": "used by armourguard, pilot, trevguard",
+      "description": "used by armourguard",
       "type": "texture",
       "textureId": "0x05d6",
       "source": {
@@ -6206,30 +5200,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_05ff.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x05ff",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x05ff"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0602.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0602",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0602"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_074e.bin",
       "description": "used by santa",
       "type": "texture",
@@ -6363,7 +5333,7 @@
     },
     {
       "name": "gex_0769.bin",
-      "description": "used by CheadstevemZ, ourumov",
+      "description": "used by ourumov",
       "type": "texture",
       "textureId": "0x0769",
       "source": {
@@ -6411,7 +5381,7 @@
     },
     {
       "name": "gex_076d.bin",
-      "description": "used by CheadmotoZ, CheadstevemZ, ourumov",
+      "description": "used by ourumov",
       "type": "texture",
       "textureId": "0x076d",
       "source": {
@@ -6842,42 +5812,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_07a1.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x07a1",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x07a1"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_07a2.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x07a2",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x07a2"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_07a3.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x07a3",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x07a3"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_07a6.bin",
       "description": "used by baronsamedi2",
       "type": "texture",
@@ -7054,18 +5988,6 @@
         "rom": "gex",
         "lookup": "byId",
         "id": "0x07b4"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_07f3.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x07f3",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x07f3"
       },
       "prefix": "cs only"
     },
@@ -7478,198 +6400,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_081b.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x081b",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x081b"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_081c.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x081c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x081c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_081d.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x081d",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x081d"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_081e.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x081e",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x081e"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_081f.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x081f",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x081f"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0820.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0820",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0820"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0821.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0821",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0821"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0822.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0822",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0822"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0823.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0823",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0823"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0824.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0824",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0824"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0825.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0825",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0825"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0826.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0826",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0826"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0827.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0827",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0827"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0828.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0828",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0828"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0829.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x0829",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0829"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_082a.bin",
-      "description": "used by CcisoldierZ",
-      "type": "texture",
-      "textureId": "0x082a",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x082a"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_082b.bin",
       "description": "used by joel0",
       "type": "texture",
@@ -7851,157 +6581,13 @@
     },
     {
       "name": "gex_098f.bin",
-      "description": "used by CheadcarringtonZ, CheadmotoZ, brosnan2, chris, chris2, jaws",
+      "description": "used by brosnan2, chris, chris2",
       "type": "texture",
       "textureId": "0x098f",
       "source": {
         "rom": "gex",
         "lookup": "byId",
         "id": "0x098f"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0990.bin",
-      "description": "used by blackstealth, bluecamguard, boris, brown, camguard, checkman, commguard, galoreranch, greyman, mayday, mishkin, moonguard, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, stpguard, trevelyan",
-      "type": "texture",
-      "textureId": "0x0990",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0990"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0991.bin",
-      "description": "used by blackstealth, bluecamguard, boris, brown, camguard, checkman, commguard, galoreranch, greyman, mayday, mishkin, moonguard, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, stpguard, trevelyan, xenia",
-      "type": "texture",
-      "textureId": "0x0991",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0991"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0992.bin",
-      "description": "used by blackstealth, bluecamguard, boris, brown, camguard, checkman, commguard, galoreranch, greyman, mayday, mishkin, moonguard, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, stpguard, trevelyan",
-      "type": "texture",
-      "textureId": "0x0992",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0992"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a71.bin",
-      "description": "used by Cheaddark_combatZ",
-      "type": "texture",
-      "textureId": "0x0a71",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a71"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a77.bin",
-      "description": "used by blackstealth, bluecamguard, brown, camguard, checkman, commguard, galoreranch, greyman, mishkin, moonguard, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, santa, snowguard, stpguard, trevelyan, xenia",
-      "type": "texture",
-      "textureId": "0x0a77",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a77"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a78.bin",
-      "description": "used by blackstealth, bluecamguard, brown, camguard, checkman, commguard, elf, galoreranch, greyman, mishkin, moonguard, navyguard, oddjob, oliveguard, ourumov, pilot, redman, rusguard, samedi, samedi2, santa, snowguard, stpguard, trevelyan, xenia",
-      "type": "texture",
-      "textureId": "0x0a78",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a78"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a79.bin",
-      "description": "used by santa, snowguard",
-      "type": "texture",
-      "textureId": "0x0a79",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a79"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a7a.bin",
-      "description": "used by santa, snowguard",
-      "type": "texture",
-      "textureId": "0x0a7a",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a7a"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a7b.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x0a7b",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a7b"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a7c.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x0a7c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a7c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a7d.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x0a7d",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a7d"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0a7e.bin",
-      "description": "used by CheadjonathanZ",
-      "type": "texture",
-      "textureId": "0x0a7e",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0a7e"
       },
       "prefix": "cs only"
     },
@@ -8146,30 +6732,6 @@
         "rom": "gex",
         "lookup": "byId",
         "id": "0x0ab6"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0ab7.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0ab7",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0ab7"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0ab8.bin",
-      "description": "used by eltonwaistcoat",
-      "type": "texture",
-      "textureId": "0x0ab8",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0ab8"
       },
       "prefix": "cs only"
     },
@@ -8319,7 +6881,7 @@
     },
     {
       "name": "gex_0ac9.bin",
-      "description": "used by CheadmotoZ, brosnan2",
+      "description": "used by brosnan2",
       "type": "texture",
       "textureId": "0x0ac9",
       "source": {
@@ -8331,7 +6893,7 @@
     },
     {
       "name": "gex_0aca.bin",
-      "description": "used by CheadmotoZ, brosnan2",
+      "description": "used by brosnan2",
       "type": "texture",
       "textureId": "0x0aca",
       "source": {
@@ -8343,7 +6905,7 @@
     },
     {
       "name": "gex_0acb.bin",
-      "description": "used by CheadmotoZ, brosnan2",
+      "description": "used by brosnan2",
       "type": "texture",
       "textureId": "0x0acb",
       "source": {
@@ -8355,7 +6917,7 @@
     },
     {
       "name": "gex_0ad0.bin",
-      "description": "used by CheadstevemZ, ourumov",
+      "description": "used by ourumov",
       "type": "texture",
       "textureId": "0x0ad0",
       "source": {
@@ -8367,7 +6929,7 @@
     },
     {
       "name": "gex_0ad1.bin",
-      "description": "used by CheadstevemZ, ourumov",
+      "description": "used by ourumov",
       "type": "texture",
       "textureId": "0x0ad1",
       "source": {
@@ -8379,7 +6941,7 @@
     },
     {
       "name": "gex_0ad2.bin",
-      "description": "used by CheadstevemZ, ourumov",
+      "description": "used by ourumov",
       "type": "texture",
       "textureId": "0x0ad2",
       "source": {
@@ -8391,7 +6953,7 @@
     },
     {
       "name": "gex_0ad3.bin",
-      "description": "used by CheadstevemZ, ourumov",
+      "description": "used by ourumov",
       "type": "texture",
       "textureId": "0x0ad3",
       "source": {
@@ -8450,186 +7012,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_0ba1.bin",
-      "description": "used by elf, samedi, samedi2",
-      "type": "texture",
-      "textureId": "0x0ba1",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0ba1"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0c1b.bin",
-      "description": "used by elf, samedi, samedi2",
-      "type": "texture",
-      "textureId": "0x0c1b",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0c1b"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0c1c.bin",
-      "description": "used by elf, samedi, samedi2",
-      "type": "texture",
-      "textureId": "0x0c1c",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0c1c"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb0.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb0",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb0"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb1.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb1",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb1"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb2.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb2",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb2"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb3.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb3",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb3"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb4.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb4",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb4"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb5.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb5",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb5"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb6.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb6",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb6"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb7.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb7",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb7"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb8.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb8",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb8"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cb9.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cb9",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cb9"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cba.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cba",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cba"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0cbb.bin",
-      "description": "used by Cdark_combatZ",
-      "type": "texture",
-      "textureId": "0x0cbb",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0cbb"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_0cf5.bin",
       "description": "used by boris",
       "type": "texture",
@@ -8679,7 +7061,7 @@
     },
     {
       "name": "gex_0d17.bin",
-      "description": "used by CheadddsniperZ, karl2",
+      "description": "used by karl2",
       "type": "texture",
       "textureId": "0x0d17",
       "source": {
@@ -8858,42 +7240,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "gex_0d31.bin",
-      "description": "used by CheadpennyZ",
-      "type": "texture",
-      "textureId": "0x0d31",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0d31"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0d32.bin",
-      "description": "used by CheadpennyZ",
-      "type": "texture",
-      "textureId": "0x0d32",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0d32"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "gex_0d33.bin",
-      "description": "used by CheadpennyZ",
-      "type": "texture",
-      "textureId": "0x0d33",
-      "source": {
-        "rom": "gex",
-        "lookup": "byId",
-        "id": "0x0d33"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "gex_0d35.bin",
       "description": "used by pete",
       "type": "texture",
@@ -9051,7 +7397,7 @@
     },
     {
       "name": "gex_0d44.bin",
-      "description": "used by CheadpennyZ, alan",
+      "description": "used by alan",
       "type": "texture",
       "textureId": "0x0d44",
       "source": {
@@ -9555,7 +7901,7 @@
     },
     {
       "name": "gex_0d9c.bin",
-      "description": "used by CheadddsniperZ, karl, karl2",
+      "description": "used by karl, karl2",
       "type": "texture",
       "textureId": "0x0d9c",
       "source": {
@@ -9567,7 +7913,7 @@
     },
     {
       "name": "gex_0d9d.bin",
-      "description": "used by CheadddsniperZ, karl, karl2",
+      "description": "used by karl, karl2",
       "type": "texture",
       "textureId": "0x0d9d",
       "source": {
@@ -9579,7 +7925,7 @@
     },
     {
       "name": "gex_0d9e.bin",
-      "description": "used by CheadddsniperZ, greatguard2, karl, karl2",
+      "description": "used by karl, karl2",
       "type": "texture",
       "textureId": "0x0d9e",
       "source": {
@@ -9591,7 +7937,7 @@
     },
     {
       "name": "gex_0d9f.bin",
-      "description": "used by CheadddsniperZ, karl, karl2",
+      "description": "used by karl, karl2",
       "type": "texture",
       "textureId": "0x0d9f",
       "source": {
@@ -9602,159 +7948,807 @@
       "prefix": "cs only"
     },
     {
-      "name": "CbondalpsZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CbondalpsZ",
+      "name": "0daf.bin",
+      "path": "textures/0daf.bin",
+      "description": "used by natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0daf",
       "prefix": "cs only"
     },
     {
-      "name": "CbondranchZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CbondranchZ",
+      "name": "0db0.bin",
+      "path": "textures/0db0.bin",
+      "description": "used by natalya_elf",
+      "type": "texture",
+      "textureId": "0x0db0",
       "prefix": "cs only"
     },
     {
-      "name": "Ccarroll2Z",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ccarroll2Z",
+      "name": "0db1.bin",
+      "path": "textures/0db1.bin",
+      "description": "used by natalya_elf",
+      "type": "texture",
+      "textureId": "0x0db1",
       "prefix": "cs only"
     },
     {
-      "name": "Ccarroll3Z",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ccarroll3Z",
+      "name": "0db2.bin",
+      "path": "textures/0db2.bin",
+      "description": "used by natalya_elf",
+      "type": "texture",
+      "textureId": "0x0db2",
       "prefix": "cs only"
     },
     {
-      "name": "CgaloreplaneZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CgaloreplaneZ",
+      "name": "0db3.bin",
+      "path": "textures/0db3.bin",
+      "description": "used by natalya_elf",
+      "type": "texture",
+      "textureId": "0x0db3",
       "prefix": "cs only"
     },
     {
-      "name": "CgaloreranchZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CgaloreranchZ",
+      "name": "0db4.bin",
+      "path": "textures/0db4.bin",
+      "description": "used by natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0db4",
       "prefix": "cs only"
     },
     {
-      "name": "CheadbrosnanZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadbrosnanZ",
+      "name": "0db5.bin",
+      "path": "textures/0db5.bin",
+      "description": "used by galoreplane, galoreranch, natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0db5",
       "prefix": "cs only"
     },
     {
-      "name": "CheaddonkeyZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheaddonkeyZ",
+      "name": "0db6.bin",
+      "path": "textures/0db6.bin",
+      "description": "used by galoreplane, galoreranch, natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0db6",
       "prefix": "cs only"
     },
     {
-      "name": "CheadgaloreZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadgaloreZ",
+      "name": "0db7.bin",
+      "path": "textures/0db7.bin",
+      "description": "used by natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0db7",
       "prefix": "cs only"
     },
     {
-      "name": "CheadgreyZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadgreyZ",
+      "name": "0db8.bin",
+      "path": "textures/0db8.bin",
+      "description": "used by galoreplane, galoreranch, natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0db8",
       "prefix": "cs only"
     },
     {
-      "name": "CheadmooreZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadmooreZ",
+      "name": "0db9.bin",
+      "path": "textures/0db9.bin",
+      "description": "used by galoreplane, galoreranch, natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0db9",
       "prefix": "cs only"
     },
     {
-      "name": "CheadmrkaneZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadmrkaneZ",
+      "name": "0dba.bin",
+      "path": "textures/0dba.bin",
+      "description": "used by natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0dba",
       "prefix": "cs only"
     },
     {
-      "name": "CheadparisZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadparisZ",
+      "name": "0dbb.bin",
+      "path": "textures/0dbb.bin",
+      "description": "used by natalya_elf",
+      "type": "texture",
+      "textureId": "0x0dbb",
       "prefix": "cs only"
     },
     {
-      "name": "CheadsogunZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CheadsogunZ",
+      "name": "0dbc.bin",
+      "path": "textures/0dbc.bin",
+      "description": "used by natalya_elf",
+      "type": "texture",
+      "textureId": "0x0dbc",
       "prefix": "cs only"
     },
     {
-      "name": "Cnatalya_elfZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Cnatalya_elfZ",
+      "name": "0dbd.bin",
+      "path": "textures/0dbd.bin",
+      "description": "used by natalya_elf, natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0dbd",
       "prefix": "cs only"
     },
     {
-      "name": "Cnatalya_xmasZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Cnatalya_xmasZ",
+      "name": "0dea.bin",
+      "path": "textures/0dea.bin",
+      "description": "used by galoreplane, galoreranch",
+      "type": "texture",
+      "textureId": "0x0dea",
       "prefix": "cs only"
     },
     {
-      "name": "Cskedar2Z",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Cskedar2Z",
+      "name": "0ead.bin",
+      "path": "textures/0ead.bin",
+      "description": "used by natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0ead",
       "prefix": "cs only"
     },
     {
-      "name": "CsoguntronZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/CsoguntronZ",
+      "name": "0eaf.bin",
+      "path": "textures/0eaf.bin",
+      "description": "used by natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0eaf",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_blue_suitZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_blue_suitZ",
+      "name": "0eb0.bin",
+      "path": "textures/0eb0.bin",
+      "description": "used by natalya_xmas",
+      "type": "texture",
+      "textureId": "0x0eb0",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_bondZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_bondZ",
+      "name": "0e1a.bin",
+      "path": "textures/0e1a.bin",
+      "description": "used by head_brosnan2",
+      "type": "texture",
+      "textureId": "0x0e1a",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_bondalpsZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_bondalpsZ",
+      "name": "0e1b.bin",
+      "path": "textures/0e1b.bin",
+      "description": "used by head_brosnan2",
+      "type": "texture",
+      "textureId": "0x0e1b",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_bondranchZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_bondranchZ",
+      "name": "0e1c.bin",
+      "path": "textures/0e1c.bin",
+      "description": "used by head_brosnan2",
+      "type": "texture",
+      "textureId": "0x0e1c",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_bondwhiteZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_bondwhiteZ",
+      "name": "0e1d.bin",
+      "path": "textures/0e1d.bin",
+      "description": "used by head_brosnan2",
+      "type": "texture",
+      "textureId": "0x0e1d",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_carollZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_carollZ",
+      "name": "0fa5.bin",
+      "path": "textures/0fa5.bin",
+      "description": "used by bondalps",
+      "type": "texture",
+      "textureId": "0x0fa5",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_skedarZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_skedarZ",
+      "name": "0fa6.bin",
+      "path": "textures/0fa6.bin",
+      "description": "used by bondalps",
+      "type": "texture",
+      "textureId": "0x0fa6",
       "prefix": "cs only"
     },
     {
-      "name": "Ghand_soguntronZ",
-      "description": "loose file copied from AIO mod_allinone",
-      "path": "files/Ghand_soguntronZ",
+      "name": "0fa7.bin",
+      "path": "textures/0fa7.bin",
+      "description": "used by bondalps",
+      "type": "texture",
+      "textureId": "0x0fa7",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fa8.bin",
+      "path": "textures/0fa8.bin",
+      "description": "used by bondalps",
+      "type": "texture",
+      "textureId": "0x0fa8",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fa9.bin",
+      "path": "textures/0fa9.bin",
+      "description": "used by bondalps",
+      "type": "texture",
+      "textureId": "0x0fa9",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0faa.bin",
+      "path": "textures/0faa.bin",
+      "description": "used by bondalps",
+      "type": "texture",
+      "textureId": "0x0faa",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fab.bin",
+      "path": "textures/0fab.bin",
+      "description": "used by galore",
+      "type": "texture",
+      "textureId": "0x0fab",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fac.bin",
+      "path": "textures/0fac.bin",
+      "description": "used by galore",
+      "type": "texture",
+      "textureId": "0x0fac",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fad.bin",
+      "path": "textures/0fad.bin",
+      "description": "used by galore",
+      "type": "texture",
+      "textureId": "0x0fad",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fae.bin",
+      "path": "textures/0fae.bin",
+      "description": "used by galore",
+      "type": "texture",
+      "textureId": "0x0fae",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0faf.bin",
+      "path": "textures/0faf.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0faf",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb0.bin",
+      "path": "textures/0fb0.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb0",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb1.bin",
+      "path": "textures/0fb1.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb1",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb2.bin",
+      "path": "textures/0fb2.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb2",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb3.bin",
+      "path": "textures/0fb3.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb3",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb4.bin",
+      "path": "textures/0fb4.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb4",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb5.bin",
+      "path": "textures/0fb5.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb5",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fb6.bin",
+      "path": "textures/0fb6.bin",
+      "description": "used by galoreplane",
+      "type": "texture",
+      "textureId": "0x0fb6",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fbe.bin",
+      "path": "textures/0fbe.bin",
+      "description": "used by bondranch",
+      "type": "texture",
+      "textureId": "0x0fbe",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fbf.bin",
+      "path": "textures/0fbf.bin",
+      "description": "used by bondranch",
+      "type": "texture",
+      "textureId": "0x0fbf",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc0.bin",
+      "path": "textures/0fc0.bin",
+      "description": "used by bondranch",
+      "type": "texture",
+      "textureId": "0x0fc0",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc1.bin",
+      "path": "textures/0fc1.bin",
+      "description": "used by bondranch",
+      "type": "texture",
+      "textureId": "0x0fc1",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc2.bin",
+      "path": "textures/0fc2.bin",
+      "description": "used by bondranch",
+      "type": "texture",
+      "textureId": "0x0fc2",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc3.bin",
+      "path": "textures/0fc3.bin",
+      "description": "used by bondranch",
+      "type": "texture",
+      "textureId": "0x0fc3",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc4.bin",
+      "path": "textures/0fc4.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fc4",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc5.bin",
+      "path": "textures/0fc5.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fc5",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc6.bin",
+      "path": "textures/0fc6.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fc6",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc7.bin",
+      "path": "textures/0fc7.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fc7",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc8.bin",
+      "path": "textures/0fc8.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fc8",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fc9.bin",
+      "path": "textures/0fc9.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fc9",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fca.bin",
+      "path": "textures/0fca.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fca",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fcb.bin",
+      "path": "textures/0fcb.bin",
+      "description": "used by galoreranch",
+      "type": "texture",
+      "textureId": "0x0fcb",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fcd.bin",
+      "path": "textures/0fcd.bin",
+      "description": "used by sogun",
+      "type": "texture",
+      "textureId": "0x0fcd",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fce.bin",
+      "path": "textures/0fce.bin",
+      "description": "used by sogun",
+      "type": "texture",
+      "textureId": "0x0fce",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fcf.bin",
+      "path": "textures/0fcf.bin",
+      "description": "used by mrkane",
+      "type": "texture",
+      "textureId": "0x0fcf",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fd0.bin",
+      "path": "textures/0fd0.bin",
+      "description": "used by mrkane",
+      "type": "texture",
+      "textureId": "0x0fd0",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fd1.bin",
+      "path": "textures/0fd1.bin",
+      "description": "used by mrkane",
+      "type": "texture",
+      "textureId": "0x0fd1",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fdc.bin",
+      "path": "textures/0fdc.bin",
+      "description": "used by sogun",
+      "type": "texture",
+      "textureId": "0x0fdc",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fdd.bin",
+      "path": "textures/0fdd.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fdd",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fde.bin",
+      "path": "textures/0fde.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fde",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fdf.bin",
+      "path": "textures/0fdf.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fdf",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe0.bin",
+      "path": "textures/0fe0.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe0",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe1.bin",
+      "path": "textures/0fe1.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe1",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe2.bin",
+      "path": "textures/0fe2.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe2",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe3.bin",
+      "path": "textures/0fe3.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe3",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe4.bin",
+      "path": "textures/0fe4.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe4",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe5.bin",
+      "path": "textures/0fe5.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe5",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe6.bin",
+      "path": "textures/0fe6.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe6",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe7.bin",
+      "path": "textures/0fe7.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe7",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe8.bin",
+      "path": "textures/0fe8.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe8",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fe9.bin",
+      "path": "textures/0fe9.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fe9",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fea.bin",
+      "path": "textures/0fea.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fea",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0feb.bin",
+      "path": "textures/0feb.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0feb",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fec.bin",
+      "path": "textures/0fec.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fec",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fed.bin",
+      "path": "textures/0fed.bin",
+      "description": "used by soguntron",
+      "type": "texture",
+      "textureId": "0x0fed",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ff7.bin",
+      "path": "textures/0ff7.bin",
+      "description": "used by paris",
+      "type": "texture",
+      "textureId": "0x0ff7",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ff8.bin",
+      "path": "textures/0ff8.bin",
+      "description": "used by paris",
+      "type": "texture",
+      "textureId": "0x0ff8",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ff9.bin",
+      "path": "textures/0ff9.bin",
+      "description": "used by paris",
+      "type": "texture",
+      "textureId": "0x0ff9",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ffa.bin",
+      "path": "textures/0ffa.bin",
+      "description": "used by paris",
+      "type": "texture",
+      "textureId": "0x0ffa",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ffc.bin",
+      "path": "textures/0ffc.bin",
+      "description": "used by donkey",
+      "type": "texture",
+      "textureId": "0x0ffc",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ffd.bin",
+      "path": "textures/0ffd.bin",
+      "description": "used by donkey",
+      "type": "texture",
+      "textureId": "0x0ffd",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fbd.bin",
+      "path": "textures/0fbd.bin",
+      "description": "used by Ghand_blue_suit",
+      "type": "texture",
+      "textureId": "0x0fbd",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fd2.bin",
+      "path": "textures/0fd2.bin",
+      "description": "used by Ghand_bondranch",
+      "type": "texture",
+      "textureId": "0x0fd2",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fd3.bin",
+      "path": "textures/0fd3.bin",
+      "description": "used by Ghand_bondalps",
+      "type": "texture",
+      "textureId": "0x0fd3",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fee.bin",
+      "path": "textures/0fee.bin",
+      "description": "used by Ghand_soguntron",
+      "type": "texture",
+      "textureId": "0x0fee",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0fef.bin",
+      "path": "textures/0fef.bin",
+      "description": "used by Ghand_soguntron",
+      "type": "texture",
+      "textureId": "0x0fef",
+      "prefix": "cs only"
+    },
+    {
+      "name": "0ff0.bin",
+      "path": "textures/0ff0.bin",
+      "description": "used by Ghand_soguntron",
+      "type": "texture",
+      "textureId": "0x0ff0",
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_055d.bin",
+      "description": "used by head_brosnan",
+      "type": "texture",
+      "textureId": "0x055d",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x055d"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_055e.bin",
+      "description": "used by head_brosnan",
+      "type": "texture",
+      "textureId": "0x055e",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x055e"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_055f.bin",
+      "description": "used by head_brosnan",
+      "type": "texture",
+      "textureId": "0x055f",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x055f"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_0560.bin",
+      "description": "used by head_brosnan",
+      "type": "texture",
+      "textureId": "0x0560",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0560"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_0d31.bin",
+      "description": "used by head_moore",
+      "type": "texture",
+      "textureId": "0x0d31",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0d31"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_0d32.bin",
+      "description": "used by head_moore",
+      "type": "texture",
+      "textureId": "0x0d32",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0d32"
+      },
+      "prefix": "cs only"
+    },
+    {
+      "name": "gex_0d33.bin",
+      "description": "used by head_moore",
+      "type": "texture",
+      "textureId": "0x0d33",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0d33"
+      },
       "prefix": "cs only"
     }
   ]

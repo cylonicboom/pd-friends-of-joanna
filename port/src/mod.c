@@ -889,6 +889,28 @@ s32 modLookupBodyByName(const char *name)
 	return -1;
 }
 
+// Reverse lookup: given a HeadsAndBodies array index (the value stored in
+// g_MpHeads[i].headnum or g_MpBodies[i].bodynum), return the matching
+// name string from the vanilla or mod-registered name tables. Returns NULL
+// if no name is registered for that slot.
+const char *modGetNameForHeadBodyIndex(s32 headBodyIndex)
+{
+	if (headBodyIndex < 0) {
+		return NULL;
+	}
+	for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
+		if (g_VanillaHeadNames[i].id == headBodyIndex) {
+			return g_VanillaHeadNames[i].name;
+		}
+	}
+	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+		if (g_ModHeadNames[i].id == headBodyIndex) {
+			return g_ModHeadNames[i].name;
+		}
+	}
+	return NULL;
+}
+
 static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 {
 	struct headorbody tempItem;
@@ -1061,7 +1083,17 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 		// bodyslotnum 1 is a flag meaning "auto-assign next available slot"
 		s32 bodySlot = slotInfo.bodySlotNum;
 		if (bodySlot == 1) {
-			bodySlot = g_NumMpBodies;
+			// If a body slot already references this headBodyIndex (e.g. the
+			// modconfig has been re-parsed), update that slot in place instead
+			// of allocating a duplicate.
+			s32 existingSlot = -1;
+			for (s32 i = 0; i < g_NumMpBodies; ++i) {
+				if (g_MpBodies[i].bodynum == headBodyIndex) {
+					existingSlot = i;
+					break;
+				}
+			}
+			bodySlot = (existingSlot >= 0) ? existingSlot : g_NumMpBodies;
 		}
 
 		if (g_MpBodies == g_MpBodiesOriginal) {
@@ -1682,10 +1714,10 @@ s32 modConfigLoad(const char *fname)
 
 	char *data = fsFileLoad(fname, &dataLen);
 	if (!data) {
-		sysLogPrintf(LOG_NOTE,
+		/* sysLogPrintf(LOG_NOTE,
 				"modconfig: probe miss for '%s' (g_ModNum=%d '%s' modDir='%s' resolved='%s') — "
 				"caller may try another mod dir",
-				fname, g_ModNum, activeModName, activeModDir, resolvedPath);
+				fname, g_ModNum, activeModName, activeModDir, resolvedPath); */
 		return false;
 	}
 
@@ -1827,63 +1859,139 @@ s32 modConfigLoad(const char *fname)
 	return success;
 }
 
+// Derive a short texture-name prefix from the mod directory name.
+// E.g. "$H/mods/mod_gex_characters" -> "gex". Returns NULL if not derivable.
+static const char *modGetTexPrefix(s32 modNum, char *buf, size_t bufSize)
+{
+	if (modNum < 0 || (u32)modNum >= g_NumModDirs || !modDirs[modNum][0]) {
+		return NULL;
+	}
+	const char *slash = strrchr(modDirs[modNum], '/');
+	const char *base = slash ? slash + 1 : modDirs[modNum];
+	if (strncmp(base, "mod_", 4) != 0) {
+		return NULL;
+	}
+	base += 4;
+	size_t i = 0;
+	while (base[i] && base[i] != '_' && i + 1 < bufSize) {
+		buf[i] = base[i];
+		++i;
+	}
+	if (i == 0) {
+		return NULL;
+	}
+	buf[i] = '\0';
+	return buf;
+}
+
 s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 {
-	// Try to load via romdata (filetable) first to respect context.
-	// We need to look up the file ID by name because texture IDs don't match file IDs directly.
+	// Only attempt mod texture loading when we have an explicit model-level mod context
+	// (g_TexModNum is set by modeldef during a mod-owned model's load/process). Without
+	// this gate, vanilla model loads would probe mod filetables and accidentally pick up
+	// mod overrides for unrelated texture IDs.
+	if (g_TexModNum < 0) {
+		return 0;
+	}
+
+	s32 modNum = g_TexModNum;
+
+	// Try filetable lookup. Texture entries can be named either bare ("0104.bin")
+	// or with a short mod prefix ("gex_0104.bin"); accept both forms.
+	char prefixBuf[32];
+	const char *prefix = modGetTexPrefix(modNum, prefixBuf, sizeof(prefixBuf));
 	char name[64];
 	snprintf(name, sizeof(name), "%04x.bin", num);
+	s32 fileNum = romdataFileGetNumForNameInMod(name, modNum);
+	if (fileNum <= 0 && prefix) {
+		char altName[80];
+		snprintf(altName, sizeof(altName), "%s_%04x.bin", prefix, num);
+		fileNum = romdataFileGetNumForNameInMod(altName, modNum);
+	}
 
-	s32 fileNum = romdataFileGetNumForNameInMod(name, g_ModNum);
-	// sysLogPrintf(LOG_NOTE, "modTextureLoad: tex=%04x name=%s fileNum=%d modNum=%d", num, name, fileNum, g_ModNum);
+	if (fileNum <= 0 && num >= NUM_TEXTURES) {
+		extern u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
+		u16 local = modTexMapReverseLookup(modNum, num);
+		if (local != 0xffff && local != num) {
+			snprintf(name, sizeof(name), "%04x.bin", local);
+			fileNum = romdataFileGetNumForNameInMod(name, modNum);
+			if (fileNum <= 0 && prefix) {
+				char altName[80];
+				snprintf(altName, sizeof(altName), "%s_%04x.bin", prefix, local);
+				fileNum = romdataFileGetNumForNameInMod(altName, modNum);
+			}
+		}
+	}
+
+	// DIAG: probe trace (disabled — re-enable to see which tex IDs are missed)
+	{
+		static u8 s_modTexSeen[64][512]; // 64 mods * 4096 tex / 8
+		if ((u32)modNum < 64 && num < 4096) {
+			u32 byte = num >> 3;
+			u32 bit = 1u << (num & 7);
+			if ((s_modTexSeen[modNum][byte] & bit) == 0) {
+				s_modTexSeen[modNum][byte] |= bit;
+				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PROBE: tex=0x%04x modNum=%d fileNum=0x%x", num, modNum, fileNum); */
+			}
+		}
+	}
 
 	if (fileNum > 0) {
-		DEBUG_MODELS("modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, g_ModNum);
+		DEBUG_MODELS("modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, modNum);
 		u32 size = 0;
-		u8 *data = romdataFileLoad(fileNum, &size);
+		s32 encodedFileNum = fileNum | (modNum << 16);
+		u8 *data = romdataFileLoad(encodedFileNum, &size);
+
 
 		if (data) {
 			// If the data is pointing to the ROM, we can let the game's default DMA handler
 			// take care of it (return 0). This avoids unnecessary memcpy and keeps vanilla behavior.
 			if (data >= g_RomFile && data < g_RomFile + g_RomFileSize) {
-				// It's a ROM pointer, so no external replacement was found/loaded.
-				// sysLogPrintf(LOG_NOTE, "modTextureLoad: tex=%04x ROM pointer, using vanilla", num);
+				if (num >= 0x1010 && num <= 0x1023) {
+					/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x ROM-pointer, returning 0 (DMA fallback)", num); */
+				}
 				return 0;
 			}
 
-			// It's external data
+			if (num >= 0x1010 && num <= 0x1023) {
+				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x size=%u dstSize=%u data=%p", num, size, dstSize, data); */
+			}
+
+			// It's external (or alt-rom) data
 			if (size <= dstSize) {
 				memcpy(dst, data, size);
-				// Free the data from romdata cache.
-				// If it was external, it frees memory and resets to SRC_UNLOADED.
-				romdataFileFree(fileNum);
+				romdataFileFree(encodedFileNum);
 				return size;
 			} else {
 				sysLogPrintf(LOG_ERROR, "mod: texture %04x (file %d) too large for buffer (%d > %d)", num, fileNum, size, dstSize);
-				romdataFileFree(fileNum);
+				romdataFileFree(encodedFileNum);
 				return 0;
 			}
 		} else {
-			// File is in filetable but romdataFileLoad returned NULL.
-			// sysLogPrintf(LOG_NOTE, "modTextureLoad: tex=%04x fileNum=%d romdataFileLoad returned NULL", num, fileNum);
+			if (num >= 0x1010 && num <= 0x1023) {
+				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x fileNum=0x%x romdataFileLoad returned NULL", num, fileNum); */
+			}
 			return 0;
 		}
 	}
 
-	// Fallback to manual path lookup for IDs not in the filetable
-	// (e.g. custom textures with high IDs that were not added to filetable.json)
-	char path[FS_MAXPATH + 1];
-	snprintf(path, sizeof(path), MOD_TEXTURES_DIR "/%04x.bin", num);
-
-	// fsFileLoadTo calls fsFullPath, which calls fsModFullPath
-	// fsModFullPath now checks all mods if not found in current mod
-	const s32 ret = fsFileLoadTo(path, dst, dstSize);
-
-	if (ret > 0) {
-		sysLogPrintf(LOG_NOTE, "mod: loaded external texture %04x, path: %s", num, path);
+	if (num >= 0x1010 && num <= 0x1023) {
+		/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE MISS: tex=0x%04x no fileNum found", num); */
 	}
 
-	return ret;
+	// Fallback to a loose file on disk under the active mod's textures dir.
+	// Scoped to g_TexModNum so we don't pull from unrelated mods.
+	if ((u32)modNum < g_NumModDirs && modDirs[modNum][0]) {
+		char path[FS_MAXPATH + 1];
+		snprintf(path, sizeof(path), "%s/" MOD_TEXTURES_DIR "/%04x.bin", modDirs[modNum], num);
+		const s32 ret = fsFileLoadTo(path, dst, dstSize);
+		if (ret > 0) {
+			sysLogPrintf(LOG_NOTE, "mod: loaded external texture %04x from mod %d", num, modNum);
+			return ret;
+		}
+	}
+
+	return 0;
 }void *modSequenceLoad(u16 num, u32 *outSize)
 {
 	static s32 dirExists = -1;

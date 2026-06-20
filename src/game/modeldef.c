@@ -27,6 +27,7 @@
 
 #ifndef PLATFORM_N64
 #include "mod.h"
+#include "romdata.h"
 #endif
 
 struct skeleton *g_Skeletons[] = {
@@ -214,18 +215,16 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 
 	modelPromoteTypeToPointer(modeldef);
 	modelPromoteOffsetsToPointers(modeldef, 0x5000000, (uintptr_t) modeldef);
-	modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
 
-	// PDFT v3 texconfig remap: rewrite mod-local texture IDs to the
-	// engine-allocated port slots. Embedded textures (where promote
-	// rewrote the field into a real pointer) are detected by value
-	// >= NUM_TEXTURES and skipped.
+#ifndef PLATFORM_N64
 	{
 		extern u16 modTexMapLookup(s32 modIdx, u16 localTexId);
 		s32 modIdx = (fileid >> 16) & 0xff;
-		if (modeldef->texconfigs && modeldef->numtexconfigs > 0) {
+
+		if (modIdx > 0 && modeldef->texconfigs && modeldef->numtexconfigs > 0) {
 			struct textureconfig *tc = modeldef->texconfigs;
-			for (s32 i = 0; i < modeldef->numtexconfigs; ++i) {
+			s32 numtc = modeldef->numtexconfigs;
+			for (s32 i = 0; i < numtc; ++i) {
 				uintptr_t v = (uintptr_t)tc[i].texturenum;
 				if (v < NUM_TEXTURES) {
 					u16 mapped = modTexMapLookup(modIdx, (u16)v);
@@ -236,6 +235,9 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 			}
 		}
 	}
+#endif
+
+	modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
 
 	return modeldef;
 }

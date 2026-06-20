@@ -12,6 +12,7 @@
 
 #ifndef PLATFORM_N64
 #include "ext_tex.h"
+#include "system.h"
 #include <string.h>
 #endif
 
@@ -505,7 +506,19 @@ Gfx *texWriteLoadToTmemAddr(Gfx *gdl, struct tex *tex, s32 tmemoffset)
 
 	texGetDepthAndSize(tex, &depth, &len);
 
+#ifndef PLATFORM_N64
+	{
+		extern s32 g_TexModNum;
+		s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, tex->texturenum);
+		if (owner < 0 || owner == g_TexModNum) {
+			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, 0, tex->texturenum, 0);
+		} else {
+			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_NONE, 0, 0, 0);
+		}
+	}
+#else
 	gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, 0, tex->texturenum, 0);
+#endif
 
 	if (tex->lutmodeindex == 0) {
 		gDPSetTextureImage(gdl++, tex->gbiformat, depth, 1, tex->data);
@@ -849,16 +862,20 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 			static u8 extTexStubData1[8192];
 			if (tex1 == NULL && texturenum >= NUM_TEXTURES
 					&& extTexExists(G_TEXTYPE_GENERAL, 0, texturenum)) {
-				u16 extW = 32, extH = 32;
-				extTexGetDimensions(G_TEXTYPE_GENERAL, 0, texturenum, &extW, &extH);
-				memset(&extTexStub1, 0, sizeof(extTexStub1));
-				extTexStub1.texturenum = texturenum;
-				extTexStub1.data = extTexStubData1;
-				extTexStub1.width = (u8)extW;
-				extTexStub1.height = (u8)extH;
-				extTexStub1.numlods = 1;
-				extTexStub1.depth = G_IM_SIZ_16b;
-				tex1 = &extTexStub1;
+				extern s32 g_TexModNum;
+				s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, texturenum);
+				if (owner < 0 || owner == g_TexModNum) {
+					u16 extW = 32, extH = 32;
+					extTexGetDimensions(G_TEXTYPE_GENERAL, 0, texturenum, &extW, &extH);
+					memset(&extTexStub1, 0, sizeof(extTexStub1));
+					extTexStub1.texturenum = texturenum;
+					extTexStub1.data = extTexStubData1;
+					extTexStub1.width = (u8)extW;
+					extTexStub1.height = (u8)extH;
+					extTexStub1.numlods = 1;
+					extTexStub1.depth = G_IM_SIZ_16b;
+					tex1 = &extTexStub1;
+				}
 			}
 #endif
 
@@ -894,16 +911,20 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 					static u8 extTexStubData2[8192];
 					if (tex2 == NULL && texturenum2 >= NUM_TEXTURES
 							&& extTexExists(G_TEXTYPE_GENERAL, 0, texturenum2)) {
-						u16 extW2 = 32, extH2 = 32;
-						extTexGetDimensions(G_TEXTYPE_GENERAL, 0, texturenum2, &extW2, &extH2);
-						memset(&extTexStub2, 0, sizeof(extTexStub2));
-						extTexStub2.texturenum = texturenum2;
-						extTexStub2.data = extTexStubData2;
-						extTexStub2.width = (u8)extW2;
-						extTexStub2.height = (u8)extH2;
-						extTexStub2.numlods = 1;
-						extTexStub2.depth = G_IM_SIZ_16b;
-						tex2 = &extTexStub2;
+						extern s32 g_TexModNum;
+						s8 owner2 = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, texturenum2);
+						if (owner2 < 0 || owner2 == g_TexModNum) {
+							u16 extW2 = 32, extH2 = 32;
+							extTexGetDimensions(G_TEXTYPE_GENERAL, 0, texturenum2, &extW2, &extH2);
+							memset(&extTexStub2, 0, sizeof(extTexStub2));
+							extTexStub2.texturenum = texturenum2;
+							extTexStub2.data = extTexStubData2;
+							extTexStub2.width = (u8)extW2;
+							extTexStub2.height = (u8)extH2;
+							extTexStub2.numlods = 1;
+							extTexStub2.depth = G_IM_SIZ_16b;
+							tex2 = &extTexStub2;
+						}
 					}
 #endif
 

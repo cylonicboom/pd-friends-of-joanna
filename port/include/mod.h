@@ -36,4 +36,5 @@ s32 modLookupHeadByName(const char *name);
 s32 modLookupBodyByName(const char *name);
 s32 modLookupHandFileByName(const char *name);
 s32 modLookupHeadnumByName(const char *name);
+const char *modGetNameForHeadBodyIndex(s32 headBodyIndex);
 #endif

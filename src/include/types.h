@@ -6094,6 +6094,10 @@ struct tex {
 	/*0x0c*/ u32 lutmodeindex : 2;
 	/*0x0c*/ u32 hasloddata : 1;
 	/*0x0c*/ u32 unk0c_03 : 1;
+#ifndef PLATFORM_N64
+	/*0x0c*/ u32 modnum : 8;     // mod owner (0 = vanilla). Disambiguates cache hits
+	                              // when a mod and vanilla share a texturenum.
+#endif
 #ifdef PLATFORM_N64
 	/*0x0c*/ u32 next : 24;
 #else

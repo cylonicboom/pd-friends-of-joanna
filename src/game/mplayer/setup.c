@@ -18,6 +18,7 @@
 #include "bss.h"
 #include "lib/snd.h"
 #include "lib/vi.h"
+#include "mod.h"
 #include "lib/rng.h"
 #include "lib/str.h"
 #include "lib/joy.h"
@@ -40,6 +41,7 @@ extern struct menudialogdef g_ManageSettingsDialog;
 extern struct menudialogdef g_FilemgrFileSavedMenuDialog;
 extern struct menudialogdef g_FilemgrErrorMenuDialog;
 extern struct menudialogdef g_TeamMissionsOperativeModelMenuDialog;
+extern const s32 g_NumMpHeads_Original;
 
 #ifndef PLATFORM_N64
 extern s32 g_MpWeaponSetNum;
@@ -765,6 +767,47 @@ MenuItemHandlerResult func0f179d6c(s32 operation, struct menuitem *item, union h
 	return 0;
 }
 
+static s32 mpCharacterFindMpheadnumByHeadnum(s32 headnum)
+{
+	for (s32 i = 0; i < g_NumMpHeads; i++) {
+		if (g_MpHeads[i].headnum == headnum) {
+			return i;
+		}
+	}
+
+	return 0;
+}
+
+static s32 mpCharacterGetSafePreviewMpheadnum(s32 mpheadnum, s32 mpbodynum)
+{
+	s32 headnum;
+	s32 bodynum;
+
+	if (mpheadnum >= 0 && mpheadnum < g_NumMpHeads_Original) {
+		return mpheadnum;
+	}
+
+	if (mpbodynum < 0 || mpbodynum >= g_NumMpBodies) {
+		return 0;
+	}
+
+	headnum = g_MpBodies[mpbodynum].headnum;
+
+	if (headnum == 1000) {
+		// Avoid mpGetMpheadnumByMpbodynum here: it randomizes when body head is
+		// 1000, which makes the preview swap heads every tick.
+		bodynum = g_MpBodies[mpbodynum].bodynum;
+
+		if (bodynum >= 0 && bodynum < g_NumHeadsAndBodies && g_HeadsAndBodies[bodynum].ismale) {
+			headnum = HEAD_JON;
+		} else {
+			headnum = HEAD_ALEX;
+		}
+	}
+
+	return mpCharacterFindMpheadnumByHeadnum(headnum);
+}
+
 /**
  * This function is used by both player body selection and bot body selection.
  */
@@ -775,6 +818,10 @@ MenuItemHandlerResult mpCharacterBodyMenuHandler(s32 operation, struct menuitem 
 		data->carousel.value = mpGetNumBodies();
 		break;
 	case MENUOP_11:
+		// Extended mod heads can be previewed safely in the head carousel, but
+		// combining them with arbitrary CS bodies can crash during menu model
+		// promotion. Use a stable body-compatible head for the combined preview.
+		mpheadnum = mpCharacterGetSafePreviewMpheadnum(mpheadnum, mpbodynum);
 		g_Menus[g_MpPlayerNum].menumodel.newanimnum = ANIM_01FC;
 		g_Menus[g_MpPlayerNum].menumodel.newparams = MENUMODELPARAMS_SET_MP_HEADBODY(mpheadnum, mpbodynum);
 		g_Menus[g_MpPlayerNum].menumodel.zoomtimer60 += g_Vars.diffframe60;
@@ -2364,6 +2411,11 @@ MenuItemHandlerResult mpCharacterHeadMenuHandler(s32 operation, struct menuitem 
 			g_Menus[g_MpPlayerNum].menumodel.perfectheadnum = mpheadnum - mpGetNumHeads2();
 		}
 
+		// Head preview uses a head-only model file. Clear any stale body anim
+		// requests that may have been queued by the body carousel preview.
+		g_Menus[g_MpPlayerNum].menumodel.newanimnum = 0;
+		g_Menus[g_MpPlayerNum].menumodel.curanimnum = 0;
+
 		g_Menus[g_MpPlayerNum].menumodel.zoomtimer60 = 0;
 		g_Menus[g_MpPlayerNum].menumodel.partvisibility = visibility;
 		g_Menus[g_MpPlayerNum].menumodel.zoom = 30;
@@ -2402,6 +2454,8 @@ MenuItemHandlerResult mpCharacterHeadMenuHandler(s32 operation, struct menuitem 
 		g_Menus[g_MpPlayerNum].menumodel.newroty = -0.3f;
 
 		g_Menus[g_MpPlayerNum].menumodel.newscale = 1;
+		g_Menus[g_MpPlayerNum].menumodel.newanimnum = 0;
+		g_Menus[g_MpPlayerNum].menumodel.curanimnum = 0;
 		g_Menus[g_MpPlayerNum].menumodel.zoom = 30;
 		break;
 	}
@@ -2420,13 +2474,26 @@ MenuItemHandlerResult menuhandlerMpCharacterHead(s32 operation, struct menuitem 
 
 char *mpMenuTextBodyName(struct menuitem *item)
 {
-	return mpGetBodyName(g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum);
+	static char buffer[32];
+	u8 mpbodynum = g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum;
+	s32 bodyIdx = (mpbodynum < g_NumMpBodies) ? g_MpBodies[mpbodynum].bodynum : -1;
+	const char *modName = modGetNameForHeadBodyIndex(bodyIdx);
+	if (modName) {
+		return (char *)modName;
+	}
+	sprintf(buffer, "0x%02x", mpbodynum);
+	return buffer;
 }
 
 char *mpMenuTextHeadIndex(struct menuitem *item)
 {
-	static char buffer[16];
+	static char buffer[32];
 	s32 mpheadnum = g_PlayerConfigsArray[g_MpPlayerNum].base.mpheadnum;
+	s32 headIdx = (mpheadnum >= 0 && mpheadnum < g_NumMpHeads) ? g_MpHeads[mpheadnum].headnum : -1;
+	const char *modName = modGetNameForHeadBodyIndex(headIdx);
+	if (modName) {
+		return (char *)modName;
+	}
 	sprintf(buffer, "0x%02x", mpheadnum);
 	return buffer;
 }
@@ -2873,7 +2940,7 @@ struct menuitem g_MpCharacterMenuItems[] = {
 		MENUITEMTYPE_LABEL,
 		0,
 		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_DARKERBG,
-		(uintptr_t)&mpMenuTextBodyName,
+		(uintptr_t)&mpMenuTextHeadIndex,
 		0,
 		NULL,
 	},
@@ -2881,7 +2948,7 @@ struct menuitem g_MpCharacterMenuItems[] = {
 		MENUITEMTYPE_LABEL,
 		0,
 		MENUITEMFLAG_LESSLEFTPADDING | MENUITEMFLAG_SELECTABLE_CENTRE | MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_DARKERBG,
-		(uintptr_t)&mpMenuTextHeadIndex,
+		(uintptr_t)&mpMenuTextBodyName,
 		0,
 		NULL,
 	},

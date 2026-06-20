@@ -2443,8 +2443,18 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 
 		menumodel->bodymodel.matrices = matrices;
 
+		bool cananimate = menumodel->bodymodel.definition
+			&& menumodel->bodymodel.definition->rootnode
+			&& ((menumodel->bodymodel.definition->rootnode->type & 0xff) == MODELNODETYPE_CHRINFO)
+			&& menumodel->bodymodel.anim;
+
+		if (!cananimate) {
+			menumodel->newanimnum = 0;
+			menumodel->curanimnum = 0;
+		}
+
 		// Set new animation if requested
-		if (menumodel->newanimnum && menumodel->curanimnum != menumodel->newanimnum) {
+		if (cananimate && menumodel->newanimnum && menumodel->curanimnum != menumodel->newanimnum) {
 			if (menumodel->reverseanim) {
 				modelSetAnimation(&menumodel->bodymodel, menumodel->newanimnum, false, 0, PALUPF(-0.5f), 0.0f);
 				modelSetAnimFrame(&menumodel->bodymodel, modelGetNumAnimFrames(&menumodel->bodymodel));
@@ -2458,7 +2468,7 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 		menumodel->newanimnum = 0;
 
 		// Tick the animation, if any
-		if (menumodel->curanimnum != 0) {
+		if (cananimate && menumodel->curanimnum != 0) {
 			f32 frame;
 			u32 stack;
 

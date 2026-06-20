@@ -13,6 +13,7 @@
 #ifndef PLATFORM_N64
 #include "mod.h"
 #include "platform.h"
+#include "system.h"
 #endif
 
 struct texture *g_Textures;
@@ -2099,6 +2100,11 @@ struct tex *texFindInPool(s32 texturenum, struct texpool *pool)
 	struct tex *cur;
 	s32 i;
 
+#ifndef PLATFORM_N64
+	extern s32 g_TexModNum;
+	u8 wantMod = (g_TexModNum >= 0) ? (u8)g_TexModNum : 0;
+#endif
+
 	if (pool == NULL) {
 		pool = &g_TexSharedPool;
 	}
@@ -2107,7 +2113,11 @@ struct tex *texFindInPool(s32 texturenum, struct texpool *pool)
 		cur = pool->head;
 
 		while (cur) {
-			if (cur->texturenum == texturenum) {
+			if (cur->texturenum == texturenum
+#ifndef PLATFORM_N64
+					&& cur->modnum == wantMod
+#endif
+					) {
 				return cur;
 			}
 
@@ -2125,7 +2135,11 @@ struct tex *texFindInPool(s32 texturenum, struct texpool *pool)
 	cur = pool->rightpos;
 
 	while (cur < end) {
-		if (cur->texturenum == texturenum) {
+		if (cur->texturenum == texturenum
+#ifndef PLATFORM_N64
+				&& cur->modnum == wantMod
+#endif
+				) {
 			return cur;
 		}
 
@@ -2236,12 +2250,41 @@ void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg)
 
 		tex = texFindInPool(g_TexNumToLoad, pool);
 
+		// DIAG: probe whether cache hit serves stale (vanilla) bytes for our IDs of interest
+		{
+			u16 _n = g_TexNumToLoad;
+			if (_n == 0x0d31 || _n == 0x0d32 || _n == 0x0d33 || _n == 0x0d44 ||
+			    _n == 0x055d || _n == 0x055e || _n == 0x055f || _n == 0x0560 || _n == 0x098f) {
+				extern s32 g_TexModNum;
+				/* sysLogPrintf(LOG_NOTE, "texDecompress PROBE: tex=0x%04x pool=%p findInPool=%s g_TexModNum=%d cachedModnum=%d",
+					_n, pool, tex ? "HIT" : "MISS", g_TexModNum, tex ? tex->modnum : -1); */
+			}
+		}
+
 		if (tex == NULL) {
+			alignedcompbuffer = (u8 *) (((uintptr_t)compbuffer + 0xf) >> 4 << 4);
+
+#ifndef PLATFORM_N64
+			// Port-range texture IDs (>= NUM_TEXTURES) only have data via mods,
+			// since g_Textures[] only covers vanilla. Try modTextureLoad and skip
+			// the ROM dma path entirely.
+			if (g_TexNumToLoad >= NUM_TEXTURES) {
+				if (modTextureLoad(g_TexNumToLoad, alignedcompbuffer, 4096) > 0) {
+					compptr = alignedcompbuffer;
+					goto haveCompBytes;
+				}
+				// static u32 s_oobLogged = 0;
+				// if (s_oobLogged < 16) {
+				// 	sysLogPrintf(LOG_WARNING, "texDecompress: g_TexNumToLoad=0x%x >= NUM_TEXTURES=%d and no mod provider, returning empty", g_TexNumToLoad, NUM_TEXTURES);
+				// 	++s_oobLogged;
+				// }
+				return;
+			}
+#else
 			if (g_TexNumToLoad >= NUM_TEXTURES) {
 				return;
 			}
-
-			alignedcompbuffer = (u8 *) (((uintptr_t)compbuffer + 0xf) >> 4 << 4);
+#endif
 
 			if (alignedcompbuffer);
 			if (tex);
@@ -2270,6 +2313,9 @@ void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg)
 						((uintptr_t) (nextoffset - thisoffset) + 0x1f) >> 4 << 4);
 				compptr = (u8 *) alignedcompbuffer + (thisoffset & 7);
 			}
+#ifndef PLATFORM_N64
+haveCompBytes:
+#endif
 			thisoffset = 0;
 			hasloddata = (*compptr & 0x80) >> 7;
 			iszlib = (*compptr & 0x40) >> 6;
@@ -2325,6 +2371,12 @@ void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg)
 			tex->texturenum = g_TexNumToLoad;
 			tex->data = pool->leftpos;
 			tex->unk0c_03 = false;
+#ifndef PLATFORM_N64
+			{
+				extern s32 g_TexModNum;
+				tex->modnum = (g_TexModNum >= 0) ? (u8)g_TexModNum : 0;
+			}
+#endif
 
 			// Extract the texture data to the allocation (pool->leftpos)
 			if (iszlib) {
@@ -2379,7 +2431,11 @@ void texLoadFromConfigs(struct textureconfig *configs, s32 numconfigs, struct te
 	s32 i;
 
 	for (i = 0; i < numconfigs; i++) {
-		if ((uintptr_t)configs[i].texturenum < NUM_TEXTURES) {
+		uintptr_t v = (uintptr_t)configs[i].texturenum;
+		// Treat any value that fits in 16 bits (i.e. no high pointer bits set) as a tex ID.
+		// This includes port-range IDs (>= NUM_TEXTURES) used by mods to bypass the
+		// vanilla DMA path; texLoad() routes those through modTextureLoad().
+		if (v < 0x10000) {
 			texLoad(&configs[i].texturenum, pool, true);
 			configs[i].unk0b = 1;
 		} else {
