@@ -31,3 +31,8 @@ cmake-build-debug
 .vscode
 .gdb_history
 friends-of-joanna-v**
+.pdt.toml
+exported
+
+mod_**.json.bak*
+mod_gex_characters/textures
