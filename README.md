@@ -71,21 +71,11 @@ Other platforms may work but are not tested or guaranteed to work.
 ## Running
 
 
-Requirement: Powershell
-
-````
-# windows only: one-time step to enable scripts
-Set-ExecutionPolicy Unrestricted -Scope CurrentUser
-
-# the actual launcher:
-.\run-fojo.ps1
-````
-
 Drop rom in data dir
 
 Optionally, you can also put your Perfect Dark for GameBoy Color ROM named `pd.gbc` in the `data` directory if you want to emulate having the Nintendo 64's Transfer Pak and unlock some cheats automatically.
 
-Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna` on MacOS.
+Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna-v0.3` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna-v.3` on MacOS.
 
 Additional information can be found in the [wiki](https://github.com/fgsfdsfgs/perfect_dark/wiki).
 
