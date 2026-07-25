@@ -39,7 +39,7 @@ char *invMenuTextWeaponManufacturer(struct menuitem *item);
 char *invMenuTextWeaponDescription(struct menuitem *item);
 bool soloChoosePauseDialog(void);
 MenuDialogHandlerResult menudialogBriefing(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data);
-MenuDialogHandlerResult menudialog00103608(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data);
+MenuDialogHandlerResult endscreenAcceptMissionHandleDialog(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data);
 MenuDialogHandlerResult menudialogCoopAntiOptions(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data);
 MenuDialogHandlerResult menudialog0010559c(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data);
 MenuDialogHandlerResult inventoryMenuDialog(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data);

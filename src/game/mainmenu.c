@@ -925,7 +925,7 @@ char *soloMenuTitleStageOverview(struct menudialogdef *dialogdef)
 	return g_StringPointer;
 }
 
-MenuDialogHandlerResult menudialog00103608(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
+MenuDialogHandlerResult endscreenAcceptMissionHandleDialog(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
 {
 	switch (operation) {
 	case MENUOP_OPEN:
@@ -1004,7 +1004,7 @@ struct menudialogdef g_AcceptMissionMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)&soloMenuTitleStageOverview,
 	g_AcceptMissionMenuItems,
-	menudialog00103608,
+	endscreenAcceptMissionHandleDialog,
 	MENUDIALOGFLAG_STARTSELECTS | MENUDIALOGFLAG_DISABLEITEMSCROLL,
 	&g_PreAndPostMissionBriefingMenuDialog,
 };
@@ -1014,7 +1014,7 @@ struct menudialogdef g_4PAcceptMissionMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)&soloMenuTitleStageOverview,
 	g_4PAcceptMissionMenuItems,
-	menudialog00103608,
+	endscreenAcceptMissionHandleDialog,
 	MENUDIALOGFLAG_STARTSELECTS,
 	&g_2PMissionBriefingVMenuDialog,
 };
