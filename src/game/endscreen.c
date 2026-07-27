@@ -107,8 +107,7 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 						menuPopDialog();
 						menuPopDialog();
 
-						// if (g_MissionConfig.isteam) {
-						if (1) {
+						if (!g_MissionConfig.isteam) {
 							mpSetPaused(MPPAUSEMODE_UNPAUSED);
 							g_Vars.mplayerisrunning = false;
 							g_MissionConfig.iscoop = false;
@@ -122,17 +121,11 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 								g_BossFile.locktype = MPLOCKTYPE_NONE;
 							}
 
-							if (IS8MB()) {
-								titleSetNextStage(STAGE_CITRAINING);
-								setNumPlayers(1);
-								titleSetNextMode(TITLEMODE_SKIP);
-								mainChangeToStage(STAGE_CITRAINING);
-							} else {
-								titleSetNextStage(STAGE_4MBMENU);
-								setNumPlayers(1);
-								titleSetNextMode(TITLEMODE_SKIP);
-								mainChangeToStage(STAGE_4MBMENU);
-							}
+							// NOTE: stripped out 4MB code
+							titleSetNextStage(STAGE_CITRAINING);
+							setNumPlayers(1);
+							titleSetNextMode(TITLEMODE_SKIP);
+							mainChangeToStage(STAGE_CITRAINING);
 
 						}
 					}
@@ -1956,6 +1949,8 @@ static void chooseEndScreenCompletedDialog(bool usevertical){
 	}
 }
 
+// tracking quitting level reason to rebuild
+bool g_bondIsDead = 0, g_coopIsDead = 0, g_bondAborted = 0, g_coopAborted = 0, g_antiAborted = 0, g_allComplete = 0;
 /**
  * endscreenPushTeam - Handles the logic for displaying the end screen in team-based
  * cooperative or multiplayer missions. This function determines the mission outcome
