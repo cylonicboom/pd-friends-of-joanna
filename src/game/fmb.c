@@ -127,16 +127,16 @@ struct menuitem g_GameFiles4MbMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		0,
-		L_OPTIONS_103, // "Single Player Agent File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Reality File",// "Single Player Agent File"
 		0,
 		filemgrOpenCopyFileMenuHandler,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		2,
-		0,
-		L_OPTIONS_105, // "Combat Simulator Player File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Agent File", // "Combat Simulator Player File"
 		0,
 		filemgrOpenCopyFileMenuHandler,
 	},
@@ -159,16 +159,16 @@ struct menuitem g_GameFiles4MbMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		0,
-		L_OPTIONS_103, // "Single Player Agent File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Reality File",// "Single Player Agent File"
 		0,
 		filemgrOpenDeleteFileMenuHandler,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		2,
-		0,
-		L_OPTIONS_105, // "Combat Simulator Player File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Agent File", // "Combat Simulator Player File"
 		0,
 		filemgrOpenDeleteFileMenuHandler,
 	},

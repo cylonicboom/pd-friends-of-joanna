@@ -485,10 +485,10 @@ char *filemgrMenuTextErrorTitle(struct menuitem *item)
 #if VERSION >= VERSION_NTSC_1_0
 char *filemgrMenuTextFileType(struct menuitem *item)
 {
-	u16 names[] = {
-		L_OPTIONS_103, // "Single Player Agent File"
+	u32 names[] = {
+		(uintptr_t)"Reality File", // "Single Player Agent File"
 		L_OPTIONS_104, // "Combat Simulator Settings File"
-		L_OPTIONS_105, // "Combat Simulator Player File"
+		(uintptr_t)"Agent File", // "Combat Simulator Player File"
 		L_OPTIONS_106, // "PerfectHead Files"
 	};
 
@@ -499,15 +499,15 @@ char *filemgrMenuTextFileType(struct menuitem *item)
 	case FILEOP_WRITE_GAME:
 	case FILEOP_LOAD_GAME:
 	case FILEOP_READ_GAME:
-		return langGet(names[0]);
+		return (char*)names[0];
 	case FILEOP_SAVE_MPPLAYER:
 	case FILEOP_WRITE_MPPLAYER:
 	case FILEOP_LOAD_MPPLAYER:
 	case FILEOP_READ_MPPLAYER:
-		return langGet(names[2]);
+		return (char*)names[2];
 	}
 
-	return langGet(names[0]);
+	return (char*)names[0];
 }
 #endif
 
@@ -3316,16 +3316,16 @@ struct menuitem g_FilemgrOperationsMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		FILETYPE_GAME,
-		0,
-		L_OPTIONS_103, // "Single Player Agent File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Reality File", // "Single Player Agent File"
 		0,
 		filemgrOpenCopyFileMenuHandler,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		FILETYPE_MPPLAYER,
-		0,
-		L_OPTIONS_105, // "Combat Simulator Player File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Agent File", // "Combat Simulator Player File"
 		0,
 		filemgrOpenCopyFileMenuHandler,
 	},
@@ -3348,16 +3348,16 @@ struct menuitem g_FilemgrOperationsMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		FILETYPE_GAME,
-		0,
-		L_OPTIONS_103, // "Single Player Agent File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Reality File", // "Single Player Agent File"
 		0,
 		filemgrOpenDeleteFileMenuHandler,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
 		FILETYPE_MPPLAYER,
-		0,
-		L_OPTIONS_105, // "Combat Simulator Player File"
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Agent File", // "Combat Simulator Player File"
 		0,
 		filemgrOpenDeleteFileMenuHandler,
 	},
