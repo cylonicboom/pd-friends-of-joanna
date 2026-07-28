@@ -28,6 +28,19 @@ u32 g_NextHudMessageId;
 
 u8 g_HudmsgsActive = 0;
 
+static s32 hudmsgGetCurrentPlayerMpChrNum(void)
+{
+	if (g_Vars.currentplayerstats) {
+		return g_Vars.currentplayerstats->mpindex;
+	}
+
+	if (g_Vars.bondplayernum >= 0) {
+		return g_Vars.bondplayernum;
+	}
+
+	return 0;
+}
+
 u32 g_HudmsgColours[] = {
 	/* 0*/ 0x00ff0000, // green
 	/* 1*/ 0x9999ff00, // pastel blue
@@ -623,17 +636,18 @@ void hudmsgCreateAsSubtitle(char *srctext, s32 type, u8 colourindex, s32 audioch
 {
 	s32 audioduration60;
 	struct hudmsgtype *config;
+	s32 mpchrnum = hudmsgGetCurrentPlayerMpChrNum();
 
 	audioduration60 = psGetDuration60(audiochannelnum);
 
 	if (type == HUDMSGTYPE_INGAMESUBTITLE) {
 		if (g_Vars.tickmode == TICKMODE_CUTSCENE) {
-			if (!optionsGetCutsceneSubtitles()) {
+			if (!optionsGetEffectiveCutsceneSubtitlesForPlayer(mpchrnum)) {
 				return;
 			}
 
 			type = HUDMSGTYPE_CUTSCENESUBTITLE;
-		} else if (!optionsGetInGameSubtitles()) {
+		} else if (!optionsGetInGameSubtitlesForPlayer(mpchrnum)) {
 			return;
 		}
 	}
@@ -1028,7 +1042,7 @@ void hudmsgCreateFromArgs(char *text, s32 type, s32 conf00, s32 conf01, s32 conf
 	char stacktext[400];
 	s32 writeindex;
 
-	if (type == HUDMSGTYPE_INGAMESUBTITLE && !optionsGetInGameSubtitles()) {
+	if (type == HUDMSGTYPE_INGAMESUBTITLE && !optionsGetInGameSubtitlesForPlayer(hudmsgGetCurrentPlayerMpChrNum())) {
 		return;
 	}
 

@@ -443,6 +443,7 @@ MenuItemHandlerResult menuhandlerMpControlStyle(s32 operation, struct menuitem *
 #ifndef PLATFORM_N64
 		g_PlayerExtCfg[g_MpPlayerNum & 3].extcontrols = (data->dropdown.value == 4);
 #endif
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 		break;
 	case MENUOP_GETSELECTEDINDEX:
 		data->dropdown.value = optionsGetControlMode(g_MpPlayerNum);
@@ -504,6 +505,7 @@ MenuItemHandlerResult menuhandlerMpClassicSight(s32 operation, struct menuitem *
 		return optionsGetClassicSight(g_MpPlayerNum);
 	case MENUOP_SET:
 		optionsSetClassicSight(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
 	return 0;
@@ -516,6 +518,7 @@ MenuItemHandlerResult menuhandlerMpShowLives(s32 operation, struct menuitem *ite
 		return optionsGetShowLives(g_MpPlayerNum);
 	case MENUOP_SET:
 		optionsSetShowLives(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
 	return 0;
@@ -553,6 +556,8 @@ MenuItemHandlerResult menuhandlerMpControlCheckbox(s32 operation, struct menuite
 		if (data->checkbox.value) {
 			g_PlayerConfigsArray[g_MpPlayerNum].options |= item->param3;
 		}
+
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
 	return 0;
@@ -578,6 +583,7 @@ MenuItemHandlerResult menuhandlerMpAimControl(s32 operation, struct menuitem *it
 		return (uintptr_t) langGet(labels[data->dropdown.value]);
 	case MENUOP_SET:
 		optionsSetAimControl(g_MpPlayerNum, data->dropdown.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 		break;
 	case MENUOP_GETSELECTEDINDEX:
 		data->dropdown.value = optionsGetAimControl(g_MpPlayerNum);

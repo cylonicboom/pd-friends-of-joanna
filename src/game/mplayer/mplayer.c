@@ -166,6 +166,9 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
 	.handicap_prop = { .u8 = 0x80 }, \
 	.classicsight_prop = { .u8 = 0 }, \
 	.showlives_prop = { .u8 = 0 }, \
+	.ingamesubtitles_prop = { .u8 = 1 }, \
+	.cutscenesubtitles_prop = { .u8 = 0 }, \
+	.showmissiontime_prop = { .u8 = 0 }, \
 	.teamagentindex_prop = { .s32 = -1 }, \
 };
 
@@ -218,6 +221,21 @@ static void mpExtendedProfileInitShowLives(s32 profileindex, s32 playernum)
 	g_PlayerConfigsArray[playernum].showlives = &g_ExtendedProfiles[profileindex].showlives_prop.u8;
 }
 
+static void mpExtendedProfileInitInGameSubtitles(s32 profileindex, s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].ingamesubtitles = &g_ExtendedProfiles[profileindex].ingamesubtitles_prop.u8;
+}
+
+static void mpExtendedProfileInitCutsceneSubtitles(s32 profileindex, s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].cutscenesubtitles = &g_ExtendedProfiles[profileindex].cutscenesubtitles_prop.u8;
+}
+
+static void mpExtendedProfileInitShowMissionTime(s32 profileindex, s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].showmissiontime = &g_ExtendedProfiles[profileindex].showmissiontime_prop.u8;
+}
+
 static void mpExtendedProfileInitTeamAgentIndex(s32 profileindex, s32 playernum)
 {
 	s32 val = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
@@ -232,6 +250,9 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
 	{ CFG_U8, "Handicap", 0x80, 0, 255, &mpExtendedProfileInitHandicap},
 	{ CFG_U8, "ClassicSight", 0, 0, 1, &mpExtendedProfileInitClassicSight},
 	{ CFG_U8, "ShowLives", 0, 0, 1, &mpExtendedProfileInitShowLives},
+	{ CFG_U8, "InGameSubtitles", 1, 0, 1, &mpExtendedProfileInitInGameSubtitles},
+	{ CFG_U8, "CutsceneSubtitles", 0, 0, 1, &mpExtendedProfileInitCutsceneSubtitles},
+	{ CFG_U8, "ShowMissionTime", 0, 0, 1, &mpExtendedProfileInitShowMissionTime},
 	{ CFG_S32, "TeamAgentIndex", -1, -1, 10, &mpExtendedProfileInitTeamAgentIndex},
 }; // these must be in the same order as the extendedprofile struct, ignoring the fileguid
 

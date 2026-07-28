@@ -3241,7 +3241,7 @@ s16 playerGetViewportTop(void)
 		}
 	} else {
 		if (optionsGetEffectiveScreenSize() == SCREENSIZE_WIDE) {
-			if (g_InCutscene && optionsGetCutsceneSubtitles() && g_Vars.stagenum != STAGE_CITRAINING) {
+			if (g_InCutscene && optionsGetEffectiveCutsceneSubtitlesForPlayer(g_Vars.currentplayerstats->mpindex) && g_Vars.stagenum != STAGE_CITRAINING) {
 				if (g_CutsceneTweenDuration60 >= 1) {
 					f32 a = g_ViModes[g_ViRes].fulltop;
 					f32 b = g_ViModes[g_ViRes].widetop;
@@ -3258,7 +3258,7 @@ s16 playerGetViewportTop(void)
 			top = g_ViModes[g_ViRes].cinematop;
 		} else {
 			if (g_InCutscene && !g_IsModalMenuMode
-					&& (!optionsGetCutsceneSubtitles() || g_Vars.stagenum == STAGE_CITRAINING)) {
+					&& (!optionsGetEffectiveCutsceneSubtitlesForPlayer(g_Vars.currentplayerstats->mpindex) || g_Vars.stagenum == STAGE_CITRAINING)) {
 				if (g_CutsceneTweenDuration60 >= 1) {
 					f32 a = g_ViModes[g_ViRes].widetop;
 					f32 b = g_ViModes[g_ViRes].fulltop;

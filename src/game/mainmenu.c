@@ -12,6 +12,7 @@
 #include "game/game_0b0fd0.h"
 #include "game/game_1531a0.h"
 #include "game/gamefile.h"
+#include "game/mplayer/ingame.h"
 #include "game/mplayer/setup.h"
 #include "game/inv.h"
 #include "game/lang.h"
@@ -114,7 +115,8 @@ void updatePlayerNames()
 
 char *mpGetCurrentPlayerName(struct menuitem *item);
 struct menudialogdef g_2PMissionControlStyleMenuDialog;
-struct menudialogdef g_CiControlPlayer2MenuDialog;
+struct menudialogdef g_CiDisplayMenuDialog;
+struct menudialogdef g_CiDisplayPlayer2MenuDialog;
 struct menudialogdef g_CinemaMenuDialog;
 #ifndef PLATFORM_N64
 extern struct menudialogdef g_ExtendedMenuDialog;
@@ -231,15 +233,28 @@ MenuItemHandlerResult menuhandler001024fc(s32 operation, struct menuitem *item, 
 	return menuhandlerControlStyleImpl(operation, item, data, 5);
 }
 
-MenuItemHandlerResult menuhandlerReversePitch(s32 operation, struct menuitem *item, union handlerdata *data)
+static u32 menuResolveOptionMpChrNum(struct menuitem *item)
 {
 	u32 mpchrnum;
 
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
+	if (item->param3 >= 4 && item->param3 < 4 + MAX_PLAYERS) {
+		mpchrnum = item->param3 - 4;
+	} else if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
 		mpchrnum = g_Vars.currentplayerstats->mpindex;
 	} else {
 		mpchrnum = item->param3;
 	}
+
+	if (mpchrnum >= MAX_PLAYERS) {
+		mpchrnum = g_Vars.bondplayernum >= 0 ? g_Vars.bondplayernum : 0;
+	}
+
+	return mpchrnum;
+}
+
+MenuItemHandlerResult menuhandlerReversePitch(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -254,8 +269,7 @@ MenuItemHandlerResult menuhandlerReversePitch(s32 operation, struct menuitem *it
 
 MenuItemHandlerResult menuhandlerAimControl(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 playernum = (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
-		? g_Vars.currentplayerstats->mpindex : item->param3;
+	u32 playernum = menuResolveOptionMpChrNum(item);
 
 #if VERSION >= VERSION_PAL_FINAL
 	s32 index = 0;
@@ -445,13 +459,7 @@ MenuItemHandlerResult menuhandlerScreenSplit(s32 operation, struct menuitem *ite
 
 MenuItemHandlerResult menuhandlerLookAhead(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -466,13 +474,7 @@ MenuItemHandlerResult menuhandlerLookAhead(s32 operation, struct menuitem *item,
 
 MenuItemHandlerResult menuhandlerHeadRoll(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -487,11 +489,13 @@ MenuItemHandlerResult menuhandlerHeadRoll(s32 operation, struct menuitem *item, 
 
 MenuItemHandlerResult menuhandlerInGameSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
 	switch (operation) {
 	case MENUOP_GET:
-		return optionsGetInGameSubtitles();
+		return optionsGetInGameSubtitlesForPlayer(mpchrnum);
 	case MENUOP_SET:
-		optionsSetInGameSubtitles(data->checkbox.value);
+		optionsSetInGameSubtitlesForPlayer(mpchrnum, data->checkbox.value);
 		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
@@ -500,11 +504,18 @@ MenuItemHandlerResult menuhandlerInGameSubtitles(s32 operation, struct menuitem 
 
 MenuItemHandlerResult menuhandlerCutsceneSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
 	switch (operation) {
+	case MENUOP_CHECKHIDDEN:
+		if (mpchrnum != g_Vars.bondplayernum) {
+			return true;
+		}
+		break;
 	case MENUOP_GET:
-		return optionsGetCutsceneSubtitles();
+		return optionsGetCutsceneSubtitlesForPlayer(mpchrnum);
 	case MENUOP_SET:
-		optionsSetCutsceneSubtitles(data->checkbox.value);
+		optionsSetCutsceneSubtitlesForPlayer(mpchrnum, data->checkbox.value);
 		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
@@ -554,13 +565,7 @@ MenuItemHandlerResult menuhandlerHiRes(s32 operation, struct menuitem *item, uni
 
 MenuItemHandlerResult menuhandlerAmmoOnScreen(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -575,13 +580,7 @@ MenuItemHandlerResult menuhandlerAmmoOnScreen(s32 operation, struct menuitem *it
 
 MenuItemHandlerResult menuhandlerShowGunFunction(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_CHECKDISABLED:
@@ -601,13 +600,7 @@ MenuItemHandlerResult menuhandlerShowGunFunction(s32 operation, struct menuitem 
 
 MenuItemHandlerResult menuhandlerShowMissionTime(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -622,13 +615,7 @@ MenuItemHandlerResult menuhandlerShowMissionTime(s32 operation, struct menuitem 
 
 MenuItemHandlerResult menuhandlerAlwaysShowTarget(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_CHECKDISABLED:
@@ -648,13 +635,7 @@ MenuItemHandlerResult menuhandlerAlwaysShowTarget(s32 operation, struct menuitem
 
 MenuItemHandlerResult menuhandlerShowZoomRange(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_CHECKDISABLED:
@@ -674,13 +655,7 @@ MenuItemHandlerResult menuhandlerShowZoomRange(s32 operation, struct menuitem *i
 
 MenuItemHandlerResult menuhandlerPaintball(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -695,13 +670,7 @@ MenuItemHandlerResult menuhandlerPaintball(s32 operation, struct menuitem *item,
 
 MenuItemHandlerResult menuhandlerSightOnScreen(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -716,13 +685,7 @@ MenuItemHandlerResult menuhandlerSightOnScreen(s32 operation, struct menuitem *i
 
 MenuItemHandlerResult menuhandlerClassicSight(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -737,13 +700,7 @@ MenuItemHandlerResult menuhandlerClassicSight(s32 operation, struct menuitem *it
 
 MenuItemHandlerResult menuhandlerShowLives(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -758,13 +715,7 @@ MenuItemHandlerResult menuhandlerShowLives(s32 operation, struct menuitem *item,
 
 MenuItemHandlerResult menuhandlerAutoAim(s32 operation, struct menuitem *item, union handlerdata *data)
 {
-	u32 mpchrnum;
-
-	if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
-		mpchrnum = g_Vars.currentplayerstats->mpindex;
-	} else {
-		mpchrnum = item->param3;
-	}
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -3634,9 +3585,13 @@ MenuDialogHandlerResult menudialog0010559c(s32 operation, struct menudialogdef *
 	case MENUOP_OPEN:
 		break;
 	case MENUOP_CLOSE:
-		if ((g_Vars.modifiedfiles & MODFILE_GAME) && g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
-			if (filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_001, 0) == 0) {
-				data->dialog1.preventclose = true;
+		if (g_Vars.modifiedfiles & MODFILE_GAME) {
+			configSave(CONFIG_PATH);
+
+			if (g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
+				if (filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_001, 0) == 0) {
+					data->dialog1.preventclose = true;
+				}
 			}
 
 			g_Vars.modifiedfiles &= ~MODFILE_GAME;
@@ -3749,6 +3704,37 @@ MenuItemHandlerResult menuhandlerControlStyle(s32 operation, struct menuitem *it
 	return 0;
 }
 
+MenuItemHandlerResult menuhandlerOpenMpControlForCurrentPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+		if (mpchrnum >= MAX_PLAYERS) {
+			mpchrnum = 0;
+		}
+
+		g_MpPlayerNum = mpchrnum;
+		menuPushDialog(&g_MpControlMenuDialog);
+	}
+
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerOpenDisplayForCurrentPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (operation == MENUOP_SET) {
+		u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+		if (mpchrnum == g_Vars.bondplayernum) {
+			menuPushDialog(&g_CiDisplayMenuDialog);
+		} else {
+			menuPushDialog(&g_CiDisplayPlayer2MenuDialog);
+		}
+	}
+
+	return 0;
+}
+
 MenuItemHandlerResult menuhandler001057ec(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
@@ -3778,26 +3764,6 @@ MenuItemHandlerResult menuhandlerExitGame(s32 operation, struct menuitem *item, 
 }
 #endif
 
-struct menuitem g_2PMissionControlStyleMenuItems[] = {
-	{
-		MENUITEMTYPE_LIST,
-		0,
-		MENUITEMFLAG_LIST_AUTOWIDTH,
-		0x00000050,
-		0,
-		menuhandler001024dc,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_2PMissionControlStyleMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_236, // "Control"
-	g_2PMissionControlStyleMenuItems,
-	NULL,
-	MENUDIALOGFLAG_0400,
-	NULL,
-};
 
 struct menuitem g_SoloMissionControlStyleMenuItems[] = {
 	{
@@ -4192,303 +4158,14 @@ struct menudialogdef g_2PMissionVideoOptionsMenuDialog = {
 	NULL,
 };
 
-struct menuitem g_MissionDisplayOptionsMenuItems[] = {
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_205, // "Sight on Screen"
-		0x00000004,
-		menuhandlerSightOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_206, // "Always Show Target"
-		0x00000004,
-		menuhandlerAlwaysShowTarget,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_207, // "Show Zoom Range"
-		0x00000004,
-		menuhandlerShowZoomRange,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_208, // "Ammo on Screen"
-		0x00000004,
-		menuhandlerAmmoOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_209, // "Show Gun Function"
-		0x00000004,
-		menuhandlerShowGunFunction,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_210, // "Paintball"
-		0x00000004,
-		menuhandlerPaintball,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_169, // "In-Game Subtitles"
-		0x00000004,
-		menuhandlerInGameSubtitles,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_168, // "Cutscene Subtitles"
-		0x00000004,
-		menuhandlerCutsceneSubtitles,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_212, // "Show Mission Time"
-		0x00000004,
-		menuhandlerShowMissionTime,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Classic Sight",
-		0x00000004,
-		menuhandlerClassicSight,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Show Lives",
-		0x00000004,
-		menuhandlerShowLives,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_213, // "Back"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_MissionDisplayOptionsMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_203, // "Display Options"
-	g_MissionDisplayOptionsMenuItems,
-	NULL,
-	0,
-	NULL,
-};
-
-struct menuitem g_2PMissionDisplayOptionsVMenuItems[] = {
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_145, // "Sight on Screen"
-		0x00000004,
-		menuhandlerSightOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_146, // "Target"
-		0x00000004,
-		menuhandlerAlwaysShowTarget,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_147, // "Zoom Range"
-		0x00000004,
-		menuhandlerShowZoomRange,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_148, // "Show Ammo"
-		0x00000004,
-		menuhandlerAmmoOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_149, // "Gun Function"
-		0x00000004,
-		menuhandlerShowGunFunction,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_150, // "Paintball"
-		0x00000004,
-		menuhandlerPaintball,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-#if VERSION >= VERSION_PAL_FINAL
-		L_MPWEAPONS_279, // "In-Game Subtitles"
-#else
-		L_MPWEAPONS_169, // "In-Game Subtitles"
-#endif
-		0x00000004,
-		menuhandlerInGameSubtitles,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-#if VERSION >= VERSION_PAL_FINAL
-		L_MPWEAPONS_278, // "Cutscene Subtitles"
-#else
-		L_MPWEAPONS_168, // "Cutscene Subtitles"
-#endif
-		0x00000004,
-		menuhandlerCutsceneSubtitles,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_152, // "Mission Time"
-		0x00000004,
-		menuhandlerShowMissionTime,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Classic Sight",
-		0x00000004,
-		menuhandlerClassicSight,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Show Lives",
-		0x00000004,
-		menuhandlerShowLives,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_213, // "Back"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_2PMissionDisplayOptionsVMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_203, // "Display Options"
-	g_2PMissionDisplayOptionsVMenuItems,
-	NULL,
-	0,
-	NULL,
-};
 
 struct menuitem g_CiDisplayMenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
 		0,
-		L_OPTIONS_205, // "Sight on Screen"
-		0x00000004,
-		menuhandlerSightOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_206, // "Always Show Target"
-		0x00000004,
-		menuhandlerAlwaysShowTarget,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_207, // "Show Zoom Range"
-		0x00000004,
-		menuhandlerShowZoomRange,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_208, // "Ammo on Screen"
-		0x00000004,
-		menuhandlerAmmoOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_209, // "Show Gun Function"
-		0x00000004,
-		menuhandlerShowGunFunction,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_210, // "Paintball"
-		0x00000004,
-		menuhandlerPaintball,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
 		L_MPWEAPONS_169, // "In-Game Subtitles"
-		0x00000004,
+		0,
 		menuhandlerInGameSubtitles,
 	},
 	{
@@ -4496,7 +4173,7 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_MPWEAPONS_168, // "Cutscene Subtitles"
-		0x00000004,
+		0,
 		menuhandlerCutsceneSubtitles,
 	},
 	{
@@ -4504,24 +4181,8 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		0,
 		0,
 		L_OPTIONS_212, // "Show Mission Time"
-		0x00000004,
+		0,
 		menuhandlerShowMissionTime,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Classic Sight",
-		0x00000004,
-		menuhandlerClassicSight,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Show Lives",
-		0x00000004,
-		menuhandlerShowLives,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -4544,103 +4205,22 @@ struct menuitem g_CiDisplayMenuItems[] = {
 
 struct menudialogdef g_CiDisplayPlayer2MenuDialog;
 
-struct menudialogdef g_CiDisplayMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_203, // "Display Options"
-	g_CiDisplayMenuItems,
-	NULL,
-	0,
-	&g_CiDisplayPlayer2MenuDialog,
-};
-
 struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
 		0,
-		L_OPTIONS_205, // "Sight on Screen"
-		0x00000005,
-		menuhandlerSightOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_206, // "Always Show Target"
-		0x00000005,
-		menuhandlerAlwaysShowTarget,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_207, // "Show Zoom Range"
-		0x00000005,
-		menuhandlerShowZoomRange,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_208, // "Ammo on Screen"
-		0x00000005,
-		menuhandlerAmmoOnScreen,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_209, // "Show Gun Function"
-		0x00000005,
-		menuhandlerShowGunFunction,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_210, // "Paintball"
-		0x00000005,
-		menuhandlerPaintball,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
 		L_MPWEAPONS_169, // "In-Game Subtitles"
-		0x00000005,
+		0,
 		menuhandlerInGameSubtitles,
 	},
 	{
 		MENUITEMTYPE_CHECKBOX,
 		0,
 		0,
-		L_MPWEAPONS_168, // "Cutscene Subtitles"
-		0x00000005,
-		menuhandlerCutsceneSubtitles,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
 		L_OPTIONS_212, // "Show Mission Time"
-		0x00000005,
+		0,
 		menuhandlerShowMissionTime,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Classic Sight",
-		0x00000005,
-		menuhandlerClassicSight,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Show Lives",
-		0x00000005,
-		menuhandlerShowLives,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -4661,323 +4241,13 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menudialogdef g_CiDisplayPlayer2MenuDialog = {
+struct menudialogdef g_CiDisplayMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_204, // "Display Player 2"
-	g_CiDisplayPlayer2MenuItems,
+	L_OPTIONS_203, // "Display Options"
+	g_CiDisplayMenuItems,
 	NULL,
 	0,
-	NULL,
-};
-
-struct menuitem g_MissionControlOptionsMenuItems[] = {
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		0,
-		L_OPTIONS_194, // "Control Style"
-		(uintptr_t)&func0f105664,
-		menuhandlerControlStyle,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_195, // "Reverse Pitch"
-		0x00000004,
-		menuhandlerReversePitch,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_196, // "Look Ahead"
-		0x00000004,
-		menuhandlerLookAhead,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_197, // "Head Roll"
-		0x00000004,
-		menuhandlerHeadRoll,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_198, // "Auto-Aim"
-		0x00000004,
-		menuhandlerAutoAim,
-	},
-	{
-		MENUITEMTYPE_DROPDOWN,
-		0,
-		0,
-		L_OPTIONS_199, // "Aim Control"
-		0x00000004,
-		menuhandlerAimControl,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_200, // "Back"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_MissionControlOptionsMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_192, // "Control Options"
-	g_MissionControlOptionsMenuItems,
-	NULL,
 	0,
-	NULL,
-};
-
-#if VERSION >= VERSION_PAL_FINAL
-struct menuitem g_CiControlOptionsMenuItems2[] = {
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		0,
-		L_MPWEAPONS_270, // ""
-		(uintptr_t)&func0f105664,
-		menuhandlerControlStyle,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_271, // ""
-		0x00000004,
-		menuhandlerReversePitch,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_272, // ""
-		0x00000004,
-		menuhandlerLookAhead,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_273, // ""
-		0x00000004,
-		menuhandlerHeadRoll,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_MPWEAPONS_274, // ""
-		0x00000004,
-		menuhandlerAutoAim,
-	},
-	{
-		MENUITEMTYPE_DROPDOWN,
-		0,
-		0,
-		L_MPWEAPONS_275, // ""
-		0x00000004,
-		menuhandlerAimControl,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_200, // "Back"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_CiControlOptionsMenuDialog2 = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_192, // "Control Options"
-	g_CiControlOptionsMenuItems2,
-	NULL,
-	0,
-	NULL,
-};
-#endif
-
-struct menuitem g_CiControlOptionsMenuItems[] = {
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_194, // "Control Style"
-		(uintptr_t)&func0f105664,
-		(void *)&g_CiControlStyleMenuDialog,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_195, // "Reverse Pitch"
-		0x00000004,
-		menuhandlerReversePitch,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_196, // "Look Ahead"
-		0x00000004,
-		menuhandlerLookAhead,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_197, // "Head Roll"
-		0x00000004,
-		menuhandlerHeadRoll,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_198, // "Auto-Aim"
-		0x00000004,
-		menuhandlerAutoAim,
-	},
-	{
-		MENUITEMTYPE_DROPDOWN,
-		0,
-		0,
-		L_OPTIONS_199, // "Aim Control"
-		0x00000004,
-		menuhandlerAimControl,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_200, // "Back"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_CiControlOptionsMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_192, // "Control Options"
-	g_CiControlOptionsMenuItems,
-	NULL,
-	0,
-	&g_CiControlPlayer2MenuDialog,
-};
-
-struct menuitem g_CiControlPlayer2MenuItems[] = {
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_194, // "Control Style"
-		(uintptr_t)&func0f1056a0,
-		(void *)&g_CiControlStylePlayer2MenuDialog,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_195, // "Reverse Pitch"
-		0x00000005,
-		menuhandlerReversePitch,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_196, // "Look Ahead"
-		0x00000005,
-		menuhandlerLookAhead,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_197, // "Head Roll"
-		0x00000005,
-		menuhandlerHeadRoll,
-	},
-	{
-		MENUITEMTYPE_CHECKBOX,
-		0,
-		0,
-		L_OPTIONS_198, // "Auto-Aim"
-		0x00000005,
-		menuhandlerAutoAim,
-	},
-	{
-		MENUITEMTYPE_DROPDOWN,
-		0,
-		0,
-		L_OPTIONS_199, // "Aim Control"
-		0x00000005,
-		menuhandlerAimControl,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
-		L_OPTIONS_200, // "Back"
-		0,
-		NULL,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menudialogdef g_CiControlPlayer2MenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_193, // "Control Player 2"
-	g_CiControlPlayer2MenuItems,
-	NULL,
-	0,
-	NULL,
 };
 
 struct menuitem g_ChangeAgentMenuItems[] = {
@@ -5066,6 +4336,7 @@ struct menudialogdef g_ExitGameMenuDialog = {
 
 #endif
 
+struct menudialogdef g_MissionDisplayOptionsMenuDialog;
 struct menuitem g_SoloMissionOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -5112,113 +4383,6 @@ struct menuitem g_SoloMissionOptionsMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-struct menuitem g_2PMissionOptionsHMenuItems[] = {
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_181, // "Audio"
-		0,
-		(void *)&g_AudioOptionsMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_182, // "Video"
-		0,
-		(void *)&g_2PMissionVideoOptionsMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_183, // "Control"
-		0,
-		(void *)&g_MissionControlOptionsMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_184, // "Display"
-		0,
-		(void *)&g_MissionDisplayOptionsMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0x00000064,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		0,
-		(uintptr_t)&menutextPauseOrUnpause,
-		0,
-		menuhandlerMpPause,
-	},
-	{ MENUITEMTYPE_END },
-};
-
-struct menuitem g_2PMissionOptionsVMenuItems[] = {
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_181, // "Audio"
-		0,
-		(void *)&g_2PMissionAudioOptionsVMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_182, // "Video"
-		0,
-		(void *)&g_2PMissionVideoOptionsMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_183, // "Control"
-		0,
-#if VERSION >= VERSION_PAL_FINAL
-		(void *)&g_CiControlOptionsMenuDialog2,
-#else
-		(void *)&g_MissionControlOptionsMenuDialog,
-#endif
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-		L_OPTIONS_184, // "Display"
-		0,
-		(void *)&g_2PMissionDisplayOptionsVMenuDialog,
-	},
-	{
-		MENUITEMTYPE_SEPARATOR,
-		0,
-		0,
-		0x00000064,
-		0,
-		NULL,
-	},
-	{
-		MENUITEMTYPE_SELECTABLE,
-		0,
-		0,
-		(uintptr_t)&menutextPauseOrUnpause,
-		0,
-		menuhandlerMpPause,
-	},
-	{ MENUITEMTYPE_END },
-};
 
 struct menuitem g_4PMissionOptionsHMenuItems[] = {
 	{
@@ -5243,7 +4407,7 @@ struct menuitem g_4PMissionOptionsHMenuItems[] = {
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
 		L_OPTIONS_183, // "Control"
 		0,
-		(void *)&g_MissionControlOptionsMenuDialog,
+		(void *)&g_MpControlMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -5295,11 +4459,7 @@ struct menuitem g_4PMissionOptionsVMenuItems[] = {
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
 		L_OPTIONS_183, // "Control"
 		0,
-#if VERSION >= VERSION_PAL_FINAL
-		(void *)&g_CiControlOptionsMenuDialog2,
-#else
-		(void *)&g_MissionControlOptionsMenuDialog,
-#endif
+		(void *)&g_MpControlMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -5307,7 +4467,7 @@ struct menuitem g_4PMissionOptionsVMenuItems[] = {
 		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
 		L_OPTIONS_184, // "Display"
 		0,
-		(void *)&g_2PMissionDisplayOptionsVMenuDialog,
+		(void *)&g_CiDisplayMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -5348,10 +4508,10 @@ struct menuitem g_CiOptionsMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
-		MENUITEMFLAG_SELECTABLE_OPENSDIALOG | MENUITEMFLAG_BIGFONT,
+		MENUITEMFLAG_BIGFONT,
 		L_OPTIONS_183, // "Control"
-		3,
-		(void *)&g_MpControlMenuDialog,
+		4,
+		menuhandlerOpenMpControlForCurrentPlayer,
 	},
 	{
 		MENUITEMTYPE_SELECTABLE,
@@ -5425,23 +4585,127 @@ struct menudialogdef g_CiOptionsViaPauseMenuDialog = {
 	NULL,
 };
 
-struct menudialogdef g_2PMissionOptionsHMenuDialog = {
+
+struct menuitem g_MissionDisplayOptionsMenuItems[];
+struct menudialogdef g_MissionDisplayOptionsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_180, // "Options"
-	g_2PMissionOptionsHMenuItems,
-	menudialog0010559c,
+	L_OPTIONS_203, // "Display Options"
+	g_CiDisplayMenuItems,
+	NULL,
 	0,
-	&g_2PMissionBriefingHMenuDialog,
+	NULL,
 };
 
-struct menudialogdef g_2PMissionOptionsVMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_180, // "Options"
-	g_2PMissionOptionsVMenuItems,
-	menudialog0010559c,
-	0,
-	&g_2PMissionBriefingVMenuDialog,
+
+struct menuitem g_MissionDisplayOptionsMenuItems[] = {
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_205, // "Sight on Screen"
+		0x00000004,
+		menuhandlerSightOnScreen,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_206, // "Always Show Target"
+		0x00000004,
+		menuhandlerAlwaysShowTarget,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_207, // "Show Zoom Range"
+		0x00000004,
+		menuhandlerShowZoomRange,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_208, // "Ammo on Screen"
+		0x00000004,
+		menuhandlerAmmoOnScreen,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_209, // "Show Gun Function"
+		0x00000004,
+		menuhandlerShowGunFunction,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_210, // "Paintball"
+		0x00000004,
+		menuhandlerPaintball,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_MPWEAPONS_169, // "In-Game Subtitles"
+		0x00000004,
+		menuhandlerInGameSubtitles,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_MPWEAPONS_168, // "Cutscene Subtitles"
+		0x00000004,
+		menuhandlerCutsceneSubtitles,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_212, // "Show Mission Time"
+		0x00000004,
+		menuhandlerShowMissionTime,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
+		L_OPTIONS_213, // "Back"
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END },
 };
+
+// struct menudialogdef g_2PMissionOptionsHMenuDialog = {
+// 	MENUDIALOGTYPE_DEFAULT,
+// 	L_OPTIONS_180, // "Options"
+// 	g_2PMissionOptionsHMenuItems,
+// 	menudialog0010559c,
+// 	0,
+// 	&g_2PMissionBriefingHMenuDialog,
+// };
+//
+// struct menudialogdef g_2PMissionOptionsVMenuDialog = {
+// 	MENUDIALOGTYPE_DEFAULT,
+// 	L_OPTIONS_180, // "Options"
+// 	g_2PMissionOptionsVMenuItems,
+// 	menudialog0010559c,
+// 	0,
+// 	&g_2PMissionBriefingVMenuDialog,
+// };
 
 struct menudialogdef g_4PMissionOptionsHMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
@@ -5667,6 +4931,15 @@ MenuDialogHandlerResult inventoryMenuDialog(s32 operation, struct menudialogdef 
 	return 0;
 }
 
+struct menudialogdef g_CiDisplayPlayer2MenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_OPTIONS_203, // "Display Options"
+	g_CiDisplayPlayer2MenuItems,
+	NULL,
+	0,
+	0,
+};
+
 /**
  * Return name, but if there is no manufacturer then return a blank value
  * because the name is being shown in the manufacturer slot.
@@ -5676,10 +4949,6 @@ char *invMenuTextWeaponName(struct menuitem *item)
 	struct weapon *weapon = weaponFindById(g_InventoryWeapon);
 
 	if (weapon) {
-		if (weapon->manufacturer == L_GUN_000) { // "\n"
-			return langGet(L_OPTIONS_003); // "\n"
-		}
-
 		return langGet(weapon->name);
 	}
 
@@ -5751,7 +5020,6 @@ char *invMenuTextWeaponDescription(struct menuitem *item)
 				'I' + 4 * 1,
 				'8' + 4 * 2,
 				'M' + 4 * 3,
-				'O' + 4 * 4,
 				'Z' + 4 * 5,
 				'Y' + 4 * 6,
 				'M' + 4 * 7,
@@ -6249,31 +5517,33 @@ struct menudialogdef g_SoloMissionPauseMenuDialog = {
 	&g_SoloMissionInventoryMenuDialog,
 };
 
-struct menudialogdef g_2PMissionPauseHMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	(uintptr_t)&soloMenuTitlePauseStatus,
-	g_MissionPauseMenuItems,
-	soloMenuDialogPauseStatus,
-	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
-	&g_2PMissionInventoryHMenuDialog,
-};
+// struct menudialogdef g_2PMissionPauseHMenuDialog = {
+// 	MENUDIALOGTYPE_DEFAULT,
+// 	(uintptr_t)&soloMenuTitlePauseStatus,
+// 	g_MissionPauseMenuItems,
+// 	soloMenuDialogPauseStatus,
+// 	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
+// 	&g_2PMissionInventoryHMenuDialog,
+// };
+//
+// struct menudialogdef g_2PMissionPauseVMenuDialog = {
+// 	MENUDIALOGTYPE_DEFAULT,
+// 	L_OPTIONS_172, // "Status"
+// 	g_2PMissionPauseVMenuItems,
+// 	soloMenuDialogPauseStatus,
+// 	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
+// 	&g_2PMissionInventoryVMenuDialog,
+// };
 
-struct menudialogdef g_2PMissionPauseVMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_OPTIONS_172, // "Status"
-	g_2PMissionPauseVMenuItems,
-	soloMenuDialogPauseStatus,
-	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
-	&g_2PMissionInventoryVMenuDialog,
-};
-
+extern struct menudialogdef g_4PMissionInventoryHMenuDialog;
+extern struct menudialogdef g_4PMissionInventoryVMenuDialog;
 struct menudialogdef g_4PMissionPauseHMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)&soloMenuTitlePauseStatus,
 	g_MissionPauseMenuItems,
 	soloMenuDialogPauseStatus,
 	MENUDIALOGFLAG_DISABLEITEMSCROLL | MENUDIALOGFLAG_SMOOTHSCROLLABLE,
-	&g_2PMissionInventoryHMenuDialog,
+	&g_4PMissionInventoryHMenuDialog,
 };
 
 struct menudialogdef g_4PMissionPauseVMenuDialog = {

@@ -495,23 +495,23 @@ struct menudialogdef g_MpPauseInventoryMenuDialog = {
 	&g_MpPauseControlMenuDialog,
 };
 
-struct menudialogdef g_2PMissionInventoryHMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_MPMENU_284, // "Inventory"
-	g_Mp2PMissionInventoryMenuItems,
-	NULL,
-	0,
-	&g_2PMissionOptionsHMenuDialog,
-};
-
-struct menudialogdef g_2PMissionInventoryVMenuDialog = {
-	MENUDIALOGTYPE_DEFAULT,
-	L_MPMENU_284, // "Inventory"
-	g_Mp2PMissionInventoryMenuItems,
-	NULL,
-	0,
-	&g_2PMissionOptionsVMenuDialog,
-};
+// struct menudialogdef g_2PMissionInventoryHMenuDialog = {
+// 	MENUDIALOGTYPE_DEFAULT,
+// 	L_MPMENU_284, // "Inventory"
+// 	g_Mp2PMissionInventoryMenuItems,
+// 	NULL,
+// 	0,
+// 	&g_2PMissionOptionsHMenuDialog,
+// };
+//
+// struct menudialogdef g_2PMissionInventoryVMenuDialog = {
+// 	MENUDIALOGTYPE_DEFAULT,
+// 	L_MPMENU_284, // "Inventory"
+// 	g_Mp2PMissionInventoryMenuItems,
+// 	NULL,
+// 	0,
+// 	&g_2PMissionOptionsVMenuDialog,
+// };
 
 struct menudialogdef g_4PMissionInventoryHMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
@@ -810,17 +810,9 @@ void mpPushPauseDialog(void)
 					|| PLAYERCOUNT() >= 3
 #endif
 				) {
-					if (PLAYERCOUNT() >= 3) {
-						menuPushRootDialog(&g_4PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
-					} else {
-						menuPushRootDialog(&g_2PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
-					}
+					menuPushRootDialog(&g_4PMissionPauseVMenuDialog, MENUROOT_MPPAUSE);
 				} else {
-					if (PLAYERCOUNT() >= 3) {
-						menuPushRootDialog(&g_4PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);
-					} else {
-						menuPushRootDialog(&g_2PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);
-					}
+					menuPushRootDialog(&g_4PMissionPauseHMenuDialog, MENUROOT_MPPAUSE);
 				}
 			}
 		}
