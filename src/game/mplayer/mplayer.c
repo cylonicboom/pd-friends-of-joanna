@@ -166,10 +166,10 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
 	.handicap_prop = { .u8 = 0x80 }, \
 	.classicsight_prop = { .u8 = 0 }, \
 	.showlives_prop = { .u8 = 0 }, \
+	.teamagentindex_prop = { .s32 = -1 }, \
 	.ingamesubtitles_prop = { .u8 = 1 }, \
 	.cutscenesubtitles_prop = { .u8 = 0 }, \
 	.showmissiontime_prop = { .u8 = 0 }, \
-	.teamagentindex_prop = { .s32 = -1 }, \
 	.showplayername_prop = { .u8 = 1 }, \
 };
 
@@ -256,10 +256,10 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
 	{ CFG_U8, "Handicap", 0x80, 0, 255, &mpExtendedProfileInitHandicap},
 	{ CFG_U8, "ClassicSight", 0, 0, 1, &mpExtendedProfileInitClassicSight},
 	{ CFG_U8, "ShowLives", 0, 0, 1, &mpExtendedProfileInitShowLives},
+	{ CFG_S32, "TeamAgentIndex", -1, -1, 10, &mpExtendedProfileInitTeamAgentIndex},
 	{ CFG_U8, "InGameSubtitles", 1, 0, 1, &mpExtendedProfileInitInGameSubtitles},
 	{ CFG_U8, "CutsceneSubtitles", 0, 0, 1, &mpExtendedProfileInitCutsceneSubtitles},
 	{ CFG_U8, "ShowMissionTime", 0, 0, 1, &mpExtendedProfileInitShowMissionTime},
-	{ CFG_S32, "TeamAgentIndex", -1, -1, 10, &mpExtendedProfileInitTeamAgentIndex},
 	{ CFG_U8, "ShowPlayerName", 1, 0, 1, &mpExtendedProfileInitShowPlayerName},
 }; // these must be in the same order as the extendedprofile struct, ignoring the fileguid
 

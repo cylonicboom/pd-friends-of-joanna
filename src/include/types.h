@@ -6248,10 +6248,10 @@ struct extplayerprofile {
 			extplayerprop handicap_prop;
 			extplayerprop classicsight_prop;
 			extplayerprop showlives_prop;
+			extplayerprop teamagentindex_prop;
 			extplayerprop ingamesubtitles_prop;
 			extplayerprop cutscenesubtitles_prop;
 			extplayerprop showmissiontime_prop;
-			extplayerprop teamagentindex_prop;
 			extplayerprop showplayername_prop;
 		};
 		extplayerprop ptr[9];
