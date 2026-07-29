@@ -4086,6 +4086,7 @@ struct mpplayerconfig {
 	u8* ingamesubtitles;
 	u8* cutscenesubtitles;
 	u8* showmissiontime;
+	u8* showplayername;
 	s32 teamagentindex;
 	s32 configindex;
 };
@@ -6251,8 +6252,9 @@ struct extplayerprofile {
 			extplayerprop cutscenesubtitles_prop;
 			extplayerprop showmissiontime_prop;
 			extplayerprop teamagentindex_prop;
+			extplayerprop showplayername_prop;
 		};
-		extplayerprop ptr[8];
+		extplayerprop ptr[9];
 	};
 };
 

@@ -10,6 +10,7 @@
 
 u8 g_InGameSubtitles = 1;
 u8 g_CutsceneSubtitles = 0;
+u8 g_ShowPlayerNameFallback[MAX_PLAYERS] = {1, 1, 1, 1};
 u32 var8007fa98 = 0x00000000;
 u32 var8007fa9c = 0x00000001;
 u32 var8007faa0 = 0x00000000;
@@ -127,6 +128,15 @@ s32 optionsGetShowMissionTime(s32 mpchrnum)
 	}
 
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_SHOWMISSIONTIME) != 0;
+}
+
+s32 optionsGetShowPlayerName(s32 mpchrnum)
+{
+	if (g_PlayerConfigsArray[mpchrnum].showplayername) {
+		return *g_PlayerConfigsArray[mpchrnum].showplayername != 0;
+	}
+
+	return g_ShowPlayerNameFallback[mpchrnum] != 0;
 }
 
 u8 optionsGetInGameSubtitlesForPlayer(s32 mpchrnum)
@@ -285,6 +295,15 @@ void optionsSetShowMissionTime(s32 mpchrnum, bool enable)
 		g_PlayerConfigsArray[mpchrnum].options |= OPTION_SHOWMISSIONTIME;
 	} else {
 		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_SHOWMISSIONTIME;
+	}
+}
+
+void optionsSetShowPlayerName(s32 mpchrnum, bool enable)
+{
+	if (g_PlayerConfigsArray[mpchrnum].showplayername) {
+		*g_PlayerConfigsArray[mpchrnum].showplayername = enable ? 1 : 0;
+	} else {
+		g_ShowPlayerNameFallback[mpchrnum] = enable ? 1 : 0;
 	}
 }
 

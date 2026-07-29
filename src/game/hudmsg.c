@@ -379,6 +379,65 @@ Gfx *hudmsgRenderLives(Gfx *gdl, u32 alpha)
 	return gdl;
 }
 
+Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
+{
+	s32 x;
+	s32 y;
+	s32 textwidth;
+	s32 textheight;
+	s32 viewleft;
+	s32 viewtop;
+	s32 viewwidth;
+	u32 textcolour;
+	s32 mpchrnum;
+	char *name;
+
+	if (PLAYERCOUNT() < 2) {
+		return gdl;
+	}
+
+	mpchrnum = hudmsgGetCurrentPlayerMpChrNum();
+
+	if (mpchrnum < 0 || mpchrnum >= MAX_PLAYERS) {
+		return gdl;
+	}
+
+	if (!optionsGetShowPlayerName(mpchrnum)) {
+		return gdl;
+	}
+
+	name = g_PlayerConfigsArray[mpchrnum].base.name;
+
+	if (name == NULL || name[0] == '\0') {
+		return gdl;
+	}
+
+	viewleft = viGetViewLeft() / g_ScaleX;
+	viewtop = viGetViewTop();
+	viewwidth = viGetViewWidth() / g_ScaleX;
+
+	textMeasure(&textheight, &textwidth, name, g_CharsHandelGothicSm, g_FontHandelGothicSm, 0);
+
+	x = viewleft + viewwidth - g_HudPaddingX - textwidth - 3;
+	y = viewtop + g_HudPaddingY + 2;
+
+	textcolour = (alpha * 160 / 255) | 0x00ff0000;
+
+#ifndef PLATFORM_N64
+	if (PLAYERCOUNT() < 2 || (PLAYERCOUNT() == 2 && optionsGetScreenSplit() == SCREENSPLIT_HORIZONTAL)) {
+		gSPExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT, g_HudAlignModeL);
+	}
+#endif
+
+	gdl = textRender(gdl, &x, &y, name, g_CharsHandelGothicSm, g_FontHandelGothicSm, textcolour, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+
+#ifndef PLATFORM_N64
+	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
+#endif
+
+	return gdl;
+}
+
 Gfx *hudmsgRenderBox(Gfx *gdl, s32 x1, s32 y1, s32 x2, s32 y2, f32 bgopacity, u32 bordercolour, f32 textopacity)
 {
 	f32 f0;
@@ -1711,6 +1770,8 @@ Gfx *hudmsgsRender(Gfx *gdl)
 
 		gdl = countdownTimerRender(gdl);
 	}
+
+	gdl = hudmsgRenderPlayerName(gdl, timerthing ? timerthing : 255);
 
 	gdl = text0f153780(gdl);
 

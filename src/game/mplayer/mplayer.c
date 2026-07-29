@@ -170,6 +170,7 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
 	.cutscenesubtitles_prop = { .u8 = 0 }, \
 	.showmissiontime_prop = { .u8 = 0 }, \
 	.teamagentindex_prop = { .s32 = -1 }, \
+	.showplayername_prop = { .u8 = 1 }, \
 };
 
 struct extplayerprofile g_ExtendedProfiles[CONFIG_MAX_PROFILES];
@@ -236,6 +237,11 @@ static void mpExtendedProfileInitShowMissionTime(s32 profileindex, s32 playernum
 	g_PlayerConfigsArray[playernum].showmissiontime = &g_ExtendedProfiles[profileindex].showmissiontime_prop.u8;
 }
 
+static void mpExtendedProfileInitShowPlayerName(s32 profileindex, s32 playernum)
+{
+	g_PlayerConfigsArray[playernum].showplayername = &g_ExtendedProfiles[profileindex].showplayername_prop.u8;
+}
+
 static void mpExtendedProfileInitTeamAgentIndex(s32 profileindex, s32 playernum)
 {
 	s32 val = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
@@ -254,6 +260,7 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
 	{ CFG_U8, "CutsceneSubtitles", 0, 0, 1, &mpExtendedProfileInitCutsceneSubtitles},
 	{ CFG_U8, "ShowMissionTime", 0, 0, 1, &mpExtendedProfileInitShowMissionTime},
 	{ CFG_S32, "TeamAgentIndex", -1, -1, 10, &mpExtendedProfileInitTeamAgentIndex},
+	{ CFG_U8, "ShowPlayerName", 1, 0, 1, &mpExtendedProfileInitShowPlayerName},
 }; // these must be in the same order as the extendedprofile struct, ignoring the fileguid
 
 static inline s32 getExtendedProfileIndexFromFileGuid(const struct fileguid* fileguid)

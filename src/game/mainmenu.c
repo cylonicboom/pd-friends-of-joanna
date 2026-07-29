@@ -613,6 +613,25 @@ MenuItemHandlerResult menuhandlerShowMissionTime(s32 operation, struct menuitem 
 	return 0;
 }
 
+MenuItemHandlerResult menuhandlerShowPlayerName(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+	if (g_PlayerConfigsArray[mpchrnum].showplayername == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[mpchrnum].fileguid, 1, mpchrnum);
+	}
+
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetShowPlayerName(mpchrnum);
+	case MENUOP_SET:
+		optionsSetShowPlayerName(mpchrnum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+	}
+
+	return 0;
+}
+
 MenuItemHandlerResult menuhandlerAlwaysShowTarget(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	u32 mpchrnum = menuResolveOptionMpChrNum(item);
@@ -4185,6 +4204,14 @@ struct menuitem g_CiDisplayMenuItems[] = {
 		menuhandlerShowMissionTime,
 	},
 	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Player Name",
+		0,
+		menuhandlerShowPlayerName,
+	},
+	{
 		MENUITEMTYPE_SEPARATOR,
 		0,
 		0,
@@ -4221,6 +4248,14 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
 		L_OPTIONS_212, // "Show Mission Time"
 		0,
 		menuhandlerShowMissionTime,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Player Name",
+		0,
+		menuhandlerShowPlayerName,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
@@ -4590,7 +4625,7 @@ struct menuitem g_MissionDisplayOptionsMenuItems[];
 struct menudialogdef g_MissionDisplayOptionsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	L_OPTIONS_203, // "Display Options"
-	g_CiDisplayMenuItems,
+	g_MissionDisplayOptionsMenuItems,
 	NULL,
 	0,
 	NULL,
@@ -4669,6 +4704,14 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
 		L_OPTIONS_212, // "Show Mission Time"
 		0x00000004,
 		menuhandlerShowMissionTime,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Player Name",
+		0x00000004,
+		menuhandlerShowPlayerName,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,
