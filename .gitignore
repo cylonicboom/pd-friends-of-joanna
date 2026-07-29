@@ -5,6 +5,7 @@
 *.exe
 export/
 pd.*.z64
+*.z64
 build
 .flatpak-builder
 extracted

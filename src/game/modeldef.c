@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "system.h"
 #include "constants.h"
 #include "game/chraction.h"
 #include "game/ceil.h"
@@ -23,6 +24,11 @@
 #include "lib/model.h"
 #include "data.h"
 #include "types.h"
+
+#ifndef PLATFORM_N64
+#include "mod.h"
+#include "romdata.h"
+#endif
 
 struct skeleton *g_Skeletons[] = {
 	&g_SkelChr,
@@ -109,7 +115,7 @@ struct skeleton *g_Skeletons[] = {
 #endif
 };
 
-void modeldef0f1a7560(struct modeldef *modeldef, u16 filenum, u32 arg2, struct modeldef *modeldef2, struct texpool *texpool, bool arg5)
+void modeldef0f1a7560(struct modeldef *modeldef, s32 filenum, u32 arg2, struct modeldef *modeldef2, struct texpool *texpool, bool arg5)
 {
 	s32 allocsize;
 	s32 loadedsize;
@@ -125,6 +131,11 @@ void modeldef0f1a7560(struct modeldef *modeldef, u16 filenum, u32 arg2, struct m
 	allocsize = fileGetAllocationSize(filenum);
 	loadedsize = fileGetLoadedSize(filenum);
 	node = NULL;
+
+#ifndef PLATFORM_N64
+	s32 prevTexMod = g_TexModNum;
+	g_TexModNum = filenum >> 16;
+#endif
 
 	modelIterateDisplayLists(modeldef, &node, (Gfx **)&gdl);
 
@@ -165,6 +176,10 @@ void modeldef0f1a7560(struct modeldef *modeldef, u16 filenum, u32 arg2, struct m
 
 		fileSetSize(filenum, modeldef, (((uintptr_t)modeldef + (UNSEGADDR(s5) & 0xffffff)) - (uintptr_t)modeldef + 0xf) & ~0xf, arg5);
 	}
+
+#ifndef PLATFORM_N64
+	g_TexModNum = prevTexMod;
+#endif
 }
 
 void modelPromoteTypeToPointer(struct modeldef *modeldef)
@@ -181,7 +196,7 @@ void modelPromoteTypeToPointer(struct modeldef *modeldef)
 	}
 }
 
-struct modeldef *modeldefLoad(u16 fileid, u8 *dst, s32 size, struct texpool *arg3)
+struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg3)
 {
 	struct modeldef *modeldef;
 
@@ -193,19 +208,46 @@ struct modeldef *modeldefLoad(u16 fileid, u8 *dst, s32 size, struct texpool *arg
 		modeldef = fileLoadToNew(fileid, FILELOADMETHOD_EXTRAMEM, LOADTYPE_MODEL);
 	}
 
+	if (!modeldef) {
+		sysLogPrintf(LOG_ERROR, "modeldefLoad: fileLoad returned NULL for fileid=0x%08x", fileid);
+		return NULL;
+	}
+
 	modelPromoteTypeToPointer(modeldef);
 	modelPromoteOffsetsToPointers(modeldef, 0x5000000, (uintptr_t) modeldef);
+
+#ifndef PLATFORM_N64
+	{
+		extern u16 modTexMapLookup(s32 modIdx, u16 localTexId);
+		s32 modIdx = (fileid >> 16) & 0xff;
+
+		if (modIdx > 0 && modeldef->texconfigs && modeldef->numtexconfigs > 0) {
+			struct textureconfig *tc = modeldef->texconfigs;
+			s32 numtc = modeldef->numtexconfigs;
+			for (s32 i = 0; i < numtc; ++i) {
+				uintptr_t v = (uintptr_t)tc[i].texturenum;
+				if (v < NUM_TEXTURES) {
+					u16 mapped = modTexMapLookup(modIdx, (u16)v);
+					if ((uintptr_t)mapped != v) {
+						tc[i].texturenum = (texnum_t)(uintptr_t)mapped;
+					}
+				}
+			}
+		}
+	}
+#endif
+
 	modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
 
 	return modeldef;
 }
 
-struct modeldef *modeldefLoadToNew(u16 fileid)
+struct modeldef *modeldefLoadToNew(s32 fileid)
 {
 	return modeldefLoad(fileid, NULL, 0, NULL);
 }
 
-struct modeldef *modeldefLoadToAddr(u16 fileid, u8 *dst, s32 size)
+struct modeldef *modeldefLoadToAddr(s32 fileid, u8 *dst, s32 size)
 {
 	return modeldefLoad(fileid, dst, size, NULL);
 }

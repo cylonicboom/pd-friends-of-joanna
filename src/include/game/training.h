@@ -73,6 +73,7 @@ struct biocharid *ciGetChrBioBySlot(s32 slot);
 char *ciGetChrBioDescription(void);
 s32 ciGetNumUnlockedChrBios(void);
 s32 ciGetChrBioBodynumBySlot(s32 slot);
+void fojoInitChrBioCharacters(void);
 
 static inline char *chrBioText(uintptr_t val, u32 flags)
 {

@@ -191,13 +191,14 @@ u32 gbiConvertGdl(u8 *dst, u32 dstpos, u8 *src, u32 srcpos, u8 segment_cmds)
 			u32 addr = cmd & 0xffffffff;
 			u16 texnum = cmd & 0xfffff;
 			if (cmd & 0x5000000) {
-				sysLogPrintf(LOG_NOTE, "gbiConvertGdl: SETTIMG MATCH texnum=%05x addr=%08x loadingFileNum=%04x", texnum, addr, (u16)loadingFileNum);
+				// sysLogPrintf(LOG_NOTE, "gbiConvertGdl: SETTIMG MATCH texnum=%05x addr=%08x loadingFileNum=%04x", texnum, addr, (u16)loadingFileNum);
 				gDPSetTextureInfoEXT(host_cmd, G_TEXTYPE_MODEL, loadingFileNum, texnum, 0);
 				dstpos += sizeof(*host_cmd) * HOST_DWORDS_PER_CMD;
 				host_cmd += HOST_DWORDS_PER_CMD;
 			} else {
-				sysLogPrintf(LOG_NOTE, "gbiConvertGdl: SETTIMG SKIP (no 0x5000000) cmd=%016llx addr=%08x texnum=%05x loadingFileNum=%04x",
-					(unsigned long long)cmd, addr, texnum, (u16)loadingFileNum);
+				// sysLogPrintf(LOG_NOTE, "gbiConvertGdl: SETTIMG SKIP (no 0x5000000) cmd=%016llx addr=%08x texnum=%05x loadingFileNum=%04x",
+				// 	(unsigned long long)cmd, addr, texnum, (u16)loadingFileNum);
+				(void)addr; (void)texnum;
 			}
 		}
 

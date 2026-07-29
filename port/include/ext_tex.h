@@ -9,6 +9,7 @@ s32 extTexInit();
 void extTexFree();
 u8 *extTexLoad(u8 type, u16 id, s32 texnum, u32 *width, u32 *height);
 u8 extTexExists(u8 type, u16 id, s32 texnum);
+s8 extTexGetOwnerMod(u8 type, u16 id, s32 texnum);
 u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height);
 u8 extTexFontID(struct font *font);
 

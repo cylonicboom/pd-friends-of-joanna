@@ -12,6 +12,7 @@
 #include "game/lang.h"
 #include "game/race.h"
 #include "game/body.h"
+#include "game/training.h"
 #include "game/stubs/game_000840.h"
 #include "game/stubs/game_000850.h"
 #include "game/stubs/game_000860.h"
@@ -355,6 +356,9 @@ void mainProc(void)
 	modCacheAllConfigs();
 	sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
 	modSwitch(0, -1);
+	bodiesInit();          // recount guard-head arrays now mods are loaded
+	fojoPatchGuardHeads(); // splice FoJo Calico/Poplin into female guard pool
+	fojoInitChrBioCharacters(); // resolve FoJo bio chr ids to runtime mpheadnums
 	rdpInit();
 	sndInit();
 

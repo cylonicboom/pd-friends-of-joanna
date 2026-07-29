@@ -10,6 +10,7 @@
 
 extern u8 g_StageModFlags[256];
 extern char g_ModNames[64][64];
+extern s32 g_TexModNum;
 
 struct animtableentry;
 
@@ -30,4 +31,10 @@ void *modSequenceLoad(u16 num, u32 *outSize);
 void modLoadTextureSurfaceType(void);
 void modUnloadTextureSurfaceType(void);
 void modSwitch(s32 modnum, s32 stagenum);
+s32 modLoadHeadAndBodyConfigs(void);
+s32 modLookupHeadByName(const char *name);
+s32 modLookupBodyByName(const char *name);
+s32 modLookupHandFileByName(const char *name);
+s32 modLookupHeadnumByName(const char *name);
+const char *modGetNameForHeadBodyIndex(s32 headBodyIndex);
 #endif

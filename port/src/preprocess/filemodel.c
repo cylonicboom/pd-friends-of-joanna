@@ -1082,9 +1082,10 @@ static void preprocessModelTextures(u8 *base, u8 *textures_end)
 	}
 }
 
-static int convertModel(u8* dst, u8* src, u32 srclen)
+static int convertModel(u8* dst, u8* src, u32 srclen, s32 modNum)
 {
 	u32 dstpos;
+	(void)modNum;
 
 	populateMarkers(src);
 	sortMarkers();
@@ -1099,13 +1100,13 @@ static int convertModel(u8* dst, u8* src, u32 srclen)
 u8 *preprocessModelFile(u8 *data, u32 size, u32 *outSize, s32 modNum)
 {
 	extern s32 loadingFileNum;
-	sysLogPrintf(LOG_NOTE, "preprocessModelFile: loadingFileNum=%04x size=%u modNum=%d", (u16)loadingFileNum, size, modNum);
+	// sysLogPrintf(LOG_NOTE, "preprocessModelFile: loadingFileNum=%04x size=%u modNum=%d", (u16)loadingFileNum, size, modNum);
 	gbiReset();
 
 	u32 newSizeEstimated = romdataFileGetEstimatedSize(size, LOADTYPE_MODEL);
 	u8 *dst = sysMemZeroAlloc(newSizeEstimated);
 
-	u32 newSize = convertModel(dst, data, size);
+	u32 newSize = convertModel(dst, data, size, modNum);
 
 	if (newSize > newSizeEstimated) {
 		sysFatalError("overflow when trying to preprocess model, size %d newsize %d", size, newSize);
@@ -1126,7 +1127,7 @@ u8 *preprocessGunFile(u8 *data, u32 size, u32 *outSize, s32 modNum)
 	u32 newSizeEstimated = romdataFileGetEstimatedSize(size, LOADTYPE_MODEL);
 	u8 *dst = sysMemZeroAlloc(newSizeEstimated+128);
 
-	u32 newSize = convertModel(dst, data, size);
+	u32 newSize = convertModel(dst, data, size, modNum);
 
 	if (newSize > newSizeEstimated) {
 		sysFatalError("overflow when trying to preprocess model, size %d newsize %d", size, newSize);

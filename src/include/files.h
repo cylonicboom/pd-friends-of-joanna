@@ -2034,7 +2034,7 @@
 #ifdef PLATFORM_N64
 #define NUM_FILES 2014
 #else
-#define NUM_FILES 2018 // PD Plus Mod (+ 4)
+#define NUM_FILES 4096 // must match ROMDATA_MAX_FILES for mod expansion file IDs
 #endif
 #else
 #define NUM_FILES 2013

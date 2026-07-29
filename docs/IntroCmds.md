@@ -1,0 +1,3 @@
+# costume
+# outfitalt
+# spawnintochrifheadnumeq

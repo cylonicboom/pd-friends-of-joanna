@@ -4117,6 +4117,11 @@ u32 g_FileTable[] = {
 uintptr_t g_FileTable[NUM_FILES + 1]; // TODO: this is only used to get the filenum, remove this
 #endif // PLATFORM_N64
 
+// Stash the full (modNum << 16) | fileId value for fileLoad,
+// since fileLoad recovers filenum via pointer math on g_FileTable
+// which only gives the raw fileId without the modNum encoding.
+static s32 g_FileLoadEncodedFilenum = 0;
+
 romptr_t fileGetRomAddress(s32 filenum)
 {
 #ifdef PLATFORM_N64
@@ -4146,7 +4151,7 @@ u32 fileGetRomSizeByTableAddress(uintptr_t *filetableaddr)
 
 s32 fileGetRomSize(s32 filenum)
 {
-	return fileGetRomSizeByTableAddress((uintptr_t*)&g_FileTable[filenum]);
+	return fileGetRomSizeByTableAddress((uintptr_t*)&g_FileTable[filenum & 0xFFFF]);
 }
 
 u32 file0f166ea8(uintptr_t *filetableaddr)
@@ -4157,8 +4162,9 @@ u32 file0f166ea8(uintptr_t *filetableaddr)
 void fileLoad(u8 *dst, u32 allocationlen, romptr_t *romaddrptr, struct fileinfo *info)
 {
 #ifndef PLATFORM_N64
-	// load the file first
-	const s32 filenum = (uintptr_t *)romaddrptr - g_FileTable;
+	// Use the stashed encoded filenum which preserves (modNum << 16);
+	// recovering it via pointer math against g_FileTable would drop the modNum bits.
+	const s32 filenum = g_FileLoadEncodedFilenum;
 	u32 romsize = 0;
 	u8 *filedata = romdataFileLoad(filenum, &romsize);
 	if (!filedata) {
@@ -4240,10 +4246,11 @@ void filesInit(void)
 void fileLoadPartToAddr(u16 filenum, void *memaddr, s32 offset, u32 len)
 {
 	u32 stack[2];
+	const s32 rawFilenum = filenum & 0xFFFF;
 
-	if (fileGetRomSizeByTableAddress((uintptr_t*)&g_FileTable[filenum])) {
+	if (fileGetRomSizeByTableAddress((uintptr_t*)&g_FileTable[rawFilenum])) {
 #ifdef PLATFORM_N64
-		dmaExec(memaddr, (romptr_t) g_FileTable[filenum] + offset, len);
+		dmaExec(memaddr, (romptr_t) g_FileTable[rawFilenum] + offset, len);
 #else
 		const u8 *src = romdataFileGetData(filenum);
 		if (src) {
@@ -4264,8 +4271,14 @@ u32 fileGetInflatedSize(s32 filenum, u32 loadtype)
 	char message[128];
 #endif
 	uintptr_t romaddr;
+	const s32 rawFilenum = filenum & 0xFFFF;
 
-	romaddrptr = &g_FileTable[filenum];
+	if (rawFilenum < 0 || rawFilenum >= NUM_FILES) {
+		sysLogPrintf(LOG_ERROR, "fileGetInflatedSize: filenum 0x%x rawFilenum %d out of range (NUM_FILES=%d)", filenum, rawFilenum, NUM_FILES);
+		return 0;
+	}
+
+	romaddrptr = &g_FileTable[rawFilenum];
 
 	if (1);
 
@@ -4277,7 +4290,7 @@ u32 fileGetInflatedSize(s32 filenum, u32 loadtype)
 	ptr = (u8 *) ((uintptr_t) &buffer[0x10] & ~0xf);
 
 	if (romaddr == 0) {
-		stub0f175f58(file0f166ea8(&g_FileTable[filenum]), ptr, 16);
+		stub0f175f58(file0f166ea8(&g_FileTable[rawFilenum]), ptr, 16);
 	} else {
 		dmaExec(ptr, romaddr, 0x40);
 	}
@@ -4302,7 +4315,12 @@ u32 fileGetInflatedSize(s32 filenum, u32 loadtype)
 
 void *fileLoadToNew(s32 filenum, u32 method, u32 loadtype)
 {
-	struct fileinfo *info = &g_FileInfo[filenum];
+	const s32 rawFilenum = filenum & 0xFFFF;
+	if (rawFilenum < 0 || rawFilenum >= NUM_FILES) {
+		sysLogPrintf(LOG_ERROR, "fileLoadToNew: filenum 0x%x rawFilenum %d out of range (NUM_FILES=%d)", filenum, rawFilenum, NUM_FILES);
+		return NULL;
+	}
+	struct fileinfo *info = &g_FileInfo[rawFilenum];
 	u32 stack;
 	void *ptr;
 
@@ -4317,7 +4335,8 @@ void *fileLoadToNew(s32 filenum, u32 method, u32 loadtype)
 
 		ptr = mempAlloc(info->loadedsize, MEMPOOL_STAGE);
 		info->allocsize = info->loadedsize;
-		fileLoad(ptr, info->loadedsize, (uintptr_t*)&g_FileTable[filenum], info);
+		g_FileLoadEncodedFilenum = filenum;
+		fileLoad(ptr, info->loadedsize, (uintptr_t*)&g_FileTable[rawFilenum], info);
 
 		if (method != FILELOADMETHOD_EXTRAMEM) {
 			mempRealloc(ptr, info->loadedsize, MEMPOOL_STAGE);
@@ -4331,19 +4350,26 @@ void *fileLoadToNew(s32 filenum, u32 method, u32 loadtype)
 
 void fileRemove(s32 filenum)
 {
-	g_FileTable[filenum] = 0;
+	const s32 rawFilenum = filenum & 0xFFFF;
+	g_FileTable[rawFilenum] = 0;
 #ifndef PLATFORM_N64
-	romdataFileFree(filenum);
+	romdataFileFree(rawFilenum);
 #endif
 }
 
 void *fileLoadToAddr(s32 filenum, s32 method, u8 *ptr, u32 size)
 {
-	struct fileinfo *info = &g_FileInfo[filenum];
+	const s32 rawFilenum = filenum & 0xFFFF;
+	if (rawFilenum < 0 || rawFilenum >= NUM_FILES) {
+		sysLogPrintf(LOG_ERROR, "fileLoadToAddr: filenum 0x%x rawFilenum %d out of range (NUM_FILES=%d)", filenum, rawFilenum, NUM_FILES);
+		return NULL;
+	}
+	struct fileinfo *info = &g_FileInfo[rawFilenum];
 
 	if (method == FILELOADMETHOD_EXTRAMEM || method == FILELOADMETHOD_DEFAULT) {
 		info->allocsize = size;
-		fileLoad(ptr, size, (uintptr_t*)&g_FileTable[filenum], info);
+		g_FileLoadEncodedFilenum = filenum;
+		fileLoad(ptr, size, (uintptr_t*)&g_FileTable[rawFilenum], info);
 	} else {
 		while (1);
 	}
@@ -4353,21 +4379,22 @@ void *fileLoadToAddr(s32 filenum, s32 method, u8 *ptr, u32 size)
 
 u32 fileGetLoadedSize(s32 filenum)
 {
-	return g_FileInfo[filenum].loadedsize;
+	return g_FileInfo[filenum & 0xFFFF].loadedsize;
 }
 
 u32 fileGetAllocationSize(s32 filenum)
 {
-	return g_FileInfo[filenum].allocsize;
+	return g_FileInfo[filenum & 0xFFFF].allocsize;
 }
 
 void fileSetSize(s32 filenum, void *ptr, u32 size, bool reallocate)
 {
-	g_FileInfo[filenum].loadedsize = size;
-	g_FileInfo[filenum].allocsize = size;
+	const s32 rawFilenum = filenum & 0xFFFF;
+	g_FileInfo[rawFilenum].loadedsize = size;
+	g_FileInfo[rawFilenum].allocsize = size;
 
 	if (reallocate) {
-		mempRealloc(ptr, g_FileInfo[filenum].loadedsize, MEMPOOL_STAGE);
+		mempRealloc(ptr, g_FileInfo[rawFilenum].loadedsize, MEMPOOL_STAGE);
 	}
 }
 
