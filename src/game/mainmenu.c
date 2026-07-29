@@ -602,6 +602,10 @@ MenuItemHandlerResult menuhandlerShowMissionTime(s32 operation, struct menuitem 
 {
 	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
+	if (g_PlayerConfigsArray[mpchrnum].showmissiontime == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[mpchrnum].fileguid, 1, mpchrnum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetShowMissionTime(mpchrnum);

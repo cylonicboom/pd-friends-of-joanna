@@ -680,6 +680,10 @@ MenuItemHandlerResult menuhandlerMpSetupCutsceneSubtitles(s32 operation, struct 
 
 MenuItemHandlerResult menuhandlerMpSetupShowMissionTime(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].showmissiontime == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetShowMissionTime(g_MpPlayerNum);
