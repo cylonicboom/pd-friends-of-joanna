@@ -242,7 +242,16 @@ static u32 menuResolveOptionMpChrNum(struct menuitem *item)
 	} else if (g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0) {
 		mpchrnum = g_Vars.currentplayerstats->mpindex;
 	} else {
-		mpchrnum = item->param3;
+		// In front-end/profile menus there may be no currentplayerstats,
+		// so use the active menu player instead of defaulting to slot 0.
+		if (g_Vars.currentplayerstats == NULL
+				&& item->param3 < MAX_PLAYERS
+				&& g_MpPlayerNum >= 0
+				&& g_MpPlayerNum < MAX_PLAYERS) {
+			mpchrnum = g_MpPlayerNum;
+		} else {
+			mpchrnum = item->param3;
+		}
 	}
 
 	if (mpchrnum >= MAX_PLAYERS) {
@@ -491,6 +500,10 @@ MenuItemHandlerResult menuhandlerInGameSubtitles(s32 operation, struct menuitem 
 {
 	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
+	if (g_PlayerConfigsArray[mpchrnum].ingamesubtitles == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[mpchrnum].fileguid, 1, mpchrnum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetInGameSubtitlesForPlayer(mpchrnum);
@@ -505,6 +518,10 @@ MenuItemHandlerResult menuhandlerInGameSubtitles(s32 operation, struct menuitem 
 MenuItemHandlerResult menuhandlerCutsceneSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+	if (g_PlayerConfigsArray[mpchrnum].cutscenesubtitles == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[mpchrnum].fileguid, 1, mpchrnum);
+	}
 
 	switch (operation) {
 	case MENUOP_CHECKHIDDEN:
@@ -710,6 +727,10 @@ MenuItemHandlerResult menuhandlerClassicSight(s32 operation, struct menuitem *it
 {
 	u32 mpchrnum = menuResolveOptionMpChrNum(item);
 
+	if (g_PlayerConfigsArray[mpchrnum].classicsight == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[mpchrnum].fileguid, 1, mpchrnum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetClassicSight(mpchrnum);
@@ -724,6 +745,10 @@ MenuItemHandlerResult menuhandlerClassicSight(s32 operation, struct menuitem *it
 MenuItemHandlerResult menuhandlerShowLives(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+	if (g_PlayerConfigsArray[mpchrnum].showlives == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[mpchrnum].fileguid, 1, mpchrnum);
+	}
 
 	switch (operation) {
 	case MENUOP_GET:
@@ -1608,6 +1633,8 @@ MenuDialogHandlerResult menudialogTeamPlayerProfiles(s32 operation, struct menud
 		}
 		break;
 	case MENUOP_CLOSE:
+		// Persist pre-reality profile edits immediately when leaving this menu.
+		configSave(CONFIG_PATH);
 		fileListFreeAll();
 		if (g_MenuData.root == MENUROOT_FILEMGR) {
 			filelistCreate(0, FILETYPE_GAME);
@@ -3753,7 +3780,18 @@ MenuItemHandlerResult menuhandlerControlStyle(s32 operation, struct menuitem *it
 MenuItemHandlerResult menuhandlerOpenMpControlForCurrentPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		u32 mpchrnum = menuResolveOptionMpChrNum(item);
+		u32 mpchrnum;
+
+		// In front-end menus before mission runtime exists, keep editing tied to
+		// the active menu player instead of hard-mapping param3=4 to player 0.
+		if (g_Vars.currentplayerstats == NULL
+				&& item->param3 == 4
+				&& g_MpPlayerNum >= 0
+				&& g_MpPlayerNum < MAX_PLAYERS) {
+			mpchrnum = g_MpPlayerNum;
+		} else {
+			mpchrnum = menuResolveOptionMpChrNum(item);
+		}
 
 		if (mpchrnum >= MAX_PLAYERS) {
 			mpchrnum = 0;
@@ -3769,7 +3807,16 @@ MenuItemHandlerResult menuhandlerOpenMpControlForCurrentPlayer(s32 operation, st
 MenuItemHandlerResult menuhandlerOpenDisplayForCurrentPlayer(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	if (operation == MENUOP_SET) {
-		u32 mpchrnum = menuResolveOptionMpChrNum(item);
+		u32 mpchrnum;
+
+		if (g_Vars.currentplayerstats == NULL
+				&& item->param3 == 4
+				&& g_MpPlayerNum >= 0
+				&& g_MpPlayerNum < MAX_PLAYERS) {
+			mpchrnum = g_MpPlayerNum;
+		} else {
+			mpchrnum = menuResolveOptionMpChrNum(item);
+		}
 
 		if (mpchrnum == g_Vars.bondplayernum) {
 			menuPushDialog(&g_CiDisplayMenuDialog);
