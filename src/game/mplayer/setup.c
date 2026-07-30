@@ -500,6 +500,10 @@ MenuItemHandlerResult menuhandlerMpWeaponSetDropdown(s32 operation, struct menui
 
 MenuItemHandlerResult menuhandlerMpClassicSight(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].classicsight == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetClassicSight(g_MpPlayerNum);
@@ -513,6 +517,10 @@ MenuItemHandlerResult menuhandlerMpClassicSight(s32 operation, struct menuitem *
 
 MenuItemHandlerResult menuhandlerMpShowLives(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].showlives == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetShowLives(g_MpPlayerNum);
@@ -647,6 +655,10 @@ MenuItemHandlerResult menuhandlerMpDisplayOptionCheckbox(s32 operation, struct m
 
 MenuItemHandlerResult menuhandlerMpSetupInGameSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].ingamesubtitles == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetInGameSubtitlesForPlayer(g_MpPlayerNum);
@@ -661,6 +673,10 @@ MenuItemHandlerResult menuhandlerMpSetupInGameSubtitles(s32 operation, struct me
 
 MenuItemHandlerResult menuhandlerMpSetupCutsceneSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].cutscenesubtitles == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_CHECKHIDDEN:
 		if (g_MpPlayerNum != g_Vars.bondplayernum) {
