@@ -267,7 +267,7 @@ void sysGetExecutablePath(char *outPath, const u32 outLen)
 void sysGetHomePath(char *outPath, const u32 outLen)
 {
 	// try asking SDL
-	char *sdlPath = SDL_GetPrefPath("", "perfectdark-friends-of-joanna-v0.3");
+	char *sdlPath = SDL_GetPrefPath("", "perfectdark-friends-of-joanna-v0.4");
 
 	if (sdlPath && *sdlPath) {
 		// -1 to trim trailing slash

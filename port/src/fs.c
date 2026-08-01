@@ -271,9 +271,9 @@ s32 fsInit(void)
 
 	if (numModDirs == 0) {
 		numModDirs = 3;
-		strcpy(modDirs[0], "$H/mods/mod_fojo");
-		strcpy(modDirs[1], "$H/mods/mod_gex_characters");
-		strcpy(modDirs[2], "$H/mods/mod_aio_characters");
+		strcpy(modDirs[0], "$B/mods/mod_fojo");
+		strcpy(modDirs[1], "$B/mods/mod_gex_characters");
+		strcpy(modDirs[2], "$B/mods/mod_aio_characters");
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
