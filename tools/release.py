@@ -88,7 +88,7 @@ CI_ARTIFACT_TO_TARGET = {
 def is_blacklisted(name: str) -> bool:
     lower_name = name.lower()
 
-    if name in BLACKLISTED_NAMES:
+    if lower_name in BLACKLISTED_NAMES:
         return True
 
     if Path(name).suffix.lower() in BLACKLISTED_EXTENSIONS:
