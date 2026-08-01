@@ -28,6 +28,19 @@ u32 g_NextHudMessageId;
 
 u8 g_HudmsgsActive = 0;
 
+static s32 hudmsgGetCurrentPlayerMpChrNum(void)
+{
+	if (g_Vars.currentplayerstats) {
+		return g_Vars.currentplayerstats->mpindex;
+	}
+
+	if (g_Vars.bondplayernum >= 0) {
+		return g_Vars.bondplayernum;
+	}
+
+	return 0;
+}
+
 u32 g_HudmsgColours[] = {
 	/* 0*/ 0x00ff0000, // green
 	/* 1*/ 0x9999ff00, // pastel blue
@@ -366,6 +379,65 @@ Gfx *hudmsgRenderLives(Gfx *gdl, u32 alpha)
 	return gdl;
 }
 
+Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
+{
+	s32 x;
+	s32 y;
+	s32 textwidth;
+	s32 textheight;
+	s32 viewleft;
+	s32 viewtop;
+	s32 viewwidth;
+	u32 textcolour;
+	s32 mpchrnum;
+	char *name;
+
+	if (PLAYERCOUNT() < 2) {
+		return gdl;
+	}
+
+	mpchrnum = hudmsgGetCurrentPlayerMpChrNum();
+
+	if (mpchrnum < 0 || mpchrnum >= MAX_PLAYERS) {
+		return gdl;
+	}
+
+	if (!optionsGetShowPlayerName(mpchrnum)) {
+		return gdl;
+	}
+
+	name = g_PlayerConfigsArray[mpchrnum].base.name;
+
+	if (name == NULL || name[0] == '\0') {
+		return gdl;
+	}
+
+	viewleft = viGetViewLeft() / g_ScaleX;
+	viewtop = viGetViewTop();
+	viewwidth = viGetViewWidth() / g_ScaleX;
+
+	textMeasure(&textheight, &textwidth, name, g_CharsHandelGothicSm, g_FontHandelGothicSm, 0);
+
+	x = viewleft + viewwidth - g_HudPaddingX - textwidth - 3;
+	y = viewtop + g_HudPaddingY + 2;
+
+	textcolour = (alpha * 160 / 255) | 0x00ff0000;
+
+#ifndef PLATFORM_N64
+	if (PLAYERCOUNT() < 2 || (PLAYERCOUNT() == 2 && optionsGetScreenSplit() == SCREENSPLIT_HORIZONTAL)) {
+		gSPExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT, g_HudAlignModeL);
+	}
+#endif
+
+	gdl = textRender(gdl, &x, &y, name, g_CharsHandelGothicSm, g_FontHandelGothicSm, textcolour, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+
+#ifndef PLATFORM_N64
+	gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
+#endif
+
+	return gdl;
+}
+
 Gfx *hudmsgRenderBox(Gfx *gdl, s32 x1, s32 y1, s32 x2, s32 y2, f32 bgopacity, u32 bordercolour, f32 textopacity)
 {
 	f32 f0;
@@ -623,17 +695,18 @@ void hudmsgCreateAsSubtitle(char *srctext, s32 type, u8 colourindex, s32 audioch
 {
 	s32 audioduration60;
 	struct hudmsgtype *config;
+	s32 mpchrnum = hudmsgGetCurrentPlayerMpChrNum();
 
 	audioduration60 = psGetDuration60(audiochannelnum);
 
 	if (type == HUDMSGTYPE_INGAMESUBTITLE) {
 		if (g_Vars.tickmode == TICKMODE_CUTSCENE) {
-			if (!optionsGetCutsceneSubtitles()) {
+			if (!optionsGetEffectiveCutsceneSubtitlesForPlayer(mpchrnum)) {
 				return;
 			}
 
 			type = HUDMSGTYPE_CUTSCENESUBTITLE;
-		} else if (!optionsGetInGameSubtitles()) {
+		} else if (!optionsGetInGameSubtitlesForPlayer(mpchrnum)) {
 			return;
 		}
 	}
@@ -1028,7 +1101,7 @@ void hudmsgCreateFromArgs(char *text, s32 type, s32 conf00, s32 conf01, s32 conf
 	char stacktext[400];
 	s32 writeindex;
 
-	if (type == HUDMSGTYPE_INGAMESUBTITLE && !optionsGetInGameSubtitles()) {
+	if (type == HUDMSGTYPE_INGAMESUBTITLE && !optionsGetInGameSubtitlesForPlayer(hudmsgGetCurrentPlayerMpChrNum())) {
 		return;
 	}
 
@@ -1697,6 +1770,8 @@ Gfx *hudmsgsRender(Gfx *gdl)
 
 		gdl = countdownTimerRender(gdl);
 	}
+
+	gdl = hudmsgRenderPlayerName(gdl, timerthing ? timerthing : 255);
 
 	gdl = text0f153780(gdl);
 

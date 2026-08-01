@@ -445,6 +445,7 @@ MenuItemHandlerResult menuhandlerMpControlStyle(s32 operation, struct menuitem *
 #ifndef PLATFORM_N64
 		g_PlayerExtCfg[g_MpPlayerNum & 3].extcontrols = (data->dropdown.value == 4);
 #endif
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 		break;
 	case MENUOP_GETSELECTEDINDEX:
 		data->dropdown.value = optionsGetControlMode(g_MpPlayerNum);
@@ -501,11 +502,16 @@ MenuItemHandlerResult menuhandlerMpWeaponSetDropdown(s32 operation, struct menui
 
 MenuItemHandlerResult menuhandlerMpClassicSight(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].classicsight == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetClassicSight(g_MpPlayerNum);
 	case MENUOP_SET:
 		optionsSetClassicSight(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
 	return 0;
@@ -513,11 +519,16 @@ MenuItemHandlerResult menuhandlerMpClassicSight(s32 operation, struct menuitem *
 
 MenuItemHandlerResult menuhandlerMpShowLives(s32 operation, struct menuitem *item, union handlerdata *data)
 {
+	if (g_PlayerConfigsArray[g_MpPlayerNum].showlives == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
 	switch (operation) {
 	case MENUOP_GET:
 		return optionsGetShowLives(g_MpPlayerNum);
 	case MENUOP_SET:
 		optionsSetShowLives(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
 	return 0;
@@ -555,6 +566,8 @@ MenuItemHandlerResult menuhandlerMpControlCheckbox(s32 operation, struct menuite
 		if (data->checkbox.value) {
 			g_PlayerConfigsArray[g_MpPlayerNum].options |= item->param3;
 		}
+
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 	}
 
 	return 0;
@@ -580,6 +593,7 @@ MenuItemHandlerResult menuhandlerMpAimControl(s32 operation, struct menuitem *it
 		return (uintptr_t) langGet(labels[data->dropdown.value]);
 	case MENUOP_SET:
 		optionsSetAimControl(g_MpPlayerNum, data->dropdown.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
 		break;
 	case MENUOP_GETSELECTEDINDEX:
 		data->dropdown.value = optionsGetAimControl(g_MpPlayerNum);
@@ -640,6 +654,144 @@ MenuItemHandlerResult menuhandlerMpDisplayOptionCheckbox(s32 operation, struct m
 
 	return 0;
 }
+
+MenuItemHandlerResult menuhandlerMpSetupInGameSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (g_PlayerConfigsArray[g_MpPlayerNum].ingamesubtitles == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetInGameSubtitlesForPlayer(g_MpPlayerNum);
+	case MENUOP_SET:
+		optionsSetInGameSubtitlesForPlayer(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+		break;
+	}
+
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerMpSetupCutsceneSubtitles(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (g_PlayerConfigsArray[g_MpPlayerNum].cutscenesubtitles == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
+	switch (operation) {
+	case MENUOP_CHECKHIDDEN:
+		if (g_MpPlayerNum != g_Vars.bondplayernum) {
+			return true;
+		}
+		break;
+	case MENUOP_GET:
+		return optionsGetCutsceneSubtitlesForPlayer(g_MpPlayerNum);
+	case MENUOP_SET:
+		optionsSetCutsceneSubtitlesForPlayer(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+		break;
+	}
+
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerMpSetupShowMissionTime(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (g_PlayerConfigsArray[g_MpPlayerNum].showmissiontime == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetShowMissionTime(g_MpPlayerNum);
+	case MENUOP_SET:
+		optionsSetShowMissionTime(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+		break;
+	}
+
+	return 0;
+}
+
+MenuItemHandlerResult menuhandlerMpSetupShowPlayerName(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	if (g_PlayerConfigsArray[g_MpPlayerNum].showplayername == NULL) {
+		registerExtendedProfile(&g_PlayerConfigsArray[g_MpPlayerNum].fileguid, 1, g_MpPlayerNum);
+	}
+
+	switch (operation) {
+	case MENUOP_GET:
+		return optionsGetShowPlayerName(g_MpPlayerNum);
+	case MENUOP_SET:
+		optionsSetShowPlayerName(g_MpPlayerNum, data->checkbox.value);
+		g_Vars.modifiedfiles |= MODFILE_GAME;
+		break;
+	}
+
+	return 0;
+}
+
+struct menuitem g_MpPlayerSetupDisplayMenuItems[] = {
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_MPWEAPONS_169, // "In-Game Subtitles"
+		0,
+		menuhandlerMpSetupInGameSubtitles,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_MPWEAPONS_168, // "Cutscene Subtitles"
+		0,
+		menuhandlerMpSetupCutsceneSubtitles,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		0,
+		L_OPTIONS_212, // "Show Mission Time"
+		0,
+		menuhandlerMpSetupShowMissionTime,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Show Player Name",
+		0,
+		menuhandlerMpSetupShowPlayerName,
+	},
+	{
+		MENUITEMTYPE_SEPARATOR,
+		0,
+		0,
+		0,
+		0,
+		NULL,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_CLOSESDIALOG,
+		L_OPTIONS_213, // "Back"
+		0,
+		NULL,
+	},
+	{ MENUITEMTYPE_END },
+};
+
+struct menudialogdef g_MpPlayerSetupDisplayMenuDialog = {
+	MENUDIALOGTYPE_DEFAULT,
+	L_OPTIONS_203, // "Display Options"
+	g_MpPlayerSetupDisplayMenuItems,
+	NULL,
+	0,
+	NULL,
+};
 
 MenuItemHandlerResult menuhandlerMpConfirmSaveChr(s32 operation, struct menuitem *item, union handlerdata *data)
 {
@@ -6061,6 +6213,14 @@ struct menuitem g_TeamMissionsPlayerSetupMenuItems[] = {
 		L_MPMENU_033, // "Control"
 		0,
 		(void *)&g_MpControlMenuDialog,
+	},
+	{
+		MENUITEMTYPE_SELECTABLE,
+		0,
+		MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+		L_OPTIONS_184, // "Display"
+		0,
+		(void *)&g_MpPlayerSetupDisplayMenuDialog,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,

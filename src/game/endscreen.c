@@ -107,7 +107,7 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 						menuPopDialog();
 						menuPopDialog();
 
-						if (g_MissionConfig.isteam) {
+						if (!g_MissionConfig.isteam) {
 							mpSetPaused(MPPAUSEMODE_UNPAUSED);
 							g_Vars.mplayerisrunning = false;
 							g_MissionConfig.iscoop = false;
@@ -121,22 +121,16 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 								g_BossFile.locktype = MPLOCKTYPE_NONE;
 							}
 
-							if (IS8MB()) {
-								titleSetNextStage(STAGE_CITRAINING);
-								setNumPlayers(1);
-								titleSetNextMode(TITLEMODE_SKIP);
-								mainChangeToStage(STAGE_CITRAINING);
-							} else {
-								titleSetNextStage(STAGE_4MBMENU);
-								setNumPlayers(1);
-								titleSetNextMode(TITLEMODE_SKIP);
-								mainChangeToStage(STAGE_4MBMENU);
-							}
+							// NOTE: stripped out 4MB code
+							titleSetNextStage(STAGE_CITRAINING);
+							setNumPlayers(1);
+							titleSetNextMode(TITLEMODE_SKIP);
+							mainChangeToStage(STAGE_CITRAINING);
 
 						}
 					}
 
-					inputs->back = false;
+					// inputs->back = false;
 
 					if (inputs->start) {
 						accept = true;
@@ -163,7 +157,7 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 		}
 	}
 
-	return menudialog00103608(operation, dialogdef, data);
+	return endscreenAcceptMissionHandleDialog(operation, dialogdef, data);
 }
 
 char *endscreenMenuTitleRetryMission(struct menudialogdef *dialogdef)
@@ -205,7 +199,7 @@ MenuItemHandlerResult endscreenHandleReplayPreviousMission(s32 operation, struct
 	if (operation == MENUOP_SET) {
 #ifndef PLATFORM_N64
 		if (getenv("PD_DEBUG_FILELOAD")) {
-			printf("endscreenHandleReplayPreviousMission: BEFORE decrement - stageindex=%d, g_MissionConfig.stagenum=0x%02x, g_Vars.stagenum=0x%02x\n", 
+			printf("endscreenHandleReplayPreviousMission: BEFORE decrement - stageindex=%d, g_MissionConfig.stagenum=0x%02x, g_Vars.stagenum=0x%02x\n",
 				g_MissionConfig.stageindex, g_MissionConfig.stagenum, g_Vars.stagenum);
 		}
 #endif

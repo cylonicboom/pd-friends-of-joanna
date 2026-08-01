@@ -1,0 +1,17 @@
+{
+  "tag": "v0.3.1.1",
+  "run": "30585537489",
+  "repo": "cylonicboom/pd-friends-of-joanna",
+  "basedir": "../pd-fojo-v.3.1-basedir",
+  "output_dir": "./release-v0.3.1",
+  "keep_work": false,
+  "win64_bin": null,
+  "linux64_bin": null,
+  "macos_x64_bin": null,
+  "macos_arm64_bin": null,
+  "win64_extra": null,
+  "linux64_extra": null,
+  "macos_x64_extra": null,
+  "macos_arm64_extra": null,
+  "work_dir": null
+}

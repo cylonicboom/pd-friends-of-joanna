@@ -10,6 +10,7 @@
 
 u8 g_InGameSubtitles = 1;
 u8 g_CutsceneSubtitles = 0;
+u8 g_ShowPlayerNameFallback[MAX_PLAYERS] = {1, 1, 1, 1};
 u32 var8007fa98 = 0x00000000;
 u32 var8007fa9c = 0x00000001;
 u32 var8007faa0 = 0x00000000;
@@ -23,6 +24,23 @@ u8 g_ScreenSplit = SCREENSPLIT_HORIZONTAL;
 #if VERSION < VERSION_NTSC_1_0
 u16 var8008231cnb = 0x7fff;
 #endif
+
+static s32 optionsGetCurrentMpChrNum(void)
+{
+	if (g_Vars.currentplayerstats) {
+		s32 mpchrnum = g_Vars.currentplayerstats->mpindex;
+
+		if (mpchrnum >= 0 && mpchrnum < MAX_PLAYERS) {
+			return mpchrnum;
+		}
+	}
+
+	if (g_Vars.bondplayernum >= 0 && g_Vars.bondplayernum < MAX_PLAYERS) {
+		return g_Vars.bondplayernum;
+	}
+
+	return 0;
+}
 
 s32 optionsGetControlMode(s32 mpchrnum)
 {
@@ -105,17 +123,57 @@ s32 optionsGetShowLives(s32 mpchrnum)
 
 s32 optionsGetShowMissionTime(s32 mpchrnum)
 {
+	if (g_PlayerConfigsArray[mpchrnum].showmissiontime) {
+		return *g_PlayerConfigsArray[mpchrnum].showmissiontime != 0;
+	}
+
 	return (g_PlayerConfigsArray[mpchrnum].options & OPTION_SHOWMISSIONTIME) != 0;
+}
+
+s32 optionsGetShowPlayerName(s32 mpchrnum)
+{
+	if (g_PlayerConfigsArray[mpchrnum].showplayername) {
+		return *g_PlayerConfigsArray[mpchrnum].showplayername != 0;
+	}
+
+	return g_ShowPlayerNameFallback[mpchrnum] != 0;
+}
+
+u8 optionsGetInGameSubtitlesForPlayer(s32 mpchrnum)
+{
+	if (g_PlayerConfigsArray[mpchrnum].ingamesubtitles) {
+		return *g_PlayerConfigsArray[mpchrnum].ingamesubtitles != 0;
+	}
+
+	return g_InGameSubtitles;
+}
+
+u8 optionsGetCutsceneSubtitlesForPlayer(s32 mpchrnum)
+{
+	if (g_PlayerConfigsArray[mpchrnum].cutscenesubtitles) {
+		return *g_PlayerConfigsArray[mpchrnum].cutscenesubtitles != 0;
+	}
+
+	return g_CutsceneSubtitles;
+}
+
+u8 optionsGetEffectiveCutsceneSubtitlesForPlayer(s32 mpchrnum)
+{
+	if (g_Vars.stagenum == STAGE_CITRAINING) {
+		return mpchrnum == g_Vars.bondplayernum;
+	}
+
+	return optionsGetCutsceneSubtitlesForPlayer(mpchrnum);
 }
 
 u8 optionsGetInGameSubtitles(void)
 {
-	return g_InGameSubtitles;
+	return optionsGetInGameSubtitlesForPlayer(optionsGetCurrentMpChrNum());
 }
 
 u8 optionsGetCutsceneSubtitles(void)
 {
-	return g_CutsceneSubtitles;
+	return optionsGetCutsceneSubtitlesForPlayer(optionsGetCurrentMpChrNum());
 }
 
 s32 optionsGetHeadRoll(s32 mpchrnum)
@@ -229,6 +287,10 @@ void optionsSetShowLives(s32 mpchrnum, bool enable)
 
 void optionsSetShowMissionTime(s32 mpchrnum, bool enable)
 {
+	if (g_PlayerConfigsArray[mpchrnum].showmissiontime) {
+		*g_PlayerConfigsArray[mpchrnum].showmissiontime = enable ? 1 : 0;
+	}
+
 	if (enable) {
 		g_PlayerConfigsArray[mpchrnum].options |= OPTION_SHOWMISSIONTIME;
 	} else {
@@ -236,14 +298,41 @@ void optionsSetShowMissionTime(s32 mpchrnum, bool enable)
 	}
 }
 
+void optionsSetShowPlayerName(s32 mpchrnum, bool enable)
+{
+	if (g_PlayerConfigsArray[mpchrnum].showplayername) {
+		*g_PlayerConfigsArray[mpchrnum].showplayername = enable ? 1 : 0;
+	} else {
+		g_ShowPlayerNameFallback[mpchrnum] = enable ? 1 : 0;
+	}
+}
+
+void optionsSetInGameSubtitlesForPlayer(s32 mpchrnum, s32 enable)
+{
+	if (g_PlayerConfigsArray[mpchrnum].ingamesubtitles) {
+		*g_PlayerConfigsArray[mpchrnum].ingamesubtitles = enable ? 1 : 0;
+	} else {
+		g_InGameSubtitles = enable ? 1 : 0;
+	}
+}
+
+void optionsSetCutsceneSubtitlesForPlayer(s32 mpchrnum, s32 enable)
+{
+	if (g_PlayerConfigsArray[mpchrnum].cutscenesubtitles) {
+		*g_PlayerConfigsArray[mpchrnum].cutscenesubtitles = enable ? 1 : 0;
+	} else {
+		g_CutsceneSubtitles = enable ? 1 : 0;
+	}
+}
+
 void optionsSetInGameSubtitles(s32 enable)
 {
-	g_InGameSubtitles = enable;
+	optionsSetInGameSubtitlesForPlayer(optionsGetCurrentMpChrNum(), enable);
 }
 
 void optionsSetCutsceneSubtitles(s32 enable)
 {
-	g_CutsceneSubtitles = enable;
+	optionsSetCutsceneSubtitlesForPlayer(optionsGetCurrentMpChrNum(), enable);
 }
 
 void optionsSetHeadRoll(s32 mpchrnum, bool enable)

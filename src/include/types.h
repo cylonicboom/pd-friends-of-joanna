@@ -4083,6 +4083,10 @@ struct mpplayerconfig {
 	/*0x9d*/ u8* handicap;
 	u8* classicsight;
 	u8* showlives;
+	u8* ingamesubtitles;
+	u8* cutscenesubtitles;
+	u8* showmissiontime;
+	u8* showplayername;
 	s32 teamagentindex;
 	s32 configindex;
 };
@@ -6249,8 +6253,12 @@ struct extplayerprofile {
 			extplayerprop classicsight_prop;
 			extplayerprop showlives_prop;
 			extplayerprop teamagentindex_prop;
+			extplayerprop ingamesubtitles_prop;
+			extplayerprop cutscenesubtitles_prop;
+			extplayerprop showmissiontime_prop;
+			extplayerprop showplayername_prop;
 		};
-		extplayerprop ptr[5];
+		extplayerprop ptr[9];
 	};
 };
 
