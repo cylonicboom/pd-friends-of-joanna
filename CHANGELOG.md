@@ -1,5 +1,17 @@
 # Changelog
 
+## [friends-of-joanna-v0.3.1] - 2026-08-01
+
+### Refactors and Cleanup
+
+- **Removed duplicated player-2 mission option menu sections** — Consolidated the separate player-2 control/display menu blocks in `mainmenu.c` into shared handlers that resolve the active player at runtime.
+- **Removed hardcoded global subtitle/mission-time toggles in menu flow** — Replaced direct global option wiring with per-player profile-backed accessors in the options and multiplayer setup path.
+
+### Renamed / Identified Functions
+
+- **`menudialog00103608` renamed to `endscreenAcceptMissionHandleDialog`** to clarify that it handles Accept Mission dialog flow for the endscreen retry/accept path.
+- **Player-scoped subtitle helpers introduced**: `optionsGetInGameSubtitlesForPlayer`, `optionsGetCutsceneSubtitlesForPlayer`, `optionsSetInGameSubtitlesForPlayer`, `optionsSetCutsceneSubtitlesForPlayer`.
+
 ## [friends-of-joanna-v0.2.3] - 2026-03-14
 
 ### New Features
