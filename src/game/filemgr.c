@@ -485,7 +485,7 @@ char *filemgrMenuTextErrorTitle(struct menuitem *item)
 #if VERSION >= VERSION_NTSC_1_0
 char *filemgrMenuTextFileType(struct menuitem *item)
 {
-	u32 names[] = {
+	uintptr_t names[] = {
 		(uintptr_t)"Reality File", // "Single Player Agent File"
 		L_OPTIONS_104, // "Combat Simulator Settings File"
 		(uintptr_t)"Agent File", // "Combat Simulator Player File"
