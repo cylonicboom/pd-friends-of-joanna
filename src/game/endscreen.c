@@ -1949,8 +1949,6 @@ static void chooseEndScreenCompletedDialog(bool usevertical){
 	}
 }
 
-// tracking quitting level reason to rebuild
-bool g_bondIsDead = 0, g_coopIsDead = 0, g_bondAborted = 0, g_coopAborted = 0, g_antiAborted = 0, g_allComplete = 0;
 /**
  * endscreenPushTeam - Handles the logic for displaying the end screen in team-based
  * cooperative or multiplayer missions. This function determines the mission outcome
