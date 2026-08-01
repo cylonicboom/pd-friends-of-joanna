@@ -28,6 +28,7 @@
 #ifndef PLATFORM_N64
 #include "mod.h"
 #include "romdata.h"
+#include "ext_tex.h"
 #endif
 
 struct skeleton *g_Skeletons[] = {
@@ -114,6 +115,195 @@ struct skeleton *g_Skeletons[] = {
 	NULL // terminate list for sure
 #endif
 };
+
+#ifndef PLATFORM_N64
+extern u16 modTexMapLookup(s32 modIdx, u16 localTexId);
+
+// True iff `portId` has a PNG registered under G_TEXTYPE_GENERAL owned by
+// `modIdx`. Used as the safety gate for the gDL rewrite pass: we only redirect
+// a source ID to its port-range target when that target is actually backed by
+// the current mod's own PNG asset. This keeps texmaps that use port IDs for
+// other purposes (e.g. .bin overrides owned by another mod) from corrupting
+// vanilla rendering.
+static bool modeldefPortIdHasOwnedPng(s32 modIdx, u16 portId)
+{
+	if (!extTexExists(G_TEXTYPE_GENERAL, 0, portId)) {
+		return false;
+	}
+	s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, portId);
+	return owner >= 0 && owner == modIdx;
+}
+
+// Per-modeldef pass statistics collected by the gDL walker. All counts are
+// per-slot (a G_NOOP can contribute 1 or 2 slots when subcmd==1).
+struct modeldefGdlStats {
+	u32 noops;        // G_NOOP commands inspected
+	u32 inRange;      // slots whose value is < NUM_TEXTURES (candidate sources)
+	u32 mapped;       // candidates that produced a different port-range id
+	u32 gateAccepted; // mapped ids whose owner matches modIdx (rewrite happened)
+};
+
+// Try to remap a single 12-bit texturenum field. Returns the value to write
+// back into the gDL slot (same as `orig` when no remap was applied) and sets
+// `*didRemap` accordingly. Shared between the two slot positions in a G_NOOP
+// command so the source-id/port-id/ownership policy lives in exactly one spot.
+// `stats` may be NULL.
+static u32 modeldefRemapOneTexnumSlot(u32 orig, s32 modIdx, bool *didRemap, struct modeldefGdlStats *stats)
+{
+	*didRemap = false;
+	if (orig >= NUM_TEXTURES) {
+		return orig;
+	}
+	if (stats) ++stats->inRange;
+	u16 mapped = modTexMapLookup(modIdx, (u16)orig);
+	if ((u32)mapped == orig) {
+		return orig;
+	}
+	if (stats) ++stats->mapped;
+	if (!modeldefPortIdHasOwnedPng(modIdx, mapped)) {
+		return orig;
+	}
+	if (stats) ++stats->gateAccepted;
+	*didRemap = true;
+	return (u32)mapped;
+}
+
+// Rewrite a mod-owned model's texconfig texturenums via the mod's source->port
+// texmap. Centralized so the texconfig pass and the gDL pass below cannot drift
+// in their handling of "what's a remappable source ID".
+static void modeldefRemapTexconfigsForMod(struct modeldef *modeldef, s32 modIdx)
+{
+	if (modIdx <= 0 || !modeldef->texconfigs || modeldef->numtexconfigs <= 0) {
+		return;
+	}
+
+	struct textureconfig *tc = modeldef->texconfigs;
+	s32 numtc = modeldef->numtexconfigs;
+	for (s32 i = 0; i < numtc; ++i) {
+		uintptr_t v = (uintptr_t)tc[i].texturenum;
+		bool didRemap = false;
+		u32 next = modeldefRemapOneTexnumSlot((u32)v, modIdx, &didRemap, NULL);
+		if (didRemap) {
+			tc[i].texturenum = (texnum_t)(uintptr_t)next;
+		}
+	}
+}
+
+// Remap the two 12-bit texturenum slots inside a single G_NOOP texture-binding
+// command. Returns the number of slots that were rewritten. Shared between the
+// per-DL walker and any future caller to keep the bit-layout knowledge in one
+// place. `stats` may be NULL.
+static u32 modeldefRemapGdlCmd(Gfx *cmd, s32 modIdx, struct modeldefGdlStats *stats)
+{
+	if (cmd->texture.cmd != G_NOOP) {
+		return 0;
+	}
+
+	if (stats) ++stats->noops;
+
+	u32 remapped = 0;
+	u32 w1 = cmd->words.w1;
+	bool didRemap;
+
+	u32 t0 = w1 & 0xfff;
+	u32 n0 = modeldefRemapOneTexnumSlot(t0, modIdx, &didRemap, stats);
+	if (didRemap) {
+		w1 = (w1 & ~0xfffu) | (n0 & 0xfffu);
+		++remapped;
+	}
+
+	if (cmd->unkc0.subcmd == 1) {
+		u32 t1 = (w1 >> 12) & 0xfff;
+		u32 n1 = modeldefRemapOneTexnumSlot(t1, modIdx, &didRemap, stats);
+		if (didRemap) {
+			w1 = (w1 & ~(0xfffu << 12)) | ((n1 & 0xfffu) << 12);
+			++remapped;
+		}
+	}
+
+	cmd->words.w1 = w1;
+	return remapped;
+}
+
+// Walk every display list reachable through the model and apply
+// modeldefRemapGdlCmd to its commands. The DL boundary math mirrors
+// modeldef0f1a7560 exactly so this pass and the downstream texLoadFromGdl
+// agree on what bytes belong to which DL.
+static void modeldefRemapGdlTexnumsForMod(struct modeldef *modeldef, s32 modIdx, s32 filenum)
+{
+	if (modIdx <= 0) {
+		return;
+	}
+
+	s32 loadedsize = (s32)fileGetLoadedSize(filenum);
+	struct modelnode *node = NULL;
+	uintptr_t gdl = 0;
+
+	modelIterateDisplayLists(modeldef, &node, (Gfx **)&gdl);
+	if (!gdl) {
+		return;
+	}
+
+	u32 totalRemapped = 0;
+	struct modeldefGdlStats stats = {0};
+
+	while (node) {
+		uintptr_t s0 = gdl;
+		modelIterateDisplayLists(modeldef, &node, (Gfx **)&gdl);
+
+		s32 bytes;
+		if (gdl) {
+			bytes = (s32)(UNSEGADDR(gdl) - UNSEGADDR(s0));
+		} else {
+			bytes = loadedsize - (s32)(UNSEGADDR(s0) & 0xffffff);
+		}
+
+#ifdef PLATFORM_64BIT
+		s32 numcmds = bytes >> 4;
+#else
+		s32 numcmds = bytes >> 3;
+#endif
+
+		Gfx *dl = (Gfx *)((uintptr_t)modeldef + (UNSEGADDR(s0) & 0xffffff));
+		for (s32 i = 0; i < numcmds; ++i) {
+			totalRemapped += modeldefRemapGdlCmd(&dl[i], modIdx, &stats);
+
+			// One-shot dump of all aio-owned (modIdx==2) model G_NOOP
+			// texturenums so we can rebuild texmap entries against the
+			// model's actual gDL. Rate-limited per-filenum.
+			if (dl[i].texture.cmd == G_NOOP && modIdx == 2) {
+				static u32 s_lastDumpedFile = 0;
+				static u32 s_dumpedForCurrent = 0;
+				if ((u32)filenum != s_lastDumpedFile) {
+					s_lastDumpedFile = (u32)filenum;
+					s_dumpedForCurrent = 0;
+				}
+				if (s_dumpedForCurrent < 200) {
+					u32 w1 = dl[i].words.w1;
+					u32 t0 = w1 & 0xfff;
+					u32 t1 = (dl[i].unkc0.subcmd == 1) ? (w1 >> 12) & 0xfff : 0xffff;
+					sysLogPrintf(LOG_NOTE,
+						"modeldefGdlDump: filenum=0x%08x cmd[%d] t0=0x%03x t1=0x%03x subcmd=%u",
+						filenum, i, t0, t1, dl[i].unkc0.subcmd);
+					++s_dumpedForCurrent;
+				}
+			}
+		}
+	}
+
+	// Always log per-modeldef stats so we can tell apart: zero G_NOOPs,
+	// G_NOOPs with no in-range source ids, ids that don't appear in the
+	// texmap, and gate denials. Rate-limited to keep the log readable.
+	static u32 s_logCount = 0;
+	if (s_logCount < 128) {
+		sysLogPrintf(LOG_NOTE,
+			"modeldefRemapGdlTexnums: filenum=0x%08x modIdx=%d noops=%u inRange=%u mapped=%u gateAccepted=%u rewritten=%u",
+			filenum, modIdx,
+			stats.noops, stats.inRange, stats.mapped, stats.gateAccepted, totalRemapped);
+		++s_logCount;
+	}
+}
+#endif
 
 void modeldef0f1a7560(struct modeldef *modeldef, s32 filenum, u32 arg2, struct modeldef *modeldef2, struct texpool *texpool, bool arg5)
 {
@@ -218,22 +408,9 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 
 #ifndef PLATFORM_N64
 	{
-		extern u16 modTexMapLookup(s32 modIdx, u16 localTexId);
 		s32 modIdx = (fileid >> 16) & 0xff;
-
-		if (modIdx > 0 && modeldef->texconfigs && modeldef->numtexconfigs > 0) {
-			struct textureconfig *tc = modeldef->texconfigs;
-			s32 numtc = modeldef->numtexconfigs;
-			for (s32 i = 0; i < numtc; ++i) {
-				uintptr_t v = (uintptr_t)tc[i].texturenum;
-				if (v < NUM_TEXTURES) {
-					u16 mapped = modTexMapLookup(modIdx, (u16)v);
-					if ((uintptr_t)mapped != v) {
-						tc[i].texturenum = (texnum_t)(uintptr_t)mapped;
-					}
-				}
-			}
-		}
+		modeldefRemapTexconfigsForMod(modeldef, modIdx);
+		modeldefRemapGdlTexnumsForMod(modeldef, modIdx, fileid);
 	}
 #endif
 
