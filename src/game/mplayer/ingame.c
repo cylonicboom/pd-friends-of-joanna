@@ -495,23 +495,7 @@ struct menudialogdef g_MpPauseInventoryMenuDialog = {
 	&g_MpPauseControlMenuDialog,
 };
 
-// struct menudialogdef g_2PMissionInventoryHMenuDialog = {
-// 	MENUDIALOGTYPE_DEFAULT,
-// 	L_MPMENU_284, // "Inventory"
-// 	g_Mp2PMissionInventoryMenuItems,
-// 	NULL,
-// 	0,
-// 	&g_2PMissionOptionsHMenuDialog,
-// };
-//
-// struct menudialogdef g_2PMissionInventoryVMenuDialog = {
-// 	MENUDIALOGTYPE_DEFAULT,
-// 	L_MPMENU_284, // "Inventory"
-// 	g_Mp2PMissionInventoryMenuItems,
-// 	NULL,
-// 	0,
-// 	&g_2PMissionOptionsVMenuDialog,
-// };
+/* 2P mission inventory dialogs removed; mission pause menus now route through the 4P inventory dialogs. */
 
 struct menudialogdef g_4PMissionInventoryHMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
