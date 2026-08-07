@@ -329,7 +329,8 @@ void readModelTextures(const char *path, s16 fileNum, s32 *modelOffset, struct M
 
 	while ((de = readdir(dr)) != NULL) {
 		const char *name = de->d_name;
-		if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+		// Skip . / .. and hidden files (macOS .DS_Store, AppleDouble ._*, etc.).
+		if (name[0] == '.') continue;
 
 		s32 texNum;
 		s32 err = fileInfo(name, &texNum, extension);
@@ -408,7 +409,8 @@ void readFontTextures(const char *path, const char *fontName)
 		}
 
 		const char *name = de->d_name;
-		if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+		// Skip . / .. and hidden files (macOS .DS_Store, AppleDouble ._*, etc.).
+		if (name[0] == '.') continue;
 
 		s32 texNum;
 		s32 err = fileInfo(name, &texNum, extension);
@@ -474,7 +476,8 @@ static void extTexScanDir(const char *dirPath, s32 *maxModels)
 
 	while ((de = readdir(dr)) != NULL) {
 		const char *name = de->d_name;
-		if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+		// Skip . / .. and hidden files (macOS .DS_Store, AppleDouble ._*, etc.).
+		if (name[0] == '.') continue;
 
 		entryCount++;
 		struct stat stbuf;
