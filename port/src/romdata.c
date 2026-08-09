@@ -70,6 +70,7 @@ struct ftEntry {
 	const char *name;   // points into externalFileTableData (not owned)
 	u16         nameLen;
 	u16         fileId;
+	s8          ownerMod;  // -1 = global/vanilla; 0..N = per-mod entry
 	struct ftEntry *next;
 };
 
@@ -87,7 +88,7 @@ static inline u32 ftHash(const char *s, u32 len)
 	return h & FT_HASH_MASK;
 }
 
-static inline void ftInsert(const char *name, u16 nameLen, u16 fileId)
+static inline void ftInsert(const char *name, u16 nameLen, u16 fileId, s8 ownerMod)
 {
 	if (ftPoolUsed >= FT_POOL_MAX) {
 		sysLogPrintf(LOG_WARNING, "ftInsert: pool exhausted (%u entries)", ftPoolUsed);
@@ -95,14 +96,17 @@ static inline void ftInsert(const char *name, u16 nameLen, u16 fileId)
 	}
 	u32 bucket = ftHash(name, nameLen);
 	struct ftEntry *e = &ftPool[ftPoolUsed++];
-	e->name    = name;
-	e->nameLen = nameLen;
-	e->fileId  = fileId;
+	e->name     = name;
+	e->nameLen  = nameLen;
+	e->fileId   = fileId;
+	e->ownerMod = ownerMod;
 	e->next    = ftBuckets[bucket];
 	ftBuckets[bucket] = e;
 }
 
-// Returns file ID or -1
+// Returns file ID or -1. Any owner (first match wins). Kept for future callers
+// that don't need mod scoping; currently unused but marked to avoid warnings.
+__attribute__((unused))
 static inline s32 ftLookup(const char *name, u32 nameLen)
 {
 	u32 bucket = ftHash(name, nameLen);
@@ -112,6 +116,20 @@ static inline s32 ftLookup(const char *name, u32 nameLen)
 		}
 	}
 	return -1;
+}
+
+// Mod-scoped lookup: prefer entries owned by `modNum`; fall back to a global
+// (ownerMod==-1) entry if no mod-owned match exists in the bucket.
+static inline s32 ftLookupInMod(const char *name, u32 nameLen, s32 modNum)
+{
+	u32 bucket = ftHash(name, nameLen);
+	s32 fallback = -1;
+	for (struct ftEntry *e = ftBuckets[bucket]; e; e = e->next) {
+		if (e->nameLen != nameLen || strncmp(e->name, name, nameLen)) continue;
+		if (e->ownerMod == (s8)modNum) return e->fileId;
+		if (e->ownerMod < 0 && fallback < 0) fallback = e->fileId;
+	}
+	return fallback;
 }
 
 static inline void ftReset(void)
@@ -196,6 +214,11 @@ struct modTexMap {
 	u32 count;
 	struct modTexMapEntry *entries;  // sorted ascending by localTexId
 };
+
+// Per-mod texmap allocations use mod-LOCAL slot indices in the fragment.
+// The engine adds this running base to each stored portTexId at parse time
+// so port IDs are globally unique without any cross-mod build-time coordination.
+static u32 g_NextGlobalTexPort = NUM_TEXTURES;
 
 static struct modTexMap g_ModTexMap[MOD_TEX_MAP_MAX_MODS];
 
@@ -749,7 +772,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			}
 
 			if (nameLen > 0) {
-				ftInsert(name, nameLen, (u16)id);
+				ftInsert(name, nameLen, (u16)id, isGlobal ? -1 : (s8)ownerModIdx);
 			}
 		}
 
@@ -785,7 +808,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				}
 			}
 			if (nameLen > 0) {
-				ftInsert(name, nameLen, (u16)id);
+				ftInsert(name, nameLen, (u16)id, isGlobal ? -1 : (s8)ownerModIdx);
 			}
 		}
 	}
@@ -821,12 +844,14 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				             numTexMap, ownerModIdx);
 				return 1;
 			}
+			u32 modBase = g_NextGlobalTexPort;
 			for (u32 i = 0; i < numTexMap; ++i) {
 				u16 localId = PD_BE16(*(u16*)p); p += 2;
-				u16 portId  = PD_BE16(*(u16*)p); p += 2;
+				u16 slotIdx = PD_BE16(*(u16*)p); p += 2;
 				m->entries[i].localTexId = localId;
-				m->entries[i].portTexId  = portId;
+				m->entries[i].portTexId  = (u16)(modBase + slotIdx);
 			}
+			g_NextGlobalTexPort += numTexMap;
 			m->count = numTexMap;
 			for (u32 i = 1; i < m->count; ++i) {
 				struct modTexMapEntry e = m->entries[i];
@@ -1713,6 +1738,13 @@ const char *romdataFileGetName(s32 fileNum)
 	return fileSlots[g_ModNum][fileNum].name;
 }
 
+const char *romdataFileGetSlotName(s32 modNum, s32 fileNum)
+{
+	if (modNum < 0 || modNum >= (s32)MOD_TEX_MAP_MAX_MODS) return NULL;
+	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES) return NULL;
+	return fileSlots[modNum][fileNum].name;
+}
+
 s32 romdataFileGetNumForName(const char *name)
 {
 	if (!name || !name[0]) {
@@ -1772,48 +1804,18 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 
 	size_t searchLen = strlen(name);
 
-	const char *reqModName = NULL;
-	if (modNum >= 0 && (u32)modNum < g_NumModDirs && modDirs[modNum][0]) {
-		reqModName = strrchr(modDirs[modNum], '/');
-		if (reqModName) {
-			reqModName++;
-		} else {
-			reqModName = modDirs[modNum];
-		}
-	}
-
 	if (ftPoolUsed > 0) {
-		s32 id = ftLookup(name, (u32)searchLen + 1);
+		s32 id = ftLookupInMod(name, (u32)searchLen + 1, modNum);
 		if (id >= 0 && id < ROMDATA_MAX_FILES) {
-			const char *entryPath = fileSlots[modNum][id].name;
-			if (entryPath && strncmp(entryPath, "mod:", 4) == 0 && reqModName) {
-				char prefix[128];
-				snprintf(prefix, sizeof(prefix), "mod:%s::", reqModName);
-				if (!strstr(entryPath, prefix)) {
-					id = -1;
-				}
-			}
-			if (id >= 0) {
-				return id;
-			}
+			return id;
 		}
 
 		const char *slash = strrchr(name, '/');
 		if (slash) {
 			u32 baseLen = (u32)(searchLen - (slash + 1 - name));
-			id = ftLookup(slash + 1, baseLen + 1);
+			id = ftLookupInMod(slash + 1, baseLen + 1, modNum);
 			if (id >= 0 && id < ROMDATA_MAX_FILES) {
-				const char *entryPath = fileSlots[modNum][id].name;
-				if (entryPath && strncmp(entryPath, "mod:", 4) == 0 && reqModName) {
-					char prefix[128];
-					snprintf(prefix, sizeof(prefix), "mod:%s::", reqModName);
-					if (!strstr(entryPath, prefix)) {
-						id = -1;
-					}
-				}
-				if (id >= 0) {
-					return id;
-				}
+				return id;
 			}
 		}
 	}

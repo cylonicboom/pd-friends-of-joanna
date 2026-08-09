@@ -119,19 +119,20 @@ struct skeleton *g_Skeletons[] = {
 #ifndef PLATFORM_N64
 extern u16 modTexMapLookup(s32 modIdx, u16 localTexId);
 
-// True iff `portId` has a PNG registered under G_TEXTYPE_GENERAL owned by
-// `modIdx`. Used as the safety gate for the gDL rewrite pass: we only redirect
-// a source ID to its port-range target when that target is actually backed by
-// the current mod's own PNG asset. This keeps texmaps that use port IDs for
-// other purposes (e.g. .bin overrides owned by another mod) from corrupting
-// vanilla rendering.
-static bool modeldefPortIdHasOwnedPng(s32 modIdx, u16 portId)
+// True if `portId` is a texture asset owned by `modIdx`: either a PNG
+// override registered under G_TEXTYPE_GENERAL (ext_tex/ path) or the mod's
+// own texmap maps some source ID to this port. Widened from the original
+// PNG-only gate so gDL remaps can rewrite baked mod-range IDs for mods
+// that ship textures as raw bytes (e.g. mod_gex_characters from gex.z64).
+static bool modeldefPortIdIsModOwned(s32 modIdx, u16 portId)
 {
-	if (!extTexExists(G_TEXTYPE_GENERAL, 0, portId)) {
-		return false;
+	if (extTexExists(G_TEXTYPE_GENERAL, 0, portId)) {
+		s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, portId);
+		if (owner >= 0 && owner == modIdx) return true;
 	}
-	s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, portId);
-	return owner >= 0 && owner == modIdx;
+	extern u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
+	if (modTexMapReverseLookup(modIdx, portId) != 0xffff) return true;
+	return false;
 }
 
 // Per-modeldef pass statistics collected by the gDL walker. All counts are
@@ -160,7 +161,7 @@ static u32 modeldefRemapOneTexnumSlot(u32 orig, s32 modIdx, bool *didRemap, stru
 		return orig;
 	}
 	if (stats) ++stats->mapped;
-	if (!modeldefPortIdHasOwnedPng(modIdx, mapped)) {
+	if (!modeldefPortIdIsModOwned(modIdx, mapped)) {
 		return orig;
 	}
 	if (stats) ++stats->gateAccepted;

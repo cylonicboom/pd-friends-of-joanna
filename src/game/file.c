@@ -4196,13 +4196,21 @@ void fileLoad(u8 *dst, u32 allocationlen, romptr_t *romaddrptr, struct fileinfo 
 			dmaExec(scratch, *romaddrptr, romsize);
 			result = rzipInflate(scratch, dst, buffer);
 
-#if VERSION < VERSION_NTSC_1_0
+#ifndef PLATFORM_N64
 			if (result == 0) {
-				sprintf(sp54, "DMA-Crash %s %d Ram: %02x%02x%02x%02x%02x%02x%02x%02x", "ob.c", 204,
-						scratch[0], scratch[1], scratch[2], scratch[3],
-						scratch[4], scratch[5], scratch[6], scratch[7]);
-				crashSetMessage(sp54);
-				CRASH();
+				const s32 modNum = (filenum >> 16) & 0xffff;
+				const s32 fileId = filenum & 0xffff;
+				const char *slotName = romdataFileGetSlotName(modNum, fileId);
+				sysLogPrintf(LOG_ERROR,
+					"fileLoad: rzipInflate FAILED filenum=0x%08x (mod=%d id=0x%04x) name='%s' "
+					"romsize=%u allocationlen=%u "
+					"first16=%02x %02x %02x %02x %02x %02x %02x %02x  %02x %02x %02x %02x %02x %02x %02x %02x",
+					(u32)filenum, modNum, fileId, slotName ? slotName : "(null)",
+					romsize, allocationlen,
+					scratch[0], scratch[1], scratch[2], scratch[3],
+					scratch[4], scratch[5], scratch[6], scratch[7],
+					scratch[8], scratch[9], scratch[10], scratch[11],
+					scratch[12], scratch[13], scratch[14], scratch[15]);
 			}
 #endif
 

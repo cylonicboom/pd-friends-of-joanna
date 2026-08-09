@@ -186,16 +186,22 @@ u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
 	switch (type) {
 		case G_TEXTYPE_GENERAL: {
 			tex = &extTextures[texnum];
-			// Check if this texture exists in a model subdirectory
-			// (head models use GENERAL type but textures may be in model dirs)
+			// Prefer a per-model PNG override — but only from a model whose
+			// owner mod matches the mod currently being rendered. A previous
+			// version of this walker returned the first match unconditionally,
+			// which caused Mikado (from mod_fojo_mikado) to render with
+			// Catherine/Foslerfer PNGs (from mod_fojo) when their texids
+			// collided.
+			extern s32 g_TexModNum;
 			for (int i = 0; i < numModels; ++i) {
 				for (int j = 0; j < modelTextures[i].numTextures; ++j) {
-					if (modelTextures[i].textures[j].texnum == texnum) {
-						snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s",
-							modelTextures[i].basePath, modelTextures[i].modelName,
-							texnum, modelTextures[i].textures[j].extension);
-						return 0;
-					}
+					if (modelTextures[i].textures[j].texnum != texnum) continue;
+					s8 owner = modelTextures[i].textures[j].ownerMod;
+					if (owner >= 0 && g_TexModNum >= 0 && owner != g_TexModNum) continue;
+					snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s",
+						modelTextures[i].basePath, modelTextures[i].modelName,
+						texnum, modelTextures[i].textures[j].extension);
+					return 0;
 				}
 			}
 			snprintf(dst, FS_MAXPATH, "%s/%04x.%s", extTexPath, texnum, tex->extension);
@@ -290,6 +296,7 @@ void setTex(struct ExtTexture *texlist, s32 index, s32 texNum, char extension[5]
 	struct ExtTexture *tex = &texlist[index];
 	tex->texnum = texNum;
 	strcpy(tex->extension, extension);
+	tex->ownerMod = (s8)g_ExtTexCurrentModIndex;
 }
 
 void setTexDimensions(struct ExtTexture *tex, const char *filepath)
@@ -562,6 +569,7 @@ s32 extTexInit()
 
 	// Scan the global ext_tex directory (basedir/ext_tex/)
 	sysLogPrintf(LOG_NOTE, "extTexInit: scanning global ext_tex dir...");
+	g_ExtTexCurrentModIndex = -1;
 	extTexScanDir(extTexPath, &MAX_MODELS);
 
 	// Scan each mod's ext_tex directory (mods/mod_xxx/ext_tex/)
@@ -571,9 +579,11 @@ s32 extTexInit()
 			char modExtTexPath[FS_MAXPATH + 1];
 			snprintf(modExtTexPath, FS_MAXPATH, "%s/" EXT_TEX_DIRNAME, modDirs[i]);
 			sysLogPrintf(LOG_NOTE, "extTexInit: mod[%d] ext_tex path='%s'", i, modExtTexPath);
+			g_ExtTexCurrentModIndex = (s32)i;
 			extTexScanDir(modExtTexPath, &MAX_MODELS);
 		}
 	}
+	g_ExtTexCurrentModIndex = -1;
 
 	sysLogPrintf(LOG_NOTE, "extTexInit: FINAL numModels=%d", numModels);
 	s32 totalTextures = 0;
