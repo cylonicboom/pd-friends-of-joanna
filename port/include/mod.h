@@ -11,6 +11,7 @@
 extern u8 g_StageModFlags[256];
 extern char g_ModNames[64][64];
 extern s32 g_TexModNum;
+extern s32 g_TexCurrentModelFileNum;  // low 16 bits: fileSlot of the model currently being loaded/rendered; 0 when none
 
 struct animtableentry;
 

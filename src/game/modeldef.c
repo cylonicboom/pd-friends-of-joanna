@@ -152,10 +152,24 @@ struct modeldefGdlStats {
 static u32 modeldefRemapOneTexnumSlot(u32 orig, s32 modIdx, bool *didRemap, struct modeldefGdlStats *stats)
 {
 	*didRemap = false;
-	if (orig >= NUM_TEXTURES) {
+	// NOTE: intentionally no `orig >= NUM_TEXTURES` short-circuit here.
+	// NUM_TEXTURES tracks NTSC-final's vanilla texture count, but JPN heads
+	// (Mikado mounted from JPN ROM) reference vanilla texids in the range
+	// [NUM_TEXTURES .. JPN's vanilla count]. modTexMapLookup safely returns
+	// `orig` unchanged when the mod has no entry for a given texid, so it's
+	// fine to consult it for every candidate slot.
+	if (stats) ++stats->inRange;
+	extern s32 g_TexCurrentModelFileNum;
+	// Only mod-inserted files (id >= 2018) participate in the mod texMap;
+	// a vanilla model rendering the same source texid must keep its vanilla
+	// binding. Also skip when the currently-loading model owns a per-model
+	// PNG override at this source texid — the ext_tex path will serve it.
+	if (g_TexCurrentModelFileNum < 2018) {
 		return orig;
 	}
-	if (stats) ++stats->inRange;
+	if (extTexModelHasEntryForTexid((s16)(g_TexCurrentModelFileNum & 0xffff), (s32)orig)) {
+		return orig;
+	}
 	u16 mapped = modTexMapLookup(modIdx, (u16)orig);
 	if ((u32)mapped == orig) {
 		return orig;
@@ -174,7 +188,7 @@ static u32 modeldefRemapOneTexnumSlot(u32 orig, s32 modIdx, bool *didRemap, stru
 // in their handling of "what's a remappable source ID".
 static void modeldefRemapTexconfigsForMod(struct modeldef *modeldef, s32 modIdx)
 {
-	if (modIdx <= 0 || !modeldef->texconfigs || modeldef->numtexconfigs <= 0) {
+	if (modIdx < 0 || !modeldef->texconfigs || modeldef->numtexconfigs <= 0) {
 		return;
 	}
 
@@ -232,7 +246,7 @@ static u32 modeldefRemapGdlCmd(Gfx *cmd, s32 modIdx, struct modeldefGdlStats *st
 // agree on what bytes belong to which DL.
 static void modeldefRemapGdlTexnumsForMod(struct modeldef *modeldef, s32 modIdx, s32 filenum)
 {
-	if (modIdx <= 0) {
+	if (modIdx < 0) {
 		return;
 	}
 
@@ -410,12 +424,16 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 #ifndef PLATFORM_N64
 	{
 		s32 modIdx = (fileid >> 16) & 0xff;
+		s32 prevModelFN = g_TexCurrentModelFileNum;
+		g_TexCurrentModelFileNum = fileid & 0xffff;
 		modeldefRemapTexconfigsForMod(modeldef, modIdx);
 		modeldefRemapGdlTexnumsForMod(modeldef, modIdx, fileid);
+		modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
+		g_TexCurrentModelFileNum = prevModelFN;
 	}
-#endif
-
+#else
 	modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
+#endif
 
 	return modeldef;
 }

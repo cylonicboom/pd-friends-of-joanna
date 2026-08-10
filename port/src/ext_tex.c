@@ -155,6 +155,19 @@ s8 extTexGetOwnerMod(u8 type, u16 id, s32 texnum)
 	return -1;
 }
 
+bool extTexModelHasEntryForTexid(s16 fileNum, s32 texNum)
+{
+	if (fileNum <= 0 || !modelTextures) return false;
+	for (int i = 0; i < numModels; ++i) {
+		if (modelTextures[i].fileNum != fileNum) continue;
+		for (int j = 0; j < modelTextures[i].numTextures; ++j) {
+			if (modelTextures[i].textures[j].texnum == texNum) return true;
+		}
+		return false;
+	}
+	return false;
+}
+
 u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height)
 {
 	struct ExtTexture *tex = getExtTexture(type, id, texnum);
@@ -186,22 +199,39 @@ u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
 	switch (type) {
 		case G_TEXTYPE_GENERAL: {
 			tex = &extTextures[texnum];
-			// Prefer a per-model PNG override — but only from a model whose
-			// owner mod matches the mod currently being rendered. A previous
-			// version of this walker returned the first match unconditionally,
-			// which caused Mikado (from mod_fojo_mikado) to render with
-			// Catherine/Foslerfer PNGs (from mod_fojo) when their texids
-			// collided.
-			extern s32 g_TexModNum;
-			for (int i = 0; i < numModels; ++i) {
-				for (int j = 0; j < modelTextures[i].numTextures; ++j) {
-					if (modelTextures[i].textures[j].texnum != texnum) continue;
-					s8 owner = modelTextures[i].textures[j].ownerMod;
-					if (owner >= 0 && g_TexModNum >= 0 && owner != g_TexModNum) continue;
-					snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s",
-						modelTextures[i].basePath, modelTextures[i].modelName,
-						texnum, modelTextures[i].textures[j].extension);
-					return 0;
+			// Prefer a per-model PNG override. When the caller supplied a
+			// nonzero `id`, it identifies the model that owns the render
+			// (see texWriteLoadToTmemAddr): use that to pick the model dir
+			// so Foslerfer's /0daf.png and Mikado's /0daf.bin do not
+			// pretend to be each other. When `id` is 0 (legacy callers
+			// with no model context), fall back to owner-mod filtering.
+			if (id != 0) {
+				for (int i = 0; i < numModels; ++i) {
+					if ((s16)id != modelTextures[i].fileNum) continue;
+					for (int j = 0; j < modelTextures[i].numTextures; ++j) {
+						if (modelTextures[i].textures[j].texnum == texnum) {
+							snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s",
+								modelTextures[i].basePath, modelTextures[i].modelName,
+								texnum, modelTextures[i].textures[j].extension);
+							return 0;
+						}
+					}
+					// Model matched but has no PNG at this texid; do not fall
+					// through to other models' dirs (that was the old bug).
+					break;
+				}
+			} else {
+				extern s32 g_TexModNum;
+				for (int i = 0; i < numModels; ++i) {
+					for (int j = 0; j < modelTextures[i].numTextures; ++j) {
+						if (modelTextures[i].textures[j].texnum != texnum) continue;
+						s8 owner = modelTextures[i].textures[j].ownerMod;
+						if (owner >= 0 && g_TexModNum >= 0 && owner != g_TexModNum) continue;
+						snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s",
+							modelTextures[i].basePath, modelTextures[i].modelName,
+							texnum, modelTextures[i].textures[j].extension);
+						return 0;
+					}
 				}
 			}
 			snprintf(dst, FS_MAXPATH, "%s/%04x.%s", extTexPath, texnum, tex->extension);

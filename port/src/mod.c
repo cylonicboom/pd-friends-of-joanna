@@ -22,6 +22,7 @@
 #define MOD_SEQUENCES_DIR "sequences"
 
 s32 g_TexModNum = -1;
+s32 g_TexCurrentModelFileNum = 0;
 
 extern struct stagemusic g_StageTracks[];
 extern struct stageallocation g_StageAllocations8Mb[];
@@ -1896,13 +1897,41 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 
 	s32 modNum = g_TexModNum;
 
+	// If we know which model is loading (set by modeldef), try a per-model
+	// dir first: `<ModelName>/<local-texid>.bin`. This mirrors how PNG
+	// overrides live under `ext_tex/<ModelName>/<texid>.png` and prevents
+	// two models in the same mod that reference the same source texid from
+	// pulling each other's bytes.
+	char name[128];
+	s32 fileNum = 0;
+	if (g_TexCurrentModelFileNum > 0) {
+		const char *modelName = romdataFileGetSlotName(modNum, g_TexCurrentModelFileNum);
+		if (modelName) {
+			// Strip any leading "mod:...::" prefix produced by merge-filetables.
+			const char *nameStart = strstr(modelName, "::");
+			nameStart = nameStart ? nameStart + 2 : modelName;
+			// Also strip a leading files/ directory if present.
+			if (strncmp(nameStart, "files/", 6) == 0) nameStart += 6;
+
+			extern u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
+			u16 lookup = num;
+			if (num >= NUM_TEXTURES) {
+				u16 local = modTexMapReverseLookup(modNum, num);
+				if (local != 0xffff) lookup = local;
+			}
+			snprintf(name, sizeof(name), "%s/%04x.bin", nameStart, lookup);
+			fileNum = romdataFileGetNumForNameInMod(name, modNum);
+		}
+	}
+
 	// Try filetable lookup. Texture entries can be named either bare ("0104.bin")
 	// or with a short mod prefix ("gex_0104.bin"); accept both forms.
 	char prefixBuf[32];
 	const char *prefix = modGetTexPrefix(modNum, prefixBuf, sizeof(prefixBuf));
-	char name[64];
-	snprintf(name, sizeof(name), "%04x.bin", num);
-	s32 fileNum = romdataFileGetNumForNameInMod(name, modNum);
+	if (fileNum <= 0) {
+		snprintf(name, sizeof(name), "%04x.bin", num);
+		fileNum = romdataFileGetNumForNameInMod(name, modNum);
+	}
 	if (fileNum <= 0 && prefix) {
 		char altName[80];
 		snprintf(altName, sizeof(altName), "%s_%04x.bin", prefix, num);

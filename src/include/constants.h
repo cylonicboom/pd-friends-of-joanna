@@ -2901,11 +2901,14 @@
 #define FOJO_HEAD_CALICO    0x4d                // TBD dD-originated Jo (Catherine)
 
 
-#define FOJO_INDEX_JOANNA    0
-#define FOJO_INDEX_VELVET    1
-#define FOJO_INDEX_MIKADO    2
-#define FOJO_INDEX_POPLIN    3
-#define FOJO_INDEX_CALICO    4
+#define FOJO_INDEX_JOANNA          0
+#define FOJO_INDEX_VELVET          1
+#define FOJO_INDEX_MIKADO          2
+#define FOJO_INDEX_MIKADO_FROCK    3
+#define FOJO_INDEX_MIKADO_SNOW     4
+#define FOJO_INDEX_MIKADO_AQUA     5
+#define FOJO_INDEX_POPLIN          6
+#define FOJO_INDEX_CALICO          7
 
 #define NUM_FOJO_HEADS FOJO_INDEX_CALICO + 2
 

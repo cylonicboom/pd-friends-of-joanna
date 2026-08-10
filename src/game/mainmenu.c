@@ -2094,11 +2094,14 @@ char *fojoMenuTextHeadName(struct menuitem *item)
 static const char *fojoHeadConfigName(s32 optionindex)
 {
 	switch (optionindex) {
-	case FOJO_INDEX_JOANNA: return NULL; // built-in, no modconfig name
-	case FOJO_INDEX_VELVET: return NULL; // built-in, no modconfig name
-	case FOJO_INDEX_MIKADO: return "head_mikado";
-	case FOJO_INDEX_POPLIN: return "head_foslerfer";
-	case FOJO_INDEX_CALICO: return "head_catherine";
+	case FOJO_INDEX_JOANNA:       return NULL; // built-in, no modconfig name
+	case FOJO_INDEX_VELVET:       return NULL; // built-in, no modconfig name
+	case FOJO_INDEX_MIKADO:       return "head_mikado";
+	case FOJO_INDEX_MIKADO_FROCK: return "head_mikado_frock";
+	case FOJO_INDEX_MIKADO_SNOW:  return "head_mikado_snow";
+	case FOJO_INDEX_MIKADO_AQUA:  return "head_mikado_aqua";
+	case FOJO_INDEX_POPLIN:       return "head_foslerfer";
+	case FOJO_INDEX_CALICO:       return "head_catherine";
 	default: return NULL;
 	}
 }
@@ -2106,11 +2109,14 @@ static const char *fojoHeadConfigName(s32 optionindex)
 static const char *fojoHeadDisplayName(s32 optionindex)
 {
 	switch (optionindex) {
-	case FOJO_INDEX_JOANNA: return "Joanna Dark";
-	case FOJO_INDEX_VELVET: return "Velvet Dark";
-	case FOJO_INDEX_MIKADO: return "Mikado Dark";
-	case FOJO_INDEX_POPLIN: return "Poplin Dark";
-	case FOJO_INDEX_CALICO: return "Calico Dark";
+	case FOJO_INDEX_JOANNA:       return "Joanna Dark";
+	case FOJO_INDEX_VELVET:       return "Velvet Dark";
+	case FOJO_INDEX_MIKADO:       return "Mikado Dark";
+	case FOJO_INDEX_MIKADO_FROCK: return "Mikado (Frock)";
+	case FOJO_INDEX_MIKADO_SNOW:  return "Mikado (Snow)";
+	case FOJO_INDEX_MIKADO_AQUA:  return "Mikado (Aqua)";
+	case FOJO_INDEX_POPLIN:       return "Poplin Dark";
+	case FOJO_INDEX_CALICO:       return "Calico Dark";
 	default: return "Unknown";
 	}
 }

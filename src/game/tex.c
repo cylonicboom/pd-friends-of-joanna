@@ -509,9 +509,13 @@ Gfx *texWriteLoadToTmemAddr(Gfx *gdl, struct tex *tex, s32 tmemoffset)
 #ifndef PLATFORM_N64
 	{
 		extern s32 g_TexModNum;
+		extern s32 g_TexCurrentModelFileNum;
 		s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, tex->texturenum);
 		if (owner < 0 || owner == g_TexModNum) {
-			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, 0, tex->texturenum, 0);
+			// Stamp the current model's fileNum into `id` so downstream
+			// getTexPath / extTexLoad can pick the correct per-model dir.
+			const u16 modelId = (u16)(g_TexCurrentModelFileNum & 0xffff);
+			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, modelId, tex->texturenum, 0);
 		} else {
 			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_NONE, 0, 0, 0);
 		}

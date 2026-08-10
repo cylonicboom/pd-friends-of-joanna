@@ -218,7 +218,12 @@ struct modTexMap {
 // Per-mod texmap allocations use mod-LOCAL slot indices in the fragment.
 // The engine adds this running base to each stored portTexId at parse time
 // so port IDs are globally unique without any cross-mod build-time coordination.
-static u32 g_NextGlobalTexPort = NUM_TEXTURES;
+// Base sits above the highest known vanilla texture count across all PD ROM
+// variants (JPN has 3511 textures, so anything <3512 collides with vanilla
+// texids that appear in JPN-sourced models). Cap fits the 12-bit texnum
+// field in G_NOOP (max 0xfff = 4095).
+#define MOD_TEX_PORT_BASE 3600u
+static u32 g_NextGlobalTexPort = MOD_TEX_PORT_BASE;
 
 static struct modTexMap g_ModTexMap[MOD_TEX_MAP_MAX_MODS];
 
