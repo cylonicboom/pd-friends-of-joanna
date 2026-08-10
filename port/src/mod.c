@@ -1896,6 +1896,9 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	}
 
 	s32 modNum = g_TexModNum;
+	u16 lookup = num;
+	const char *modelName = NULL;
+	const char *modelNameRaw = NULL;
 
 	// If we know which model is loading (set by modeldef), try a per-model
 	// dir first: `<ModelName>/<local-texid>.bin`. This mirrors how PNG
@@ -1905,16 +1908,17 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	char name[128];
 	s32 fileNum = 0;
 	if (g_TexCurrentModelFileNum > 0) {
-		const char *modelName = romdataFileGetSlotName(modNum, g_TexCurrentModelFileNum);
+		modelNameRaw = romdataFileGetSlotName(modNum, g_TexCurrentModelFileNum);
+		modelName = modelNameRaw;
 		if (modelName) {
 			// Strip any leading "mod:...::" prefix produced by merge-filetables.
 			const char *nameStart = strstr(modelName, "::");
 			nameStart = nameStart ? nameStart + 2 : modelName;
 			// Also strip a leading files/ directory if present.
 			if (strncmp(nameStart, "files/", 6) == 0) nameStart += 6;
+			modelName = nameStart;
 
 			extern u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
-			u16 lookup = num;
 			if (num >= NUM_TEXTURES) {
 				u16 local = modTexMapReverseLookup(modNum, num);
 				if (local != 0xffff) lookup = local;
@@ -1948,6 +1952,30 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 				char altName[80];
 				snprintf(altName, sizeof(altName), "%s_%04x.bin", prefix, local);
 				fileNum = romdataFileGetNumForNameInMod(altName, modNum);
+			}
+		}
+	}
+
+	// Rate-limited trace for mod-owned port-range textures. This is the path
+	// Mikado-style JPN-mounted heads use after modeldef remaps local texids
+	// into the mod port range.
+	if (num >= NUM_TEXTURES && g_TexCurrentModelFileNum >= 2018) {
+		static u8 s_seen[64][512];
+		if ((u32)modNum < 64 && num < 4096) {
+			u32 byte = num >> 3;
+			u32 bit = 1u << (num & 7);
+			if ((s_seen[modNum][byte] & bit) == 0) {
+				s_seen[modNum][byte] |= bit;
+				sysLogPrintf(LOG_NOTE,
+					"modTextureLoad trace: mod=%d modelFile=0x%04x model='%s' port=0x%04x local=0x%04x query='%s' fileNum=%d raw='%s'",
+					modNum,
+					(u16)(g_TexCurrentModelFileNum & 0xffff),
+					modelName ? modelName : "(none)",
+					num,
+					lookup,
+					name[0] ? name : "(none)",
+					fileNum,
+					modelNameRaw ? modelNameRaw : "(none)");
 			}
 		}
 	}

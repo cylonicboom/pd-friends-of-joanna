@@ -219,8 +219,13 @@ s32 fsInit(void)
 	const char *path = sysArgGetString("--basedir");
 	if (!path) {
 		path = "$H";
-		// check if there's a `data` directory in working directory or homeDir, otherwise default to exe directory
-		// path = "$E/" DEFAULT_BASEDIR_NAME;
+		// Prefer a `data/` directory next to the executable so launching
+		// `pd.arm64` from outside the basedir still finds its bundled assets.
+		// Only fall back to cwd or home when there is no executable-adjacent
+		// bundle to use.
+		if (fsFileSize("$E/" DEFAULT_BASEDIR_NAME) >= 0) {
+			path = "$E/" DEFAULT_BASEDIR_NAME;
+		} else
 		if (!portable) {
 			if (fsFileSize("./" DEFAULT_BASEDIR_NAME) >= 0) {
 				path = "./" DEFAULT_BASEDIR_NAME;
