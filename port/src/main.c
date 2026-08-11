@@ -116,6 +116,7 @@ int main(int argc, const char **argv)
 
 	sysInit();
 	fsInit();
+	romdataInit();
 
 	// Check for AIO mod presence
 	extern s32 g_AIOPresent;
@@ -135,7 +136,6 @@ int main(int argc, const char **argv)
 	videoInit();
 	inputInit();
 	audioInit();
-	romdataInit();
 	if (extTexInit() > 0) {
 		extern bool gfx_external_textures_enabled;
 		gfx_external_textures_enabled = true;

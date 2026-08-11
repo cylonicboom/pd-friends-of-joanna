@@ -279,6 +279,12 @@ static s32 romSourceFind(const char *id)
 	}
 	return -1;
 }
+// romdata.c
+u8 romsourceIsMounted(const char *id) {
+    s32 i = romSourceFind(id);
+    if (i < 0) return 0;
+    return g_RomSources[i].mounted;
+}
 
 static void romSourcesMount(void)
 {
@@ -1741,6 +1747,10 @@ const char *romdataFileGetName(s32 fileNum)
 		return NULL;
 	}
 	return fileSlots[g_ModNum][fileNum].name;
+}
+
+const u8 romDataFileNumExists(s32 modNum, s32 fileNum) {
+	return fileSlots[modNum][fileNum].segstart != NULL && fileSlots[modNum][fileNum].segend != NULL;
 }
 
 const char *romdataFileGetSlotName(s32 modNum, s32 fileNum)

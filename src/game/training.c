@@ -28,6 +28,7 @@
 #include "game/trainingmenus.h"
 #include "game/wallhit.h"
 #include "bss.h"
+#include "romdata.h"
 #include "lib/vi.h"
 #include "lib/dma.h"
 #include "lib/main.h"
@@ -2352,11 +2353,16 @@ static struct biocharid g_ChrBioCharacters[] = {
 
 void fojoInitChrBioCharacters(void)
 {
-	g_FojoMpHeadMikado = modLookupHeadByName("head_mikado");
+	if (romsourceIsMounted("jpn")){
+		g_FojoMpHeadMikado = modLookupHeadByName("head_mikado");
+	} else {
+		g_FojoMpHeadMikado = -1;
+	}
+	g_ChrBioCharacters[2].mpheadnum = g_FojoMpHeadMikado;
+
 	g_FojoMpHeadPoplin = modLookupHeadByName("head_foslerfer");
 	g_FojoMpHeadCalico = modLookupHeadByName("head_catherine");
 
-	g_ChrBioCharacters[2].mpheadnum = g_FojoMpHeadMikado;
 	g_ChrBioCharacters[3].mpheadnum = g_FojoMpHeadPoplin;
 	g_ChrBioCharacters[4].mpheadnum = g_FojoMpHeadCalico;
 }
@@ -2365,6 +2371,8 @@ static bool ciIsBioCharUnlocked(struct biocharid *ch)
 {
 	switch (ch->bodynum) {
 	case BODY_DARK_COMBAT:
+		if (ch->mpheadnum == -1) return false;
+		return true;
 	case BODY_CARRINGTON:
 		return true;
 	case BODY_CASSANDRA:

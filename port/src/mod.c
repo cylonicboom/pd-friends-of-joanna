@@ -114,6 +114,16 @@ static s32 g_NumImportedAssets = 0;
 		return ret; \
 	}
 
+static inline char *modConfigParseStringValue(char *p, char *token, char *value){
+	p = strParseToken(p, token, NULL);
+	if (!p) {
+		return NULL;
+	}
+	char *t = strUnquote(token);
+	strcpy(value, t);
+	sysLogPrintf(LOG_NOTE, "modconfigParseStringValue %s", value);
+	return p;
+}
 static inline char *modConfigParseFileValue(char *p, char *token, s32 *filenum, s32 modNum)
 {
 	p = strParseToken(p, token, NULL);
@@ -457,12 +467,22 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 {
 	s32 tmp = 0;
 	f32 tmpf = 0.0f;
+	char tmps[64] = "";
 	if (skipEntry) *skipEntry = 0;
 
 	while (p && token[0] && strcmp(token, "}") != 0) {
 		if (!strcmp(token, "ismale")) {
 			PARSE_INT("HeadsAndBodies", "ismale", tmp, 0, 1, NULL);
 			item->ismale = tmp;
+		}	else if (!strcmp(token, "requiresrom")) {
+			p = modConfigParseStringValue(p, token, &tmps);
+			if (p) {
+				sysLogPrintf(LOG_NOTE, "requiresrom %s", tmps);
+				if (!romsourceIsMounted(tmps)){
+					if (skipEntry) *skipEntry = 1;
+					return NULL;
+				}
+			}
 		} else if (!strcmp(token, "slotnum")) {
 			PARSE_INT("HeadsAndBodies", "slotnum", tmp, 0, 255, NULL);
 			if (slotInfo) slotInfo->slotNum = tmp;

@@ -2093,13 +2093,13 @@ char *fojoMenuTextHeadName(struct menuitem *item)
 // that omits any of these heads simply produces an empty slot.
 static const char *fojoHeadConfigName(s32 optionindex)
 {
+	if (!romsourceIsMounted("jpn") && optionindex >= FOJO_INDEX_MIKADO){
+		optionindex++;
+	}
 	switch (optionindex) {
 	case FOJO_INDEX_JOANNA:       return NULL; // built-in, no modconfig name
 	case FOJO_INDEX_VELVET:       return NULL; // built-in, no modconfig name
 	case FOJO_INDEX_MIKADO:       return "head_mikado";
-	case FOJO_INDEX_MIKADO_FROCK: return "head_mikado_frock";
-	case FOJO_INDEX_MIKADO_SNOW:  return "head_mikado_snow";
-	case FOJO_INDEX_MIKADO_AQUA:  return "head_mikado_aqua";
 	case FOJO_INDEX_POPLIN:       return "head_foslerfer";
 	case FOJO_INDEX_CALICO:       return "head_catherine";
 	default: return NULL;
@@ -2108,13 +2108,13 @@ static const char *fojoHeadConfigName(s32 optionindex)
 
 static const char *fojoHeadDisplayName(s32 optionindex)
 {
+	if (!romsourceIsMounted("jpn") && optionindex >= FOJO_INDEX_MIKADO){
+		optionindex++;
+	}
 	switch (optionindex) {
 	case FOJO_INDEX_JOANNA:       return "Joanna Dark";
 	case FOJO_INDEX_VELVET:       return "Velvet Dark";
 	case FOJO_INDEX_MIKADO:       return "Mikado Dark";
-	case FOJO_INDEX_MIKADO_FROCK: return "Mikado (Frock)";
-	case FOJO_INDEX_MIKADO_SNOW:  return "Mikado (Snow)";
-	case FOJO_INDEX_MIKADO_AQUA:  return "Mikado (Aqua)";
 	case FOJO_INDEX_POPLIN:       return "Poplin Dark";
 	case FOJO_INDEX_CALICO:       return "Calico Dark";
 	default: return "Unknown";
@@ -2160,6 +2160,9 @@ void fojoInitHeadOptions(void)
 	for (s32 idx = FOJO_INDEX_MIKADO; idx <= FOJO_INDEX_CALICO; ++idx) {
 		const char *cfgName = fojoHeadConfigName(idx);
 		if (!cfgName) continue;
+		if (strcmp(cfgName, "head_mikado") == 0 && !romsourceIsMounted("jpn")) {
+			continue;
+		}
 		s32 mpheadnum = modLookupHeadByName(cfgName);
 		if (mpheadnum < 0) {
 			sysLogPrintf(LOG_NOTE, "fojoInitHeadOptions: skipping '%s' (not registered)", cfgName);

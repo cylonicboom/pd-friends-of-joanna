@@ -31,6 +31,8 @@ s32 romdataCheckGbcRom(void);
 
 void fileSlotsInit(u32 numMods);
 void romdataResetMod(s32 modNum);
+const u8 romDataFileNumExists(s32 modNum, s32 fileNum);
+u8 romsourceIsMounted(const char *id);
 
 
 #endif
