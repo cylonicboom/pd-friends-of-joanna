@@ -1793,6 +1793,7 @@ Gfx *menu_render_model(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 					totalfilelen = file_get_inflated_size(bodyfilenum);
 					totalfilelen = ALIGN64(totalfilelen);
 
+					// NOTE: this is probably where I want to start looking for the carousel head bug
 					if (g_HeadsAndBodies[bodynum].unk00_01) {
 						headnum = -1;
 						headfilenum = 0xffff;
