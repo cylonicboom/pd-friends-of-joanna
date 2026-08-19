@@ -970,10 +970,6 @@ MenuItemHandlerResult mpCharacterBodyMenuHandler(s32 operation, struct menuitem 
 		data->carousel.value = mpGetNumBodies();
 		break;
 	case MENUOP_11:
-		// Extended mod heads can be previewed safely in the head carousel, but
-		// combining them with arbitrary CS bodies can crash during menu model
-		// promotion. Use a stable body-compatible head for the combined preview.
-		mpheadnum = mpCharacterGetSafePreviewMpheadnum(mpheadnum, mpbodynum);
 		g_Menus[g_MpPlayerNum].menumodel.newanimnum = ANIM_01FC;
 		g_Menus[g_MpPlayerNum].menumodel.newparams = MENUMODELPARAMS_SET_MP_HEADBODY(mpheadnum, mpbodynum);
 		g_Menus[g_MpPlayerNum].menumodel.zoomtimer60 += g_Vars.diffframe60;
