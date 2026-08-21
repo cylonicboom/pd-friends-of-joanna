@@ -2214,13 +2214,44 @@ s32 fojoGetPlayerHead(s32 playernum)
 		g_FojoPlayerHeadSource[playernum] = cshead;
 	}
 
+	// 🧀
+	// if you're using one of Brett's pd or gex heads,
+	// spawn as Cass
+	s32 brettheads[3] = {
+		modLookupHeadByName("head_jones"),
+		modLookupHeadByName("head_jones0"),
+		modLookupHeadByName("head_pilot"),
+	};
+	u8 isbrett = 0;
+	for (s32 i = 0; i < 3; i++) {
+		if (brettheads[i] == cshead) {
+			isbrett = 1;
+			break;
+		}
+	}
+
+	// 🧑🏻‍🦰
+	// if you're using a cs head that I used when
+	// I was repping, spawn as me instead lmao
+	u8 boymoderdetected = 0;
+	s32 reppingheads[2] = {
+		modLookupHeadByName("head_gareth"),
+		modLookupHeadByName("head_neil2"),
+	};
+	for (s32 i = 0; i < 3; i++) {
+		if (reppingheads[i] == cshead) {
+			boymoderdetected = 1;
+			break;
+		}
+	}
+
 	// Use cached conversion if available
 	if (g_FojoPlayerHeadCache[playernum] < 0) {
 		// 🧀
-		if (cshead == (((1) << 5 ) + (2 << 1))) {
+		if (isbrett) {
 			g_FojoPlayerHeadCache[playernum] = (1 << 3);
-		} else if (cshead == (((1) << 3 ) + (1 << 1))) {
-			g_FojoPlayerHeadCache[playernum] = (((1) << 3 ) + (3 << 0));
+		} else if (boymoderdetected) {
+			g_FojoPlayerHeadCache[playernum] = modLookupHeadByName("head_catherine");
 		} else {
 			// Pick a random female head from all available female CS heads
 			// g_MpFemaleHeads contains 7 female HEAD_ constants, convert to mpheadnum
