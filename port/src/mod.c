@@ -1486,122 +1486,6 @@ void modScanAllMods(void)
 	g_ModsScanned = 1;
 }
 
-s32 modImport(char *modName, char *assetName)
-{
-	// Check if already imported
-	char importKey[256];
-	snprintf(importKey, sizeof(importKey), "%s.%s", modName, assetName);
-
-	for (s32 i = 0; i < g_NumImportedAssets; ++i) {
-		if (!strcmp(g_ImportedAssets[i], importKey)) {
-			return 1; // Already imported
-		}
-	}
-
-	modScanAllMods();
-
-	s32 srcModNum = -1;
-	for (s32 i = 0; i < g_NumModDirs; ++i) {
-		if (!strcmp(g_ModNames[i], modName)) {
-			srcModNum = i;
-			break;
-		}
-	}
-
-	if (srcModNum < 0) {
-		// Silent fail
-		return 0;
-	}
-
-	char path[FS_MAXPATH];
-	snprintf(path, sizeof(path), "%s/modconfig.txt", modDirs[srcModNum]);
-
-	u32 len = 0;
-	char *data = fsFileLoad(path, &len);
-	if (!data) return 0;
-
-	char token[UTIL_MAX_TOKEN + 1];
-	char *p = strParseToken(data, token, NULL);
-	s32 success = 0;
-
-	while (p && token[0]) {
-		if (!strcmp(token, "HeadsAndBodies")) {
-			char *blockStart = p;
-
-			// Skip {
-			p = strParseToken(p, token, NULL);
-			if (token[0] != '{') continue;
-
-			// Scan for name
-			char *innerP = p;
-			char innerToken[UTIL_MAX_TOKEN + 1];
-			s32 found = 0;
-
-			innerP = strParseToken(innerP, innerToken, NULL);
-			while (innerP && innerToken[0] && strcmp(innerToken, "}") != 0) {
-				if (!strcmp(innerToken, "name")) {
-					innerP = strParseToken(innerP, innerToken, NULL);
-					if (!strcmp(strUnquote(innerToken), assetName)) {
-						found = 1;
-					}
-				}
-				innerP = strParseToken(innerP, innerToken, NULL);
-			}
-
-			if (found) {
-				modConfigParseHeadsAndBodies(blockStart, token, srcModNum);
-				sysLogPrintf(LOG_NOTE, "modconfig: imported %s.%s", modName, assetName);
-
-				// Add to imported list
-				if (g_NumImportedAssets < MAX_IMPORTED_ASSETS) {
-					g_ImportedAssets[g_NumImportedAssets++] = strDuplicate(importKey);
-				}
-
-				success = 1;
-				break;
-			} else {
-				p = modConfigSkipBlock(blockStart, token);
-			}
-		} else if (!strcmp(token, "MpHeads")) {
-			if (!strcmp(assetName, "MpHeads")) {
-				modConfigParseMpHeads(p, token);
-				sysLogPrintf(LOG_NOTE, "modconfig: imported %s.%s", modName, assetName);
-				success = 1; // Found at least one
-			} else {
-				p = modConfigSkipBlock(p, token);
-			}
-		} else if (!strcmp(token, "MpBodies")) {
-			if (!strcmp(assetName, "MpBodies")) {
-				modConfigParseMpBodies(p, token);
-				sysLogPrintf(LOG_NOTE, "modconfig: imported %s.%s", modName, assetName);
-				success = 1; // Found at least one
-			} else {
-				p = modConfigSkipBlock(p, token);
-			}
-		} else if (!strcmp(token, "MpArena")) {
-			if (!strcmp(assetName, "MpArena")) {
-				modConfigParseMpArena(p, token);
-				sysLogPrintf(LOG_NOTE, "modconfig: imported %s.%s", modName, assetName);
-				success = 1; // Found at least one
-			} else {
-				p = modConfigSkipBlock(p, token);
-			}
-		} else if (!strcmp(token, "stage") || !strcmp(token, "texture")) {
-			p = modConfigSkipBlock(p, token);
-		}
-		p = strParseToken(p, token, NULL);
-	}
-
-	if (success && (!strcmp(assetName, "MpHeads") || !strcmp(assetName, "MpBodies") || !strcmp(assetName, "MpArena"))) {
-		// Add to imported list for bulk imports
-		if (g_NumImportedAssets < MAX_IMPORTED_ASSETS) {
-			g_ImportedAssets[g_NumImportedAssets++] = strDuplicate(importKey);
-		}
-	}
-
-	sysMemFree(data);
-	return success;
-}
 
 s32 modLoadAIO(void)
 {
@@ -1618,7 +1502,6 @@ s32 modLoadAIO(void)
 
 		char token[UTIL_MAX_TOKEN + 1];
 		char *p = strParseToken(data, token, NULL);
-		s32 foundInThisMod = 0;
 
 		while (p && token[0]) {
 			if (!strcmp(token, "MpArena")) {
@@ -1631,15 +1514,12 @@ s32 modLoadAIO(void)
 				continue;
 			} else if (!strcmp(token, "MpHeads")) {
 				p = modConfigParseMpHeads(p, token);
-				foundInThisMod = 1;
 				continue;
 			} else if (!strcmp(token, "MpBodies")) {
 				p = modConfigParseMpBodies(p, token);
-				foundInThisMod = 1;
 				continue;
 			} else if (!strcmp(token, "HeadsAndBodies")) {
 				p = modConfigParseHeadsAndBodies(p, token, i);
-				foundInThisMod = 1;
 				continue;
 			} else if (!strcmp(token, "stage")) {
 				// Skip stage number, then skip the block
@@ -1654,10 +1534,6 @@ s32 modLoadAIO(void)
 			p = strParseToken(p, token, NULL);
 		}
 
-		if (foundInThisMod) {
-			loaded = 1;
-			sysLogPrintf(LOG_NOTE, "modLoadAIO: loaded AIO assets from '%s' (modname: '%s')", modDirs[i], g_ModNames[i]);
-		}
 
 		sysMemFree(data);
 	}
@@ -2181,72 +2057,6 @@ s32 modNumFromStage(s32 stagenum) {
 	return modnum;
 }
 
-s32 modLoadHeadAndBodyConfigs(void)
-{
-	s32 loaded = 0;
-	modResetMplayerArrays();
-	modScanAllMods();
-
-	for (s32 i = 0; i < g_NumModDirs; ++i) {
-		char path[FS_MAXPATH];
-		snprintf(path, sizeof(path), "%s/modconfig.txt", modDirs[i]);
-
-		u32 len = 0;
-		char *data = fsFileLoad(path, &len);
-		if (!data) continue;
-
-		char token[UTIL_MAX_TOKEN + 1];
-		char *p = strParseToken(data, token, NULL);
-		s32 foundInThisMod = 0;
-
-		while (p && token[0]) {
-			if (!strcmp(token, "MpArena")) {
-				// Skip arenas - using vanilla list
-				p = modConfigSkipBlock(p, token);
-				continue;
-			} else if (!strcmp(token, "MpArenaGroup")) {
-				// Skip arena groups - using vanilla list
-				p = modConfigSkipBlock(p, token);
-				continue;
-			} else if (!strcmp(token, "MpHeads")) {
-				sysLogPrintf(LOG_WARNING, "modconfig: MpHeads is deprecated, use HeadsAndBodies with slotnum + requirefeature");
-				p = modConfigSkipBlock(p, token);
-				continue;
-			} else if (!strcmp(token, "MpBodies")) {
-				sysLogPrintf(LOG_WARNING, "modconfig: MpBodies is deprecated, use HeadsAndBodies with bodyslotnum + requirefeature");
-				p = modConfigSkipBlock(p, token);
-				continue;
-			} else if (!strcmp(token, "HeadsAndBodies")) {
-				p = modConfigParseHeadsAndBodies(p, token, i);
-				foundInThisMod = 1;
-				continue;
-			} else if (!strcmp(token, "stage")) {
-				// Skip stage number, then skip the block
-				p = strParseToken(p, token, NULL); // skip stage number
-				p = modConfigSkipBlock(p, token);
-				continue;
-			} else if (!strcmp(token, "texture")) {
-				p = modConfigSkipBlock(p, token);
-				continue;
-			}
-
-			p = strParseToken(p, token, NULL);
-		}
-
-		if (foundInThisMod) {
-			loaded = 1;
-			sysLogPrintf(LOG_NOTE, "modLoadHeadAndBodyConfigs: loaded from '%s' (modname: '%s')", modDirs[i], g_ModNames[i]);
-		}
-
-		sysMemFree(data);
-	}
-
-	if (!loaded) {
-		sysLogPrintf(LOG_ERROR, "modLoadHeadAndBodyConfigs: no modconfig.txt found in any of %d dirs", g_NumModDirs);
-	}
-
-	return loaded;
-}
 
 void modSwitch(s32 modnum, s32 stagenum) {
 	sysLogPrintf(LOG_NOTE, "modSwitch(mod=%d, stage=0x%02x) called. Current g_ModNum=%d", modnum, stagenum, g_ModNum);

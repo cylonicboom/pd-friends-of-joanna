@@ -128,7 +128,8 @@ int main(int argc, const char **argv)
 		}
 	}
 
-	if (g_AIOPresent) {
+	// NOTE: dynamic mod staging loading disabled for now
+	if (0) {
 		// mpSetArenaMode(true); // Moved to pdmain.c after config load
 	}
 

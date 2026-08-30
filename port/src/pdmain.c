@@ -1,90 +1,87 @@
 #include <stdlib.h>
 
-#include <ultra64.h>
-#include <PR/ultrasched.h>
-#include "lib/sched.h"
-#include "lib/vars.h"
+#include "bss.h"
 #include "constants.h"
-#include "game/camdraw.h"
-#include "game/cheats.h"
-#include "game/debug.h"
-#include "game/file.h"
-#include "game/lang.h"
-#include "game/race.h"
+#include "data.h"
+#include "fs.h"
 #include "game/body.h"
-#include "game/training.h"
+#include "game/camdraw.h"
+#include "game/challenge.h"
+#include "game/cheats.h"
+#include "game/chrai.h"
+#include "game/debug.h"
+#include "game/endscreen.h"
+#include "game/file.h"
+#include "game/game_1531a0.h"
+#include "game/game_175f90.h"
+#include "game/game_1a78b0.h"
+#include "game/gfxmemory.h"
+#include "game/lang.h"
+#include "game/lv.h"
+#include "game/mplayer/mplayer.h"
+#include "game/mplayer/setup.h"
+#include "game/mpstats.h"
+#include "game/music.h"
+#include "game/objectives.h"
+#include "game/pak.h"
+#include "game/pdmode.h"
+#include "game/player.h"
+#include "game/playermgr.h"
+#include "game/race.h"
+#include "game/smoke.h"
+#include "game/splat.h"
 #include "game/stubs/game_000840.h"
 #include "game/stubs/game_000850.h"
 #include "game/stubs/game_000860.h"
 #include "game/stubs/game_000870.h"
-#include "game/smoke.h"
 #include "game/stubs/game_0008e0.h"
 #include "game/stubs/game_0008f0.h"
 #include "game/stubs/game_000900.h"
 #include "game/stubs/game_000910.h"
-#include "game/tex.h"
 #include "game/stubs/game_00b180.h"
 #include "game/stubs/game_00b200.h"
-#include "game/challenge.h"
-#include "game/chrai.h"
-#include "game/title.h"
-#include "game/pdmode.h"
-#include "game/mplayer/setup.h"
-#include "fs.h"
-#include "mod.h"
-#include <string.h>
-#include "game/objectives.h"
-#include "game/endscreen.h"
-#include "game/playermgr.h"
-#include "game/game_1531a0.h"
-#include "game/gfxmemory.h"
-#include "game/lang.h"
-#include "game/lv.h"
-#include "game/timing.h"
-#include "game/music.h"
 #include "game/stubs/game_175f50.h"
-#include "game/game_175f90.h"
-#include "game/zbuf.h"
-#include "game/game_1a78b0.h"
-#include "game/mplayer/mplayer.h"
-#include "game/mpstats.h"
-#include "game/player.h"
-#include "game/pak.h"
-#include "game/splat.h"
+#include "game/tex.h"
+#include "game/timing.h"
+#include "game/title.h"
+#include "game/training.h"
 #include "game/utils.h"
-#include "bss.h"
-#include "lib/audiomgr.h"
+#include "game/zbuf.h"
+#include "input.h"
+#include "lib/anim.h"
 #include "lib/args.h"
+#include "lib/audiomgr.h"
 #include "lib/boot.h"
-#include "lib/vm.h"
-#include "lib/rzip.h"
-#include "lib/vi.h"
-#include "lib/fault.h"
 #include "lib/crash.h"
+#include "lib/debughud.h"
 #include "lib/dma.h"
+#include "lib/fault.h"
 #include "lib/joy.h"
+#include "lib/lib_2f490.h"
+#include "lib/lib_34d0.h"
 #include "lib/main.h"
-#include "lib/snd.h"
-#include "lib/memp.h"
 #include "lib/mema.h"
+#include "lib/memp.h"
 #include "lib/model.h"
 #include "lib/profile.h"
-#include "lib/videbug.h"
-#include "lib/debughud.h"
-#include "lib/anim.h"
 #include "lib/rdp.h"
-#include "lib/lib_34d0.h"
-#include "lib/lib_2f490.h"
 #include "lib/rmon.h"
 #include "lib/rng.h"
+#include "lib/rzip.h"
+#include "lib/sched.h"
+#include "lib/snd.h"
 #include "lib/str.h"
-#include "data.h"
-#include "types.h"
-#include "system.h"
+#include "lib/vars.h"
+#include "lib/vi.h"
+#include "lib/videbug.h"
+#include "lib/vm.h"
 #include "mod.h"
-#include "fs.h"
+#include "system.h"
+#include "types.h"
 #include "video.h"
-#include "input.h"
+#include <PR/ultrasched.h>
+#include <string.h>
+#include <ultra64.h>
 
 extern u32 g_NumModDirs;
 extern u8 *g_MempHeap;
@@ -114,257 +111,253 @@ s32 g_MainChangeToStageNum = -1;
 bool g_MainIsDebugMenuOpen = false;
 
 struct stageallocation g_StageAllocations8Mb[] = {
-	{ STAGE_CITRAINING,    "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_DEFECTION,     "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_INVESTIGATION, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_EXTRACTION,    "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_CHICAGO,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_G5BUILDING,    "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_VILLA,         "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma600" },
-	{ STAGE_INFILTRATION,  "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500" },
-	{ STAGE_RESCUE,        "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500" },
-	{ STAGE_ESCAPE,        "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500" },
-	{ STAGE_AIRBASE,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_AIRFORCEONE,   "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_CRASHSITE,     "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_PELAGIC,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_DEEPSEA,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_DEFENSE,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_ATTACKSHIP,    "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_SKEDARRUINS,   "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" },
-	{ STAGE_MP_SKEDAR,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_RAVINE,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_PIPES,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_G5BUILDING, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_SEWERS,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_WAREHOUSE,  "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_BASE,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_COMPLEX,    "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_TEMPLE,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_FELICITY,   "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_AREA52,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_GRID,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_CARPARK,    "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_RUINS,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_FORTRESS,   "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_MP_VILLA,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_RUN,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP2,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP6,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP7,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP8,      "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP14,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP16,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP17,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP18,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP19,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_MP20,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_ASH,      "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_28,            "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_MBR,           "-ml0 -me0 -mgfx120 -mvtx100 -ma700"            },
-	{ STAGE_TEST_SILO,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_24,            "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_MAIANSOS,      "-ml0 -me0 -mgfx120 -mvtx100 -ma500"            },
-	{ STAGE_RETAKING,      "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_TEST_DEST,     "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_2B,            "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_WAR,           "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_TEST_UFF,      "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_TEST_OLD,      "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_DUEL,          "-ml0 -me0 -mgfx120 -mvtx100 -ma700"            },
-	{ STAGE_TEST_LAM,      "-ml0 -me0 -mgfx120 -mvtx98 -ma400"             },
-	{ STAGE_TEST_ARCH,     "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            },
-	{ STAGE_TEST_LEN,      "-ml0 -me0 -mgfx120 -mvtx98 -ma300"             },
-	{ STAGE_TITLE,         "-ml0 -me0 -mgfx80 -mvtx20 -ma001"              },
+    {STAGE_CITRAINING, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_DEFECTION, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_INVESTIGATION, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_EXTRACTION, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_CHICAGO, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_G5BUILDING, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_VILLA, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma600"},
+    {STAGE_INFILTRATION, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500"},
+    {STAGE_RESCUE, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500"},
+    {STAGE_ESCAPE, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500"},
+    {STAGE_AIRBASE, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_AIRFORCEONE, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_CRASHSITE, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_PELAGIC, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_DEEPSEA, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_DEFENSE, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_ATTACKSHIP, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_SKEDARRUINS, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"},
+    {STAGE_MP_SKEDAR, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_RAVINE, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_PIPES, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_G5BUILDING, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_SEWERS, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_WAREHOUSE, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_BASE, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_COMPLEX, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_TEMPLE, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_FELICITY, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_AREA52, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_GRID, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_CARPARK, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_RUINS, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_FORTRESS, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_MP_VILLA, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_RUN, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP2, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP6, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP7, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP8, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP14, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP16, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP17, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP18, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP19, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_MP20, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_ASH, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_28, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_MBR, "-ml0 -me0 -mgfx120 -mvtx100 -ma700"},
+    {STAGE_TEST_SILO, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_24, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_MAIANSOS, "-ml0 -me0 -mgfx120 -mvtx100 -ma500"},
+    {STAGE_RETAKING, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_TEST_DEST, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_2B, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_WAR, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_TEST_UFF, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_TEST_OLD, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_DUEL, "-ml0 -me0 -mgfx120 -mvtx100 -ma700"},
+    {STAGE_TEST_LAM, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
+    {STAGE_TEST_ARCH, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
+    {STAGE_TEST_LEN, "-ml0 -me0 -mgfx120 -mvtx98 -ma300"},
+    {STAGE_TITLE, "-ml0 -me0 -mgfx80 -mvtx20 -ma001"},
 #ifndef PLATFORM_N64
-	// GoldenEye X Mod
-	{ STAGE_EXTRA1,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Frigate
-	{ STAGE_EXTRA2,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Complex
-	{ STAGE_EXTRA3,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Train
-	{ STAGE_EXTRA4,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Archives
-	{ STAGE_EXTRA5,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Aztec
-	{ STAGE_EXTRA6,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Tample
-	{ STAGE_EXTRA7,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Icicle Pyramid
-	{ STAGE_EXTRA8,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Caves
-	{ STAGE_EXTRA9,        "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Library
-	{ STAGE_EXTRA10,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Facility
-	{ STAGE_EXTRA11,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Bunker
-	{ STAGE_EXTRA12,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Caverns
-	{ STAGE_EXTRA13,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Basement
-	{ STAGE_EXTRA14,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Egyptian
-	{ STAGE_EXTRA15,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Stack
-	{ STAGE_EXTRA16,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" }, // Runway
-	{ STAGE_EXTRA17,       "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700" }, // Control
-	// Kakariko Village Mod
-	{ STAGE_EXTRA18,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Tawfret Ruins
-	{ STAGE_EXTRA19,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Targitzan's Temple
-	// Goldfinger 64 Mod
-	{ STAGE_EXTRA20,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Junkyard
-	{ STAGE_EXTRA21,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Steel Mill
-	{ STAGE_EXTRA22,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Mall
-	{ STAGE_EXTRA23,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Tunnels
-	// Additional
-	{ STAGE_EXTRA24,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // Rogue
-	{ STAGE_EXTRA25,       "-ml0 -me0 -mgfx120 -mvtx200 -ma400"            }, // Paradox
-	{ STAGE_EXTRA26,       "-ml0 -me0 -mgfx200 -mvtx200 -ma400"            }, // War Colors
+    // GoldenEye X Mod
+    {STAGE_EXTRA1, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Frigate
+    {STAGE_EXTRA2, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Complex
+    {STAGE_EXTRA3, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Train
+    {STAGE_EXTRA4, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Archives
+    {STAGE_EXTRA5, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Aztec
+    {STAGE_EXTRA6, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Tample
+    {STAGE_EXTRA7, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Icicle Pyramid
+    {STAGE_EXTRA8, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Caves
+    {STAGE_EXTRA9, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Library
+    {STAGE_EXTRA10, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Facility
+    {STAGE_EXTRA11, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Bunker
+    {STAGE_EXTRA12, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Caverns
+    {STAGE_EXTRA13, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Basement
+    {STAGE_EXTRA14, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Egyptian
+    {STAGE_EXTRA15, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Stack
+    {STAGE_EXTRA16, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"}, // Runway
+    {STAGE_EXTRA17, "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"}, // Control
+    // Kakariko Village Mod
+    {STAGE_EXTRA18, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Tawfret Ruins
+    {STAGE_EXTRA19, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Targitzan's Temple
+    // Goldfinger 64 Mod
+    {STAGE_EXTRA20, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Junkyard
+    {STAGE_EXTRA21, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Steel Mill
+    {STAGE_EXTRA22, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Mall
+    {STAGE_EXTRA23, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Tunnels
+    // Additional
+    {STAGE_EXTRA24, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // Rogue
+    {STAGE_EXTRA25, "-ml0 -me0 -mgfx120 -mvtx200 -ma400"}, // Paradox
+    {STAGE_EXTRA26, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"}, // War Colors
 #endif
-	{ 0,                   "-ml0 -me0 -mgfx120 -mvtx98 -ma300"             },
+    {0, "-ml0 -me0 -mgfx120 -mvtx98 -ma300"},
 };
 
 struct stageallocation g_StageAllocations4Mb[] = {
-	{ STAGE_MP_SKEDAR,     "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_PIPES,      "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_AREA52,     "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_RAVINE,     "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_G5BUILDING, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_SEWERS,     "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_WAREHOUSE,  "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_BASE,       "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_COMPLEX,    "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_TEMPLE,     "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_FELICITY,   "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_GRID,       "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_TEST_RUN,      "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_CARPARK,    "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_RUINS,      "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_MP_FORTRESS,   "-ml0 -me0 -mgfx96 -mvtx96 -ma130"              },
-	{ STAGE_MP_VILLA,      "-ml0 -me0 -mgfx96 -mvtx96 -ma140"              },
-	{ STAGE_TEST_MP2,      "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP6,      "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP7,      "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP8,      "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP14,     "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP16,     "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP17,     "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP18,     "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP19,     "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_MP20,     "-ml0 -me0 -mgfx96 -mvtx96 -ma115"              },
-	{ STAGE_TEST_LEN,      "-ml0 -me0 -mgfx100 -mvtx96 -ma120"             },
-	{ STAGE_4MBMENU,       "-mgfx100 -mvtx50 -ma50"                        },
-	{ STAGE_TITLE,         "-ml0 -me0 -mgfx80 -mvtx20 -ma001"              },
-	{ 0,                   "-ml0 -me0 -mgfx100 -mvtx96 -ma300"             },
+    {STAGE_MP_SKEDAR, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_PIPES, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_AREA52, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_RAVINE, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_G5BUILDING, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_SEWERS, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_WAREHOUSE, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_BASE, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_COMPLEX, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_TEMPLE, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_FELICITY, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_GRID, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_TEST_RUN, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_CARPARK, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_RUINS, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_MP_FORTRESS, "-ml0 -me0 -mgfx96 -mvtx96 -ma130"},
+    {STAGE_MP_VILLA, "-ml0 -me0 -mgfx96 -mvtx96 -ma140"},
+    {STAGE_TEST_MP2, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP6, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP7, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP8, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP14, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP16, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP17, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP18, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP19, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_MP20, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
+    {STAGE_TEST_LEN, "-ml0 -me0 -mgfx100 -mvtx96 -ma120"},
+    {STAGE_4MBMENU, "-mgfx100 -mvtx50 -ma50"},
+    {STAGE_TITLE, "-ml0 -me0 -mgfx80 -mvtx20 -ma001"},
+    {0, "-ml0 -me0 -mgfx100 -mvtx96 -ma300"},
 };
 
 Gfx var8005dcc8[] = {
-	gsSPSegment(0x00, 0x00000000),
-	gsSPDisplayList(&var800613a0),
-	gsSPDisplayList(&var80061380),
-	gsDPFullSync(),
-	gsSPEndDisplayList(),
+    gsSPSegment(0x00, 0x00000000), gsSPDisplayList(&var800613a0),
+    gsSPDisplayList(&var80061380), gsDPFullSync(),
+    gsSPEndDisplayList(),
 };
 
 s32 g_MainIsBooting = 1;
 
-void mainInit(void)
-{
-	s32 x;
-	s32 i;
-	s32 j;
-	u32 addr;
+void mainInit(void) {
+  s32 x;
+  s32 i;
+  s32 j;
+  u32 addr;
 
-	faultInit();
-	dmaInit();
-	amgrInit();
-	varsInit();
-	// stagenum init for mod loading
-	for (s32 i = 0; i < ARRAYCOUNT(g_ModStageNums); ++i) {
-		// Assume any mod-specific stages use the master mod's ssettings
-		g_ModStageNums[i] = 0;
-	}
-	mempInit();
-	memaInit();
-	joyInit();
-	joyReset();
+  faultInit();
+  dmaInit();
+  amgrInit();
+  varsInit();
+  // stagenum init for mod loading
+  for (s32 i = 0; i < ARRAYCOUNT(g_ModStageNums); ++i) {
+    // Assume any mod-specific stages use the master mod's ssettings
+    g_ModStageNums[i] = 0;
+  }
+  mempInit();
+  memaInit();
+  joyInit();
+  joyReset();
 
-	var8005d9b0 = rmonIsDisabled();
+  var8005d9b0 = rmonIsDisabled();
 
-	g_Is4Mb = (osGetMemSize() <= 0x400000);
-	g_VmShowStats = 0;
+  g_Is4Mb = (osGetMemSize() <= 0x400000);
+  g_VmShowStats = 0;
 
-	// no copyright screen
-	viSetMode(VIMODE_HI);
-	viConfigureForLegal();
-	viBlack(true);
-	viUpdateMode();
+  // no copyright screen
+  viSetMode(VIMODE_HI);
+  viConfigureForLegal();
+  viBlack(true);
+  viUpdateMode();
 
-	filesInit();
+  filesInit();
 
-	if (var8005d9b0) {
-		argSetString("          -ml0 -me0 -mgfx100 -mvtx50 -mt700 -ma400");
-	}
+  if (var8005d9b0) {
+    argSetString("          -ml0 -me0 -mgfx100 -mvtx50 -mt700 -ma400");
+  }
 
-	mempSetHeap(g_MempHeap, g_MempHeapSize);
+  mempSetHeap(g_MempHeap, g_MempHeapSize);
 
-	mempResetPool(MEMPOOL_8);
-	mempResetPool(MEMPOOL_PERMANENT);
-	crashReset();
-	challengesInit();
-	utilsInit();
-	texInit();
-	// capture vanilla surface types
-	// so we can restore them later if needed
-	extern struct texturesurfaceconfig g_VanillaTextures[NUM_TEXTURES];
-	for (s32 i = 0; i < NUM_TEXTURES; i++) {
-		g_VanillaTextures[i].surfacetype = g_Textures[i].surfacetype;
-		g_VanillaTextures[i].soundsurfacetype = g_Textures[i].soundsurfacetype;
-	}
-	if (fsGetModDir()) {
-		modInit();
-		// load all mods, then load mod 0 again
-		for (s32 i = 0; i < g_NumModDirs; ++i) {
-			g_ModNum = i;
-			modConfigLoad(MOD_CONFIG_FNAME);
-		}
-			g_ModNum = 0;
-			modConfigLoad(MOD_CONFIG_FNAME);
-	}
+  mempResetPool(MEMPOOL_8);
+  mempResetPool(MEMPOOL_PERMANENT);
+  crashReset();
+  challengesInit();
+  utilsInit();
+  texInit();
+  // capture vanilla surface types
+  // so we can restore them later if needed
+  extern struct texturesurfaceconfig g_VanillaTextures[NUM_TEXTURES];
+  for (s32 i = 0; i < NUM_TEXTURES; i++) {
+    g_VanillaTextures[i].surfacetype = g_Textures[i].surfacetype;
+    g_VanillaTextures[i].soundsurfacetype = g_Textures[i].soundsurfacetype;
+  }
+  if (fsGetModDir()) {
+    modInit();
+    // load all mods, then load mod 0 again
+    for (s32 i = 0; i < g_NumModDirs; ++i) {
+      g_ModNum = i;
+      modConfigLoad(MOD_CONFIG_FNAME);
+    }
+    g_ModNum = 0;
+    modConfigLoad(MOD_CONFIG_FNAME);
+  }
 
-	// Disabled: use vanilla maps until mod loader is ready
-	// mpSetArenaMode(g_NumMpArenas_AIO > 0);
+  // Disabled: use vanilla maps until mod loader is ready
+  // mpSetArenaMode(g_NumMpArenas_AIO > 0);
 
-	langInit();
-	lvInit();
-	cheatsInit();
-	textInit();
-	dhudInit();
-	playermgrInit();
-	frametimeInit();
-	profileInit();
-	smokesInit();
-	mpInit(true);
-	pheadInit();
-	paksInit();
-	pheadInit2();
-	animsInit();
-	racesInit();
-	bodiesInit();
-	titleInit();
+  langInit();
+  lvInit();
+  cheatsInit();
+  textInit();
+  dhudInit();
+  playermgrInit();
+  frametimeInit();
+  profileInit();
+  smokesInit();
+  mpInit(true);
+  pheadInit();
+  paksInit();
+  pheadInit2();
+  animsInit();
+  racesInit();
+  bodiesInit();
+  titleInit();
 
-	modelSetDistanceChecksDisabled(true); // don't use LODs
+  modelSetDistanceChecksDisabled(true); // don't use LODs
 
-	g_MainIsBooting = 0;
+  g_MainIsBooting = 0;
 }
 
-void mainProc(void)
-{
-	mainInit();
-	for (s32 i = 0; i < g_NumModDirs; i++) {
-		sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod %d", i);
-		modSwitch(i, -1);
-	}
-	sysLogPrintf(LOG_NOTE, "mainProc: caching all mod configs");
-	modCacheAllConfigs();
-	sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
-	modSwitch(0, -1);
-	bodiesInit();          // recount guard-head arrays now mods are loaded
-	fojoPatchGuardHeads(); // splice FoJo Calico/Poplin into female guard pool
-	fojoInitChrBioCharacters(); // resolve FoJo bio chr ids to runtime mpheadnums
-	rdpInit();
-	sndInit();
+void mainProc(void) {
+  mainInit();
+  for (s32 i = 0; i < g_NumModDirs; i++) {
+    sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod %d", i);
+    modSwitch(i, -1);
+  }
+  sysLogPrintf(LOG_NOTE, "mainProc: caching all mod configs");
+  modCacheAllConfigs();
+  sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
+  modSwitch(0, -1);
+  bodiesInit();          // recount guard-head arrays now mods are loaded
+  fojoPatchGuardHeads(); // splice FoJo Calico/Poplin into female guard pool
+  fojoInitChrBioCharacters(); // resolve FoJo bio chr ids to runtime mpheadnums
+  rdpInit();
+  sndInit();
 
-	while (true) {
-		mainLoop();
-	}
+  while (true) {
+    mainLoop();
+  }
 }
 
 /**
@@ -376,9 +369,8 @@ void mainProc(void)
  * then this function would have looked up the given variable name in the table
  * and written the new value to the variable's address.
  */
-void mainOverrideVariable(char *name, void *value)
-{
-	// empty
+void mainOverrideVariable(char *name, void *value) {
+  // empty
 }
 
 /**
@@ -391,348 +383,349 @@ void mainOverrideVariable(char *name, void *value)
  * Decomp patches these reads in its build system so it can be played
  * without the development board.
  */
-void mainLoop(void)
-{
-	s32 ending = false;
-	s32 index;
-	s32 numplayers;
-	u32 stack;
+void mainLoop(void) {
+  s32 ending = false;
+  s32 index;
+  s32 numplayers;
+  u32 stack;
 
-	func0f175f98();
+  func0f175f98();
 
-	var8005d9c4 = 0;
-	argGetLevel(&g_StageNum);
+  var8005d9c4 = 0;
+  argGetLevel(&g_StageNum);
 
-	if (g_DoBootPakMenu) {
-		g_Vars.pakstocheck = 0xfd;
-		g_StageNum = STAGE_BOOTPAKMENU;
-	}
+  if (g_DoBootPakMenu) {
+    g_Vars.pakstocheck = 0xfd;
+    g_StageNum = STAGE_BOOTPAKMENU;
+  }
 
-	if (g_StageNum != STAGE_TITLE) {
-		titleSetNextStage(g_StageNum);
+  if (g_StageNum != STAGE_TITLE) {
+    titleSetNextStage(g_StageNum);
 
-		if (g_StageNum < STAGE_TITLE) {
-			func0f01b148(0);
+    if (g_StageNum < STAGE_TITLE) {
+      func0f01b148(0);
 
-			if (argFindByPrefix(1, "-hard")) {
-				lvSetDifficulty(argFindByPrefix(1, "-hard")[0] - '0');
-			}
-		}
-	}
+      if (argFindByPrefix(1, "-hard")) {
+        lvSetDifficulty(argFindByPrefix(1, "-hard")[0] - '0');
+      }
+    }
+  }
 
-	if (g_StageNum == STAGE_CITRAINING && IS4MB()) {
-		g_StageNum = STAGE_4MBMENU;
-	}
+  if (g_StageNum == STAGE_CITRAINING && IS4MB()) {
+    g_StageNum = STAGE_4MBMENU;
+  }
 
-	rngSetSeed(osGetCount());
+  rngSetSeed(osGetCount());
 
-	// Outer loop - this is infinite because ending is never changed
-	while (!ending) {
-		g_MainNumGfxTasks = 0;
-		g_MainGameLogicEnabled = true;
-		g_MainIsEndscreen = false;
+  // Outer loop - this is infinite because ending is never changed
+  while (!ending) {
+    g_MainNumGfxTasks = 0;
+    g_MainGameLogicEnabled = true;
+    g_MainIsEndscreen = false;
 
-		if (var8005d9b0 && var8005d9c4 == 0) {
-			index = -1;
+    if (var8005d9b0 && var8005d9c4 == 0) {
+      index = -1;
 
-			if (IS4MB()) {
-				if (g_StageNum < STAGE_TITLE && getNumPlayers() >= 2) {
-					index = 0; \
-					while (g_StageAllocations4Mb[index].stagenum) { \
-						if (g_StageAllocations4Mb[index].stagenum == g_StageNum + 400) { \
-							break; \
-						} \
-						index++;
-					}
+      if (IS4MB()) {
+        if (g_StageNum < STAGE_TITLE && getNumPlayers() >= 2) {
+          index = 0;
+          while (g_StageAllocations4Mb[index].stagenum) {
+            if (g_StageAllocations4Mb[index].stagenum == g_StageNum + 400) {
+              break;
+            }
+            index++;
+          }
 
-					if (g_StageAllocations4Mb[index].stagenum == 0) {
-						index = -1;
-					}
-				}
+          if (g_StageAllocations4Mb[index].stagenum == 0) {
+            index = -1;
+          }
+        }
 
-				if (index);
+        if (index)
+          ;
 
-				if (index < 0) {
-					index = 0;
-					while (g_StageAllocations4Mb[index].stagenum) {
-						if (g_StageNum == g_StageAllocations4Mb[index].stagenum) {
-							break;
-						}
+        if (index < 0) {
+          index = 0;
+          while (g_StageAllocations4Mb[index].stagenum) {
+            if (g_StageNum == g_StageAllocations4Mb[index].stagenum) {
+              break;
+            }
 
-						index++;
-					}
-				}
+            index++;
+          }
+        }
 
-				argSetString(g_StageAllocations4Mb[index].string);
-			} else {
-				// 8MB
-				if (g_StageNum < STAGE_TITLE && getNumPlayers() >= 2) {
-					index = 0; \
-					while (g_StageAllocations8Mb[index].stagenum) { \
-						if (g_StageNum + 400 == g_StageAllocations8Mb[index].stagenum) { \
-							break; \
-						} \
-						index++;
-					}
+        argSetString(g_StageAllocations4Mb[index].string);
+      } else {
+        // 8MB
+        if (g_StageNum < STAGE_TITLE && getNumPlayers() >= 2) {
+          index = 0;
+          while (g_StageAllocations8Mb[index].stagenum) {
+            if (g_StageNum + 400 == g_StageAllocations8Mb[index].stagenum) {
+              break;
+            }
+            index++;
+          }
 
-					if (g_StageAllocations8Mb[index].stagenum == 0) {
-						index = -1;
-					}
-				}
+          if (g_StageAllocations8Mb[index].stagenum == 0) {
+            index = -1;
+          }
+        }
 
-				if (index < 0) {
-					index = 0;
+        if (index < 0) {
+          index = 0;
 
-					while (g_StageAllocations8Mb[index].stagenum) {
-						if (g_StageNum == g_StageAllocations8Mb[index].stagenum) {
-							break;
-						}
+          while (g_StageAllocations8Mb[index].stagenum) {
+            if (g_StageNum == g_StageAllocations8Mb[index].stagenum) {
+              break;
+            }
 
-						index++;
-					}
-				}
+            index++;
+          }
+        }
 
-				argSetString(g_StageAllocations8Mb[index].string);
-			}
-		}
+        argSetString(g_StageAllocations8Mb[index].string);
+      }
+    }
 
-		var8005d9c4 = 0;
+    var8005d9c4 = 0;
 
-		mempResetPool(MEMPOOL_7);
-		mempResetPool(MEMPOOL_STAGE);
-		filesStop(4);
+    mempResetPool(MEMPOOL_7);
+    mempResetPool(MEMPOOL_STAGE);
+    filesStop(4);
 
-		if (argFindByPrefix(1, "-ma")) {
-			g_MainMemaHeapSize = strtol(argFindByPrefix(1, "-ma"), NULL, 0) * 1024;
-		}
+    if (argFindByPrefix(1, "-ma")) {
+      g_MainMemaHeapSize = strtol(argFindByPrefix(1, "-ma"), NULL, 0) * 1024;
+    }
 
-		memaReset(mempAlloc(g_MainMemaHeapSize, MEMPOOL_STAGE), g_MainMemaHeapSize);
-		langReset(g_StageNum);
-		playermgrReset();
+    memaReset(mempAlloc(g_MainMemaHeapSize, MEMPOOL_STAGE), g_MainMemaHeapSize);
+    langReset(g_StageNum);
+    playermgrReset();
 
-		if (g_StageNum >= STAGE_TITLE) {
-			numplayers = 0;
-		} else {
-			numplayers = getNumPlayers();
-		}
+    if (g_StageNum >= STAGE_TITLE) {
+      numplayers = 0;
+    } else {
+      numplayers = getNumPlayers();
+    }
 
-		if (numplayers < 2) {
-			playermgrDisableTeamPlayers(false);
-		}
+    if (numplayers < 2) {
+      playermgrDisableTeamPlayers(false);
+    }
 
-		if (g_MissionConfig.isteam) {
-			numplayers = playermgrAllocatePlayers(-1);
-		} else {
-			playermgrAllocatePlayers(numplayers);
-		}
+    if (g_MissionConfig.isteam) {
+      numplayers = playermgrAllocatePlayers(-1);
+    } else {
+      playermgrAllocatePlayers(numplayers);
+    }
 
-		if (g_MissionConfig.isteam || g_Vars.perfectbuddynum) {
-			mpReset();
-		}
-		else if (g_Vars.mplayerisrunning == false
-				&& (numplayers >= 2 || g_Vars.lvmpbotlevel)) {
-			g_MpSetup.chrslots = 1;
+    if (g_MissionConfig.isteam || g_Vars.perfectbuddynum) {
+      mpReset();
+    } else if (g_Vars.mplayerisrunning == false &&
+               (numplayers >= 2 || g_Vars.lvmpbotlevel)) {
+      g_MpSetup.chrslots = 1;
 
-			if (numplayers >= 2) {
-				g_MpSetup.chrslots |= 1 << 1;
-			}
+      if (numplayers >= 2) {
+        g_MpSetup.chrslots |= 1 << 1;
+      }
 
-			if (numplayers >= 3) {
-				g_MpSetup.chrslots |= 1 << 2;
-			}
+      if (numplayers >= 3) {
+        g_MpSetup.chrslots |= 1 << 2;
+      }
 
-			if (numplayers >= 4) {
-				g_MpSetup.chrslots |= 1 << 3;
-			}
+      if (numplayers >= 4) {
+        g_MpSetup.chrslots |= 1 << 3;
+      }
 
-			g_MpSetup.stagenum = g_StageNum;
-			mpReset();
-		}
+      g_MpSetup.stagenum = g_StageNum;
+      mpReset();
+    }
 
-		gfxReset();
-		joyReset();
-		dhudReset();
-		zbufReset(g_StageNum);
-		langReset(g_StageNum);
-		lvReset(g_StageNum);
-		viReset(g_StageNum);
-		frametimeCalculate();
-		profileReset();
+    gfxReset();
+    joyReset();
+    dhudReset();
+    zbufReset(g_StageNum);
+    langReset(g_StageNum);
+    lvReset(g_StageNum);
+    viReset(g_StageNum);
+    frametimeCalculate();
+    profileReset();
 
-		while (g_MainChangeToStageNum < 0) {
-			const s32 cycles = osGetCount() - g_Vars.thisframestartt;
-			if (!g_Vars.mininc60 || (cycles >= g_Vars.mininc60 * CYCLES_PER_FRAME - CYCLES_PER_FRAME / 2)) {
-				schedStartFrame(&g_Sched);
-				mainTick();
-				schedEndFrame(&g_Sched);
-			}
-			if (g_TickExtraSleep) {
-				sysSleep(EXTRA_SLEEP_TIME);
-			}
-		}
+    while (g_MainChangeToStageNum < 0) {
+      const s32 cycles = osGetCount() - g_Vars.thisframestartt;
+      if (!g_Vars.mininc60 || (cycles >= g_Vars.mininc60 * CYCLES_PER_FRAME -
+                                             CYCLES_PER_FRAME / 2)) {
+        schedStartFrame(&g_Sched);
+        mainTick();
+        schedEndFrame(&g_Sched);
+      }
+      if (g_TickExtraSleep) {
+        sysSleep(EXTRA_SLEEP_TIME);
+      }
+    }
 
-		lvStop();
-		mempDisablePool(MEMPOOL_STAGE);
-		mempDisablePool(MEMPOOL_7);
-		filesStop(4);
-		viBlack(true);
-		pak0f116994();
+    lvStop();
+    mempDisablePool(MEMPOOL_STAGE);
+    mempDisablePool(MEMPOOL_7);
+    filesStop(4);
+    viBlack(true);
+    pak0f116994();
 
-		if (g_MainChangeToStageNum == STAGE_TITLE) {
-			// Switch to boot mod (mod_fojo)
-			s32 bootMod = 0;
-			for (s32 i = 0; i < g_NumModDirs; ++i) {
-				if (strstr(modDirs[i], "mod_fojo")) {
-					bootMod = i;
-					break;
-				}
-			}
-			modSwitch(bootMod, -1);
-		} else {
-			sysLogPrintf(LOG_NOTE, "mainLoop: switching to stage 0x%02x", g_MainChangeToStageNum);
-			// Switch to the mod that owns this stage
-			modSwitch(-1, g_MainChangeToStageNum);
-		}
+    if (g_MainChangeToStageNum == STAGE_TITLE) {
+      // Switch to boot mod (mod_fojo)
+      s32 bootMod = 0;
+      for (s32 i = 0; i < g_NumModDirs; ++i) {
+        if (strstr(modDirs[i], "mod_fojo")) {
+          bootMod = i;
+          break;
+        }
+      }
+      modSwitch(bootMod, -1);
+    } else {
+      sysLogPrintf(LOG_NOTE, "mainLoop: switching to stage 0x%02x",
+                   g_MainChangeToStageNum);
+      // Switch to the mod that owns this stage
+      modSwitch(-1, g_MainChangeToStageNum);
+    }
 
-		g_StageNum = g_MainChangeToStageNum;
-		sysLogPrintf(LOG_NOTE, "mainLoop: clearing g_MainChangeToStageNum (was 0x%02x)", g_MainChangeToStageNum);
-		g_MainChangeToStageNum = -1;
-	}
+    g_StageNum = g_MainChangeToStageNum;
+    sysLogPrintf(LOG_NOTE,
+                 "mainLoop: clearing g_MainChangeToStageNum (was 0x%02x)",
+                 g_MainChangeToStageNum);
+    g_MainChangeToStageNum = -1;
+  }
 }
 
-void mainTick(void)
-{
-	Gfx *gdl = NULL;
-	Gfx *gdlstart = NULL;
-	OSScMsg msg = {OS_SC_DONE_MSG};
-	s32 i;
+void mainTick(void) {
+  Gfx *gdl = NULL;
+  Gfx *gdlstart = NULL;
+  OSScMsg msg = {OS_SC_DONE_MSG};
+  s32 i;
 
-	if (g_MainChangeToStageNum < 0) {
-		if (inputKeyJustPressed(VK_F2) && inputGetKeyModState() & KM_SHIFT) {
-			bool enabled = videoGetExternalTextures();
-			videoSetExternalTextures(!enabled);
-		}
+  if (g_MainChangeToStageNum < 0) {
+    if (inputKeyJustPressed(VK_F2) && inputGetKeyModState() & KM_SHIFT) {
+      bool enabled = videoGetExternalTextures();
+      videoSetExternalTextures(!enabled);
+    }
 
-		frametimeCalculate();
-		profileReset();
-		profileSetMarker(PROFILE_MAINTICK_START);
-		joyDebugJoy();
-		schedSetCrashEnable2(false);
+    frametimeCalculate();
+    profileReset();
+    profileSetMarker(PROFILE_MAINTICK_START);
+    joyDebugJoy();
+    schedSetCrashEnable2(false);
 
-		if (g_MainGameLogicEnabled) {
-			gdl = gdlstart = gfxGetMasterDisplayList();
+    if (g_MainGameLogicEnabled) {
+      gdl = gdlstart = gfxGetMasterDisplayList();
 
-			gDPSetTile(gdl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0x0000, G_TX_LOADTILE, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
-			gDPSetTile(gdl++, G_IM_FMT_RGBA, G_IM_SIZ_4b, 0, 0x0100, 6, 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
+      gDPSetTile(gdl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0x0000, G_TX_LOADTILE,
+                 0, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD,
+                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
+      gDPSetTile(gdl++, G_IM_FMT_RGBA, G_IM_SIZ_4b, 0, 0x0100, 6, 0,
+                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD,
+                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
 
-			lvTick();
-			playermgrShuffle();
+      lvTick();
+      playermgrShuffle();
 
-			if (g_StageNum < STAGE_TITLE) {
-				for (i = 0; i < PLAYERCOUNT(); i++) {
-					setCurrentPlayerNum(playermgrGetPlayerAtOrder(i));
+      if (g_StageNum < STAGE_TITLE) {
+        for (i = 0; i < PLAYERCOUNT(); i++) {
+          setCurrentPlayerNum(playermgrGetPlayerAtOrder(i));
 
-					if (g_StageNum != STAGE_TEST_OLD || !titleIsKeepingMode()) {
-						viSetViewPosition(g_Vars.currentplayer->viewleft, g_Vars.currentplayer->viewtop);
-						viSetFovAspectAndSize(
-								g_Vars.currentplayer->fovy, g_Vars.currentplayer->aspect,
-								g_Vars.currentplayer->viewwidth, g_Vars.currentplayer->viewheight);
-					}
+          if (g_StageNum != STAGE_TEST_OLD || !titleIsKeepingMode()) {
+            viSetViewPosition(g_Vars.currentplayer->viewleft,
+                              g_Vars.currentplayer->viewtop);
+            viSetFovAspectAndSize(g_Vars.currentplayer->fovy,
+                                  g_Vars.currentplayer->aspect,
+                                  g_Vars.currentplayer->viewwidth,
+                                  g_Vars.currentplayer->viewheight);
+          }
 
-					lvTickPlayer();
-				}
-			}
+          lvTickPlayer();
+        }
+      }
 
-			gdl = lvRender(gdl);
+      gdl = lvRender(gdl);
 
-			if (debugGetProfileMode() >= 2) {
-				gdl = profileRender(gdl);
-			}
+      if (debugGetProfileMode() >= 2) {
+        gdl = profileRender(gdl);
+      }
 
-			gDPFullSync(gdl++);
-			gSPEndDisplayList(gdl++);
-		}
+      gDPFullSync(gdl++);
+      gSPEndDisplayList(gdl++);
+    }
 
-		if (g_MainGameLogicEnabled) {
-			gfxSwapBuffers();
-			viUpdateMode();
-		}
+    if (g_MainGameLogicEnabled) {
+      gfxSwapBuffers();
+      viUpdateMode();
+    }
 
-		rdpCreateTask(gdlstart, gdl, 0, (uintptr_t) &msg);
-		memaPrint();
-		profileSetMarker(PROFILE_MAINTICK_END);
-	}
+    rdpCreateTask(gdlstart, gdl, 0, (uintptr_t)&msg);
+    memaPrint();
+    profileSetMarker(PROFILE_MAINTICK_END);
+  }
 }
 
-void mainEndStage(void)
-{
-	sndStopNosedive();
+void mainEndStage(void) {
+  sndStopNosedive();
 
-	if (!g_MainIsEndscreen) {
-		pak0f11c6d0();
-		joyDisableTemporarily();
+  if (!g_MainIsEndscreen) {
+    pak0f11c6d0();
+    joyDisableTemporarily();
 
-		if (g_MissionConfig.isteam) {
-			s32 prevplayernum = g_Vars.currentplayernum;
-			s32 i;
+    if (g_MissionConfig.isteam) {
+      s32 prevplayernum = g_Vars.currentplayernum;
+      s32 i;
 
-			for (i = 0; i < PLAYERCOUNT(); i++) {
-				setCurrentPlayerNum(i);
+      for (i = 0; i < PLAYERCOUNT(); i++) {
+        setCurrentPlayerNum(i);
 
-				teamCalculateAwards();
-				printf("mainEndStage: before endscreenPushTeam (player %d)\n", i);
-				endscreenPushTeam();
-			}
+        teamCalculateAwards();
+        printf("mainEndStage: before endscreenPushTeam (player %d)\n", i);
+        endscreenPushTeam();
+      }
 
-			setCurrentPlayerNum(prevplayernum);
-			musicStartMenu();
-		}
-		else if (g_Vars.normmplayerisrunning) {
-			mpEndMatch();
-		} else {
-			endscreenPrepare();
-			musicStartMenu();
-		}
-	}
+      setCurrentPlayerNum(prevplayernum);
+      musicStartMenu();
+    } else if (g_Vars.normmplayerisrunning) {
+      mpEndMatch();
+    } else {
+      endscreenPrepare();
+      musicStartMenu();
+    }
+  }
 
-	g_MainIsEndscreen = true;
+  g_MainIsEndscreen = true;
 }
 
 /**
  * Change to the given stage at the end of the current frame.
  */
-void mainChangeToStage(s32 stagenum)
-{
-	pak0f11c6d0();
+void mainChangeToStage(s32 stagenum) {
+  pak0f11c6d0();
 
-	// If returning to title screen, ensure we reload the boot mod (mod_fojo)
-	if (stagenum == STAGE_TITLE) {
-		// Find mod_fojo index
-		s32 fojoIndex = -1;
-		for (s32 i = 0; i < g_NumModDirs; ++i) {
-			if (strstr(modDirs[i], "mod_fojo")) {
-				fojoIndex = i;
-				break;
-			}
-		}
+  // If returning to title screen, ensure we reload the boot mod (mod_fojo)
+  if (stagenum == STAGE_TITLE) {
+    // Find mod_fojo index
+    s32 fojoIndex = -1;
+    for (s32 i = 0; i < g_NumModDirs; ++i) {
+      if (strstr(modDirs[i], "mod_fojo")) {
+        fojoIndex = i;
+        break;
+      }
+    }
 
-		if (fojoIndex >= 0) {
-			// Switch to mod_fojo, no specific level (will go to title)
-			modSwitch(fojoIndex, -1);
-		}
-	}
+    if (fojoIndex >= 0) {
+      // Switch to mod_fojo, no specific level (will go to title)
+      modSwitch(fojoIndex, -1);
+    }
+  }
 
-	g_MainChangeToStageNum = stagenum;
+  g_MainChangeToStageNum = stagenum;
 }
 
-s32 mainGetStageNum(void)
-{
-	return g_StageNum;
-}
+s32 mainGetStageNum(void) { return g_StageNum; }
 
-void func0000e990(void)
-{
-	objectivesCheckAll();
-	objectivesDisableChecking();
-	mainEndStage();
+void func0000e990(void) {
+  objectivesCheckAll();
+  objectivesDisableChecking();
+  mainEndStage();
 }

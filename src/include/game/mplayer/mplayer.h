@@ -1,10 +1,10 @@
 #ifndef IN_GAME_MPLAYER_MPLAYER_H
 #define IN_GAME_MPLAYER_MPLAYER_H
-#include <ultra64.h>
 #include "data.h"
 #include "types.h"
+#include <ultra64.h>
 
-s32 registerExtendedProfile(struct fileguid *fileguid, s32 arg0, s32 playernum);
+s32 iniRegisterPlayerSave(struct fileguid *fileguid, s32 arg0, s32 playernum);
 void onUpdateExtendedMpProfileFileOperation(s32 playernum);
 void processAllGuids();
 f32 mpHandicapToDamageScale(u8 value);
@@ -124,12 +124,11 @@ void mpApplyConfig(struct mpconfigfull *mpconfig);
 void mp0f18dec4(s32 arg0);
 void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version);
 void mpsetupfileSaveWad(struct savebuffer *buffer);
-void mpsetupfileGetOverview(char *arg0, char *filename, u16 *numsims, u16 *stagenum, u16 *scenarionum);
+void mpsetupfileGetOverview(char *arg0, char *filename, u16 *numsims,
+                            u16 *stagenum, u16 *scenarionum);
 s32 mpsetupfileSave(s32 device, s32 filenum, u16 deviceserial);
 void func0f18e558(void);
 struct modeldef *func0f18e57c(s32 index, s32 *headnum);
-void updateNewGuids(s32 arg0);
-void updateGuids(void);
-void mpExtendedProfileRegisterBlank(void);
+void iniProcessPendingProfiles(void);
 
 #endif
