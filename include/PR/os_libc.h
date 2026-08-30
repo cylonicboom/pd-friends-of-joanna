@@ -21,14 +21,14 @@
 
 /*---------------------------------------------------------------------*
         Copyright (C) 1998 Nintendo. (Originated by SGI)
-        
+
         $RCSfile: os_libc.h,v $
         $Revision: 1.1 $
         $Date: 1998/10/09 08:01:14 $
  *---------------------------------------------------------------------*/
 
 #ifndef _OS_LIBC_H_
-#define	_OS_LIBC_H_
+#define _OS_LIBC_H_
 
 #include "os_pfs.h"
 #include "platform.h"
@@ -54,7 +54,6 @@ extern "C" {
  *
  */
 
-
 #endif /* defined(_LANGUAGE_C) || defined(_LANGUAGE_C_PLUS_PLUS) */
 
 /**************************************************************************
@@ -62,7 +61,6 @@ extern "C" {
  * Global definitions
  *
  */
-
 
 #if defined(_LANGUAGE_C) || defined(_LANGUAGE_C_PLUS_PLUS)
 
@@ -72,13 +70,11 @@ extern "C" {
  *
  */
 
-
 /**************************************************************************
  *
  * Extern variables
  *
  */
-
 
 /**************************************************************************
  *
@@ -89,22 +85,21 @@ extern "C" {
 /* byte string operations */
 
 #ifndef PLATFORM_OSX
-extern void     bcopy(const void *, void *, size_t);
+extern void bcopy(const void *, void *, size_t);
 #endif
-extern int      bcmp(const void *, const void *, size_t);
+extern int bcmp(const void *, const void *, size_t);
 #ifndef PLATFORM_OSX
-extern void     bzero(void *, size_t);
+extern void bzero(void *, size_t);
 #endif
 
 /* Printf */
 
 #ifdef PLATFORM_N64
-extern int		sprintf(char *s, const char *fmt, ...);
+extern int sprintf(char *s, const char *fmt, ...);
 #endif
-extern void		osSyncPrintf(const char *fmt, ...);
+extern void osSyncPrintf(const char *fmt, ...);
 
-
-#endif  /* defined(_LANGUAGE_C) || defined(_LANGUAGE_C_PLUS_PLUS) */
+#endif /* defined(_LANGUAGE_C) || defined(_LANGUAGE_C_PLUS_PLUS) */
 
 #ifdef _LANGUAGE_C_PLUS_PLUS
 }

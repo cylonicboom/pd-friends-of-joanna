@@ -4223,7 +4223,7 @@ void mpplayerfileGetOverview(char *arg0, char *name, u32 *playtime) {
 
 // save: this should be called immediately after updating the file guid / device
 // serial load: this should be called immediately after loading the wad
-static inline void mpplayerExtendedMpProfileOnFileOperation(s32 playernum) {
+static inline void mpplayerBindExtendedProfile(s32 playernum) {
   s32 configindex = getExtendedProfileIndexFromFileGuid(
       &g_PlayerConfigsArray[playernum].fileguid);
 
@@ -4244,11 +4244,14 @@ static inline void mpplayerExtendedMpProfileOnFileOperation(s32 playernum) {
     configindex = iniBindProfileProperties(
         &g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
     g_PlayerConfigsArray[playernum].configindex = configindex;
+    // Force the pending profile registrations to flush to active memory
+    // immediately
+    iniProcessPendingProfiles();
   }
 }
 
 void onUpdateExtendedMpProfileFileOperation(s32 playernum) {
-  mpplayerExtendedMpProfileOnFileOperation(playernum);
+  mpplayerBindExtendedProfile(playernum);
 }
 
 s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
@@ -4267,7 +4270,8 @@ s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
     if (ret == 0) {
       g_PlayerConfigsArray[playernum].fileguid.fileid = newfileid;
       g_PlayerConfigsArray[playernum].fileguid.deviceserial = deviceserial;
-      mpplayerExtendedMpProfileOnFileOperation(playernum);
+      onUpdateExtendedMpProfileFileOperation(playernum);
+      iniFlushRegistrationQueue();
       return 0;
     }
 
@@ -4297,7 +4301,7 @@ s32 mpplayerfileLoad(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
 
       mpplayerfileLoadWad(playernum, &buffer, 1);
 
-      mpplayerExtendedMpProfileOnFileOperation(playernum);
+      onUpdateExtendedMpProfileFileOperation(playernum);
 
       return 0;
     }
