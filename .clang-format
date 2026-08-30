@@ -1,0 +1,16 @@
+---
+Language: Cpp
+BasedOnStyle: None
+
+# Explicitly disable include sorting using the modern enum configuration
+SortIncludes: Never
+
+# Turn off block/code formatting adjustments if you want total layout control
+DisableFormat: false
+
+# Basic indentation settings to keep your layout intact
+IndentWidth: 4
+ColumnLimit: 100
+UseTab: Never
+PointerAlignment: Right
+...
