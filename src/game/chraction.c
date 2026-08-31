@@ -3853,8 +3853,8 @@ void chrChoke(struct chrdata *chr, s32 choketype)
 				nextindexdrcaroll = 0;
 			}
 		}
-#ifndef PLATFORM_N64 // PD Plus Mod
 	} else if (chr->bodynum == BODY_TESTCHR) { // Dr. Caroll
+																						 // // TODO: setup to use lookups
 		s16 sounds[] = {
 			SFX_ARGH_DRCAROLL_0240,
 			SFX_ARGH_DRCAROLL_024C,
@@ -3871,6 +3871,7 @@ void chrChoke(struct chrdata *chr, s32 choketype)
 			nextindexdrcaroll = 0;
 		}
 	} else if (chr->bodynum == BODY_PRESIDENT_CLONE) { // Skedar
+																										 // todo: setup to use lookups
 		s16 sounds[] = {
 			SFX_SKEDAR_ROAR_052D,
 			SFX_SKEDAR_ROAR_052E,
@@ -3883,7 +3884,6 @@ void chrChoke(struct chrdata *chr, s32 choketype)
 		if (nextindexskedar >= ARRAYCOUNT(sounds)) {
 			nextindexskedar = 0;
 		}
-#endif
 	} else if (chr->headnum == HEAD_THEKING
 			|| chr->headnum == HEAD_ELVIS
 			|| chr->headnum == HEAD_MAIAN_S
