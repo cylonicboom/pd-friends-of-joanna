@@ -1,8 +1,8 @@
 #ifndef IN_GAME_MPLAYER_MPLAYER_H
 #define IN_GAME_MPLAYER_MPLAYER_H
+#include <ultra64.h>
 #include "data.h"
 #include "types.h"
-#include <ultra64.h>
 
 s32 iniRegisterPlayerSave(struct fileguid *fileguid, s32 arg0, s32 playernum);
 void onUpdateExtendedMpProfileFileOperation(s32 playernum);
