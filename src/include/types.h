@@ -1,14 +1,14 @@
 #ifndef _IN_TYPES_H
 #define _IN_TYPES_H
-#include "config.h"
-#include "constants.h"
-#include "gbi.h"
-#include "lang.h"
+#include <ultra64.h>
+#include <PR/ultrasched.h>
 #include "n_libaudio.h"
+#include "constants.h"
+#include "config.h"
+#include "lang.h"
 #include "pads.h"
 #include "tiles.h"
-#include <PR/ultrasched.h>
-#include <ultra64.h>
+#include "gbi.h"
 #ifndef PLATFORM_N64
 #include "platform.h"
 #endif
