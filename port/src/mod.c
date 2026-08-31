@@ -10,6 +10,8 @@
 #include "mod.h"
 #include "data.h"
 #include "bss.h"
+#include "game/body.h"
+#include "game/training.h"
 #include "game/stagetable.h"
 
 #define DEBUG_MODELS(fmt, ...) \
@@ -1526,7 +1528,8 @@ s32 modLoadAIO(void)
 				p = strParseToken(p, token, NULL); // skip stage number
 				p = modConfigSkipBlock(p, token);
 				continue;
-			} else if (!strcmp(token, "texture")) {
+			}
+			else if (!strcmp(token, "texture")) {
 				p = modConfigSkipBlock(p, token);
 				continue;
 			}
@@ -2134,15 +2137,11 @@ void modSwitch(s32 modnum, s32 stagenum) {
 	// Only enable AIO arena mode if AIO is present AND we are in the boot mod (menus)
 	// or if the current mod IS the AIO mod.
 
+  bodiesInit();          // recount guard-head arrays now mods are loaded
+  fojoPatchGuardHeads(); // splice FoJo Calico/Poplin into female guard pool
+  fojoInitChrBioCharacters(); // resolve FoJo bio chr ids to runtime mpheadnums
 	// Load AIO assets (heads, bodies, character models) but keep vanilla arenas
-	extern s32 g_AIOPresent;
-	if (g_AIOPresent && g_ModNum == 0) {
-		// Load AIO heads/bodies for character models
-		if (g_NumMpArenas_AIO == 0) {
-			modLoadAIO();
-		}
-		// Disabled: keep using vanilla arenas with langbanks
-		// mpSetArenaMode(true);
-	}
+	modLoadAIO();
 	// Always use vanilla arena list (don't switch to AIO arenas)
+	// mpSetArenaMode(true);
 }

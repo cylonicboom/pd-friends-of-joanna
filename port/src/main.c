@@ -118,16 +118,6 @@ int main(int argc, const char **argv)
 	fsInit();
 	romdataInit();
 
-	// Check for AIO mod presence
-	extern s32 g_AIOPresent;
-	g_AIOPresent = 0;
-	for (s32 i = 0; i < g_NumModDirs; ++i) {
-		if (strstr(modDirs[i], "mod_aio") || strstr(modDirs[i], "mod_fojo")) {
-			g_AIOPresent = 1;
-			break;
-		}
-	}
-
 	// NOTE: dynamic mod staging loading disabled for now
 	if (0) {
 		// mpSetArenaMode(true); // Moved to pdmain.c after config load

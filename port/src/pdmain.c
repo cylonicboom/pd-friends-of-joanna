@@ -341,17 +341,15 @@ void mainInit(void) {
 
 void mainProc(void) {
   mainInit();
+	modScanAllMods();
+  modCacheAllConfigs();
   for (s32 i = 0; i < g_NumModDirs; i++) {
     sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod %d", i);
     modSwitch(i, -1);
   }
   sysLogPrintf(LOG_NOTE, "mainProc: caching all mod configs");
-  modCacheAllConfigs();
   sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
   modSwitch(0, -1);
-  bodiesInit();          // recount guard-head arrays now mods are loaded
-  fojoPatchGuardHeads(); // splice FoJo Calico/Poplin into female guard pool
-  fojoInitChrBioCharacters(); // resolve FoJo bio chr ids to runtime mpheadnums
   rdpInit();
   sndInit();
 
