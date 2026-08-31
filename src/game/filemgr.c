@@ -2682,7 +2682,7 @@ MenuItemHandlerResult filemgrChooseAgentListMenuHandler(s32 operation, struct me
 
 		if (data->list.unk04 == g_FileLists[0]->numfiles) {
 			// "New Agent..."
-			gdl = textRenderProjected(gdl, &x, &y, langGet(L_OPTIONS_403),
+			gdl = textRenderProjected(gdl, &x, &y, (char*)"New Reality\n",
 					g_CharsHandelGothicMd, g_FontHandelGothicMd, renderdata->colour, viGetWidth(), viGetHeight(), 0, 0);
 		} else if (file) {
 			// Render file name
