@@ -24,6 +24,11 @@
 static bool g_ImGuiOverlayInitialized = false;
 static bool g_ImGuiOverlayVisible = false;
 static bool g_ImGuiOverlayRestoreMouseLock = false;
+static bool g_ImGuiOverlayShowRuntime = true;
+static bool g_ImGuiOverlayShowStage = true;
+static bool g_ImGuiOverlayShowEntities = true;
+static bool g_ImGuiOverlayShowAssets = true;
+static bool g_ImGuiOverlayShowMemory = true;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
@@ -453,6 +458,244 @@ static const char *imguiOverlayFileSourceName(s32 source)
 	}
 }
 
+static void imguiOverlayDrawRuntimePanel(void)
+{
+	ImGui::Text("Stage: 0x%02x", (unsigned int)g_StageNum);
+	ImGui::Text("Active mod: %d", g_ModNum);
+	ImGui::Text("Window: %ux%u", gfx_current_window_dimensions.width,
+			gfx_current_window_dimensions.height);
+	ImGui::Text("Framebuffers: %s", gfx_framebuffers_enabled ? "enabled" : "disabled");
+	ImGui::SeparatorText("Time");
+	ImGui::Text("Level frame: %d", g_Vars.lvframenum);
+	ImGui::Text("Level tick: %d (60 Hz), %d (240 Hz)",
+			g_Vars.lvframe60, g_Vars.lvframe240);
+	ImGui::Text("Frame time: %.2f (60 Hz), %.2f (240 Hz)",
+			g_Vars.diffframe60f, g_Vars.diffframe240f);
+	ImGui::Text("Lost time: %d (60 Hz), %d (240 Hz)",
+			g_Vars.lostframetime60t, g_Vars.lostframetime240t);
+}
+
+static void imguiOverlayDrawMemoryPanel(void)
+{
+	ImGui::Text("Emulated heap: %u MiB", g_OsMemSize / (1024 * 1024));
+	ImGui::Text("Stage pool free: %u KiB", mempGetStageFree() / 1024);
+}
+
+static void imguiOverlayDrawStagePanel(void)
+{
+	ImGui::Text("Stage: 0x%02x, table index: 0x%02x",
+			(unsigned int)g_Vars.stagenum, (unsigned int)g_StageIndex);
+	if (g_StageIndex >= 0 && g_StageIndex < 87) {
+		const char *setupName = romdataFileGetName(g_Stages[g_StageIndex].setupfileid);
+		ImGui::Text("Setup: %s", setupName ? setupName : "unregistered");
+	}
+	ImGui::Text("Rooms: %d", g_Vars.roomcount);
+
+	if (g_Rooms && ImGui::TreeNode("Rooms")) {
+		if (ImGui::BeginChild("Stage rooms", ImVec2(0.0f, 320.0f), ImGuiChildFlags_Borders)) {
+			if (ImGui::BeginTable("Stage room table", 5,
+					ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+				ImGui::TableSetupColumn("Room", ImGuiTableColumnFlags_WidthFixed, 58.0f);
+				ImGui::TableSetupColumn("Loaded", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+				ImGui::TableSetupColumn("Portals", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+				ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+				ImGui::TableSetupColumn("Centre", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableHeadersRow();
+				for (s32 roomNum = 1; roomNum < g_Vars.roomcount; ++roomNum) {
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Text("0x%03x", roomNum);
+					ImGui::TableSetColumnIndex(1);
+					ImGui::Text("%d", g_Rooms[roomNum].loaded240);
+					ImGui::TableSetColumnIndex(2);
+					ImGui::Text("%d", g_Rooms[roomNum].numportals);
+					ImGui::TableSetColumnIndex(3);
+					ImGui::Text("0x%04x", g_Rooms[roomNum].flags);
+					ImGui::TableSetColumnIndex(4);
+					ImGui::TextUnformatted(imguiOverlayCoordString(&g_Rooms[roomNum].centre));
+				}
+				ImGui::EndTable();
+			}
+		}
+		ImGui::EndChild();
+		ImGui::TreePop();
+	}
+}
+
+static void imguiOverlayDrawEntitiesPanel(void)
+{
+	if (g_ImGuiOverlayFocusProp) {
+		ImGui::SetNextItemOpen(true);
+	}
+	if (ImGui::CollapsingHeader("Props", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Visible: %d", g_Vars.numonscreenprops);
+		ImGui::Text("Allocated slots: %d", g_Vars.maxprops);
+		g_ImGuiOverlayPropTextFilter.Draw("Search props", 180.0f);
+		ImGui::Checkbox("Active props only", &g_ImGuiOverlayShowActivePropsOnly);
+
+		if (ImGui::BeginCombo("Filter prop", g_ImGuiOverlayPropFilter
+				? imguiOverlayPropTypeName((u8)g_ImGuiOverlayPropFilter) : "Any prop")) {
+			for (s32 type = 0; type <= PROPTYPE_SMOKE; ++type) {
+				const bool selected = g_ImGuiOverlayPropFilter == type;
+				if (ImGui::Selectable(type ? imguiOverlayPropTypeName((u8)type) : "Any prop", selected)) {
+					g_ImGuiOverlayPropFilter = type;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		if (ImGui::BeginCombo("Filter obj", g_ImGuiOverlayObjFilter
+				? imguiOverlayObjTypeName((u8)g_ImGuiOverlayObjFilter) : "Any obj")) {
+			for (s32 type = 0; type <= OBJTYPE_ESCASTEP; ++type) {
+				const bool selected = g_ImGuiOverlayObjFilter == type;
+				if (ImGui::Selectable(type ? imguiOverlayObjTypeName((u8)type) : "Any obj", selected)) {
+					g_ImGuiOverlayObjFilter = type;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		if (ImGui::Button("Expand all")) {
+			g_ImGuiOverlayExpandLatch = true;
+			g_ImGuiOverlayExpandValue = true;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Close all")) {
+			g_ImGuiOverlayExpandLatch = true;
+			g_ImGuiOverlayExpandValue = false;
+		}
+
+		if (ImGui::BeginChild("Prop list", ImVec2(0.0f, 300.0f), ImGuiChildFlags_Borders)) {
+			if (g_ImGuiOverlayShowActivePropsOnly) {
+				struct prop *prop = g_Vars.activeprops;
+				for (s32 index = 0; prop && prop != g_Vars.pausedprops && index <= g_Vars.maxprops; ++index) {
+					if (!imguiOverlayPropIsCurrent(prop)) {
+						break;
+					}
+					struct prop *next = prop->next;
+					imguiOverlayDrawPropNode(prop, index);
+					prop = next;
+				}
+			} else if (g_Vars.props) {
+				for (s32 index = 0; index < g_Vars.maxprops; ++index) {
+					imguiOverlayDrawPropNode(&g_Vars.props[index], index);
+				}
+			}
+		}
+		ImGui::EndChild();
+	}
+
+	if (g_ChrSlots && g_NumChrSlots && ImGui::CollapsingHeader("Characters", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Count: %d/%d", g_NumChrs, g_NumChrSlots);
+		g_ImGuiOverlayChrTextFilter.Draw("Search characters", 180.0f);
+		if (ImGui::BeginChild("Character list", ImVec2(0.0f, 280.0f), ImGuiChildFlags_Borders)) {
+			for (s32 index = 0; index < g_NumChrSlots; ++index) {
+				struct chrdata *chr = &g_ChrSlots[index];
+				if (chr->chrnum < 0 || !imguiOverlayChrPassesTextFilter(chr, index)) {
+					continue;
+				}
+				if (g_ImGuiOverlayExpandLatch) {
+					ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
+				}
+				if (ImGui::TreeNode(chr, "Slot %d: 0x%04x (%p)", index, (u16)chr->chrnum, chr)) {
+					imguiOverlayDescribeChr(chr);
+					if (chr->prop) {
+						imguiOverlayPropJumpLine("Prop", chr->prop);
+					}
+					ImGui::TreePop();
+				}
+			}
+		}
+		ImGui::EndChild();
+	}
+}
+
+static void imguiOverlayDrawAssetsPanel(void)
+{
+	if (ImGui::CollapsingHeader("Mods", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Loaded directories: %u", g_NumModDirs);
+		for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
+			ImGui::BulletText("%u: %s", modIndex, modDirs[modIndex]);
+		}
+	}
+
+	if (ImGui::CollapsingHeader("Filesystem")) {
+		ImGui::TextWrapped("Base: %s", fsGetBaseDir());
+		ImGui::TextWrapped("Save: %s", fsGetSaveDir());
+	}
+
+	if (ImGui::CollapsingHeader("ROM Data", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("ROM: %u MiB", g_RomFileSize / (1024 * 1024));
+		if (g_ImGuiOverlaySlotMod < 0 || g_ImGuiOverlaySlotMod >= (s32)g_NumModDirs) {
+			g_ImGuiOverlaySlotMod = g_ModNum;
+		}
+
+		if (ImGui::BeginCombo("Slot mod", g_ImGuiOverlaySlotMod >= 0
+				&& g_ImGuiOverlaySlotMod < (s32)g_NumModDirs
+				? modDirs[g_ImGuiOverlaySlotMod] : "none")) {
+			for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
+				const bool selected = g_ImGuiOverlaySlotMod == (s32)modIndex;
+				if (ImGui::Selectable(modDirs[modIndex], selected)) {
+					g_ImGuiOverlaySlotMod = (s32)modIndex;
+				}
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		const s32 slotCount = romdataGetFileSlotCount(g_ImGuiOverlaySlotMod);
+		ImGui::SameLine();
+		ImGui::Text("%d registered slots", slotCount);
+		g_ImGuiOverlaySlotFilter.Draw("Filter", 180.0f);
+
+		if (ImGui::BeginChild("File slots", ImVec2(0.0f, 360.0f), ImGuiChildFlags_Borders)) {
+			if (ImGui::BeginTable("File slot table", 4,
+					ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+				ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 62.0f);
+				ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+				ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+				ImGui::TableHeadersRow();
+
+				for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
+					struct romdatafileslotinfo slotInfo;
+					if (!romdataGetFileSlotInfo(g_ImGuiOverlaySlotMod, fileNum, &slotInfo)
+							|| !g_ImGuiOverlaySlotFilter.PassFilter(slotInfo.name)) {
+						continue;
+					}
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					ImGui::Text("0x%04x", fileNum);
+					ImGui::TableSetColumnIndex(1);
+					ImGui::TextUnformatted(slotInfo.name);
+					ImGui::TableSetColumnIndex(2);
+					const s32 displayedSource = slotInfo.source == 0
+						? slotInfo.configuredSource : slotInfo.source;
+					ImGui::TextUnformatted(imguiOverlayFileSourceName(displayedSource));
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("Configured: %s\nLoaded: %s",
+							imguiOverlayFileSourceName(slotInfo.configuredSource),
+							imguiOverlayFileSourceName(slotInfo.source));
+					}
+					ImGui::TableSetColumnIndex(3);
+					ImGui::Text("%u", slotInfo.size);
+				}
+
+				ImGui::EndTable();
+			}
+		}
+		ImGui::EndChild();
+	}
+}
+
 static void imguiOverlaySetVisible(bool visible)
 {
 	if (g_ImGuiOverlayVisible == visible) {
@@ -539,243 +782,60 @@ void imguiOverlayRender(void)
 		if (!imguiOverlayPropIsCurrent(g_ImGuiOverlayFocusProp)) {
 			g_ImGuiOverlayFocusProp = NULL;
 		}
-		ImGui::SetNextWindowSize(ImVec2(320.0f, 0.0f), ImGuiCond_FirstUseEver);
-		if (ImGui::Begin("Fojo Runtime", &g_ImGuiOverlayVisible)) {
-			if (ImGui::CollapsingHeader("Runtime", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Text("Stage: 0x%02x", (unsigned int)g_StageNum);
-				ImGui::Text("Active mod: %d", g_ModNum);
-				ImGui::Text("Window: %ux%u", gfx_current_window_dimensions.width,
-						gfx_current_window_dimensions.height);
-				ImGui::Text("Framebuffers: %s", gfx_framebuffers_enabled ? "enabled" : "disabled");
-			}
-
-			if (ImGui::CollapsingHeader("Memory", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Text("Emulated heap: %u MiB", g_OsMemSize / (1024 * 1024));
-				ImGui::Text("Stage pool free: %u KiB", mempGetStageFree() / 1024);
-			}
-
-			if (ImGui::CollapsingHeader("Time")) {
-				ImGui::Text("Level frame: %d", g_Vars.lvframenum);
-				ImGui::Text("Level tick: %d (60 Hz), %d (240 Hz)",
-						g_Vars.lvframe60, g_Vars.lvframe240);
-				ImGui::Text("Frame time: %.2f (60 Hz), %.2f (240 Hz)",
-						g_Vars.diffframe60f, g_Vars.diffframe240f);
-				ImGui::Text("Lost time: %d (60 Hz), %d (240 Hz)",
-						g_Vars.lostframetime60t, g_Vars.lostframetime240t);
-			}
-
-			if (ImGui::CollapsingHeader("Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Text("Stage: 0x%02x, table index: 0x%02x",
-						(unsigned int)g_Vars.stagenum, (unsigned int)g_StageIndex);
-				if (g_StageIndex >= 0 && g_StageIndex < 87) {
-					const char *setupName = romdataFileGetName(g_Stages[g_StageIndex].setupfileid);
-					ImGui::Text("Setup: %s", setupName ? setupName : "unregistered");
-				}
-				ImGui::Text("Rooms: %d", g_Vars.roomcount);
-
-				if (g_Rooms && ImGui::TreeNode("Rooms")) {
-					if (ImGui::BeginChild("Stage rooms", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) {
-						if (ImGui::BeginTable("Stage room table", 5,
-								ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
-							ImGui::TableSetupColumn("Room", ImGuiTableColumnFlags_WidthFixed, 58.0f);
-							ImGui::TableSetupColumn("Loaded", ImGuiTableColumnFlags_WidthFixed, 64.0f);
-							ImGui::TableSetupColumn("Portals", ImGuiTableColumnFlags_WidthFixed, 64.0f);
-							ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 72.0f);
-							ImGui::TableSetupColumn("Centre", ImGuiTableColumnFlags_WidthStretch);
-							ImGui::TableHeadersRow();
-							for (s32 roomNum = 1; roomNum < g_Vars.roomcount; ++roomNum) {
-								ImGui::TableNextRow();
-								ImGui::TableSetColumnIndex(0);
-								ImGui::Text("0x%03x", roomNum);
-								ImGui::TableSetColumnIndex(1);
-								ImGui::Text("%d", g_Rooms[roomNum].loaded240);
-								ImGui::TableSetColumnIndex(2);
-								ImGui::Text("%d", g_Rooms[roomNum].numportals);
-								ImGui::TableSetColumnIndex(3);
-								ImGui::Text("0x%04x", g_Rooms[roomNum].flags);
-								ImGui::TableSetColumnIndex(4);
-								ImGui::TextUnformatted(imguiOverlayCoordString(&g_Rooms[roomNum].centre));
-							}
-							ImGui::EndTable();
-						}
-					}
-					ImGui::EndChild();
-					ImGui::TreePop();
-				}
-			}
-
-			if (g_ImGuiOverlayFocusProp) {
-				ImGui::SetNextItemOpen(true);
-			}
-			if (ImGui::CollapsingHeader("Props")) {
-				ImGui::Text("Visible: %d", g_Vars.numonscreenprops);
-				ImGui::Text("Allocated slots: %d", g_Vars.maxprops);
-				g_ImGuiOverlayPropTextFilter.Draw("Search props", 180.0f);
-				ImGui::Checkbox("Active props only", &g_ImGuiOverlayShowActivePropsOnly);
-
-				if (ImGui::BeginCombo("Filter prop", g_ImGuiOverlayPropFilter
-						? imguiOverlayPropTypeName((u8)g_ImGuiOverlayPropFilter) : "Any prop")) {
-					for (s32 type = 0; type <= PROPTYPE_SMOKE; ++type) {
-						const bool selected = g_ImGuiOverlayPropFilter == type;
-						if (ImGui::Selectable(type ? imguiOverlayPropTypeName((u8)type) : "Any prop", selected)) {
-							g_ImGuiOverlayPropFilter = type;
-						}
-						if (selected) {
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-
-				if (ImGui::BeginCombo("Filter obj", g_ImGuiOverlayObjFilter
-						? imguiOverlayObjTypeName((u8)g_ImGuiOverlayObjFilter) : "Any obj")) {
-					for (s32 type = 0; type <= OBJTYPE_ESCASTEP; ++type) {
-						const bool selected = g_ImGuiOverlayObjFilter == type;
-						if (ImGui::Selectable(type ? imguiOverlayObjTypeName((u8)type) : "Any obj", selected)) {
-							g_ImGuiOverlayObjFilter = type;
-						}
-						if (selected) {
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-
-				if (ImGui::Button("Expand all")) {
-					g_ImGuiOverlayExpandLatch = true;
-					g_ImGuiOverlayExpandValue = true;
-				}
-				ImGui::SameLine();
-				if (ImGui::Button("Close all")) {
-					g_ImGuiOverlayExpandLatch = true;
-					g_ImGuiOverlayExpandValue = false;
-				}
-
-				if (ImGui::BeginChild("Prop list", ImVec2(0.0f, 300.0f), ImGuiChildFlags_Borders)) {
-					if (g_ImGuiOverlayShowActivePropsOnly) {
-						struct prop *prop = g_Vars.activeprops;
-						for (s32 index = 0; prop && prop != g_Vars.pausedprops && index <= g_Vars.maxprops; ++index) {
-							if (!imguiOverlayPropIsCurrent(prop)) {
-								break;
-							}
-							struct prop *next = prop->next;
-							imguiOverlayDrawPropNode(prop, index);
-							prop = next;
-						}
-					} else if (g_Vars.props) {
-						for (s32 index = 0; index < g_Vars.maxprops; ++index) {
-							imguiOverlayDrawPropNode(&g_Vars.props[index], index);
-						}
-					}
-				}
-				ImGui::EndChild();
-			}
-
-			if (g_ChrSlots && g_NumChrSlots && ImGui::CollapsingHeader("Characters")) {
-				ImGui::Text("Count: %d/%d", g_NumChrs, g_NumChrSlots);
-				g_ImGuiOverlayChrTextFilter.Draw("Search characters", 180.0f);
-				if (ImGui::BeginChild("Character list", ImVec2(0.0f, 280.0f), ImGuiChildFlags_Borders)) {
-					for (s32 index = 0; index < g_NumChrSlots; ++index) {
-						struct chrdata *chr = &g_ChrSlots[index];
-						if (chr->chrnum < 0 || !imguiOverlayChrPassesTextFilter(chr, index)) {
-							continue;
-						}
-						if (g_ImGuiOverlayExpandLatch) {
-							ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
-						}
-						if (ImGui::TreeNode(chr, "Slot %d: 0x%04x (%p)", index, (u16)chr->chrnum, chr)) {
-							imguiOverlayDescribeChr(chr);
-							if (chr->prop) {
-								imguiOverlayPropJumpLine("Prop", chr->prop);
-							}
-							ImGui::TreePop();
-						}
-					}
-				}
-				ImGui::EndChild();
-			}
-
-			if (ImGui::CollapsingHeader("Mods", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Text("Loaded directories: %u", g_NumModDirs);
-				for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
-					ImGui::BulletText("%u: %s", modIndex, modDirs[modIndex]);
-				}
-			}
-
-			if (ImGui::CollapsingHeader("Filesystem")) {
-				ImGui::TextWrapped("Base: %s", fsGetBaseDir());
-				ImGui::TextWrapped("Save: %s", fsGetSaveDir());
-			}
-
-			if (ImGui::CollapsingHeader("ROM Data", ImGuiTreeNodeFlags_DefaultOpen)) {
-				ImGui::Text("ROM: %u MiB", g_RomFileSize / (1024 * 1024));
-				if (g_ImGuiOverlaySlotMod < 0 || g_ImGuiOverlaySlotMod >= (s32)g_NumModDirs) {
-					g_ImGuiOverlaySlotMod = g_ModNum;
-				}
-
-				if (ImGui::BeginCombo("Slot mod", g_ImGuiOverlaySlotMod >= 0
-						&& g_ImGuiOverlaySlotMod < (s32)g_NumModDirs
-						? modDirs[g_ImGuiOverlaySlotMod] : "none")) {
-					for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
-						const bool selected = g_ImGuiOverlaySlotMod == (s32)modIndex;
-						if (ImGui::Selectable(modDirs[modIndex], selected)) {
-							g_ImGuiOverlaySlotMod = (s32)modIndex;
-						}
-						if (selected) {
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-
-				const s32 slotCount = romdataGetFileSlotCount(g_ImGuiOverlaySlotMod);
-				ImGui::SameLine();
-				ImGui::Text("%d registered slots", slotCount);
-				g_ImGuiOverlaySlotFilter.Draw("Filter", 180.0f);
-
-				if (ImGui::BeginChild("File slots", ImVec2(0.0f, 280.0f), ImGuiChildFlags_Borders)) {
-					if (ImGui::BeginTable("File slot table", 4,
-							ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
-						ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 62.0f);
-						ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-						ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed, 76.0f);
-						ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 76.0f);
-						ImGui::TableHeadersRow();
-
-						for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
-							struct romdatafileslotinfo slotInfo;
-							if (!romdataGetFileSlotInfo(g_ImGuiOverlaySlotMod, fileNum, &slotInfo)
-									|| !g_ImGuiOverlaySlotFilter.PassFilter(slotInfo.name)) {
-								continue;
-							}
-							ImGui::TableNextRow();
-							ImGui::TableSetColumnIndex(0);
-							ImGui::Text("0x%04x", fileNum);
-							ImGui::TableSetColumnIndex(1);
-							ImGui::TextUnformatted(slotInfo.name);
-							ImGui::TableSetColumnIndex(2);
-							const s32 displayedSource = slotInfo.source == 0
-								? slotInfo.configuredSource : slotInfo.source;
-							ImGui::TextUnformatted(imguiOverlayFileSourceName(displayedSource));
-							if (ImGui::IsItemHovered()) {
-								ImGui::SetTooltip("Configured: %s\nLoaded: %s",
-									imguiOverlayFileSourceName(slotInfo.configuredSource),
-									imguiOverlayFileSourceName(slotInfo.source));
-							}
-							ImGui::TableSetColumnIndex(3);
-							ImGui::Text("%u", slotInfo.size);
-						}
-
-						ImGui::EndTable();
-					}
-				}
-				ImGui::EndChild();
-			}
-
+		ImGui::SetNextWindowSize(ImVec2(220.0f, 0.0f), ImGuiCond_FirstUseEver);
+		if (ImGui::Begin("Fojo Debugger", &g_ImGuiOverlayVisible, ImGuiWindowFlags_AlwaysAutoResize)) {
+			ImGui::Checkbox("Runtime", &g_ImGuiOverlayShowRuntime);
+			ImGui::Checkbox("Stage", &g_ImGuiOverlayShowStage);
+			ImGui::Checkbox("Entities", &g_ImGuiOverlayShowEntities);
+			ImGui::Checkbox("Assets", &g_ImGuiOverlayShowAssets);
+			ImGui::Checkbox("Memory", &g_ImGuiOverlayShowMemory);
 			ImGui::Separator();
-			ImGui::Text("F12 closes this overlay");
+			ImGui::Text("F12 closes overlay");
 		}
 		ImGui::End();
+
+		if (g_ImGuiOverlayShowRuntime) {
+			ImGui::SetNextWindowSize(ImVec2(320.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Runtime", &g_ImGuiOverlayShowRuntime)) {
+				imguiOverlayDrawRuntimePanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowMemory) {
+			ImGui::SetNextWindowSize(ImVec2(300.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Memory", &g_ImGuiOverlayShowMemory)) {
+				imguiOverlayDrawMemoryPanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowStage) {
+			ImGui::SetNextWindowSize(ImVec2(460.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Stage", &g_ImGuiOverlayShowStage)) {
+				imguiOverlayDrawStagePanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayFocusProp) {
+			g_ImGuiOverlayShowEntities = true;
+		}
+		if (g_ImGuiOverlayShowEntities) {
+			ImGui::SetNextWindowSize(ImVec2(460.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Entities", &g_ImGuiOverlayShowEntities)) {
+				imguiOverlayDrawEntitiesPanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowAssets) {
+			ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Assets", &g_ImGuiOverlayShowAssets)) {
+				imguiOverlayDrawAssetsPanel();
+			}
+			ImGui::End();
+		}
 	}
 
 	ImGui::Render();
