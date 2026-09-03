@@ -79,6 +79,7 @@ static u32 g_ImGuiOverlayEngineProbeCompressedSize = 0;
 static u32 g_ImGuiOverlayEngineProbeDecodedSize = 0;
 static u8 g_ImGuiOverlayEngineProbeHeader = 0;
 static u8 g_ImGuiOverlayEngineProbeNativeFormat = 0xff;
+static bool g_ImGuiOverlayEngineProbeHeaderAvailable = false;
 static u8 g_ImGuiOverlayEngineProbeWidth = 0;
 static u8 g_ImGuiOverlayEngineProbeHeight = 0;
 static u8 g_ImGuiOverlayEngineProbeFormat = 0;
@@ -122,6 +123,8 @@ extern "C" void texInitPool(struct texpool *pool, u8 *start, s32 len);
 extern "C" void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg);
 extern "C" struct tex *texFindInPool(s32 texturenum, struct texpool *pool);
 extern "C" Gfx *texBuildDebugLoadGdl(Gfx *gdl, struct tex *tex);
+
+static bool imguiOverlayHasRomTexture(u16 textureId);
 
 static void *imguiOverlaySettingsReadOpen(ImGuiContext *, ImGuiSettingsHandler *handler, const char *name)
 {
@@ -1357,6 +1360,8 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 					mapped ? portTexId : localTexId, &resolvedLocalId, resolvedName, sizeof(resolvedName));
 				struct romdatafileslotinfo slotInfo = {0};
 				const bool hasFile = fileNum > 0 && romdataGetFileSlotInfo(textureMod, fileNum, &slotInfo);
+				const u16 engineTexId = mapped ? portTexId : localTexId;
+				const bool hasRomTexture = imguiOverlayHasRomTexture(engineTexId);
 				const bool hasExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
 				const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 				u16 width = 0;
@@ -1384,11 +1389,19 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 				if (hasFile) {
 					const s32 displayedSource = slotInfo.source == 0 ? slotInfo.configuredSource : slotInfo.source;
 					ImGui::TextUnformatted(imguiOverlayFileSourceName(displayedSource));
+				} else if (hasRomTexture) {
+					ImGui::TextUnformatted("ROM bank");
 				} else {
 					ImGui::TextDisabled("missing");
 				}
 				ImGui::TableSetColumnIndex(4);
-				if (hasFile) ImGui::Text("%u", slotInfo.size); else ImGui::TextDisabled("-");
+				if (hasFile) {
+					ImGui::Text("%u", slotInfo.size);
+				} else if (hasRomTexture) {
+					ImGui::Text("%u", g_Textures[engineTexId + 1].dataoffset - g_Textures[engineTexId].dataoffset);
+				} else {
+					ImGui::TextDisabled("-");
+				}
 				ImGui::TableSetColumnIndex(5);
 				if (hasExtTex) {
 					ImGui::Text("%d", owner);
@@ -1700,6 +1713,12 @@ static const char *imguiOverlayTextureFormatName(u8 nativeFormat)
 	}
 }
 
+static bool imguiOverlayHasRomTexture(u16 textureId)
+{
+	return textureId < NUM_TEXTURES && g_Textures
+		&& g_Textures[textureId].dataoffset != g_Textures[textureId + 1].dataoffset;
+}
+
 static void imguiOverlayClearRenderedPixels(void)
 {
 	g_ImGuiOverlayRenderedTexturePixels.clear();
@@ -1813,6 +1832,7 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		g_ImGuiOverlayEngineProbeDecodedSize = g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
 		g_ImGuiOverlayEngineProbeHeader = header;
 		g_ImGuiOverlayEngineProbeNativeFormat = nativeFormat;
+		g_ImGuiOverlayEngineProbeHeaderAvailable = compressedData != NULL;
 		g_ImGuiOverlayEngineProbeWidth = tex->width;
 		g_ImGuiOverlayEngineProbeHeight = tex->height;
 		g_ImGuiOverlayEngineProbeFormat = tex->gbiformat;
@@ -1892,15 +1912,17 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	ImGui::SeparatorText("Engine Rendered Preview");
 	const u16 engineTexId = portTexId != localTexId ? portTexId : localTexId;
 	const bool hasTextureFile = textureFileNum > 0;
-	ImGui::BeginDisabled(!hasTextureFile);
+	const bool hasRomTexture = imguiOverlayHasRomTexture(engineTexId);
+	const bool canEngineLoad = hasTextureFile || hasRomTexture;
+	ImGui::BeginDisabled(!canEngineLoad);
 	if (ImGui::Button("Load through engine")) {
 		if (imguiOverlayRequestEngineTexture(textureMod, modelFileNum, textureFileNum, engineTexId)) {
 			imguiOverlayScanTextureUsage(textureMod, modelFileNum, localTexId, portTexId);
 		}
 	}
 	ImGui::EndDisabled();
-	if (!hasTextureFile && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-		ImGui::SetTooltip("No model-scoped .bin file is registered for this texture ID.");
+	if (!canEngineLoad && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("No mod texture payload or ROM texture-bank entry exists for this ID.");
 	}
 	if (g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
 			&& g_ImGuiOverlayEngineProbeTexId == engineTexId) {
@@ -1910,21 +1932,32 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	if (g_ImGuiOverlayEngineProbeMetadataValid
 			&& g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
 			&& g_ImGuiOverlayEngineProbeTexId == engineTexId) {
-		ImGui::Text("Native header: 0x%02x, %s, header LOD count %u",
-			g_ImGuiOverlayEngineProbeHeader,
-			(g_ImGuiOverlayEngineProbeHeader & 0x40) ? "zlib" : "native compression",
-			g_ImGuiOverlayEngineProbeHeader & 0x3f);
+		if (g_ImGuiOverlayEngineProbeHeaderAvailable) {
+			ImGui::Text("Native header: 0x%02x, %s, header LOD count %u",
+				g_ImGuiOverlayEngineProbeHeader,
+				(g_ImGuiOverlayEngineProbeHeader & 0x40) ? "zlib" : "native compression",
+				g_ImGuiOverlayEngineProbeHeader & 0x3f);
+		} else {
+			ImGui::TextUnformatted("Native header: ROM texture bank (decoded metadata below)");
+		}
 		ImGui::Text("Decoded: %ux%u %s (GBI format %u, depth %u)",
 			g_ImGuiOverlayEngineProbeWidth, g_ImGuiOverlayEngineProbeHeight,
-			imguiOverlayTextureFormatName(g_ImGuiOverlayEngineProbeNativeFormat),
+			g_ImGuiOverlayEngineProbeHeaderAvailable
+				? imguiOverlayTextureFormatName(g_ImGuiOverlayEngineProbeNativeFormat) : "engine native",
 			g_ImGuiOverlayEngineProbeFormat, g_ImGuiOverlayEngineProbeDepth);
-		ImGui::Text("PD format code: 0x%02x", g_ImGuiOverlayEngineProbeNativeFormat);
+		if (g_ImGuiOverlayEngineProbeHeaderAvailable) {
+			ImGui::Text("PD format code: 0x%02x", g_ImGuiOverlayEngineProbeNativeFormat);
+		}
 		ImGui::Text("LOD: %u, embedded LOD data: %s; palette: %u entries, LUT mode %u",
 			g_ImGuiOverlayEngineProbeLodCount,
 			g_ImGuiOverlayEngineProbeHasLodData ? "yes" : "no",
 			g_ImGuiOverlayEngineProbePaletteCount, g_ImGuiOverlayEngineProbeLutMode);
-		ImGui::Text("Bytes: compressed %u, decoded pool payload %u",
-			g_ImGuiOverlayEngineProbeCompressedSize, g_ImGuiOverlayEngineProbeDecodedSize);
+		if (g_ImGuiOverlayEngineProbeHeaderAvailable) {
+			ImGui::Text("Bytes: compressed %u, decoded pool payload %u",
+				g_ImGuiOverlayEngineProbeCompressedSize, g_ImGuiOverlayEngineProbeDecodedSize);
+		} else {
+			ImGui::Text("Bytes: decoded pool payload %u", g_ImGuiOverlayEngineProbeDecodedSize);
+		}
 	}
 
 	if (!imguiOverlayFindRenderedTexture(modelFileNum, localTexId, portTexId, &info)) {
@@ -2178,12 +2211,16 @@ static void imguiOverlayDrawTexturesPanel(void)
 		u16 width = 0;
 		u16 height = 0;
 		const u8 hasDimensions = extTexGetDimensions(1, (u16)modelFileNum, localTexId, &width, &height);
-		ImGui::Text("native texture file: %s", hasTextureFile ? "yes" : "no");
+		const bool hasRomTexture = imguiOverlayHasRomTexture(engineTexId);
+		ImGui::Text("texture source: %s", hasTextureFile ? "mod filetable" : hasRomTexture ? "ROM texture bank" : "missing");
 		if (textureFileNum > 0) {
 			ImGui::SameLine();
 			ImGui::Text("file 0x%04x", textureFileNum);
 			ImGui::Text("resolved path: %s", resolvedTextureName);
 			ImGui::Text("engine ID 0x%04x -> file local ID 0x%04x", engineTexId, resolvedLocalId);
+		} else if (hasRomTexture) {
+			ImGui::Text("engine ID 0x%04x, ROM bytes %u", engineTexId,
+				g_Textures[engineTexId + 1].dataoffset - g_Textures[engineTexId].dataoffset);
 		}
 		ImGui::Text("ext_tex model entry: %s", hasModelExtTex ? "yes" : "no");
 		ImGui::Text("ext_tex owner mod: %d", owner);
@@ -2193,7 +2230,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 			ImGui::TextUnformatted("ext_tex dimensions: unavailable");
 		}
 	} else if (modelFileNum > 0) {
-		ImGui::TextUnformatted("native texture file: enter texture ID");
+		ImGui::TextUnformatted("texture source: enter texture ID");
 		ImGui::TextUnformatted("ext_tex model entry: enter texture ID");
 	}
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
