@@ -98,6 +98,11 @@ static s32 g_ImGuiOverlayTextureUsageLocalId = -1;
 static s32 g_ImGuiOverlayTextureUsagePortId = -1;
 static bool g_ImGuiOverlayShowTextureUvOverlay = true;
 static bool g_ImGuiOverlayWrapTextureUvs = true;
+static u16 g_ImGuiOverlayModelTextureIds[512];
+static s32 g_ImGuiOverlayModelTextureIdCount = 0;
+static s32 g_ImGuiOverlayModelTextureIdTotal = 0;
+static s32 g_ImGuiOverlayScannedTextureModelMod = -1;
+static s32 g_ImGuiOverlayScannedTextureModelFileNum = -1;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1295,30 +1300,31 @@ static s32 imguiOverlayCountModelTextureFiles(s32 modNum, const char *modelName)
 	return count;
 }
 
-static bool imguiOverlayParseModelTextureId(const char *slotName, const char *textureDirName, u16 *localTexId)
+static void imguiOverlayScanModelTextureIds(s32 textureMod, s32 modelFileNum)
 {
-	char *end = NULL;
-	char prefix[96];
-	s32 prefixLen;
-	u32 value;
+	struct modeldefTextureUsage usages[512];
+	s32 total = 0;
+	const s32 encodedFileNum = modelFileNum | (textureMod << 16);
+	const s32 usageCount = modeldefInspectTextureUsage(encodedFileNum, 0xffff, 0xffff,
+		usages, ARRAYCOUNT(usages), &total, NULL, 0, NULL, NULL);
 
-	if (!slotName || !textureDirName || !localTexId) {
-		return false;
+	g_ImGuiOverlayModelTextureIdCount = 0;
+	g_ImGuiOverlayModelTextureIdTotal = total;
+	g_ImGuiOverlayScannedTextureModelMod = textureMod;
+	g_ImGuiOverlayScannedTextureModelFileNum = modelFileNum;
+	for (s32 usageIndex = 0; usageIndex < usageCount; ++usageIndex) {
+		const u16 textureId = usages[usageIndex].textureid;
+		bool duplicate = false;
+		for (s32 idIndex = 0; idIndex < g_ImGuiOverlayModelTextureIdCount; ++idIndex) {
+			if (g_ImGuiOverlayModelTextureIds[idIndex] == textureId) {
+				duplicate = true;
+				break;
+			}
+		}
+		if (!duplicate && g_ImGuiOverlayModelTextureIdCount < ARRAYCOUNT(g_ImGuiOverlayModelTextureIds)) {
+			g_ImGuiOverlayModelTextureIds[g_ImGuiOverlayModelTextureIdCount++] = textureId;
+		}
 	}
-
-	snprintf(prefix, sizeof(prefix), "%s/", textureDirName);
-	prefixLen = strlen(prefix);
-	if (strncmp(slotName, prefix, prefixLen) != 0) {
-		return false;
-	}
-
-	value = strtoul(slotName + prefixLen, &end, 16);
-	if (!end || strcmp(end, ".bin") != 0 || value > 0xffff) {
-		return false;
-	}
-
-	*localTexId = (u16)value;
-	return true;
 }
 
 static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, const char *textureDirName)
@@ -1341,23 +1347,23 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 			ImGui::TableSetupColumn("action", ImGuiTableColumnFlags_WidthFixed, 62.0f);
 			ImGui::TableHeadersRow();
 
-			for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
-				struct romdatafileslotinfo slotInfo;
-				u16 localTexId = 0;
-				if (!romdataGetFileSlotInfo(textureMod, fileNum, &slotInfo)
-						|| !imguiOverlayParseModelTextureId(slotInfo.name, textureDirName, &localTexId)) {
-					continue;
-				}
-
+			for (s32 idIndex = 0; idIndex < g_ImGuiOverlayModelTextureIdCount; ++idIndex) {
+				const u16 localTexId = g_ImGuiOverlayModelTextureIds[idIndex];
 				const u16 portTexId = modTexMapLookup(textureMod, localTexId);
 				const bool mapped = portTexId != localTexId;
+				u16 resolvedLocalId = portTexId;
+				char resolvedName[128] = {0};
+				const s32 fileNum = modTextureResolveFile(textureMod, modelFileNum,
+					mapped ? portTexId : localTexId, &resolvedLocalId, resolvedName, sizeof(resolvedName));
+				struct romdatafileslotinfo slotInfo = {0};
+				const bool hasFile = fileNum > 0 && romdataGetFileSlotInfo(textureMod, fileNum, &slotInfo);
 				const bool hasExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
 				const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 				u16 width = 0;
 				u16 height = 0;
 				const u8 hasDimensions = extTexGetDimensions(1, (u16)modelFileNum, localTexId, &width, &height);
 
-				ImGui::PushID(fileNum);
+				ImGui::PushID(idIndex);
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
 				ImGui::Text("%04x", localTexId);
@@ -1368,12 +1374,21 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 					ImGui::TextDisabled("same");
 				}
 				ImGui::TableSetColumnIndex(2);
-				ImGui::Text("%04x", fileNum);
+				if (hasFile) {
+					ImGui::Text("%04x", fileNum);
+					if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", resolvedName);
+				} else {
+					ImGui::TextDisabled("-");
+				}
 				ImGui::TableSetColumnIndex(3);
-				const s32 displayedSource = slotInfo.source == 0 ? slotInfo.configuredSource : slotInfo.source;
-				ImGui::TextUnformatted(imguiOverlayFileSourceName(displayedSource));
+				if (hasFile) {
+					const s32 displayedSource = slotInfo.source == 0 ? slotInfo.configuredSource : slotInfo.source;
+					ImGui::TextUnformatted(imguiOverlayFileSourceName(displayedSource));
+				} else {
+					ImGui::TextDisabled("missing");
+				}
 				ImGui::TableSetColumnIndex(4);
-				ImGui::Text("%u", slotInfo.size);
+				if (hasFile) ImGui::Text("%u", slotInfo.size); else ImGui::TextDisabled("-");
 				ImGui::TableSetColumnIndex(5);
 				if (hasExtTex) {
 					ImGui::Text("%d", owner);
@@ -1447,6 +1462,8 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 		}
 	}
 	ImGui::EndChild();
+	ImGui::TextDisabled("GDL bindings: %d unique from %d references", g_ImGuiOverlayModelTextureIdCount,
+		g_ImGuiOverlayModelTextureIdTotal);
 	ImGui::TextDisabled("modelTexId = model GDL texture ID; resolvedTexId = texMap rewrite target; fileSlot = filetable slot for <ModelName>/<modelTexId>.bin");
 	ImGui::TextDisabled("png/ext_tex rows are metadata only for now; PNG texture preview/loading is not implemented in this panel yet.");
 }
@@ -1489,7 +1506,7 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 				ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
 			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 62.0f);
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableSetupColumn("tex files", ImGuiTableColumnFlags_WidthFixed, 68.0f);
+			ImGui::TableSetupColumn("scoped files", ImGuiTableColumnFlags_WidthFixed, 82.0f);
 			ImGui::TableSetupColumn("ext_tex", ImGuiTableColumnFlags_WidthFixed, 60.0f);
 			ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 72.0f);
 			ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 70.0f);
@@ -2085,6 +2102,22 @@ static void imguiOverlayDrawTexturesPanel(void)
 	if (g_ImGuiOverlayTextureModelMod >= 0 && g_ImGuiOverlayTextureModelFileNum > 0) {
 		textureMod = g_ImGuiOverlayTextureModelMod;
 		modelFileNum = g_ImGuiOverlayTextureModelFileNum;
+	}
+	if (textureMod >= 0 && modelFileNum > 0
+			&& (g_ImGuiOverlayScannedTextureModelMod != textureMod
+				|| g_ImGuiOverlayScannedTextureModelFileNum != modelFileNum)) {
+		gfx_submit_debug_texture_gdl(NULL);
+		if (g_ImGuiOverlayTextureProbeData) {
+			gfx_forget_debug_texture_data(g_ImGuiOverlayTextureProbeData);
+			g_ImGuiOverlayTextureProbeData = NULL;
+		}
+		imguiOverlayClearTexturePreview();
+		imguiOverlayClearRenderedPixels();
+		g_ImGuiOverlayEngineProbeMetadataValid = false;
+		g_ImGuiOverlayEngineProbeModelFileNum = -1;
+		g_ImGuiOverlayEngineProbeTexId = -1;
+		g_ImGuiOverlayTextureProbeId = 0;
+		imguiOverlayScanModelTextureIds(textureMod, modelFileNum);
 	}
 
 	if (textureMod >= 0 && modelFileNum > 0) {

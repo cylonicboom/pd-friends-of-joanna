@@ -456,7 +456,8 @@ s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 				const s32 slotCount = command->unkc0.subcmd == 1 ? 2 : 1;
 				selectedTextureActive = false;
 				for (s32 slot = 0; slot < slotCount; ++slot) {
-					if (ids[slot] != textureid1 && ids[slot] != textureid2) continue;
+					const bool matchAll = textureid1 == 0xffff && textureid2 == 0xffff;
+					if (!matchAll && ids[slot] != textureid1 && ids[slot] != textureid2) continue;
 					selectedTextureActive = true;
 					activeTextureId = ids[slot];
 					if (written < maxentries) {
