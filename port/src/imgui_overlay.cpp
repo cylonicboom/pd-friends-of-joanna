@@ -27,13 +27,13 @@
 static bool g_ImGuiOverlayInitialized = false;
 static bool g_ImGuiOverlayVisible = false;
 static bool g_ImGuiOverlayRestoreMouseLock = false;
-static bool g_ImGuiOverlayShowRuntime = true;
-static bool g_ImGuiOverlayShowStage = true;
-static bool g_ImGuiOverlayShowEntities = true;
-static bool g_ImGuiOverlayShowAssets = true;
-static bool g_ImGuiOverlayShowMemory = true;
-static bool g_ImGuiOverlayShowProfiler = true;
-static bool g_ImGuiOverlayShowTextures = true;
+static bool g_ImGuiOverlayShowRuntime = false;
+static bool g_ImGuiOverlayShowStage = false;
+static bool g_ImGuiOverlayShowEntities = false;
+static bool g_ImGuiOverlayShowAssets = false;
+static bool g_ImGuiOverlayShowMemory = false;
+static bool g_ImGuiOverlayShowProfiler = false;
+static bool g_ImGuiOverlayShowTextures = false;
 static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
@@ -50,6 +50,7 @@ static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
 static ImGuiTextFilter g_ImGuiOverlayModelFilter;
+static char g_ImGuiOverlayIniPath[FS_MAXPATH + 1];
 
 extern s32 g_StageNum;
 extern s32 g_ModNum;
@@ -1544,6 +1545,35 @@ static void imguiOverlaySetVisible(bool visible)
 	}
 }
 
+static void imguiOverlaySetNextWindowDefaults(const ImVec2 &size, float xAnchor, float yAnchor)
+{
+	const ImGuiViewport *viewport = ImGui::GetMainViewport();
+	const float availableX = viewport->WorkSize.x > size.x ? viewport->WorkSize.x - size.x : 0.0f;
+	const float availableY = viewport->WorkSize.y > size.y ? viewport->WorkSize.y - size.y : 0.0f;
+	ImGui::SetNextWindowPos(ImVec2(
+		viewport->WorkPos.x + availableX * xAnchor,
+		viewport->WorkPos.y + availableY * yAnchor), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
+}
+
+static void imguiOverlayDrawWindowMenu(bool canOpenLookingAt)
+{
+	if (!ImGui::BeginPopupContextVoid("FojoWindowMenu", ImGuiPopupFlags_MouseButtonRight)) {
+		return;
+	}
+
+	ImGui::SeparatorText("Fojo Windows");
+	ImGui::MenuItem("Runtime", NULL, &g_ImGuiOverlayShowRuntime);
+	ImGui::MenuItem("Stage", NULL, &g_ImGuiOverlayShowStage);
+	ImGui::MenuItem("Entities", NULL, &g_ImGuiOverlayShowEntities);
+	ImGui::MenuItem("Assets", NULL, &g_ImGuiOverlayShowAssets);
+	ImGui::MenuItem("Textures", NULL, &g_ImGuiOverlayShowTextures);
+	ImGui::MenuItem("Memory", NULL, &g_ImGuiOverlayShowMemory);
+	ImGui::MenuItem("Profiler", NULL, &g_ImGuiOverlayShowProfiler);
+	ImGui::MenuItem("Looking At", NULL, &g_ImGuiOverlayShowLookingAt, canOpenLookingAt);
+	ImGui::EndPopup();
+}
+
 void imguiOverlayInit(void *window)
 {
 	if (g_ImGuiOverlayInitialized || !window) {
@@ -1554,13 +1584,14 @@ void imguiOverlayInit(void *window)
 	ImGui::CreateContext();
 	ImGuiIO &io = ImGui::GetIO();
 	io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-	io.IniFilename = NULL;
+	snprintf(g_ImGuiOverlayIniPath, sizeof(g_ImGuiOverlayIniPath), "%s/fojo-imgui.ini", fsGetSaveDir());
+	io.IniFilename = g_ImGuiOverlayIniPath;
 
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForOpenGL((SDL_Window *)window, SDL_GL_GetCurrentContext());
 	ImGui_ImplOpenGL3_Init("#version 150");
 	g_ImGuiOverlayInitialized = true;
-	sysLogPrintf(LOG_NOTE, "IMGUI: single-window overlay initialized");
+	sysLogPrintf(LOG_NOTE, "IMGUI: single-window overlay initialized; layout=%s", g_ImGuiOverlayIniPath);
 }
 
 void imguiOverlayShutdown(void)
@@ -1569,6 +1600,7 @@ void imguiOverlayShutdown(void)
 		return;
 	}
 
+	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplSDL2_Shutdown();
 	ImGui::DestroyContext();
@@ -1614,25 +1646,10 @@ void imguiOverlayRender(void)
 		if (!canOpenLookingAt) {
 			g_ImGuiOverlayShowLookingAt = false;
 		}
-		ImGui::SetNextWindowSize(ImVec2(220.0f, 0.0f), ImGuiCond_FirstUseEver);
-		if (ImGui::Begin("Fojo Debugger", &g_ImGuiOverlayVisible, ImGuiWindowFlags_AlwaysAutoResize)) {
-			ImGui::Checkbox("Runtime", &g_ImGuiOverlayShowRuntime);
-			ImGui::Checkbox("Stage", &g_ImGuiOverlayShowStage);
-			ImGui::Checkbox("Entities", &g_ImGuiOverlayShowEntities);
-			ImGui::Checkbox("Assets", &g_ImGuiOverlayShowAssets);
-			ImGui::Checkbox("Textures", &g_ImGuiOverlayShowTextures);
-			ImGui::Checkbox("Memory", &g_ImGuiOverlayShowMemory);
-			ImGui::Checkbox("Profiler", &g_ImGuiOverlayShowProfiler);
-			ImGui::BeginDisabled(!canOpenLookingAt);
-			ImGui::Checkbox("Looking At", &g_ImGuiOverlayShowLookingAt);
-			ImGui::EndDisabled();
-			ImGui::Separator();
-			ImGui::Text("F12 closes overlay");
-		}
-		ImGui::End();
+		imguiOverlayDrawWindowMenu(canOpenLookingAt);
 
 		if (g_ImGuiOverlayShowRuntime) {
-			ImGui::SetNextWindowSize(ImVec2(320.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(360.0f, 300.0f), 0.0f, 0.0f);
 			if (ImGui::Begin("Fojo Runtime", &g_ImGuiOverlayShowRuntime)) {
 				imguiOverlayDrawRuntimePanel();
 			}
@@ -1640,7 +1657,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowMemory) {
-			ImGui::SetNextWindowSize(ImVec2(300.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(360.0f, 300.0f), 0.0f, 1.0f);
 			if (ImGui::Begin("Fojo Memory", &g_ImGuiOverlayShowMemory)) {
 				imguiOverlayDrawMemoryPanel();
 			}
@@ -1648,7 +1665,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowProfiler) {
-			ImGui::SetNextWindowSize(ImVec2(520.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(620.0f, 360.0f), 0.5f, 1.0f);
 			if (ImGui::Begin("Fojo Profiler", &g_ImGuiOverlayShowProfiler)) {
 				imguiOverlayDrawProfilerPanel();
 			}
@@ -1656,7 +1673,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowStage) {
-			ImGui::SetNextWindowSize(ImVec2(460.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(480.0f, 560.0f), 1.0f, 0.0f);
 			if (ImGui::Begin("Fojo Stage", &g_ImGuiOverlayShowStage)) {
 				imguiOverlayDrawStagePanel();
 			}
@@ -1667,7 +1684,7 @@ void imguiOverlayRender(void)
 			g_ImGuiOverlayShowEntities = true;
 		}
 		if (g_ImGuiOverlayShowEntities) {
-			ImGui::SetNextWindowSize(ImVec2(460.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 620.0f), 1.0f, 0.0f);
 			if (ImGui::Begin("Fojo Entities", &g_ImGuiOverlayShowEntities)) {
 				imguiOverlayDrawEntitiesPanel();
 			}
@@ -1675,7 +1692,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowAssets) {
-			ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(620.0f, 560.0f), 0.5f, 0.2f);
 			if (ImGui::Begin("Fojo Assets", &g_ImGuiOverlayShowAssets)) {
 				imguiOverlayDrawAssetsPanel();
 			}
@@ -1683,7 +1700,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowLookingAt) {
-			ImGui::SetNextWindowSize(ImVec2(430.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(430.0f, 340.0f), 1.0f, 0.0f);
 			if (ImGui::Begin("Fojo Looking At", &g_ImGuiOverlayShowLookingAt)) {
 				imguiOverlayDrawLookingAtPanel();
 			}
@@ -1691,7 +1708,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowTextures) {
-			ImGui::SetNextWindowSize(ImVec2(430.0f, 0.0f), ImGuiCond_FirstUseEver);
+			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 620.0f), 1.0f, 0.25f);
 			if (ImGui::Begin("Fojo Textures", &g_ImGuiOverlayShowTextures)) {
 				imguiOverlayDrawTexturesPanel();
 			}
