@@ -74,6 +74,8 @@ static Gfx g_ImGuiOverlayTextureProbeGdl[64];
 static const u8 *g_ImGuiOverlayTextureProbeData = NULL;
 static s32 g_ImGuiOverlayEngineProbeModelFileNum = -1;
 static s32 g_ImGuiOverlayEngineProbeTexId = -1;
+static bool g_ImGuiOverlayEngineProbeAttempted = false;
+static bool g_ImGuiOverlayEngineProbeDecoded = false;
 static bool g_ImGuiOverlayEngineProbeMetadataValid = false;
 static u32 g_ImGuiOverlayEngineProbeCompressedSize = 0;
 static u32 g_ImGuiOverlayEngineProbeDecodedSize = 0;
@@ -1795,6 +1797,10 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 {
 	gfx_submit_debug_texture_gdl(NULL);
 	g_ImGuiOverlayEngineProbeMetadataValid = false;
+	g_ImGuiOverlayEngineProbeAttempted = true;
+	g_ImGuiOverlayEngineProbeDecoded = false;
+	g_ImGuiOverlayEngineProbeModelFileNum = modelFileNum;
+	g_ImGuiOverlayEngineProbeTexId = textureId;
 	if (textureMod < 0 || textureMod >= (s32)g_NumModDirs || modelFileNum <= 0) {
 		return false;
 	}
@@ -1828,6 +1834,7 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		gfx_submit_debug_texture_gdl(g_ImGuiOverlayTextureProbeGdl);
 		g_ImGuiOverlayEngineProbeModelFileNum = modelFileNum;
 		g_ImGuiOverlayEngineProbeTexId = textureId;
+		g_ImGuiOverlayEngineProbeDecoded = true;
 		g_ImGuiOverlayEngineProbeCompressedSize = compressedSize;
 		g_ImGuiOverlayEngineProbeDecodedSize = g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
 		g_ImGuiOverlayEngineProbeHeader = header;
@@ -1927,7 +1934,8 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	if (g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
 			&& g_ImGuiOverlayEngineProbeTexId == engineTexId) {
 		ImGui::SameLine();
-		ImGui::TextDisabled("private engine probe active");
+		ImGui::TextDisabled(g_ImGuiOverlayEngineProbeDecoded
+			? "private engine probe active" : "private engine probe failed to decode");
 	}
 	if (g_ImGuiOverlayEngineProbeMetadataValid
 			&& g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
@@ -1960,8 +1968,20 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 		}
 	}
 
-	if (!imguiOverlayFindRenderedTexture(modelFileNum, localTexId, portTexId, &info)) {
-		ImGui::TextDisabled("Not imported this frame. Load it above or keep the model visible.");
+	const bool privateProbeMatches = g_ImGuiOverlayEngineProbeAttempted
+		&& g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
+		&& g_ImGuiOverlayEngineProbeTexId == engineTexId;
+	const bool hasRenderedTexture = privateProbeMatches && g_ImGuiOverlayEngineProbeDecoded
+		? gfx_get_submitted_debug_texture(&info)
+		: imguiOverlayFindRenderedTexture(modelFileNum, localTexId, portTexId, &info);
+	if (!hasRenderedTexture) {
+		if (privateProbeMatches && !g_ImGuiOverlayEngineProbeDecoded) {
+			ImGui::TextDisabled("CPU texture load/decode failed.");
+		} else if (privateProbeMatches) {
+			ImGui::TextDisabled("CPU decode succeeded; waiting for Fast3D import.");
+		} else {
+			ImGui::TextDisabled("Not imported this frame. Load it above or keep the model visible.");
+		}
 		return;
 	}
 	if (!g_ImGuiOverlayRenderedTexturePixels.empty()
@@ -2147,6 +2167,8 @@ static void imguiOverlayDrawTexturesPanel(void)
 		imguiOverlayClearTexturePreview();
 		imguiOverlayClearRenderedPixels();
 		g_ImGuiOverlayEngineProbeMetadataValid = false;
+		g_ImGuiOverlayEngineProbeAttempted = false;
+		g_ImGuiOverlayEngineProbeDecoded = false;
 		g_ImGuiOverlayEngineProbeModelFileNum = -1;
 		g_ImGuiOverlayEngineProbeTexId = -1;
 		g_ImGuiOverlayTextureProbeId = 0;

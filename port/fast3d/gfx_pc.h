@@ -66,6 +66,7 @@ extern "C" {
 
 uint32_t gfx_get_debug_texture_count(void);
 bool gfx_get_debug_texture(uint32_t index, struct GfxTextureDebugInfo *info);
+bool gfx_get_submitted_debug_texture(struct GfxTextureDebugInfo *info);
 void gfx_submit_debug_texture_gdl(Gfx *gdl);
 void gfx_forget_debug_texture_data(const void *data);
 
