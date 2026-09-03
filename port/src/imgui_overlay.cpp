@@ -34,6 +34,7 @@ static bool g_ImGuiOverlayShowAssets = true;
 static bool g_ImGuiOverlayShowMemory = true;
 static bool g_ImGuiOverlayShowProfiler = true;
 static bool g_ImGuiOverlayShowTextures = true;
+static bool g_ImGuiOverlayShowLookingAt = true;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
@@ -56,6 +57,9 @@ extern u32 g_OsMemSize;
 extern s32 g_StageIndex;
 extern struct stagetableentry g_Stages[87];
 extern "C" u32 mempGetStageFree(void);
+extern "C" bool bgTestHitInRoom(struct coord *frompos, struct coord *topos, s32 roomnum, struct hitthing *hitthing);
+extern "C" struct prop *propFindAimingAt(s32 handnum, bool isshooting, u32 context);
+extern "C" void portal00018148(struct coord *pos, struct coord *pos2, RoomNum *rooms, RoomNum *arg3, RoomNum *arg4, s32 arg5);
 
 #define CASE_NAME(x) case x: return #x;
 
@@ -250,6 +254,16 @@ static void imguiOverlayFocusChr(struct chrdata *chr)
 
 	g_ImGuiOverlayFocusChr = chr;
 	g_ImGuiOverlayChrTextFilter.Clear();
+}
+
+static void imguiOverlayFocusTextureId(s32 textureId)
+{
+	if (textureId < 0 || textureId > 0xffff) {
+		return;
+	}
+
+	g_ImGuiOverlayTextureProbeId = textureId;
+	g_ImGuiOverlayShowTextures = true;
 }
 
 static void imguiOverlayPropJumpLine(const char *label, struct prop *prop)
@@ -1040,6 +1054,75 @@ static void imguiOverlayDrawAssetsPanel(void)
 	}
 }
 
+static bool imguiOverlayGetSurfaceInfo(struct hitthing *hit)
+{
+	if (!hit || !g_Vars.currentplayer) {
+		return false;
+	}
+
+	struct coord endpos;
+	endpos.x = g_Vars.currentplayer->cam_pos.x + g_Vars.currentplayer->cam_look.x * 10000.0f;
+	endpos.y = g_Vars.currentplayer->cam_pos.y + g_Vars.currentplayer->cam_look.y * 10000.0f;
+	endpos.z = g_Vars.currentplayer->cam_pos.z + g_Vars.currentplayer->cam_look.z * 10000.0f;
+
+	RoomNum outrooms[17];
+	RoomNum tmprooms[8];
+	RoomNum srcrooms[2];
+	srcrooms[0] = g_Vars.currentplayer->cam_room;
+	srcrooms[1] = -1;
+	outrooms[16] = -1;
+	portal00018148(&g_Vars.currentplayer->cam_pos, &endpos, srcrooms, tmprooms, outrooms, 16);
+
+	for (s32 i = 0; outrooms[i] != -1; ++i) {
+		if (bgTestHitInRoom(&g_Vars.currentplayer->cam_pos, &endpos, outrooms[i], hit)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void imguiOverlayDrawLookingAtPanel(void)
+{
+	if (!g_Vars.currentplayer) {
+		ImGui::TextUnformatted("No current player");
+		return;
+	}
+
+	ImGui::Text("Camera: %s", imguiOverlayCoordString(&g_Vars.currentplayer->cam_pos));
+	ImGui::Text("Look: %s", imguiOverlayCoordString(&g_Vars.currentplayer->cam_look));
+	ImGui::Text("Room: 0x%03x", (u32)g_Vars.currentplayer->cam_room);
+	ImGui::Separator();
+
+	struct prop *prop = propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+	if (imguiOverlayPropIsCurrent(prop)) {
+		ImGui::TextUnformatted("Looking at prop");
+		imguiOverlayPropJumpLine("Prop", prop);
+		if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY)
+				&& imguiOverlayChrIsCurrent(prop->chr)) {
+			imguiOverlayChrJumpLine("Chr", prop->chr);
+		}
+		if (ImGui::TreeNode(prop, "Details (%p)", prop)) {
+			imguiOverlayDescribeProp(prop);
+			ImGui::TreePop();
+		}
+		return;
+	}
+
+	struct hitthing hit = {};
+	if (imguiOverlayGetSurfaceInfo(&hit)) {
+		ImGui::TextUnformatted("Looking at background surface");
+		ImGui::Text("Hit pos: %s", imguiOverlayCoordString(&hit.pos));
+		ImGui::Text("Texture: 0x%04x", (u16)hit.texturenum);
+		if (hit.texturenum >= 0 && ImGui::Button("Probe texture")) {
+			imguiOverlayFocusTextureId(hit.texturenum);
+		}
+		return;
+	}
+
+	ImGui::TextUnformatted("Looking at nothing");
+}
+
 static bool imguiOverlayIsModelSlotName(const char *name)
 {
 	if (!name || !name[0]) {
@@ -1523,6 +1606,7 @@ void imguiOverlayRender(void)
 			ImGui::Checkbox("Textures", &g_ImGuiOverlayShowTextures);
 			ImGui::Checkbox("Memory", &g_ImGuiOverlayShowMemory);
 			ImGui::Checkbox("Profiler", &g_ImGuiOverlayShowProfiler);
+			ImGui::Checkbox("Looking At", &g_ImGuiOverlayShowLookingAt);
 			ImGui::Separator();
 			ImGui::Text("F12 closes overlay");
 		}
@@ -1575,6 +1659,14 @@ void imguiOverlayRender(void)
 			ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_FirstUseEver);
 			if (ImGui::Begin("Fojo Assets", &g_ImGuiOverlayShowAssets)) {
 				imguiOverlayDrawAssetsPanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowLookingAt) {
+			ImGui::SetNextWindowSize(ImVec2(430.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Looking At", &g_ImGuiOverlayShowLookingAt)) {
+				imguiOverlayDrawLookingAtPanel();
 			}
 			ImGui::End();
 		}
