@@ -6,6 +6,7 @@
 #include "fs.h"
 #include "imgui_overlay.h"
 #include "input.h"
+#include "romdata.h"
 #include "system.h"
 
 #include "imgui.h"
@@ -15,11 +16,24 @@
 static bool g_ImGuiOverlayInitialized = false;
 static bool g_ImGuiOverlayVisible = false;
 static bool g_ImGuiOverlayRestoreMouseLock = false;
+static s32 g_ImGuiOverlaySlotMod = -1;
+static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
 
 extern s32 g_StageNum;
 extern s32 g_ModNum;
 extern u32 g_OsMemSize;
 extern "C" u32 mempGetStageFree(void);
+
+static const char *imguiOverlayFileSourceName(s32 source)
+{
+	switch (source) {
+	case 0: return "unloaded";
+	case 1: return "rom";
+	case 2: return "external";
+	case 3: return "alt rom";
+	default: return "unknown";
+	}
+}
 
 static void imguiOverlaySetVisible(bool visible)
 {
@@ -123,6 +137,76 @@ void imguiOverlayRender(void)
 				for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
 					ImGui::BulletText("%u: %s", modIndex, modDirs[modIndex]);
 				}
+			}
+
+			if (ImGui::CollapsingHeader("Filesystem")) {
+				ImGui::TextWrapped("Base: %s", fsGetBaseDir());
+				ImGui::TextWrapped("Save: %s", fsGetSaveDir());
+			}
+
+			if (ImGui::CollapsingHeader("ROM Data", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Text("ROM: %u MiB", g_RomFileSize / (1024 * 1024));
+				if (g_ImGuiOverlaySlotMod < 0 || g_ImGuiOverlaySlotMod >= (s32)g_NumModDirs) {
+					g_ImGuiOverlaySlotMod = g_ModNum;
+				}
+
+				if (ImGui::BeginCombo("Slot mod", g_ImGuiOverlaySlotMod >= 0
+						&& g_ImGuiOverlaySlotMod < (s32)g_NumModDirs
+						? modDirs[g_ImGuiOverlaySlotMod] : "none")) {
+					for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
+						const bool selected = g_ImGuiOverlaySlotMod == (s32)modIndex;
+						if (ImGui::Selectable(modDirs[modIndex], selected)) {
+							g_ImGuiOverlaySlotMod = (s32)modIndex;
+						}
+						if (selected) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
+
+				const s32 slotCount = romdataGetFileSlotCount(g_ImGuiOverlaySlotMod);
+				ImGui::SameLine();
+				ImGui::Text("%d registered slots", slotCount);
+				g_ImGuiOverlaySlotFilter.Draw("Filter", 180.0f);
+
+				if (ImGui::BeginChild("File slots", ImVec2(0.0f, 280.0f), ImGuiChildFlags_Borders)) {
+					if (ImGui::BeginTable("File slot table", 4,
+							ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+						ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 62.0f);
+						ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+						ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+						ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+						ImGui::TableHeadersRow();
+
+						for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
+							struct romdatafileslotinfo slotInfo;
+							if (!romdataGetFileSlotInfo(g_ImGuiOverlaySlotMod, fileNum, &slotInfo)
+									|| !g_ImGuiOverlaySlotFilter.PassFilter(slotInfo.name)) {
+								continue;
+							}
+							ImGui::TableNextRow();
+							ImGui::TableSetColumnIndex(0);
+							ImGui::Text("0x%04x", fileNum);
+							ImGui::TableSetColumnIndex(1);
+							ImGui::TextUnformatted(slotInfo.name);
+							ImGui::TableSetColumnIndex(2);
+							const s32 displayedSource = slotInfo.source == 0
+								? slotInfo.configuredSource : slotInfo.source;
+							ImGui::TextUnformatted(imguiOverlayFileSourceName(displayedSource));
+							if (ImGui::IsItemHovered()) {
+								ImGui::SetTooltip("Configured: %s\nLoaded: %s",
+									imguiOverlayFileSourceName(slotInfo.configuredSource),
+									imguiOverlayFileSourceName(slotInfo.source));
+							}
+							ImGui::TableSetColumnIndex(3);
+							ImGui::Text("%u", slotInfo.size);
+						}
+
+						ImGui::EndTable();
+					}
+				}
+				ImGui::EndChild();
 			}
 
 			ImGui::Separator();

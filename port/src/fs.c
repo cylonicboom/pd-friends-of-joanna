@@ -302,6 +302,16 @@ const char *fsGetModDir(void)
 	return NULL;
 }
 
+const char *fsGetBaseDir(void)
+{
+	return baseDir;
+}
+
+const char *fsGetSaveDir(void)
+{
+	return saveDir;
+}
+
 s32 fsFileLoadTo(const char *name, void *dst, u32 dstSize)
 {
 	const char *fullName = fsFullPath(name);

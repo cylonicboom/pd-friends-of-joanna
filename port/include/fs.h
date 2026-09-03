@@ -6,6 +6,10 @@
 
 #define FS_MAXPATH 1024
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 s32 fsInit(void);
 
 const char *fsFullPath(const char *relPath);
@@ -22,9 +26,15 @@ FILE *fsFileOpenRead(const char *name);
 void fsFileFree(FILE *f);
 
 const char *fsGetModDir(void);
+const char *fsGetBaseDir(void);
+const char *fsGetSaveDir(void);
 s32 fsCreateDir(const char *path);
 
 extern char modDirs[64][FS_MAXPATH + 1];
 extern u32 g_NumModDirs;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

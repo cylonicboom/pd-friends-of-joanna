@@ -3,6 +3,17 @@
 
 #include <PR/ultratypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct romdatafileslotinfo {
+	const char *name;
+	u32 size;
+	s32 source;
+	s32 configuredSource;
+};
+
 extern u8 *g_RomFile;
 extern u32 g_RomFileSize;
 
@@ -21,6 +32,8 @@ s32 romdataFileGetNumForName(const char *name);
 s32 romdataFileGetNumForNameAnyMod(const char *name);
 s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum);
 const char *romdataFileGetSlotName(s32 modNum, s32 fileNum);
+s32 romdataGetFileSlotCount(s32 modNum);
+s32 romdataGetFileSlotInfo(s32 modNum, s32 fileNum, struct romdatafileslotinfo *outInfo);
 
 u8 *romdataSegGetData(const char *segName);
 u8 *romdataSegGetDataEnd(const char *segName);
@@ -34,5 +47,8 @@ void romdataResetMod(s32 modNum);
 const u8 romDataFileNumExists(s32 modNum, s32 fileNum);
 u8 romsourceIsMounted(const char *id);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

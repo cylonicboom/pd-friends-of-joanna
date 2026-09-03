@@ -1686,6 +1686,35 @@ const char *romdataFileGetSlotName(s32 modNum, s32 fileNum)
 	return fileSlots[modNum][fileNum].name;
 }
 
+s32 romdataGetFileSlotCount(s32 modNum)
+{
+	if (modNum < 0 || modNum >= (s32)MOD_TEX_MAP_MAX_MODS) return 0;
+
+	s32 count = 0;
+	for (s32 fileNum = 1; fileNum < ROMDATA_MAX_FILES; ++fileNum) {
+		if (fileSlots[modNum][fileNum].name) {
+			count++;
+		}
+	}
+	return count;
+}
+
+s32 romdataGetFileSlotInfo(s32 modNum, s32 fileNum, struct romdatafileslotinfo *outInfo)
+{
+	if (!outInfo || modNum < 0 || modNum >= (s32)MOD_TEX_MAP_MAX_MODS
+			|| fileNum < 1 || fileNum >= ROMDATA_MAX_FILES
+			|| !fileSlots[modNum][fileNum].name) {
+		return 0;
+	}
+
+	outInfo->name = fileSlots[modNum][fileNum].name;
+	outInfo->size = fileSlots[modNum][fileNum].size;
+	outInfo->source = fileSlots[modNum][fileNum].source;
+	outInfo->configuredSource = g_FileAltSource[modNum][fileNum].romIdx != 0xff
+		? SRC_ALT_ROM : SRC_ROM;
+	return 1;
+}
+
 s32 romdataFileGetNumForName(const char *name)
 {
 	if (!name || !name[0]) {
