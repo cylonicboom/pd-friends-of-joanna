@@ -17,6 +17,13 @@
 
 extern uintptr_t gfxFramebuffer;
 
+struct GfxTextureDebugInfo {
+    uint8_t type;
+    uint16_t id;
+    uint32_t texnum;
+    uint32_t texture_id;
+};
+
 struct GfxRenderingAPI;
 struct GfxWindowManagerAPI;
 
@@ -56,6 +63,9 @@ struct TextureCacheMapIter {
 extern "C" {
 
 #include "gfx_api.h"
+
+uint32_t gfx_get_debug_texture_count(void);
+bool gfx_get_debug_texture(uint32_t index, struct GfxTextureDebugInfo *info);
 
 }
 

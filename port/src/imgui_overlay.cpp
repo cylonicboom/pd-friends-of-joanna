@@ -54,6 +54,8 @@ static s32 g_ImGuiOverlayTexturePreviewTexId = -1;
 static u32 g_ImGuiOverlayTexturePreviewWidth = 0;
 static u32 g_ImGuiOverlayTexturePreviewHeight = 0;
 static s32 g_ImGuiOverlayTexturePreviewZoom = 4;
+static s32 g_ImGuiOverlayRenderedTextureZoom = 4;
+static bool g_ImGuiOverlayRenderedTextureFlipY = true;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1583,6 +1585,76 @@ static void imguiOverlayDrawTexturePreview(s32 modelFileNum, u16 localTexId, boo
 	ImGui::EndChild();
 }
 
+static bool imguiOverlayFindRenderedTexture(s32 modelFileNum, u16 localTexId, u16 portTexId,
+		struct GfxTextureDebugInfo *result)
+{
+	s32 bestScore = -1;
+	const u32 count = gfx_get_debug_texture_count();
+
+	for (u32 index = 0; index < count; ++index) {
+		struct GfxTextureDebugInfo info;
+		if (!gfx_get_debug_texture(index, &info)
+				|| (info.texnum != localTexId && info.texnum != portTexId)) {
+			continue;
+		}
+
+		s32 score = info.texnum == localTexId ? 2 : 1;
+		if (info.id == modelFileNum) {
+			score += 4;
+		} else if (info.id != 0) {
+			continue;
+		}
+
+		if (score > bestScore) {
+			bestScore = score;
+			*result = info;
+		}
+	}
+
+	return bestScore >= 0;
+}
+
+static void imguiOverlayDrawRenderedTexturePreview(s32 modelFileNum, u16 localTexId, u16 portTexId)
+{
+	struct GfxTextureDebugInfo info;
+	ImGui::SeparatorText("Engine Rendered Preview");
+	if (!imguiOverlayFindRenderedTexture(modelFileNum, localTexId, portTexId, &info)) {
+		ImGui::TextDisabled("Not used by the renderer this frame. Keep the model visible and probe again.");
+		return;
+	}
+
+	GLint previousBinding = 0;
+	GLint width = 0;
+	GLint height = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousBinding);
+	glBindTexture(GL_TEXTURE_2D, info.texture_id);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+	glBindTexture(GL_TEXTURE_2D, previousBinding);
+
+	if (width <= 0 || height <= 0) {
+		ImGui::TextDisabled("Renderer cache entry has no uploaded image.");
+		return;
+	}
+
+	ImGui::Text("type %u, model 0x%04x, tex 0x%04x, GL %u, %dx%d",
+		info.type, info.id, info.texnum, info.texture_id, width, height);
+	ImGui::SetNextItemWidth(140.0f);
+	ImGui::SliderInt("Rendered zoom", &g_ImGuiOverlayRenderedTextureZoom, 1, 16, "%dx");
+	ImGui::SameLine();
+	ImGui::Checkbox("Flip Y", &g_ImGuiOverlayRenderedTextureFlipY);
+
+	const ImVec2 imageSize((float)width * g_ImGuiOverlayRenderedTextureZoom,
+		(float)height * g_ImGuiOverlayRenderedTextureZoom);
+	if (ImGui::BeginChild("Rendered texture preview", ImVec2(0.0f, ImMin(imageSize.y + 12.0f, 520.0f)),
+			ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar)) {
+		const ImVec2 uv0 = g_ImGuiOverlayRenderedTextureFlipY ? ImVec2(0.0f, 1.0f) : ImVec2(0.0f, 0.0f);
+		const ImVec2 uv1 = g_ImGuiOverlayRenderedTextureFlipY ? ImVec2(1.0f, 0.0f) : ImVec2(1.0f, 1.0f);
+		ImGui::Image(ImTextureRef((ImTextureID)info.texture_id), imageSize, uv0, uv1);
+	}
+	ImGui::EndChild();
+}
+
 static void imguiOverlayDrawTexturesPanel(void)
 {
 	const s32 currentTextureMod = g_TexModNum;
@@ -1668,6 +1740,9 @@ static void imguiOverlayDrawTexturesPanel(void)
 		ImGui::TextUnformatted("ext_tex model entry: enter texture ID");
 	}
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
+	if (modelFileNum > 0 && hasProbeId) {
+		imguiOverlayDrawRenderedTexturePreview(modelFileNum, localTexId, portTexId);
+	}
 
 	imguiOverlayDrawModelTextureFiles(textureMod, modelFileNum, textureDirName);
 

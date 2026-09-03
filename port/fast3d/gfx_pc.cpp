@@ -92,6 +92,19 @@ static struct {
     std::vector<uint32_t> free_texture_ids;
 } gfx_texture_cache;
 
+static std::vector<GfxTextureDebugInfo> gfx_debug_textures;
+
+static void gfx_record_debug_texture(uint8_t type, uint16_t id, uint32_t texnum, uint32_t texture_id) {
+    for (GfxTextureDebugInfo& info : gfx_debug_textures) {
+        if (info.type == type && info.id == id && info.texnum == texnum) {
+            info.texture_id = texture_id;
+            return;
+        }
+    }
+
+    gfx_debug_textures.push_back({ type, id, texnum, texture_id });
+}
+
 struct ColorCombiner {
     uint64_t shader_id0;
     uint32_t shader_id1;
@@ -844,7 +857,10 @@ static void import_texture(int i, int tile, bool is_rect) {
 		key = { 0, {}, 0, 0, 0, loaded_texture.ext_key, loaded_texture.id_mask };
 	}
 
-    if (gfx_texture_cache_lookup(i, key)) {
+    const bool cache_hit = gfx_texture_cache_lookup(i, key);
+    gfx_record_debug_texture(loaded_texture.type, loaded_texture.id | loaded_texture.id_mask,
+        loaded_texture.texnum, rendering_state.textures[i]->second.texture_id);
+    if (cache_hit) {
         loaded_texture.id_mask = 0;
         return;
     }
@@ -1868,6 +1884,10 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
 	uint16_t id = tex_to_load.id;
 	uint16_t id_mask = tex_to_load.id_mask;
 	uint32_t texnum = tex_to_load.texnum;
+    loaded_texture.type = type;
+    loaded_texture.id = id;
+    loaded_texture.id_mask = id_mask;
+    loaded_texture.texnum = texnum;
 
 	// Log all non-NONE texture info for debugging
 	if (type != 0) {
@@ -2611,6 +2631,7 @@ extern "C" struct GfxRenderingAPI* gfx_get_current_rendering_api(void) {
 }
 
 extern "C" void gfx_start_frame(void) {
+    gfx_debug_textures.clear();
     gfx_wapi->handle_events();
     gfx_wapi->get_dimensions(&gfx_current_window_dimensions.width, &gfx_current_window_dimensions.height,
                              &gfx_current_window_position_x, &gfx_current_window_position_y);
@@ -2678,6 +2699,19 @@ extern "C" void gfx_start_frame(void) {
     // update aspect scale and offset
     gfx_update_aspect_mode();
 	imguiOverlayStartFrame();
+}
+
+extern "C" uint32_t gfx_get_debug_texture_count(void) {
+    return (uint32_t)gfx_debug_textures.size();
+}
+
+extern "C" bool gfx_get_debug_texture(uint32_t index, struct GfxTextureDebugInfo *info) {
+    if (!info || index >= gfx_debug_textures.size()) {
+        return false;
+    }
+
+    *info = gfx_debug_textures[index];
+    return true;
 }
 
 uint32_t num_dls = 0;
