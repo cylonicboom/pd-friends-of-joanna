@@ -168,6 +168,15 @@ bool extTexModelHasEntryForTexid(s16 fileNum, s32 texNum)
 	return false;
 }
 
+s32 extTexModelGetTextureCount(s16 fileNum)
+{
+	if (fileNum <= 0 || !modelTextures) return 0;
+	for (int i = 0; i < numModels; ++i) {
+		if (modelTextures[i].fileNum == fileNum) return modelTextures[i].numTextures;
+	}
+	return 0;
+}
+
 u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height)
 {
 	struct ExtTexture *tex = getExtTexture(type, id, texnum);

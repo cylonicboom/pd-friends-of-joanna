@@ -1051,6 +1051,47 @@ static bool imguiOverlayIsModelSlotName(const char *name)
 	return base[0] == 'C' || base[0] == 'P' || base[0] == 'G';
 }
 
+static const char *imguiOverlayModelTextureDirName(const char *modelName)
+{
+	if (!modelName) {
+		return NULL;
+	}
+
+	const char *nameStart = strstr(modelName, "::");
+	nameStart = nameStart ? nameStart + 2 : modelName;
+	if (strncmp(nameStart, "files/", 6) == 0) {
+		nameStart += 6;
+	}
+	return nameStart;
+}
+
+static s32 imguiOverlayCountModelTextureFiles(s32 modNum, const char *modelName)
+{
+	const char *textureDirName = imguiOverlayModelTextureDirName(modelName);
+	s32 count = 0;
+	char prefix[96];
+	s32 prefixLen;
+
+	if (!textureDirName || modNum < 0 || modNum >= (s32)g_NumModDirs) {
+		return 0;
+	}
+
+	snprintf(prefix, sizeof(prefix), "%s/", textureDirName);
+	prefixLen = strlen(prefix);
+
+	for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
+		struct romdatafileslotinfo slotInfo;
+		if (romdataGetFileSlotInfo(modNum, fileNum, &slotInfo)
+				&& slotInfo.name
+				&& strncmp(slotInfo.name, prefix, prefixLen) == 0
+				&& strstr(slotInfo.name + prefixLen, ".bin")) {
+			count++;
+		}
+	}
+
+	return count;
+}
+
 static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentModelFileNum)
 {
 	if (g_ImGuiOverlayTextureModelMod < 0 || g_ImGuiOverlayTextureModelMod >= (s32)g_NumModDirs) {
@@ -1085,10 +1126,12 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 	}
 
 	if (ImGui::BeginChild("Model slots", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) {
-		if (ImGui::BeginTable("Model slot table", 4,
+		if (ImGui::BeginTable("Model slot table", 6,
 				ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
 			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 62.0f);
 			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("tex files", ImGuiTableColumnFlags_WidthFixed, 68.0f);
+			ImGui::TableSetupColumn("ext_tex", ImGuiTableColumnFlags_WidthFixed, 60.0f);
 			ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 72.0f);
 			ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 70.0f);
 			ImGui::TableHeadersRow();
@@ -1103,6 +1146,8 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 
 				const bool selected = g_ImGuiOverlayTextureModelFileNum == fileNum;
 				const bool current = g_ImGuiOverlayTextureModelMod == currentModelMod && fileNum == currentModelFileNum;
+				const s32 textureFileCount = imguiOverlayCountModelTextureFiles(g_ImGuiOverlayTextureModelMod, slotInfo.name);
+				const s32 extTexCount = extTexModelGetTextureCount((s16)fileNum);
 				ImGui::PushID(fileNum);
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
@@ -1112,8 +1157,12 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 					g_ImGuiOverlayTextureModelFileNum = fileNum;
 				}
 				ImGui::TableSetColumnIndex(2);
-				ImGui::TextUnformatted(current ? "current" : selected ? "selected" : "");
+				ImGui::Text("%d", textureFileCount);
 				ImGui::TableSetColumnIndex(3);
+				ImGui::Text("%d", extTexCount);
+				ImGui::TableSetColumnIndex(4);
+				ImGui::TextUnformatted(current ? "current" : selected ? "selected" : "");
+				ImGui::TableSetColumnIndex(5);
 				if (ImGui::SmallButton("Select")) {
 					g_ImGuiOverlayTextureModelFileNum = fileNum;
 				}
@@ -1142,6 +1191,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 	if (textureMod >= 0 && modelFileNum > 0) {
 		modelName = romdataFileGetSlotName(textureMod, modelFileNum);
 	}
+	const char *textureDirName = imguiOverlayModelTextureDirName(modelName);
 
 	ImGui::SeparatorText("Current Texture Context");
 	ImGui::Text("Runtime texture mod: %d", currentTextureMod);
@@ -1149,6 +1199,8 @@ static void imguiOverlayDrawTexturesPanel(void)
 	ImGui::Text("Probe texture mod: %d", textureMod);
 	ImGui::Text("Probe model file: 0x%04x", modelFileNum);
 	ImGui::Text("Model name: %s", modelName ? modelName : "none");
+	ImGui::Text("Texture dir: %s", textureDirName ? textureDirName : "none");
+	ImGui::Text("Mod texMap entries: %d", modTexMapGetCount(textureMod));
 
 	imguiOverlayDrawTextureModelSearch(currentTextureMod, currentModelFileNum);
 
@@ -1165,23 +1217,36 @@ static void imguiOverlayDrawTexturesPanel(void)
 	const u16 localTexId = (u16)g_ImGuiOverlayTextureProbeId;
 	const u16 portTexId = textureMod >= 0 ? modTexMapLookup(textureMod, localTexId) : 0xffff;
 	const u16 reverseLocalTexId = textureMod >= 0 ? modTexMapReverseLookup(textureMod, localTexId) : 0xffff;
-	ImGui::Text("local -> port: %s", portTexId == 0xffff ? "unmapped" : "mapped");
-	if (portTexId != 0xffff) {
+	const bool hasProbeId = g_ImGuiOverlayTextureProbeId > 0;
+	const bool localMapped = hasProbeId && textureMod >= 0 && portTexId != localTexId;
+	const bool reverseMapped = hasProbeId && textureMod >= 0 && reverseLocalTexId != 0xffff;
+	ImGui::Text("local -> port: %s", !hasProbeId ? "enter texture ID" : localMapped ? "mapped" : "unmapped");
+	if (localMapped) {
 		ImGui::SameLine();
 		ImGui::Text("0x%04x", portTexId);
 	}
-	ImGui::Text("port -> local: %s", reverseLocalTexId == 0xffff ? "unmapped" : "mapped");
-	if (reverseLocalTexId != 0xffff) {
+	ImGui::Text("port -> local: %s", !hasProbeId ? "enter texture ID" : reverseMapped ? "mapped" : "unmapped");
+	if (reverseMapped) {
 		ImGui::SameLine();
 		ImGui::Text("0x%04x", reverseLocalTexId);
 	}
 
-	if (modelFileNum > 0) {
+	if (modelFileNum > 0 && hasProbeId) {
+		char textureFileName[128];
+		const s32 textureFileNum = textureDirName
+			? (snprintf(textureFileName, sizeof(textureFileName), "%s/%04x.bin", textureDirName, localTexId),
+				romdataFileGetNumForNameInMod(textureFileName, textureMod))
+			: -1;
 		const bool hasModelExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
 		const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 		u16 width = 0;
 		u16 height = 0;
 		const u8 hasDimensions = extTexGetDimensions(1, (u16)modelFileNum, localTexId, &width, &height);
+		ImGui::Text("model texture file: %s", textureFileNum > 0 ? "yes" : "no");
+		if (textureFileNum > 0) {
+			ImGui::SameLine();
+			ImGui::Text("file 0x%04x", textureFileNum);
+		}
 		ImGui::Text("ext_tex model entry: %s", hasModelExtTex ? "yes" : "no");
 		ImGui::Text("ext_tex owner mod: %d", owner);
 		if (hasDimensions) {
@@ -1189,6 +1254,9 @@ static void imguiOverlayDrawTexturesPanel(void)
 		} else {
 			ImGui::TextUnformatted("ext_tex dimensions: unavailable");
 		}
+	} else if (modelFileNum > 0) {
+		ImGui::TextUnformatted("model texture file: enter texture ID");
+		ImGui::TextUnformatted("ext_tex model entry: enter texture ID");
 	}
 
 	ImGui::SeparatorText("Authoring Checks");

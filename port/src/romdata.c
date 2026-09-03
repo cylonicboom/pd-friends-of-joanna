@@ -262,6 +262,12 @@ u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId)
 	return 0xffff;
 }
 
+s32 modTexMapGetCount(s32 modIdx)
+{
+	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0;
+	return (s32)g_ModTexMap[modIdx].count;
+}
+
 static void romSourcesInit(void)
 {
 	g_NumRomSources = 0;
