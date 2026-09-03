@@ -49,6 +49,7 @@ char *pakMenuTextPagesUsed(struct menuitem *item);
 char *pakMenuTextStatusMessage(struct menuitem *item);
 char *pakMenuTextEditingPakName(struct menuitem *item);
 bool filemgrConsiderPushingFileSelectDialog(void);
+s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum);
 void bootmenuReset(void);
 MenuItemHandlerResult filemgrChooseAgentListMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult pakGameNoteListMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data);

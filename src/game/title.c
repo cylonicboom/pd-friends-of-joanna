@@ -20,6 +20,7 @@
 #include "game/propobj.h"
 #include "game/savebuffer.h"
 #include "game/menu.h"
+#include "game/filemgr.h"
 #include "game/mplayer/mplayer.h"
 #include "game/filelist.h"
 #include "bss.h"
@@ -2778,6 +2779,10 @@ void titleInitProfileSelect(void) {
 		}
 	}
 	menuReset();
+	if (filemgrTryLoadDefaultProfile(FILETYPE_MPPLAYER, 0)) {
+		titleSetNextMode(TITLEMODE_RARELOGO);
+		return;
+	}
 	menuPushRootDialog(&g_FojoTitleProfileSelectMenu, MENUROOT_FILEMGR);
 }
 
