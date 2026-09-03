@@ -1128,12 +1128,12 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 	if (ImGui::BeginChild("Model texture files", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) {
 		if (ImGui::BeginTable("Model texture file table", 8,
 				ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
-			ImGui::TableSetupColumn("local", ImGuiTableColumnFlags_WidthFixed, 54.0f);
-			ImGui::TableSetupColumn("port", ImGuiTableColumnFlags_WidthFixed, 54.0f);
-			ImGui::TableSetupColumn("file", ImGuiTableColumnFlags_WidthFixed, 54.0f);
+			ImGui::TableSetupColumn("modelTexId", ImGuiTableColumnFlags_WidthFixed, 78.0f);
+			ImGui::TableSetupColumn("resolvedTexId", ImGuiTableColumnFlags_WidthFixed, 86.0f);
+			ImGui::TableSetupColumn("fileSlot", ImGuiTableColumnFlags_WidthFixed, 62.0f);
 			ImGui::TableSetupColumn("source", ImGuiTableColumnFlags_WidthFixed, 70.0f);
 			ImGui::TableSetupColumn("size", ImGuiTableColumnFlags_WidthFixed, 62.0f);
-			ImGui::TableSetupColumn("ext", ImGuiTableColumnFlags_WidthFixed, 42.0f);
+			ImGui::TableSetupColumn("png", ImGuiTableColumnFlags_WidthFixed, 42.0f);
 			ImGui::TableSetupColumn("dims", ImGuiTableColumnFlags_WidthFixed, 70.0f);
 			ImGui::TableSetupColumn("action", ImGuiTableColumnFlags_WidthFixed, 62.0f);
 			ImGui::TableHeadersRow();
@@ -1194,7 +1194,8 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 		}
 	}
 	ImGui::EndChild();
-	ImGui::TextDisabled("local = model GDL texture ID; port = texMap rewrite target; file = filetable slot for <ModelName>/<local>.bin");
+	ImGui::TextDisabled("modelTexId = model GDL texture ID; resolvedTexId = texMap rewrite target; fileSlot = filetable slot for <ModelName>/<modelTexId>.bin");
+	ImGui::TextDisabled("png/ext_tex rows are metadata only for now; PNG texture preview/loading is not implemented in this panel yet.");
 }
 
 static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentModelFileNum)
@@ -1370,6 +1371,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 	ImGui::BulletText("Use GDL runtime texture IDs for textureId, .bin names, and texMap keys.");
 	ImGui::BulletText("Do not use texconfig ptr_raw except when debugging ROM texture-bank layout.");
 	ImGui::BulletText("Prefer per-model texture paths: textures/<ModelName>/<localTexId>.bin.");
+	ImGui::BulletText("PNG/ext_tex metadata is visible, but PNG preview/loading support is still pending.");
 	ImGui::BulletText("Pixel alignment debugging should start with nearest-neighbor preview and GL_UNPACK_ALIGNMENT=1.");
 
 	ImGui::SeparatorText("Screenshot Alignment Plan");
