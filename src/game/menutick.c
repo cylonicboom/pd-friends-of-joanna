@@ -352,7 +352,7 @@ void menuTick(void)
 		g_PlayersWithControl[0] = false;
 
 		if (g_Vars.lvframenum > 30 && g_Vars.tickmode != TICKMODE_CUTSCENE) {
-			if (filemgrTryLoadDefaultProfile(FILETYPE_GAME, 0)) {
+			if (filemgrDefaultProfileLoaded(0)) {
 				g_FileState = FILESTATE_SELECTED;
 				return;
 			}

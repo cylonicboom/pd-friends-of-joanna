@@ -93,9 +93,10 @@ Note that the mouse only controls player 1.
 
 Controls can be rebound in `pd.ini`. Default control scheme is as follows:
 
-Set `Game.DefaultProfile` in `pd.ini` to a profile name such as `catherine` to
-auto-load matching boot player and reality files when present. If no matching
-file exists, the normal selection menus are shown.
+Set `Game.DefaultProfile` in `pd.ini` to an MP player profile name such as
+`catherine` to auto-load it at boot. When found, the boot profile and reality
+selection menus are skipped. If no matching profile exists, the normal selection
+menus are shown.
 
 | Action           | Keyboard and mouse     | Xbox pad                 | N64 pad                   |
 | -                | -                      | -                        | -                         |

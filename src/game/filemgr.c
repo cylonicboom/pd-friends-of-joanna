@@ -25,6 +25,7 @@
 
 #ifndef PLATFORM_N64
 static s32 g_FilemgrDefaultProfileAttempted[4][MAX_PLAYERS];
+static s32 g_FilemgrDefaultProfileLoaded[MAX_PLAYERS];
 
 static void filemgrTrimProfileName(char *name)
 {
@@ -39,15 +40,10 @@ static void filemgrTrimProfileName(char *name)
 static void filemgrGetDefaultProfileListName(struct filelistfile *file, u8 filetype, char *name, size_t size)
 {
 	u32 playtime;
-	u8 stage;
-	u8 difficulty;
 
 	name[0] = '\0';
 
 	switch (filetype) {
-	case FILETYPE_GAME:
-		gamefileGetOverview(file->name, name, &stage, &difficulty, &playtime);
-		break;
 	case FILETYPE_MPPLAYER:
 		mpplayerfileGetOverview(file->name, name, &playtime);
 		break;
@@ -65,7 +61,8 @@ s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
 	char name[32];
 	struct fileguid guid;
 
-	if (!g_DefaultProfile[0] || filetype >= ARRAYCOUNT(g_FilemgrDefaultProfileAttempted)
+	if (!g_DefaultProfile[0] || filetype != FILETYPE_MPPLAYER
+			|| filetype >= ARRAYCOUNT(g_FilemgrDefaultProfileAttempted)
 			|| playernum < 0 || playernum >= MAX_PLAYERS) {
 		return false;
 	}
@@ -84,11 +81,13 @@ s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
 	}
 
 	filelistCreate(0, filetype);
-	filelistsTick();
 
 	if (!g_FileLists[0]) {
 		return false;
 	}
+
+	filelistUpdate(g_FileLists[0]);
+	g_FileLists[0]->updatedthisframe = true;
 
 	for (s32 i = 0; i < g_FileLists[0]->numfiles; ++i) {
 		struct filelistfile *file = &g_FileLists[0]->files[i];
@@ -98,23 +97,13 @@ s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
 			guid.fileid = file->fileid;
 			guid.deviceserial = file->deviceserial;
 
-			if (filetype == FILETYPE_GAME) {
-				g_GameFileGuid = guid;
-				if (!filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_LOAD_GAME, 0)) {
-					return false;
-				}
-				mpsetupCopyAllFromPak();
-				mpsetupLoadCurrentFile();
-			} else if (filetype == FILETYPE_MPPLAYER) {
-				if (!filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum)) {
-					return false;
-				}
-				iniProcessPendingProfiles();
-				iniRegisterPlayerSave(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
-				updatePlayerNames();
-			} else {
+			if (!filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum)) {
 				return false;
 			}
+			iniProcessPendingProfiles();
+			iniRegisterPlayerSave(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
+			updatePlayerNames();
+			g_FilemgrDefaultProfileLoaded[playernum] = true;
 
 			fileListFreeAll();
 			return true;
@@ -125,8 +114,18 @@ s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
 			wanted, filetype);
 	return false;
 }
+
+s32 filemgrDefaultProfileLoaded(s32 playernum)
+{
+	return playernum >= 0 && playernum < MAX_PLAYERS && g_FilemgrDefaultProfileLoaded[playernum];
+}
 #else
 s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
+{
+	return false;
+}
+
+s32 filemgrDefaultProfileLoaded(s32 playernum)
 {
 	return false;
 }
