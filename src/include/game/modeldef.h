@@ -29,8 +29,20 @@ struct modeldefTextureUsage {
 	s16 maxT;
 };
 
+struct modeldefTextureTriangle {
+	u32 nodeoffset;
+	u32 commandindex;
+	u16 textureid;
+	u8 listtype;
+	u8 vertexindex[3];
+	s16 s[3];
+	s16 t[3];
+};
+
 s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
-		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches);
+		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
+		struct modeldefTextureTriangle *triangles, s32 maxtriangles,
+		s32 *capturedtriangles, s32 *totaltriangles);
 #endif
 
 #ifdef __cplusplus

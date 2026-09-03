@@ -90,9 +90,14 @@ static bool g_ImGuiOverlayEngineProbeHasLodData = false;
 static struct modeldefTextureUsage g_ImGuiOverlayTextureUsage[64];
 static s32 g_ImGuiOverlayTextureUsageCount = 0;
 static s32 g_ImGuiOverlayTextureUsageTotal = 0;
+static struct modeldefTextureTriangle g_ImGuiOverlayTextureTriangles[512];
+static s32 g_ImGuiOverlayTextureTriangleCount = 0;
+static s32 g_ImGuiOverlayTextureTriangleTotal = 0;
 static s32 g_ImGuiOverlayTextureUsageModelFileNum = -1;
 static s32 g_ImGuiOverlayTextureUsageLocalId = -1;
 static s32 g_ImGuiOverlayTextureUsagePortId = -1;
+static bool g_ImGuiOverlayShowTextureUvOverlay = true;
+static bool g_ImGuiOverlayWrapTextureUvs = true;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1806,6 +1811,49 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 	return tex != NULL;
 }
 
+static float imguiOverlayWrapTextureCoord(float value, float size)
+{
+	if (size <= 0.0f) return 0.0f;
+	value = fmodf(value, size);
+	return value < 0.0f ? value + size : value;
+}
+
+static void imguiOverlayDrawTextureUvOverlay(const ImVec2 &imageMin, const ImVec2 &imageSize,
+		s32 modelFileNum, u16 localTexId, u16 portTexId, s32 width, s32 height)
+{
+	if (!g_ImGuiOverlayShowTextureUvOverlay
+			|| g_ImGuiOverlayTextureUsageModelFileNum != modelFileNum
+			|| g_ImGuiOverlayTextureUsageLocalId != localTexId
+			|| g_ImGuiOverlayTextureUsagePortId != portTexId
+			|| width <= 0 || height <= 0) {
+		return;
+	}
+
+	ImDrawList *drawList = ImGui::GetWindowDrawList();
+	drawList->PushClipRect(imageMin, ImVec2(imageMin.x + imageSize.x, imageMin.y + imageSize.y), true);
+	for (s32 triangleIndex = 0; triangleIndex < g_ImGuiOverlayTextureTriangleCount; ++triangleIndex) {
+		const struct modeldefTextureTriangle *triangle = &g_ImGuiOverlayTextureTriangles[triangleIndex];
+		ImVec2 points[3];
+		for (s32 vertex = 0; vertex < 3; ++vertex) {
+			float s = triangle->s[vertex] / 32.0f;
+			float t = triangle->t[vertex] / 32.0f;
+			if (g_ImGuiOverlayWrapTextureUvs) {
+				s = imguiOverlayWrapTextureCoord(s, width);
+				t = imguiOverlayWrapTextureCoord(t, height);
+			}
+			if (!g_ImGuiOverlayRenderedTextureFlipY) {
+				t = height - t;
+			}
+			points[vertex].x = imageMin.x + s / width * imageSize.x;
+			points[vertex].y = imageMin.y + t / height * imageSize.y;
+		}
+		const ImU32 colour = triangle->listtype == 1
+			? IM_COL32(80, 210, 255, 230) : IM_COL32(255, 210, 40, 230);
+		drawList->AddPolyline(points, 3, colour, ImDrawFlags_Closed, 1.5f);
+	}
+	drawList->PopClipRect();
+}
+
 static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFileNum,
 		u16 localTexId, u16 portTexId, s32 textureFileNum)
 {
@@ -1885,6 +1933,12 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	if (ImGui::Checkbox("Flip Y", &g_ImGuiOverlayRenderedTextureFlipY)) {
 		g_ImGuiOverlayTextureCompareValid = false;
 	}
+	ImGui::Checkbox("UV overlay", &g_ImGuiOverlayShowTextureUvOverlay);
+	ImGui::SameLine();
+	ImGui::Checkbox("Wrap UVs", &g_ImGuiOverlayWrapTextureUvs);
+	if (g_ImGuiOverlayShowTextureUvOverlay && g_ImGuiOverlayTextureTriangleCount > 0) {
+		ImGui::TextDisabled("UV overlay: opaque yellow, translucent cyan; wrapping normalizes each vertex.");
+	}
 
 	const ImVec2 imageSize((float)width * g_ImGuiOverlayRenderedTextureZoom,
 		(float)height * g_ImGuiOverlayRenderedTextureZoom);
@@ -1893,6 +1947,8 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 		const ImVec2 uv0 = g_ImGuiOverlayRenderedTextureFlipY ? ImVec2(0.0f, 1.0f) : ImVec2(0.0f, 0.0f);
 		const ImVec2 uv1 = g_ImGuiOverlayRenderedTextureFlipY ? ImVec2(1.0f, 0.0f) : ImVec2(1.0f, 1.0f);
 		ImGui::Image(ImTextureRef((ImTextureID)info.texture_id), imageSize, uv0, uv1);
+		imguiOverlayDrawTextureUvOverlay(ImGui::GetItemRectMin(), imageSize,
+			modelFileNum, localTexId, portTexId, width, height);
 		if (ImGui::IsItemHovered() && !g_ImGuiOverlayRenderedTexturePixels.empty()) {
 			const ImVec2 imageMin = ImGui::GetItemRectMin();
 			const ImVec2 mousePos = ImGui::GetIO().MousePos;
@@ -1935,7 +1991,9 @@ static void imguiOverlayDrawTextureUsage(s32 textureMod, s32 modelFileNum, u16 l
 		const s32 encodedFileNum = modelFileNum | (textureMod << 16);
 		g_ImGuiOverlayTextureUsageCount = modeldefInspectTextureUsage(encodedFileNum,
 			localTexId, portTexId, g_ImGuiOverlayTextureUsage,
-			ARRAYCOUNT(g_ImGuiOverlayTextureUsage), &g_ImGuiOverlayTextureUsageTotal);
+			ARRAYCOUNT(g_ImGuiOverlayTextureUsage), &g_ImGuiOverlayTextureUsageTotal,
+			g_ImGuiOverlayTextureTriangles, ARRAYCOUNT(g_ImGuiOverlayTextureTriangles),
+			&g_ImGuiOverlayTextureTriangleCount, &g_ImGuiOverlayTextureTriangleTotal);
 		g_ImGuiOverlayTextureUsageModelFileNum = modelFileNum;
 		g_ImGuiOverlayTextureUsageLocalId = localTexId;
 		g_ImGuiOverlayTextureUsagePortId = portTexId;
@@ -1948,8 +2006,9 @@ static void imguiOverlayDrawTextureUsage(s32 textureMod, s32 modelFileNum, u16 l
 		return;
 	}
 
-	ImGui::Text("References: %d total, %d shown", g_ImGuiOverlayTextureUsageTotal,
-		g_ImGuiOverlayTextureUsageCount);
+	ImGui::Text("References: %d total, %d shown; triangles: %d total, %d shown",
+		g_ImGuiOverlayTextureUsageTotal, g_ImGuiOverlayTextureUsageCount,
+		g_ImGuiOverlayTextureTriangleTotal, g_ImGuiOverlayTextureTriangleCount);
 	ImGui::TextDisabled("UV bounds cover all vertices owned by the matching node; raw S/T use 5 fractional bits.");
 	if (g_ImGuiOverlayTextureUsageCount <= 0) {
 		return;

@@ -353,11 +353,43 @@ static void modeldefGetNodeUvEnvelope(struct modeldef *modeldef, s32 loadedSize,
 	}
 }
 
+static bool modeldefRecordTextureTriangle(struct modeldef *modeldef, s32 loadedSize,
+		struct modelnode *node, u8 listType, u32 commandIndex, u16 textureId,
+		Vtx **vertexSlots, u8 v0, u8 v1, u8 v2,
+		struct modeldefTextureTriangle *triangles, s32 maxtriangles, s32 *written)
+{
+	const u8 indexes[3] = {v0, v1, v2};
+	if (!triangles || *written >= maxtriangles) return false;
+	for (s32 i = 0; i < 3; ++i) {
+		if (indexes[i] >= 16 || !vertexSlots[indexes[i]]
+				|| (uintptr_t)vertexSlots[indexes[i]] < (uintptr_t)modeldef
+				|| (uintptr_t)vertexSlots[indexes[i]] + sizeof(Vtx) > (uintptr_t)modeldef + loadedSize) {
+			return false;
+		}
+	}
+
+	struct modeldefTextureTriangle *triangle = &triangles[(*written)++];
+	triangle->nodeoffset = (u32)((uintptr_t)node - (uintptr_t)modeldef);
+	triangle->commandindex = commandIndex;
+	triangle->textureid = textureId;
+	triangle->listtype = listType;
+	for (s32 i = 0; i < 3; ++i) {
+		triangle->vertexindex[i] = indexes[i];
+		triangle->s[i] = vertexSlots[indexes[i]]->s;
+		triangle->t[i] = vertexSlots[indexes[i]]->t;
+	}
+	return true;
+}
+
 s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
-		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches)
+		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
+		struct modeldefTextureTriangle *triangles, s32 maxtriangles,
+		s32 *capturedtriangles, s32 *totaltriangles)
 {
 	const u32 allocationSize = fileGetAllocationSize(fileid);
 	if (totalmatches) *totalmatches = 0;
+	if (capturedtriangles) *capturedtriangles = 0;
+	if (totaltriangles) *totaltriangles = 0;
 	if (allocationSize == 0 || allocationSize > 16 * 1024 * 1024
 			|| !entries || maxentries <= 0) return 0;
 
@@ -383,6 +415,8 @@ s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 	Gfx *gdl = NULL;
 	s32 written = 0;
 	s32 total = 0;
+	s32 trianglesWritten = 0;
+	s32 trianglesTotal = 0;
 	modelIterateDisplayLists(modeldef, &node, &gdl);
 
 	while (node && gdl) {
@@ -401,6 +435,9 @@ s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 		const s32 commandCount = bytes >> 3;
 #endif
 		Gfx *commands = (Gfx *)((uintptr_t)modeldef + currentOffset);
+		Vtx *vertexSlots[16] = {0};
+		bool selectedTextureActive = false;
+		u16 activeTextureId = 0;
 		u8 listType = 2;
 		if ((currentNode->type & 0xff) == MODELNODETYPE_DL) {
 			listType = currentGdl == currentNode->rodata->dl.opagdl ? 0 : 1;
@@ -409,30 +446,65 @@ s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 		}
 
 		for (s32 commandIndex = 0; commandIndex < commandCount; ++commandIndex) {
-			if (commands[commandIndex].texture.cmd != G_NOOP) continue;
-			const u16 ids[2] = {
-				(u16)(commands[commandIndex].words.w1 & 0xfff),
-				(u16)((commands[commandIndex].words.w1 >> 12) & 0xfff),
-			};
-			const s32 slotCount = commands[commandIndex].unkc0.subcmd == 1 ? 2 : 1;
-			for (s32 slot = 0; slot < slotCount; ++slot) {
-				if (ids[slot] != textureid1 && ids[slot] != textureid2) continue;
-				if (written < maxentries) {
-					struct modeldefTextureUsage *entry = &entries[written++];
-					entry->nodeoffset = (u32)((uintptr_t)currentNode - (uintptr_t)modeldef);
-					entry->nodetype = currentNode->type;
-					entry->listtype = listType;
-					entry->textureslot = slot;
-					entry->commandindex = commandIndex;
-					entry->textureid = ids[slot];
-					modeldefGetNodeUvEnvelope(modeldef, loadedSize, currentNode, entry);
+			Gfx *command = &commands[commandIndex];
+			const u8 opcode = command->words.w0 >> 24;
+			if (opcode == G_NOOP) {
+				const u16 ids[2] = {
+					(u16)(command->words.w1 & 0xfff),
+					(u16)((command->words.w1 >> 12) & 0xfff),
+				};
+				const s32 slotCount = command->unkc0.subcmd == 1 ? 2 : 1;
+				selectedTextureActive = false;
+				for (s32 slot = 0; slot < slotCount; ++slot) {
+					if (ids[slot] != textureid1 && ids[slot] != textureid2) continue;
+					selectedTextureActive = true;
+					activeTextureId = ids[slot];
+					if (written < maxentries) {
+						struct modeldefTextureUsage *entry = &entries[written++];
+						entry->nodeoffset = (u32)((uintptr_t)currentNode - (uintptr_t)modeldef);
+						entry->nodetype = currentNode->type;
+						entry->listtype = listType;
+						entry->textureslot = slot;
+						entry->commandindex = commandIndex;
+						entry->textureid = ids[slot];
+						modeldefGetNodeUvEnvelope(modeldef, loadedSize, currentNode, entry);
+					}
+					++total;
 				}
-				++total;
+			} else if (opcode == G_VTX) {
+				const u32 vertexOffset = command->words.w1 & 0xffffff;
+				const u32 vertexCount = (command->words.w0 & 0xffff) / sizeof(Vtx);
+				const u32 firstSlot = (command->words.w0 >> 16) & 0xf;
+				for (u32 i = 0; i < vertexCount && firstSlot + i < 16; ++i) {
+					vertexSlots[firstSlot + i] = vertexOffset + (i + 1) * sizeof(Vtx) <= (u32)loadedSize
+						? (Vtx *)((uintptr_t)modeldef + vertexOffset + i * sizeof(Vtx)) : NULL;
+				}
+			} else if (selectedTextureActive && opcode == G_TRI1) {
+				const u8 v0 = ((command->words.w1 >> 16) & 0xff) / 10;
+				const u8 v1 = ((command->words.w1 >> 8) & 0xff) / 10;
+				const u8 v2 = (command->words.w1 & 0xff) / 10;
+				++trianglesTotal;
+				modeldefRecordTextureTriangle(modeldef, loadedSize, currentNode, listType,
+					commandIndex, activeTextureId, vertexSlots, v0, v1, v2,
+					triangles, maxtriangles, &trianglesWritten);
+			} else if (selectedTextureActive && opcode == G_TRI4) {
+				for (s32 tri = 0; tri < 4; ++tri) {
+					const u8 v0 = (command->words.w1 >> (tri * 8)) & 0xf;
+					const u8 v1 = (command->words.w1 >> (tri * 8 + 4)) & 0xf;
+					const u8 v2 = (command->words.w0 >> (tri * 4)) & 0xf;
+					if (v0 == 0 && v1 == 0 && v2 == 0) continue;
+					++trianglesTotal;
+					modeldefRecordTextureTriangle(modeldef, loadedSize, currentNode, listType,
+						commandIndex, activeTextureId, vertexSlots, v0, v1, v2,
+						triangles, maxtriangles, &trianglesWritten);
+				}
 			}
 		}
 	}
 
 	if (totalmatches) *totalmatches = total;
+	if (capturedtriangles) *capturedtriangles = trianglesWritten;
+	if (totaltriangles) *totaltriangles = trianglesTotal;
 	sysMemFree(buffer);
 	return written;
 }
