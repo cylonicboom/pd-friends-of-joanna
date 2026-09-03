@@ -69,6 +69,7 @@ static u32 g_ImGuiOverlayReferencePixelsWidth = 0;
 static u32 g_ImGuiOverlayReferencePixelsHeight = 0;
 static s32 g_ImGuiOverlayReferenceModelFileNum = -1;
 static s32 g_ImGuiOverlayReferenceTexId = -1;
+static char g_ImGuiOverlayReferenceModelName[128];
 static u64 g_ImGuiOverlayNativeCompareDifferentPixels = 0;
 static u64 g_ImGuiOverlayNativeCompareChannelDelta = 0;
 static u32 g_ImGuiOverlayNativeCompareMaxDelta = 0;
@@ -1801,14 +1802,17 @@ static bool imguiOverlayCaptureRenderedPixels(const struct GfxTextureDebugInfo *
 	return true;
 }
 
-static void imguiOverlayPinRenderedReference(const struct GfxTextureDebugInfo *info, s32 width, s32 height)
+static void imguiOverlayPinRenderedReference(const struct GfxTextureDebugInfo *info,
+		s32 modelFileNum, u16 textureId, const char *modelName, s32 width, s32 height)
 {
 	if (!imguiOverlayCaptureRenderedPixels(info, width, height)) return;
 	g_ImGuiOverlayReferenceTexturePixels = g_ImGuiOverlayRenderedTexturePixels;
 	g_ImGuiOverlayReferencePixelsWidth = width;
 	g_ImGuiOverlayReferencePixelsHeight = height;
-	g_ImGuiOverlayReferenceModelFileNum = info->id;
-	g_ImGuiOverlayReferenceTexId = info->texnum;
+	g_ImGuiOverlayReferenceModelFileNum = modelFileNum;
+	g_ImGuiOverlayReferenceTexId = textureId;
+	snprintf(g_ImGuiOverlayReferenceModelName, sizeof(g_ImGuiOverlayReferenceModelName), "%s",
+		modelName ? modelName : "unknown model");
 	g_ImGuiOverlayNativeCompareValid = false;
 }
 
@@ -2233,29 +2237,57 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 
 	ImGui::Text("type %u, model 0x%04x, tex 0x%04x, GL %u, %dx%d",
 		info.type, info.id, info.texnum, info.texture_id, width, height);
-	if (ImGui::Button("Capture rendered pixels")) {
-		imguiOverlayCaptureRenderedPixels(&info, width, height);
+	const char *selectedModelName = romdataFileGetSlotName(textureMod, modelFileNum);
+	ImGui::SeparatorText("Compare Engine Output");
+	ImGui::TextDisabled("Raw RGBA A/B comparison; operands must have matching dimensions.");
+	if (g_ImGuiOverlayReferenceTexturePixels.empty()) {
+		ImGui::TextDisabled("Reference A: not set");
+	} else {
+		ImGui::Text("Reference A: %s | texture 0x%04x | %ux%u",
+			g_ImGuiOverlayReferenceModelName, g_ImGuiOverlayReferenceTexId,
+			g_ImGuiOverlayReferencePixelsWidth, g_ImGuiOverlayReferencePixelsHeight);
+	}
+	ImGui::Text("Current B: %s | local 0x%04x | engine 0x%04x | %dx%d",
+		selectedModelName ? selectedModelName : "unknown model", localTexId, info.texnum, width, height);
+	if (ImGui::Button("Set current as reference A")) {
+		imguiOverlayPinRenderedReference(&info, modelFileNum, localTexId, selectedModelName, width, height);
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Pin as reference")) {
-		imguiOverlayPinRenderedReference(&info, width, height);
+	ImGui::BeginDisabled(g_ImGuiOverlayReferenceTexturePixels.empty());
+	if (ImGui::Button("Compare A with current B")) {
+		imguiOverlayCaptureRenderedPixels(&info, width, height);
+		imguiOverlayCompareNativeTextures();
 	}
-	if (!g_ImGuiOverlayRenderedTexturePixels.empty()) {
-		ImGui::TextDisabled("snapshot captured");
-	}
+	ImGui::EndDisabled();
 	if (!g_ImGuiOverlayReferenceTexturePixels.empty()) {
-		ImGui::Text("Reference: model 0x%04x, tex 0x%04x, %ux%u",
-			g_ImGuiOverlayReferenceModelFileNum, g_ImGuiOverlayReferenceTexId,
-			g_ImGuiOverlayReferencePixelsWidth, g_ImGuiOverlayReferencePixelsHeight);
 		ImGui::SameLine();
-		if (ImGui::SmallButton("Clear reference")) {
+		if (ImGui::SmallButton("Clear A")) {
 			g_ImGuiOverlayReferenceTexturePixels.clear();
 			g_ImGuiOverlayReferencePixelsWidth = 0;
 			g_ImGuiOverlayReferencePixelsHeight = 0;
 			g_ImGuiOverlayReferenceModelFileNum = -1;
 			g_ImGuiOverlayReferenceTexId = -1;
+			g_ImGuiOverlayReferenceModelName[0] = '\0';
 			g_ImGuiOverlayNativeCompareValid = false;
 		}
+	}
+	if (!g_ImGuiOverlayReferenceTexturePixels.empty()
+			&& (g_ImGuiOverlayReferencePixelsWidth != (u32)width
+				|| g_ImGuiOverlayReferencePixelsHeight != (u32)height)) {
+		ImGui::Text("Cannot compare pixels: A is %ux%u, B is %dx%d",
+			g_ImGuiOverlayReferencePixelsWidth, g_ImGuiOverlayReferencePixelsHeight, width, height);
+	} else if (g_ImGuiOverlayNativeCompareValid) {
+		const u64 pixelCount = (u64)g_ImGuiOverlayRenderedPixelsWidth * g_ImGuiOverlayRenderedPixelsHeight;
+		const double meanDelta = pixelCount > 0
+			? (double)g_ImGuiOverlayNativeCompareChannelDelta / (double)(pixelCount * 4) : 0.0;
+		ImGui::Text("A/B result: %llu / %llu pixels differ (%.2f%%); mean delta %.3f, max %u",
+			(unsigned long long)g_ImGuiOverlayNativeCompareDifferentPixels,
+			(unsigned long long)pixelCount,
+			pixelCount > 0 ? 100.0 * g_ImGuiOverlayNativeCompareDifferentPixels / pixelCount : 0.0,
+			meanDelta, g_ImGuiOverlayNativeCompareMaxDelta);
+	}
+	if (ImGui::Button("Capture B pixels for hover inspection")) {
+		imguiOverlayCaptureRenderedPixels(&info, width, height);
 	}
 	ImGui::SetNextItemWidth(140.0f);
 	ImGui::SliderInt("Rendered zoom", &g_ImGuiOverlayRenderedTextureZoom, 1, 16, "%dx");
@@ -2300,32 +2332,9 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	}
 	ImGui::EndChild();
 
-	if (!g_ImGuiOverlayReferenceTexturePixels.empty()
-			&& !g_ImGuiOverlayRenderedTexturePixels.empty()) {
-		ImGui::SeparatorText("Native Texture Comparison");
-		if (ImGui::Button("Compare current to reference")) {
-			imguiOverlayCompareNativeTextures();
-		}
-		if (g_ImGuiOverlayReferencePixelsWidth != g_ImGuiOverlayRenderedPixelsWidth
-				|| g_ImGuiOverlayReferencePixelsHeight != g_ImGuiOverlayRenderedPixelsHeight) {
-			ImGui::Text("Dimension mismatch: reference %ux%u, current %ux%u",
-				g_ImGuiOverlayReferencePixelsWidth, g_ImGuiOverlayReferencePixelsHeight,
-				g_ImGuiOverlayRenderedPixelsWidth, g_ImGuiOverlayRenderedPixelsHeight);
-		} else if (g_ImGuiOverlayNativeCompareValid) {
-			const u64 pixelCount = (u64)g_ImGuiOverlayRenderedPixelsWidth * g_ImGuiOverlayRenderedPixelsHeight;
-			const double meanDelta = pixelCount > 0
-				? (double)g_ImGuiOverlayNativeCompareChannelDelta / (double)(pixelCount * 4) : 0.0;
-			ImGui::Text("Different pixels: %llu / %llu (%.2f%%)",
-				(unsigned long long)g_ImGuiOverlayNativeCompareDifferentPixels,
-				(unsigned long long)pixelCount,
-				pixelCount > 0 ? 100.0 * g_ImGuiOverlayNativeCompareDifferentPixels / pixelCount : 0.0);
-			ImGui::Text("Channel delta: mean %.3f, max %u",
-				meanDelta, g_ImGuiOverlayNativeCompareMaxDelta);
-		}
-	}
-
 	if (g_ImGuiOverlayTexturePreviewPixels && !g_ImGuiOverlayRenderedTexturePixels.empty()) {
-		if (ImGui::Button("Compare source and rendered")) {
+		ImGui::SeparatorText("PNG Pipeline Check");
+		if (ImGui::Button("Compare source PNG with engine output")) {
 			imguiOverlayCompareTexturePixels();
 		}
 		if (g_ImGuiOverlayTexturePreviewWidth != g_ImGuiOverlayRenderedPixelsWidth
