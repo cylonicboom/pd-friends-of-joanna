@@ -193,6 +193,42 @@ s32 extTexModelGetTextureInfo(s16 fileNum, s32 index, s32 *texNum, s8 *ownerMod,
 	return false;
 }
 
+const u8 *extTexModelLoadPixels(s16 fileNum, s32 texNum, u32 *width, u32 *height)
+{
+	struct ExtTexture *tex = lookupModelTex((u16)fileNum, texNum);
+	struct ModelTextures *modelTex = NULL;
+	char path[FS_MAXPATH + 1];
+
+	if (!tex) return NULL;
+
+	for (int i = 0; i < numModels; ++i) {
+		if (modelTextures[i].fileNum == fileNum) {
+			modelTex = &modelTextures[i];
+			break;
+		}
+	}
+
+	if (!modelTex) return NULL;
+
+	if (!tex->texdata) {
+		int loadedWidth = 0;
+		int loadedHeight = 0;
+		int channels = 0;
+		snprintf(path, sizeof(path), "%s/%s/%04x.%s",
+			modelTex->basePath, modelTex->modelName, texNum, tex->extension);
+		stbi_set_flip_vertically_on_load(1);
+		tex->texdata = stbi_load(path, &loadedWidth, &loadedHeight, &channels, 4);
+		stbi_set_flip_vertically_on_load(0);
+		if (!tex->texdata) return NULL;
+		tex->width = loadedWidth;
+		tex->height = loadedHeight;
+	}
+
+	if (width) *width = tex->width;
+	if (height) *height = tex->height;
+	return tex->texdata;
+}
+
 u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height)
 {
 	struct ExtTexture *tex = getExtTexture(type, id, texnum);

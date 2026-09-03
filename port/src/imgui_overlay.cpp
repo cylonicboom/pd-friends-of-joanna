@@ -47,6 +47,13 @@ static s32 g_ImGuiOverlayObjFilter = 0;
 static s32 g_ImGuiOverlayTextureProbeId = 0;
 static s32 g_ImGuiOverlayTextureModelMod = -1;
 static s32 g_ImGuiOverlayTextureModelFileNum = -1;
+static GLuint g_ImGuiOverlayTexturePreview = 0;
+static const u8 *g_ImGuiOverlayTexturePreviewPixels = NULL;
+static s32 g_ImGuiOverlayTexturePreviewModelFileNum = -1;
+static s32 g_ImGuiOverlayTexturePreviewTexId = -1;
+static u32 g_ImGuiOverlayTexturePreviewWidth = 0;
+static u32 g_ImGuiOverlayTexturePreviewHeight = 0;
+static s32 g_ImGuiOverlayTexturePreviewZoom = 4;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1479,6 +1486,103 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 	ImGui::EndChild();
 }
 
+static void imguiOverlayClearTexturePreview(void)
+{
+	if (g_ImGuiOverlayTexturePreview) {
+		glDeleteTextures(1, &g_ImGuiOverlayTexturePreview);
+		g_ImGuiOverlayTexturePreview = 0;
+	}
+
+	g_ImGuiOverlayTexturePreviewPixels = NULL;
+	g_ImGuiOverlayTexturePreviewModelFileNum = -1;
+	g_ImGuiOverlayTexturePreviewTexId = -1;
+	g_ImGuiOverlayTexturePreviewWidth = 0;
+	g_ImGuiOverlayTexturePreviewHeight = 0;
+}
+
+static bool imguiOverlayLoadTexturePreview(s32 modelFileNum, u16 localTexId)
+{
+	u32 width = 0;
+	u32 height = 0;
+	const u8 *pixels = extTexModelLoadPixels((s16)modelFileNum, localTexId, &width, &height);
+	if (!pixels || width == 0 || height == 0) {
+		return false;
+	}
+
+	imguiOverlayClearTexturePreview();
+	GLint previousBinding = 0;
+	GLint previousUnpackAlignment = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousBinding);
+	glGetIntegerv(GL_UNPACK_ALIGNMENT, &previousUnpackAlignment);
+	glGenTextures(1, &g_ImGuiOverlayTexturePreview);
+	glBindTexture(GL_TEXTURE_2D, g_ImGuiOverlayTexturePreview);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
+	glBindTexture(GL_TEXTURE_2D, previousBinding);
+
+	g_ImGuiOverlayTexturePreviewPixels = pixels;
+	g_ImGuiOverlayTexturePreviewModelFileNum = modelFileNum;
+	g_ImGuiOverlayTexturePreviewTexId = localTexId;
+	g_ImGuiOverlayTexturePreviewWidth = width;
+	g_ImGuiOverlayTexturePreviewHeight = height;
+	return true;
+}
+
+static void imguiOverlayDrawTexturePreview(s32 modelFileNum, u16 localTexId, bool hasModelExtTex)
+{
+	if (g_ImGuiOverlayTexturePreview
+			&& (g_ImGuiOverlayTexturePreviewModelFileNum != modelFileNum
+				|| g_ImGuiOverlayTexturePreviewTexId != localTexId)) {
+		imguiOverlayClearTexturePreview();
+	}
+
+	ImGui::SeparatorText("PNG Preview");
+	if (!hasModelExtTex) {
+		ImGui::TextDisabled("No model-scoped ext_tex image for this texture ID.");
+		return;
+	}
+
+	if (ImGui::Button(g_ImGuiOverlayTexturePreview ? "Reload PNG preview" : "Load PNG preview")) {
+		imguiOverlayLoadTexturePreview(modelFileNum, localTexId);
+	}
+
+	if (!g_ImGuiOverlayTexturePreview || !g_ImGuiOverlayTexturePreviewPixels) {
+		return;
+	}
+
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(140.0f);
+	ImGui::SliderInt("Zoom", &g_ImGuiOverlayTexturePreviewZoom, 1, 16, "%dx");
+	ImGui::Text("%ux%u RGBA8", g_ImGuiOverlayTexturePreviewWidth, g_ImGuiOverlayTexturePreviewHeight);
+
+	const ImVec2 imageSize(
+		(float)g_ImGuiOverlayTexturePreviewWidth * g_ImGuiOverlayTexturePreviewZoom,
+		(float)g_ImGuiOverlayTexturePreviewHeight * g_ImGuiOverlayTexturePreviewZoom);
+	if (ImGui::BeginChild("Texture preview", ImVec2(0.0f, ImMin(imageSize.y + 12.0f, 520.0f)),
+			ImGuiChildFlags_Borders, ImGuiWindowFlags_HorizontalScrollbar)) {
+		ImGui::Image(ImTextureRef((ImTextureID)g_ImGuiOverlayTexturePreview), imageSize,
+			ImVec2(0.0f, 1.0f), ImVec2(1.0f, 0.0f));
+		if (ImGui::IsItemHovered()) {
+			const ImVec2 imageMin = ImGui::GetItemRectMin();
+			const ImVec2 mousePos = ImGui::GetIO().MousePos;
+			const u32 x = ImMin((u32)((mousePos.x - imageMin.x) * g_ImGuiOverlayTexturePreviewWidth / imageSize.x),
+				g_ImGuiOverlayTexturePreviewWidth - 1);
+			const u32 y = ImMin((u32)((mousePos.y - imageMin.y) * g_ImGuiOverlayTexturePreviewHeight / imageSize.y),
+				g_ImGuiOverlayTexturePreviewHeight - 1);
+			const u32 storedY = g_ImGuiOverlayTexturePreviewHeight - 1 - y;
+			const u8 *pixel = &g_ImGuiOverlayTexturePreviewPixels[(storedY * g_ImGuiOverlayTexturePreviewWidth + x) * 4];
+			ImGui::SetTooltip("(%u, %u)\nRGBA %u, %u, %u, %u\n#%02X%02X%02X%02X",
+				x, y, pixel[0], pixel[1], pixel[2], pixel[3], pixel[0], pixel[1], pixel[2], pixel[3]);
+		}
+	}
+	ImGui::EndChild();
+}
+
 static void imguiOverlayDrawTexturesPanel(void)
 {
 	const s32 currentTextureMod = g_TexModNum;
@@ -1524,6 +1628,8 @@ static void imguiOverlayDrawTexturesPanel(void)
 	const bool hasProbeId = g_ImGuiOverlayTextureProbeId > 0;
 	const bool localMapped = hasProbeId && textureMod >= 0 && portTexId != localTexId;
 	const bool reverseMapped = hasProbeId && textureMod >= 0 && reverseLocalTexId != 0xffff;
+	const bool hasModelExtTex = modelFileNum > 0 && hasProbeId
+		&& extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
 	ImGui::Text("local -> port: %s", !hasProbeId ? "enter texture ID" : localMapped ? "mapped" : "unmapped");
 	if (localMapped) {
 		ImGui::SameLine();
@@ -1541,7 +1647,6 @@ static void imguiOverlayDrawTexturesPanel(void)
 			? (snprintf(textureFileName, sizeof(textureFileName), "%s/%04x.bin", textureDirName, localTexId),
 				romdataFileGetNumForNameInMod(textureFileName, textureMod))
 			: -1;
-		const bool hasModelExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
 		const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 		u16 width = 0;
 		u16 height = 0;
@@ -1562,6 +1667,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 		ImGui::TextUnformatted("model texture file: enter texture ID");
 		ImGui::TextUnformatted("ext_tex model entry: enter texture ID");
 	}
+	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
 
 	imguiOverlayDrawModelTextureFiles(textureMod, modelFileNum, textureDirName);
 
@@ -1569,11 +1675,10 @@ static void imguiOverlayDrawTexturesPanel(void)
 	ImGui::BulletText("Use GDL runtime texture IDs for textureId, .bin names, and texMap keys.");
 	ImGui::BulletText("Do not use texconfig ptr_raw except when debugging ROM texture-bank layout.");
 	ImGui::BulletText("Prefer per-model texture paths: textures/<ModelName>/<localTexId>.bin.");
-	ImGui::BulletText("PNG/ext_tex metadata is visible, but PNG preview/loading support is still pending.");
-	ImGui::BulletText("Pixel alignment debugging should start with nearest-neighbor preview and GL_UNPACK_ALIGNMENT=1.");
+	ImGui::BulletText("PNG previews use model-scoped ext_tex ownership, nearest-neighbor sampling, and GL_UNPACK_ALIGNMENT=1.");
 
 	ImGui::SeparatorText("Screenshot Alignment Plan");
-	ImGui::TextWrapped("Next steps: decode and preview the probed texture, show hover pixel coordinates/RGBA, then compare against screenshot crops with diagnostic X/Y offsets before changing decode or UV code.");
+	ImGui::TextWrapped("Next step: compare the PNG preview against screenshot crops with diagnostic X/Y offsets before changing decode or UV code.");
 }
 
 static void imguiOverlaySetVisible(bool visible)
@@ -1661,6 +1766,7 @@ void imguiOverlayShutdown(void)
 		return;
 	}
 
+	imguiOverlayClearTexturePreview();
 	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplSDL2_Shutdown();
