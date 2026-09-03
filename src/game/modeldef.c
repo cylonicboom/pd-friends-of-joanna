@@ -198,6 +198,12 @@ struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid)
 	return tex;
 }
 
+static u32 modeldefEditorTextureLodDecodedSize(struct tex *tex, s32 lod)
+{
+	const u32 tmemUnits = texGetSizeInBytes(tex, lod);
+	return tmemUnits * (tex->depth == G_IM_SIZ_32b ? 16 : 8);
+}
+
 bool modeldefEditorWorkspaceGetTextureInfo(s32 index, struct modeldefEditorTextureInfo *info)
 {
 	if (!info || !g_ModeldefEditorWorkspace.modeldef || index < 0) return false;
@@ -213,10 +219,37 @@ bool modeldefEditorWorkspaceGetTextureInfo(s32 index, struct modeldefEditorTextu
 	info->depth = tex->depth;
 	info->lutmode = tex->lutmodeindex;
 	info->palettecount = tex->lutmodeindex ? tex->numcolors + 1 : 0;
-	info->lodcount = tex->numlods;
+	info->lodcount = tex->numlods ? tex->numlods : 1;
 	info->hasloddata = tex->hasloddata;
-	info->decodedsize = texGetSizeInBytes(tex, 0);
+	info->decodedsize = modeldefEditorTextureLodDecodedSize(tex, 0);
 	return true;
+}
+
+s32 modeldefEditorWorkspaceGetTextureLods(u16 textureid,
+		struct modeldefEditorTextureLodInfo *entries, s32 maxentries)
+{
+	if (!entries || maxentries <= 0) return 0;
+	struct tex *tex = modeldefEditorWorkspaceFindTexture(textureid);
+	if (!tex) return 0;
+
+	const s32 lodCount = tex->numlods ? tex->numlods : 1;
+	const s32 count = lodCount < maxentries ? lodCount : maxentries;
+	u32 tmemOffset = 0;
+	u32 decodedOffset = 0;
+	for (s32 lod = 0; lod < count; ++lod) {
+		struct modeldefEditorTextureLodInfo *entry = &entries[lod];
+		entry->lod = lod;
+		entry->width = texGetWidthAtLod(tex, lod);
+		entry->height = texGetHeightAtLod(tex, lod);
+		entry->embedded = tex->hasloddata;
+		entry->tmemoffset = tmemOffset;
+		entry->tmemunits = texGetSizeInBytes(tex, lod);
+		entry->decodedoffset = decodedOffset;
+		entry->decodedsize = modeldefEditorTextureLodDecodedSize(tex, lod);
+		tmemOffset += entry->tmemunits;
+		decodedOffset += entry->decodedsize;
+	}
+	return count;
 }
 
 s32 modeldefEditorWorkspaceGetPalette(u16 textureid,

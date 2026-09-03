@@ -1876,8 +1876,10 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		g_ImGuiOverlayEngineProbeTexId = textureId;
 		g_ImGuiOverlayEngineProbeDecoded = true;
 		g_ImGuiOverlayEngineProbeCompressedSize = compressedSize;
+		struct modeldefEditorTextureInfo workspaceTextureInfo;
 		g_ImGuiOverlayEngineProbeDecodedSize = workspaceMatches
-			? texGetSizeInBytes(tex, 0) : g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
+			&& imguiOverlayGetWorkspaceTextureInfo(textureId, &workspaceTextureInfo)
+			? workspaceTextureInfo.decodedsize : g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
 		g_ImGuiOverlayEngineProbeHeader = header;
 		g_ImGuiOverlayEngineProbeNativeFormat = nativeFormat;
 		g_ImGuiOverlayEngineProbeHeaderAvailable = compressedData != NULL;
@@ -1887,7 +1889,7 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		g_ImGuiOverlayEngineProbeDepth = tex->depth;
 		g_ImGuiOverlayEngineProbeLutMode = tex->lutmodeindex;
 		g_ImGuiOverlayEngineProbePaletteCount = tex->lutmodeindex ? tex->numcolors + 1 : 0;
-		g_ImGuiOverlayEngineProbeLodCount = tex->numlods;
+		g_ImGuiOverlayEngineProbeLodCount = tex->numlods ? tex->numlods : 1;
 		g_ImGuiOverlayEngineProbeHasLodData = tex->hasloddata;
 		g_ImGuiOverlayEngineProbeMetadataValid = true;
 	}
@@ -1985,6 +1987,45 @@ static void imguiOverlayDrawWorkspacePalette(u16 textureId)
 			ImGui::TableSetColumnIndex(5);
 			if (entry->duplicateof >= 0) ImGui::Text("0x%02x", entry->duplicateof); else ImGui::TextDisabled("-");
 			ImGui::PopID();
+		}
+		ImGui::EndTable();
+	}
+}
+
+static void imguiOverlayDrawWorkspaceLods(u16 textureId)
+{
+	struct modeldefEditorTextureLodInfo lods[8];
+	const s32 count = modeldefEditorWorkspaceGetTextureLods(textureId, lods, ARRAYCOUNT(lods));
+	if (count <= 0) return;
+
+	ImGui::SeparatorText("Native LODs");
+	if (ImGui::BeginTable("Native texture LODs", 7,
+			ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter)) {
+		ImGui::TableSetupColumn("LOD", ImGuiTableColumnFlags_WidthFixed, 36.0f);
+		ImGui::TableSetupColumn("Dimensions", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+		ImGui::TableSetupColumn("Source", ImGuiTableColumnFlags_WidthFixed, 66.0f);
+		ImGui::TableSetupColumn("TMEM off", ImGuiTableColumnFlags_WidthFixed, 66.0f);
+		ImGui::TableSetupColumn("TMEM units", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+		ImGui::TableSetupColumn("Byte off", ImGuiTableColumnFlags_WidthFixed, 66.0f);
+		ImGui::TableSetupColumn("Bytes", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableHeadersRow();
+		for (s32 index = 0; index < count; ++index) {
+			const struct modeldefEditorTextureLodInfo *lod = &lods[index];
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("%u", lod->lod);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Text("%ux%u", lod->width, lod->height);
+			ImGui::TableSetColumnIndex(2);
+			ImGui::TextUnformatted(lod->embedded ? "embedded" : lod->lod == 0 ? "base" : "generated");
+			ImGui::TableSetColumnIndex(3);
+			ImGui::Text("%u", lod->tmemoffset);
+			ImGui::TableSetColumnIndex(4);
+			ImGui::Text("%u", lod->tmemunits);
+			ImGui::TableSetColumnIndex(5);
+			ImGui::Text("%u", lod->decodedoffset);
+			ImGui::TableSetColumnIndex(6);
+			ImGui::Text("%u", lod->decodedsize);
 		}
 		ImGui::EndTable();
 	}
@@ -2101,6 +2142,7 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 		} else {
 			ImGui::Text("Bytes: decoded pool payload %u", g_ImGuiOverlayEngineProbeDecodedSize);
 		}
+		imguiOverlayDrawWorkspaceLods(engineTexId);
 		imguiOverlayDrawWorkspacePalette(engineTexId);
 	}
 
