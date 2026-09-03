@@ -119,6 +119,83 @@ struct skeleton *g_Skeletons[] = {
 #ifndef PLATFORM_N64
 extern u16 modTexMapLookup(s32 modIdx, u16 localTexId);
 
+static struct {
+	s32 fileid;
+	u8 *modeldata;
+	u8 *texturedata;
+	u32 modelcapacity;
+	u32 texturecapacity;
+	struct texpool texturepool;
+	struct modeldef *modeldef;
+} g_ModeldefEditorWorkspace;
+
+void modeldefEditorWorkspaceUnload(void)
+{
+	if (g_ModeldefEditorWorkspace.modeldata) {
+		sysMemFree(g_ModeldefEditorWorkspace.modeldata);
+	}
+	if (g_ModeldefEditorWorkspace.texturedata) {
+		sysMemFree(g_ModeldefEditorWorkspace.texturedata);
+	}
+	memset(&g_ModeldefEditorWorkspace, 0, sizeof(g_ModeldefEditorWorkspace));
+	g_ModeldefEditorWorkspace.fileid = -1;
+}
+
+bool modeldefEditorWorkspaceLoad(s32 fileid, u32 texturecapacity)
+{
+	const u32 inflatedSize = fileGetInflatedSize(fileid, LOADTYPE_MODEL);
+	const u32 modelcapacity = ALIGN64(inflatedSize) + 0x8000;
+	if (inflatedSize == 0 || modelcapacity > 16 * 1024 * 1024
+			|| texturecapacity < 0x10000 || texturecapacity > 16 * 1024 * 1024) {
+		return false;
+	}
+
+	modeldefEditorWorkspaceUnload();
+	g_ModeldefEditorWorkspace.modeldata = sysMemAlloc(modelcapacity);
+	g_ModeldefEditorWorkspace.texturedata = sysMemAlloc(texturecapacity);
+	if (!g_ModeldefEditorWorkspace.modeldata || !g_ModeldefEditorWorkspace.texturedata) {
+		modeldefEditorWorkspaceUnload();
+		return false;
+	}
+
+	g_ModeldefEditorWorkspace.fileid = fileid;
+	g_ModeldefEditorWorkspace.modelcapacity = modelcapacity;
+	g_ModeldefEditorWorkspace.texturecapacity = texturecapacity;
+	texInitPool(&g_ModeldefEditorWorkspace.texturepool,
+		g_ModeldefEditorWorkspace.texturedata, texturecapacity);
+	g_ModeldefEditorWorkspace.modeldef = modeldefLoad(fileid,
+		g_ModeldefEditorWorkspace.modeldata, modelcapacity,
+		&g_ModeldefEditorWorkspace.texturepool);
+	if (!g_ModeldefEditorWorkspace.modeldef) {
+		modeldefEditorWorkspaceUnload();
+		return false;
+	}
+	return true;
+}
+
+bool modeldefEditorWorkspaceGetInfo(struct modeldefEditorWorkspaceInfo *info)
+{
+	if (!info || !g_ModeldefEditorWorkspace.modeldef) return false;
+	info->fileid = g_ModeldefEditorWorkspace.fileid;
+	info->modeldef = g_ModeldefEditorWorkspace.modeldef;
+	info->modelcapacity = g_ModeldefEditorWorkspace.modelcapacity;
+	info->modelloadedsize = fileGetLoadedSize(g_ModeldefEditorWorkspace.fileid);
+	info->texturecapacity = g_ModeldefEditorWorkspace.texturecapacity;
+	info->texturebytesused = g_ModeldefEditorWorkspace.texturepool.leftpos
+		- g_ModeldefEditorWorkspace.texturepool.start;
+	return true;
+}
+
+struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid)
+{
+	if (!g_ModeldefEditorWorkspace.modeldef) return NULL;
+	const s32 previousMod = g_TexModNum;
+	g_TexModNum = (g_ModeldefEditorWorkspace.fileid >> 16) & 0xff;
+	struct tex *tex = texFindInPool(textureid, &g_ModeldefEditorWorkspace.texturepool);
+	g_TexModNum = previousMod;
+	return tex;
+}
+
 // True if `portId` is a texture asset owned by `modIdx`: either a PNG
 // override registered under G_TEXTYPE_GENERAL (ext_tex/ path) or the mod's
 // own texmap maps some source ID to this port. Widened from the original

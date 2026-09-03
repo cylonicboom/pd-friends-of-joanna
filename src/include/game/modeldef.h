@@ -39,6 +39,20 @@ struct modeldefTextureTriangle {
 	s16 t[3];
 };
 
+struct modeldefEditorWorkspaceInfo {
+	s32 fileid;
+	struct modeldef *modeldef;
+	u32 modelcapacity;
+	u32 modelloadedsize;
+	u32 texturecapacity;
+	u32 texturebytesused;
+};
+
+bool modeldefEditorWorkspaceLoad(s32 fileid, u32 texturecapacity);
+void modeldefEditorWorkspaceUnload(void);
+bool modeldefEditorWorkspaceGetInfo(struct modeldefEditorWorkspaceInfo *info);
+struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid);
+
 s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
 		struct modeldefTextureTriangle *triangles, s32 maxtriangles,

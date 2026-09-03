@@ -125,6 +125,7 @@ extern "C" void texInitPool(struct texpool *pool, u8 *start, s32 len);
 extern "C" void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg);
 extern "C" struct tex *texFindInPool(s32 texturenum, struct texpool *pool);
 extern "C" Gfx *texBuildDebugLoadGdl(Gfx *gdl, struct tex *tex);
+extern "C" s32 texGetSizeInBytes(struct tex *tex, s32 lod);
 
 static bool imguiOverlayHasRomTexture(u16 textureId);
 
@@ -1814,6 +1815,11 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 	const s32 previousModelFileNum = g_TexCurrentModelFileNum;
 	g_TexModNum = textureMod;
 	g_TexCurrentModelFileNum = modelFileNum;
+	struct modeldefEditorWorkspaceInfo workspaceInfo;
+	const s32 encodedModelFileNum = modelFileNum | (textureMod << 16);
+	const bool workspaceMatches = modeldefEditorWorkspaceGetInfo(&workspaceInfo)
+		&& workspaceInfo.fileid == encodedModelFileNum;
+	struct tex *tex = workspaceMatches ? modeldefEditorWorkspaceFindTexture(textureId) : NULL;
 	u32 compressedSize = 0;
 	const s32 encodedFileNum = textureFileNum | (textureMod << 16);
 	u8 *compressedData = textureFileNum > 0 ? romdataFileLoad(encodedFileNum, &compressedSize) : NULL;
@@ -1823,11 +1829,13 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 	if (compressedData) {
 		romdataFileFree(encodedFileNum);
 	}
-	texInitPool(&g_ImGuiOverlayTextureProbePool, g_ImGuiOverlayTextureProbePoolData,
-		sizeof(g_ImGuiOverlayTextureProbePoolData));
-	texnum_t updateword = textureId;
-	texLoad(&updateword, &g_ImGuiOverlayTextureProbePool, true);
-	struct tex *tex = texFindInPool(textureId, &g_ImGuiOverlayTextureProbePool);
+	if (!tex) {
+		texInitPool(&g_ImGuiOverlayTextureProbePool, g_ImGuiOverlayTextureProbePoolData,
+			sizeof(g_ImGuiOverlayTextureProbePoolData));
+		texnum_t updateword = textureId;
+		texLoad(&updateword, &g_ImGuiOverlayTextureProbePool, true);
+		tex = texFindInPool(textureId, &g_ImGuiOverlayTextureProbePool);
+	}
 	if (tex) {
 		g_ImGuiOverlayTextureProbeData = tex->data;
 		texBuildDebugLoadGdl(g_ImGuiOverlayTextureProbeGdl, tex);
@@ -1836,7 +1844,8 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		g_ImGuiOverlayEngineProbeTexId = textureId;
 		g_ImGuiOverlayEngineProbeDecoded = true;
 		g_ImGuiOverlayEngineProbeCompressedSize = compressedSize;
-		g_ImGuiOverlayEngineProbeDecodedSize = g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
+		g_ImGuiOverlayEngineProbeDecodedSize = workspaceMatches
+			? texGetSizeInBytes(tex, 0) : g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
 		g_ImGuiOverlayEngineProbeHeader = header;
 		g_ImGuiOverlayEngineProbeNativeFormat = nativeFormat;
 		g_ImGuiOverlayEngineProbeHeaderAvailable = compressedData != NULL;
@@ -1853,6 +1862,46 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 	g_TexCurrentModelFileNum = previousModelFileNum;
 	g_TexModNum = previousMod;
 	return tex != NULL;
+}
+
+static void imguiOverlayDrawModelWorkspace(s32 textureMod, s32 modelFileNum)
+{
+	ImGui::SeparatorText("Private Model Workspace");
+	const s32 encodedFileNum = modelFileNum | (textureMod << 16);
+	struct modeldefEditorWorkspaceInfo info;
+	const bool loaded = modeldefEditorWorkspaceGetInfo(&info);
+	const bool selectedLoaded = loaded && info.fileid == encodedFileNum;
+
+	if (ImGui::Button(selectedLoaded ? "Reload selected model privately" : "Load selected model privately")) {
+		gfx_submit_debug_texture_gdl(NULL);
+		if (g_ImGuiOverlayTextureProbeData) {
+			gfx_forget_debug_texture_data(g_ImGuiOverlayTextureProbeData);
+			g_ImGuiOverlayTextureProbeData = NULL;
+		}
+		modeldefEditorWorkspaceLoad(encodedFileNum, 512 * 1024);
+	}
+	if (loaded) {
+		ImGui::SameLine();
+		if (ImGui::Button("Unload private model")) {
+			gfx_submit_debug_texture_gdl(NULL);
+			if (g_ImGuiOverlayTextureProbeData) {
+				gfx_forget_debug_texture_data(g_ImGuiOverlayTextureProbeData);
+				g_ImGuiOverlayTextureProbeData = NULL;
+			}
+			modeldefEditorWorkspaceUnload();
+		}
+	}
+
+	if (modeldefEditorWorkspaceGetInfo(&info)) {
+		ImGui::Text("Loaded model: mod %d, file 0x%04x%s",
+			(info.fileid >> 16) & 0xff, info.fileid & 0xffff,
+			info.fileid == encodedFileNum ? " (selected)" : "");
+		ImGui::Text("Model memory: %u / %u bytes; texture pool: %u / %u bytes",
+			info.modelloadedsize, info.modelcapacity,
+			info.texturebytesused, info.texturecapacity);
+	} else {
+		ImGui::TextDisabled("No private model loaded.");
+	}
 }
 
 static float imguiOverlayWrapTextureCoord(float value, float size)
@@ -2172,6 +2221,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 		g_ImGuiOverlayEngineProbeModelFileNum = -1;
 		g_ImGuiOverlayEngineProbeTexId = -1;
 		g_ImGuiOverlayTextureProbeId = 0;
+		modeldefEditorWorkspaceUnload();
 		imguiOverlayScanModelTextureIds(textureMod, modelFileNum);
 	}
 
@@ -2190,6 +2240,9 @@ static void imguiOverlayDrawTexturesPanel(void)
 	ImGui::Text("Mod texMap entries: %d", modTexMapGetCount(textureMod));
 
 	imguiOverlayDrawTextureModelSearch(currentTextureMod, currentModelFileNum);
+	if (textureMod >= 0 && modelFileNum > 0) {
+		imguiOverlayDrawModelWorkspace(textureMod, modelFileNum);
+	}
 
 	ImGui::SeparatorText("Texture ID Probe");
 	ImGui::SetNextItemWidth(110.0f);
@@ -2359,7 +2412,14 @@ void imguiOverlayShutdown(void)
 		return;
 	}
 
+	gfx_submit_debug_texture_gdl(NULL);
+	if (g_ImGuiOverlayTextureProbeData) {
+		gfx_forget_debug_texture_data(g_ImGuiOverlayTextureProbeData);
+		g_ImGuiOverlayTextureProbeData = NULL;
+	}
+	modeldefEditorWorkspaceUnload();
 	imguiOverlayClearTexturePreview();
+	imguiOverlayClearRenderedPixels();
 	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplSDL2_Shutdown();
