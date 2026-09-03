@@ -34,7 +34,7 @@ static bool g_ImGuiOverlayShowAssets = true;
 static bool g_ImGuiOverlayShowMemory = true;
 static bool g_ImGuiOverlayShowProfiler = true;
 static bool g_ImGuiOverlayShowTextures = true;
-static bool g_ImGuiOverlayShowLookingAt = true;
+static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
@@ -360,6 +360,17 @@ static bool imguiOverlayPlayerIsCurrent(struct player *player)
 	}
 
 	return false;
+}
+
+static bool imguiOverlayCanAimInspect(void)
+{
+	return g_Vars.currentplayer
+		&& imguiOverlayPlayerIsCurrent(g_Vars.currentplayer)
+		&& imguiOverlayPropIsCurrent(g_Vars.currentplayer->prop)
+		&& g_Rooms
+		&& g_Vars.roomcount > 0
+		&& g_Vars.currentplayer->cam_room >= 0
+		&& g_Vars.currentplayer->cam_room < g_Vars.roomcount;
 }
 
 static void imguiOverlayDescribePlayer(struct player *player)
@@ -1056,7 +1067,7 @@ static void imguiOverlayDrawAssetsPanel(void)
 
 static bool imguiOverlayGetSurfaceInfo(struct hitthing *hit)
 {
-	if (!hit || !g_Vars.currentplayer) {
+	if (!hit || !imguiOverlayCanAimInspect()) {
 		return false;
 	}
 
@@ -1084,8 +1095,9 @@ static bool imguiOverlayGetSurfaceInfo(struct hitthing *hit)
 
 static void imguiOverlayDrawLookingAtPanel(void)
 {
-	if (!g_Vars.currentplayer) {
-		ImGui::TextUnformatted("No current player");
+	if (!imguiOverlayCanAimInspect()) {
+		ImGui::TextUnformatted("Aim inspection unavailable");
+		ImGui::TextDisabled("Requires live player, prop, room, and camera state.");
 		return;
 	}
 
