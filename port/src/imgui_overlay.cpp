@@ -10,6 +10,7 @@
 #undef bool
 #undef true
 #undef false
+#include "ext_tex.h"
 #include "fs.h"
 #include "imgui_overlay.h"
 #include "input.h"
@@ -31,6 +32,7 @@ static bool g_ImGuiOverlayShowEntities = true;
 static bool g_ImGuiOverlayShowAssets = true;
 static bool g_ImGuiOverlayShowMemory = true;
 static bool g_ImGuiOverlayShowProfiler = true;
+static bool g_ImGuiOverlayShowTextures = true;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
@@ -39,6 +41,7 @@ static struct chrdata *g_ImGuiOverlayFocusChr = NULL;
 static s32 g_ImGuiOverlaySlotMod = -1;
 static s32 g_ImGuiOverlayPropFilter = 0;
 static s32 g_ImGuiOverlayObjFilter = 0;
+static s32 g_ImGuiOverlayTextureProbeId = 0;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1033,6 +1036,70 @@ static void imguiOverlayDrawAssetsPanel(void)
 	}
 }
 
+static void imguiOverlayDrawTexturesPanel(void)
+{
+	const s32 textureMod = g_TexModNum;
+	const s32 modelFileNum = g_TexCurrentModelFileNum & 0xffff;
+	const char *modelName = NULL;
+
+	if (textureMod >= 0 && modelFileNum > 0) {
+		modelName = romdataFileGetSlotName(textureMod, modelFileNum);
+	}
+
+	ImGui::SeparatorText("Current Texture Context");
+	ImGui::Text("Texture mod: %d", textureMod);
+	ImGui::Text("Current model file: 0x%04x", modelFileNum);
+	ImGui::Text("Model name: %s", modelName ? modelName : "none");
+
+	ImGui::SeparatorText("Texture ID Probe");
+	ImGui::SetNextItemWidth(110.0f);
+	ImGui::InputInt("Local/GDL texture ID", &g_ImGuiOverlayTextureProbeId, 1, 16, ImGuiInputTextFlags_CharsHexadecimal);
+	if (g_ImGuiOverlayTextureProbeId < 0) {
+		g_ImGuiOverlayTextureProbeId = 0;
+	}
+	if (g_ImGuiOverlayTextureProbeId > 0xffff) {
+		g_ImGuiOverlayTextureProbeId = 0xffff;
+	}
+
+	const u16 localTexId = (u16)g_ImGuiOverlayTextureProbeId;
+	const u16 portTexId = textureMod >= 0 ? modTexMapLookup(textureMod, localTexId) : 0xffff;
+	const u16 reverseLocalTexId = textureMod >= 0 ? modTexMapReverseLookup(textureMod, localTexId) : 0xffff;
+	ImGui::Text("local -> port: %s", portTexId == 0xffff ? "unmapped" : "mapped");
+	if (portTexId != 0xffff) {
+		ImGui::SameLine();
+		ImGui::Text("0x%04x", portTexId);
+	}
+	ImGui::Text("port -> local: %s", reverseLocalTexId == 0xffff ? "unmapped" : "mapped");
+	if (reverseLocalTexId != 0xffff) {
+		ImGui::SameLine();
+		ImGui::Text("0x%04x", reverseLocalTexId);
+	}
+
+	if (modelFileNum > 0) {
+		const bool hasModelExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
+		const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
+		u16 width = 0;
+		u16 height = 0;
+		const u8 hasDimensions = extTexGetDimensions(1, (u16)modelFileNum, localTexId, &width, &height);
+		ImGui::Text("ext_tex model entry: %s", hasModelExtTex ? "yes" : "no");
+		ImGui::Text("ext_tex owner mod: %d", owner);
+		if (hasDimensions) {
+			ImGui::Text("ext_tex dimensions: %ux%u", width, height);
+		} else {
+			ImGui::TextUnformatted("ext_tex dimensions: unavailable");
+		}
+	}
+
+	ImGui::SeparatorText("Authoring Checks");
+	ImGui::BulletText("Use GDL runtime texture IDs for textureId, .bin names, and texMap keys.");
+	ImGui::BulletText("Do not use texconfig ptr_raw except when debugging ROM texture-bank layout.");
+	ImGui::BulletText("Prefer per-model texture paths: textures/<ModelName>/<localTexId>.bin.");
+	ImGui::BulletText("Pixel alignment debugging should start with nearest-neighbor preview and GL_UNPACK_ALIGNMENT=1.");
+
+	ImGui::SeparatorText("Screenshot Alignment Plan");
+	ImGui::TextWrapped("Next steps: decode and preview the probed texture, show hover pixel coordinates/RGBA, then compare against screenshot crops with diagnostic X/Y offsets before changing decode or UV code.");
+}
+
 static void imguiOverlaySetVisible(bool visible)
 {
 	if (g_ImGuiOverlayVisible == visible) {
@@ -1125,6 +1192,7 @@ void imguiOverlayRender(void)
 			ImGui::Checkbox("Stage", &g_ImGuiOverlayShowStage);
 			ImGui::Checkbox("Entities", &g_ImGuiOverlayShowEntities);
 			ImGui::Checkbox("Assets", &g_ImGuiOverlayShowAssets);
+			ImGui::Checkbox("Textures", &g_ImGuiOverlayShowTextures);
 			ImGui::Checkbox("Memory", &g_ImGuiOverlayShowMemory);
 			ImGui::Checkbox("Profiler", &g_ImGuiOverlayShowProfiler);
 			ImGui::Separator();
@@ -1179,6 +1247,14 @@ void imguiOverlayRender(void)
 			ImGui::SetNextWindowSize(ImVec2(560.0f, 0.0f), ImGuiCond_FirstUseEver);
 			if (ImGui::Begin("Fojo Assets", &g_ImGuiOverlayShowAssets)) {
 				imguiOverlayDrawAssetsPanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowTextures) {
+			ImGui::SetNextWindowSize(ImVec2(430.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Textures", &g_ImGuiOverlayShowTextures)) {
+				imguiOverlayDrawTexturesPanel();
 			}
 			ImGui::End();
 		}

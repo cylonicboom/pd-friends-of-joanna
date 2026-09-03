@@ -3,6 +3,10 @@
 
 #include <PR/ultratypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MASK_FONT_OUTLINE 0x80
 
 s32 extTexInit();
@@ -16,5 +20,9 @@ u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height);
 // has a per-model ext_tex entry (PNG override) at `texNum`.
 bool extTexModelHasEntryForTexid(s16 fileNum, s32 texNum);
 u8 extTexFontID(struct font *font);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

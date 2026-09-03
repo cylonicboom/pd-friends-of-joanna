@@ -34,6 +34,8 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum);
 const char *romdataFileGetSlotName(s32 modNum, s32 fileNum);
 s32 romdataGetFileSlotCount(s32 modNum);
 s32 romdataGetFileSlotInfo(s32 modNum, s32 fileNum, struct romdatafileslotinfo *outInfo);
+u16 modTexMapLookup(s32 modIdx, u16 localTexId);
+u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
 
 u8 *romdataSegGetData(const char *segName);
 u8 *romdataSegGetDataEnd(const char *segName);
