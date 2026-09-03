@@ -30,6 +30,7 @@
 static s32 g_FilemgrDefaultProfileAttempted[4][MAX_PLAYERS];
 static s32 g_FilemgrDefaultProfileLoaded[MAX_PLAYERS];
 static s32 g_FilemgrDefaultRealityLoaded;
+static s32 g_FilemgrDefaultRealityLoading;
 
 #define DEFAULT_PROFILE_NOT_LOADED 0
 #define DEFAULT_PROFILE_LOADED 1
@@ -135,7 +136,9 @@ static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, 
 				g_FilemgrDefaultProfileLoaded[playernum] = true;
 			} else if (filetype == FILETYPE_GAME) {
 				g_GameFileGuid = guid;
+				g_FilemgrDefaultRealityLoading = true;
 				if (!filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_LOAD_GAME, 0)) {
+					g_FilemgrDefaultRealityLoading = false;
 					g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
 					return DEFAULT_PROFILE_NOT_LOADED;
 				}
@@ -733,7 +736,9 @@ void filemgrHandleSuccess(void)
 		g_Vars.bossdeviceserial = g_Menus[g_MpPlayerNum].fm.deviceserial;
 		bossfileSave();
 
-		if (IS4MB()) {
+		if (g_FilemgrDefaultRealityLoading) {
+			g_FilemgrDefaultRealityLoading = false;
+		} else if (IS4MB()) {
 			menuSaveAndRecordPrevMenuRoot(&g_MainMenu4MbMenuDialog, MENUROOT_4MBMAINMENU);
 		} else {
 			menuSaveAndRecordPrevMenuRoot(&g_CiMenuViaPcMenuDialog, MENUROOT_MAINMENU);
