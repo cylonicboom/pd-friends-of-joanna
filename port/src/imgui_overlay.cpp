@@ -29,6 +29,8 @@ static bool g_ImGuiOverlayExpandValue = false;
 static s32 g_ImGuiOverlaySlotMod = -1;
 static s32 g_ImGuiOverlayPropFilter = 0;
 static s32 g_ImGuiOverlayObjFilter = 0;
+static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
+static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
 
 extern s32 g_StageNum;
@@ -305,9 +307,45 @@ static bool imguiOverlayPropPassesFilters(struct prop *prop)
 				|| prop->type == PROPTYPE_WEAPON) && prop->obj && prop->obj->type == g_ImGuiOverlayObjFilter));
 }
 
+static bool imguiOverlayPropPassesTextFilter(struct prop *prop, s32 index)
+{
+	char text[256];
+	const char *objTypeName = "";
+	s32 objType = 0;
+	s32 chrNum = -1;
+
+	if ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
+		objTypeName = imguiOverlayObjTypeName(prop->obj->type);
+		objType = prop->obj->type;
+	}
+
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY) && prop->chr) {
+		chrNum = prop->chr->chrnum;
+	}
+
+	snprintf(text, sizeof(text), "%s %d %p type:%02x flags:%02x obj:%s objtype:%02x chr:%04x pos:%.2f %.2f %.2f rooms:%s",
+			imguiOverlayPropTypeName(prop->type), index, prop, prop->type, prop->flags,
+			objTypeName, objType, (u16)chrNum, prop->pos.x, prop->pos.y, prop->pos.z,
+			imguiOverlayRoomListString(prop->rooms, 8));
+
+	return g_ImGuiOverlayPropTextFilter.PassFilter(text);
+}
+
+static bool imguiOverlayChrPassesTextFilter(struct chrdata *chr, s32 index)
+{
+	char text[256];
+
+	snprintf(text, sizeof(text), "slot:%d chr:%04x %p body:%04x head:%02x team:%02x tude:%02x action:%s actionid:%02x damage:%.3f shield:%.3f",
+			index, (u16)chr->chrnum, chr, (u16)chr->bodynum, (u8)chr->headnum,
+			chr->team, chr->tude, imguiOverlayActionName(chr->actiontype),
+			(u8)chr->actiontype, chr->damage, chr->cshield);
+
+	return g_ImGuiOverlayChrTextFilter.PassFilter(text);
+}
+
 static void imguiOverlayDrawPropNode(struct prop *prop, s32 index)
 {
-	if (!imguiOverlayPropPassesFilters(prop)) {
+	if (!imguiOverlayPropPassesFilters(prop) || !imguiOverlayPropPassesTextFilter(prop, index)) {
 		return;
 	}
 
@@ -483,6 +521,7 @@ void imguiOverlayRender(void)
 			if (ImGui::CollapsingHeader("Props")) {
 				ImGui::Text("Visible: %d", g_Vars.numonscreenprops);
 				ImGui::Text("Allocated slots: %d", g_Vars.maxprops);
+				g_ImGuiOverlayPropTextFilter.Draw("Search props", 180.0f);
 				ImGui::Checkbox("Active props only", &g_ImGuiOverlayShowActivePropsOnly);
 
 				if (ImGui::BeginCombo("Filter prop", g_ImGuiOverlayPropFilter
@@ -542,10 +581,11 @@ void imguiOverlayRender(void)
 
 			if (g_ChrSlots && g_NumChrSlots && ImGui::CollapsingHeader("Characters")) {
 				ImGui::Text("Count: %d/%d", g_NumChrs, g_NumChrSlots);
+				g_ImGuiOverlayChrTextFilter.Draw("Search characters", 180.0f);
 				if (ImGui::BeginChild("Character list", ImVec2(0.0f, 280.0f), ImGuiChildFlags_Borders)) {
 					for (s32 index = 0; index < g_NumChrSlots; ++index) {
 						struct chrdata *chr = &g_ChrSlots[index];
-						if (chr->chrnum < 0) {
+						if (chr->chrnum < 0 || !imguiOverlayChrPassesTextFilter(chr, index)) {
 							continue;
 						}
 						if (g_ImGuiOverlayExpandLatch) {
