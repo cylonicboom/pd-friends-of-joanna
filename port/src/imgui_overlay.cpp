@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#include <zlib.h>
 
 #include <SDL.h>
 #include <PR/os_thread.h>
@@ -74,6 +75,7 @@ static u64 g_ImGuiOverlayNativeCompareDifferentPixels = 0;
 static u64 g_ImGuiOverlayNativeCompareChannelDelta = 0;
 static u32 g_ImGuiOverlayNativeCompareMaxDelta = 0;
 static bool g_ImGuiOverlayNativeCompareValid = false;
+static char g_ImGuiOverlayTextureExportStatus[FS_MAXPATH + 64];
 static u64 g_ImGuiOverlayTextureCompareDifferentPixels = 0;
 static u64 g_ImGuiOverlayTextureCompareChannelDelta = 0;
 static u32 g_ImGuiOverlayTextureCompareMaxDelta = 0;
@@ -1843,6 +1845,86 @@ static void imguiOverlayCompareNativeTextures(void)
 	g_ImGuiOverlayNativeCompareValid = true;
 }
 
+static bool imguiOverlayWritePngChunk(FILE *file, const char type[4], const u8 *data, u32 size)
+{
+	u8 encodedSize[4] = {
+		(u8)(size >> 24), (u8)(size >> 16), (u8)(size >> 8), (u8)size,
+	};
+	uLong crc = crc32(0L, Z_NULL, 0);
+	crc = crc32(crc, (const Bytef *)type, 4);
+	if (data && size > 0) crc = crc32(crc, data, size);
+	u8 encodedCrc[4] = {
+		(u8)(crc >> 24), (u8)(crc >> 16), (u8)(crc >> 8), (u8)crc,
+	};
+	return fwrite(encodedSize, 1, sizeof(encodedSize), file) == sizeof(encodedSize)
+		&& fwrite(type, 1, 4, file) == 4
+		&& (!data || size == 0 || fwrite(data, 1, size, file) == size)
+		&& fwrite(encodedCrc, 1, sizeof(encodedCrc), file) == sizeof(encodedCrc);
+}
+
+static bool imguiOverlayWriteRgbaPng(const char *path, const u8 *pixels, u32 width, u32 height)
+{
+	if (!path || !pixels || width == 0 || height == 0) return false;
+	const size_t rowSize = (size_t)width * 4;
+	std::vector<u8> scanlines((rowSize + 1) * height);
+	for (u32 y = 0; y < height; ++y) {
+		u8 *row = &scanlines[(rowSize + 1) * y];
+		row[0] = 0;
+		memcpy(row + 1, pixels + rowSize * (height - 1 - y), rowSize);
+	}
+
+	uLongf compressedSize = compressBound(scanlines.size());
+	std::vector<u8> compressed(compressedSize);
+	if (compress2(compressed.data(), &compressedSize, scanlines.data(), scanlines.size(), Z_BEST_COMPRESSION) != Z_OK) {
+		return false;
+	}
+	compressed.resize(compressedSize);
+
+	FILE *file = fopen(path, "wb");
+	if (!file) return false;
+	const u8 signature[8] = {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a};
+	u8 header[13] = {
+		(u8)(width >> 24), (u8)(width >> 16), (u8)(width >> 8), (u8)width,
+		(u8)(height >> 24), (u8)(height >> 16), (u8)(height >> 8), (u8)height,
+		8, 6, 0, 0, 0,
+	};
+	const bool ok = fwrite(signature, 1, sizeof(signature), file) == sizeof(signature)
+		&& imguiOverlayWritePngChunk(file, "IHDR", header, sizeof(header))
+		&& imguiOverlayWritePngChunk(file, "IDAT", compressed.data(), compressed.size())
+		&& imguiOverlayWritePngChunk(file, "IEND", NULL, 0);
+	fclose(file);
+	return ok;
+}
+
+static void imguiOverlayExportTexturePng(const char *modelName, u16 textureId,
+		const u8 *pixels, u32 width, u32 height, const char *suffix)
+{
+	char safeName[96];
+	const char *nameStart = modelName ? strstr(modelName, "::") : NULL;
+	nameStart = nameStart ? nameStart + 2 : modelName ? modelName : "model";
+	const char *slash = strrchr(nameStart, '/');
+	if (slash) nameStart = slash + 1;
+	s32 nameLength = 0;
+	while (nameStart[nameLength] && nameLength < (s32)sizeof(safeName) - 1) {
+		const char c = nameStart[nameLength];
+		safeName[nameLength] = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+			|| (c >= '0' && c <= '9') || c == '_' || c == '-' ? c : '_';
+		++nameLength;
+	}
+	safeName[nameLength] = '\0';
+
+	char directory[FS_MAXPATH + 1];
+	char path[FS_MAXPATH + 1];
+	snprintf(directory, sizeof(directory), "%s/fojo-textures", fsGetSaveDir());
+	fsCreateDir(directory);
+	snprintf(path, sizeof(path), "%s/%s_%04x_%s.png", directory, safeName, textureId, suffix);
+	if (imguiOverlayWriteRgbaPng(path, pixels, width, height)) {
+		snprintf(g_ImGuiOverlayTextureExportStatus, sizeof(g_ImGuiOverlayTextureExportStatus), "Exported %s", path);
+	} else {
+		snprintf(g_ImGuiOverlayTextureExportStatus, sizeof(g_ImGuiOverlayTextureExportStatus), "Export failed: %s", path);
+	}
+}
+
 static void imguiOverlayCompareTexturePixels(void)
 {
 	g_ImGuiOverlayTextureCompareDifferentPixels = 0;
@@ -2288,6 +2370,24 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	}
 	if (ImGui::Button("Capture B pixels for hover inspection")) {
 		imguiOverlayCaptureRenderedPixels(&info, width, height);
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Export current B PNG")) {
+		if (imguiOverlayCaptureRenderedPixels(&info, width, height)) {
+			imguiOverlayExportTexturePng(selectedModelName, localTexId,
+				g_ImGuiOverlayRenderedTexturePixels.data(), width, height, "B");
+		}
+	}
+	if (!g_ImGuiOverlayReferenceTexturePixels.empty()) {
+		ImGui::SameLine();
+		if (ImGui::Button("Export reference A PNG")) {
+			imguiOverlayExportTexturePng(g_ImGuiOverlayReferenceModelName,
+				g_ImGuiOverlayReferenceTexId, g_ImGuiOverlayReferenceTexturePixels.data(),
+				g_ImGuiOverlayReferencePixelsWidth, g_ImGuiOverlayReferencePixelsHeight, "A");
+		}
+	}
+	if (g_ImGuiOverlayTextureExportStatus[0]) {
+		ImGui::TextWrapped("%s", g_ImGuiOverlayTextureExportStatus);
 	}
 	ImGui::SetNextItemWidth(140.0f);
 	ImGui::SliderInt("Rendered zoom", &g_ImGuiOverlayRenderedTextureZoom, 1, 16, "%dx");
