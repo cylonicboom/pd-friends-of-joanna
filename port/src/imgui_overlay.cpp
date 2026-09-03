@@ -1610,6 +1610,10 @@ void imguiOverlayRender(void)
 		if (!imguiOverlayPropIsCurrent(g_ImGuiOverlayFocusProp)) {
 			g_ImGuiOverlayFocusProp = NULL;
 		}
+		const bool canOpenLookingAt = imguiOverlayCanAimInspect();
+		if (!canOpenLookingAt) {
+			g_ImGuiOverlayShowLookingAt = false;
+		}
 		ImGui::SetNextWindowSize(ImVec2(220.0f, 0.0f), ImGuiCond_FirstUseEver);
 		if (ImGui::Begin("Fojo Debugger", &g_ImGuiOverlayVisible, ImGuiWindowFlags_AlwaysAutoResize)) {
 			ImGui::Checkbox("Runtime", &g_ImGuiOverlayShowRuntime);
@@ -1619,7 +1623,9 @@ void imguiOverlayRender(void)
 			ImGui::Checkbox("Textures", &g_ImGuiOverlayShowTextures);
 			ImGui::Checkbox("Memory", &g_ImGuiOverlayShowMemory);
 			ImGui::Checkbox("Profiler", &g_ImGuiOverlayShowProfiler);
+			ImGui::BeginDisabled(!canOpenLookingAt);
 			ImGui::Checkbox("Looking At", &g_ImGuiOverlayShowLookingAt);
+			ImGui::EndDisabled();
 			ImGui::Separator();
 			ImGui::Text("F12 closes overlay");
 		}
