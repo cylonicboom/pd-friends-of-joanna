@@ -1190,6 +1190,56 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 				ImGui::PopID();
 			}
 
+			const s32 extTexCount = extTexModelGetTextureCount((s16)modelFileNum);
+			for (s32 index = 0; index < extTexCount; ++index) {
+				s32 texNum = 0;
+				s8 owner = -1;
+				u16 width = 0;
+				u16 height = 0;
+				char textureFileName[128];
+
+				if (!extTexModelGetTextureInfo((s16)modelFileNum, index, &texNum, &owner, &width, &height)) {
+					continue;
+				}
+
+				snprintf(textureFileName, sizeof(textureFileName), "%s/%04x.bin", textureDirName, (u16)texNum);
+				if (romdataFileGetNumForNameInMod(textureFileName, textureMod) > 0) {
+					continue;
+				}
+
+				const u16 portTexId = modTexMapLookup(textureMod, (u16)texNum);
+				const bool mapped = portTexId != (u16)texNum;
+				ImGui::PushID(0x10000 + index);
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				ImGui::Text("%04x", (u16)texNum);
+				ImGui::TableSetColumnIndex(1);
+				if (mapped) {
+					ImGui::Text("%04x", portTexId);
+				} else {
+					ImGui::TextDisabled("same");
+				}
+				ImGui::TableSetColumnIndex(2);
+				ImGui::TextDisabled("-");
+				ImGui::TableSetColumnIndex(3);
+				ImGui::TextUnformatted("png");
+				ImGui::TableSetColumnIndex(4);
+				ImGui::TextDisabled("-");
+				ImGui::TableSetColumnIndex(5);
+				ImGui::Text("%d", owner);
+				ImGui::TableSetColumnIndex(6);
+				if (width > 0 && height > 0) {
+					ImGui::Text("%ux%u", width, height);
+				} else {
+					ImGui::TextDisabled("-");
+				}
+				ImGui::TableSetColumnIndex(7);
+				if (ImGui::SmallButton("Probe")) {
+					g_ImGuiOverlayTextureProbeId = texNum;
+				}
+				ImGui::PopID();
+			}
+
 			ImGui::EndTable();
 		}
 	}

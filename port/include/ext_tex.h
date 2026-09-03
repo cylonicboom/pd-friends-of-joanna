@@ -20,6 +20,7 @@ u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height);
 // has a per-model ext_tex entry (PNG override) at `texNum`.
 bool extTexModelHasEntryForTexid(s16 fileNum, s32 texNum);
 s32 extTexModelGetTextureCount(s16 fileNum);
+s32 extTexModelGetTextureInfo(s16 fileNum, s32 index, s32 *texNum, s8 *ownerMod, u16 *width, u16 *height);
 u8 extTexFontID(struct font *font);
 
 #ifdef __cplusplus
