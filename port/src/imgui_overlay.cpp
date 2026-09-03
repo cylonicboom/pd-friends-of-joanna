@@ -73,6 +73,19 @@ static Gfx g_ImGuiOverlayTextureProbeGdl[64];
 static const u8 *g_ImGuiOverlayTextureProbeData = NULL;
 static s32 g_ImGuiOverlayEngineProbeModelFileNum = -1;
 static s32 g_ImGuiOverlayEngineProbeTexId = -1;
+static bool g_ImGuiOverlayEngineProbeMetadataValid = false;
+static u32 g_ImGuiOverlayEngineProbeCompressedSize = 0;
+static u32 g_ImGuiOverlayEngineProbeDecodedSize = 0;
+static u8 g_ImGuiOverlayEngineProbeHeader = 0;
+static u8 g_ImGuiOverlayEngineProbeNativeFormat = 0xff;
+static u8 g_ImGuiOverlayEngineProbeWidth = 0;
+static u8 g_ImGuiOverlayEngineProbeHeight = 0;
+static u8 g_ImGuiOverlayEngineProbeFormat = 0;
+static u8 g_ImGuiOverlayEngineProbeDepth = 0;
+static u8 g_ImGuiOverlayEngineProbeLutMode = 0;
+static u8 g_ImGuiOverlayEngineProbePaletteCount = 0;
+static u8 g_ImGuiOverlayEngineProbeLodCount = 0;
+static bool g_ImGuiOverlayEngineProbeHasLodData = false;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1638,6 +1651,26 @@ static bool imguiOverlayFindRenderedTexture(s32 modelFileNum, u16 localTexId, u1
 	return bestScore >= 0;
 }
 
+static const char *imguiOverlayTextureFormatName(u8 nativeFormat)
+{
+	switch (nativeFormat) {
+	case TEXFORMAT_RGBA32: return "RGBA32";
+	case TEXFORMAT_RGBA16: return "RGBA16";
+	case TEXFORMAT_RGB24: return "RGB24";
+	case TEXFORMAT_RGB15: return "RGB15";
+	case TEXFORMAT_IA16: return "IA16";
+	case TEXFORMAT_IA8: return "IA8";
+	case TEXFORMAT_IA4: return "IA4";
+	case TEXFORMAT_I8: return "I8";
+	case TEXFORMAT_I4: return "I4";
+	case TEXFORMAT_RGBA16_CI8: return "RGBA16 CI8";
+	case TEXFORMAT_RGBA16_CI4: return "RGBA16 CI4";
+	case TEXFORMAT_IA16_CI8: return "IA16 CI8";
+	case TEXFORMAT_IA16_CI4: return "IA16 CI4";
+	default: return "unknown";
+	}
+}
+
 static void imguiOverlayClearRenderedPixels(void)
 {
 	g_ImGuiOverlayRenderedTexturePixels.clear();
@@ -1709,9 +1742,11 @@ static void imguiOverlayCompareTexturePixels(void)
 	g_ImGuiOverlayTextureCompareValid = true;
 }
 
-static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum, u16 textureId)
+static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
+		s32 textureFileNum, u16 textureId)
 {
 	gfx_submit_debug_texture_gdl(NULL);
+	g_ImGuiOverlayEngineProbeMetadataValid = false;
 	if (textureMod < 0 || textureMod >= (s32)g_NumModDirs || modelFileNum <= 0) {
 		return false;
 	}
@@ -1725,6 +1760,15 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum, u
 	const s32 previousModelFileNum = g_TexCurrentModelFileNum;
 	g_TexModNum = textureMod;
 	g_TexCurrentModelFileNum = modelFileNum;
+	u32 compressedSize = 0;
+	const s32 encodedFileNum = textureFileNum | (textureMod << 16);
+	u8 *compressedData = textureFileNum > 0 ? romdataFileLoad(encodedFileNum, &compressedSize) : NULL;
+	const u8 header = compressedData && compressedSize > 0 ? compressedData[0] : 0;
+	const u8 nativeFormat = compressedData && compressedSize > 1
+		? ((header & 0x40) ? compressedData[1] : compressedData[1] >> 4) : 0xff;
+	if (compressedData) {
+		romdataFileFree(encodedFileNum);
+	}
 	texInitPool(&g_ImGuiOverlayTextureProbePool, g_ImGuiOverlayTextureProbePoolData,
 		sizeof(g_ImGuiOverlayTextureProbePoolData));
 	texnum_t updateword = textureId;
@@ -1736,6 +1780,19 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum, u
 		gfx_submit_debug_texture_gdl(g_ImGuiOverlayTextureProbeGdl);
 		g_ImGuiOverlayEngineProbeModelFileNum = modelFileNum;
 		g_ImGuiOverlayEngineProbeTexId = textureId;
+		g_ImGuiOverlayEngineProbeCompressedSize = compressedSize;
+		g_ImGuiOverlayEngineProbeDecodedSize = g_ImGuiOverlayTextureProbePool.leftpos - tex->data;
+		g_ImGuiOverlayEngineProbeHeader = header;
+		g_ImGuiOverlayEngineProbeNativeFormat = nativeFormat;
+		g_ImGuiOverlayEngineProbeWidth = tex->width;
+		g_ImGuiOverlayEngineProbeHeight = tex->height;
+		g_ImGuiOverlayEngineProbeFormat = tex->gbiformat;
+		g_ImGuiOverlayEngineProbeDepth = tex->depth;
+		g_ImGuiOverlayEngineProbeLutMode = tex->lutmodeindex;
+		g_ImGuiOverlayEngineProbePaletteCount = tex->lutmodeindex ? tex->numcolors + 1 : 0;
+		g_ImGuiOverlayEngineProbeLodCount = tex->numlods;
+		g_ImGuiOverlayEngineProbeHasLodData = tex->hasloddata;
+		g_ImGuiOverlayEngineProbeMetadataValid = true;
 	}
 	g_TexCurrentModelFileNum = previousModelFileNum;
 	g_TexModNum = previousMod;
@@ -1743,14 +1800,15 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum, u
 }
 
 static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFileNum,
-		u16 localTexId, u16 portTexId, bool hasTextureFile)
+		u16 localTexId, u16 portTexId, s32 textureFileNum)
 {
 	struct GfxTextureDebugInfo info;
 	ImGui::SeparatorText("Engine Rendered Preview");
 	const u16 engineTexId = portTexId != localTexId ? portTexId : localTexId;
+	const bool hasTextureFile = textureFileNum > 0;
 	ImGui::BeginDisabled(!hasTextureFile);
 	if (ImGui::Button("Load through engine")) {
-		imguiOverlayRequestEngineTexture(textureMod, modelFileNum, engineTexId);
+		imguiOverlayRequestEngineTexture(textureMod, modelFileNum, textureFileNum, engineTexId);
 	}
 	ImGui::EndDisabled();
 	if (!hasTextureFile && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
@@ -1760,6 +1818,25 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 			&& g_ImGuiOverlayEngineProbeTexId == engineTexId) {
 		ImGui::SameLine();
 		ImGui::TextDisabled("private engine probe active");
+	}
+	if (g_ImGuiOverlayEngineProbeMetadataValid
+			&& g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
+			&& g_ImGuiOverlayEngineProbeTexId == engineTexId) {
+		ImGui::Text("Native header: 0x%02x, %s, header LOD count %u",
+			g_ImGuiOverlayEngineProbeHeader,
+			(g_ImGuiOverlayEngineProbeHeader & 0x40) ? "zlib" : "native compression",
+			g_ImGuiOverlayEngineProbeHeader & 0x3f);
+		ImGui::Text("Decoded: %ux%u %s (GBI format %u, depth %u)",
+			g_ImGuiOverlayEngineProbeWidth, g_ImGuiOverlayEngineProbeHeight,
+			imguiOverlayTextureFormatName(g_ImGuiOverlayEngineProbeNativeFormat),
+			g_ImGuiOverlayEngineProbeFormat, g_ImGuiOverlayEngineProbeDepth);
+		ImGui::Text("PD format code: 0x%02x", g_ImGuiOverlayEngineProbeNativeFormat);
+		ImGui::Text("LOD: %u, embedded LOD data: %s; palette: %u entries, LUT mode %u",
+			g_ImGuiOverlayEngineProbeLodCount,
+			g_ImGuiOverlayEngineProbeHasLodData ? "yes" : "no",
+			g_ImGuiOverlayEngineProbePaletteCount, g_ImGuiOverlayEngineProbeLutMode);
+		ImGui::Text("Bytes: compressed %u, decoded pool payload %u",
+			g_ImGuiOverlayEngineProbeCompressedSize, g_ImGuiOverlayEngineProbeDecodedSize);
 	}
 
 	if (!imguiOverlayFindRenderedTexture(modelFileNum, localTexId, portTexId, &info)) {
@@ -1935,7 +2012,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 	}
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
 	if (modelFileNum > 0 && hasProbeId) {
-		imguiOverlayDrawRenderedTexturePreview(textureMod, modelFileNum, localTexId, portTexId, hasTextureFile);
+		imguiOverlayDrawRenderedTexturePreview(textureMod, modelFileNum, localTexId, portTexId, textureFileNum);
 	}
 
 	imguiOverlayDrawModelTextureFiles(textureMod, modelFileNum, textureDirName);
