@@ -35,6 +35,7 @@ static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
 static struct prop *g_ImGuiOverlayFocusProp = NULL;
+static struct chrdata *g_ImGuiOverlayFocusChr = NULL;
 static s32 g_ImGuiOverlaySlotMod = -1;
 static s32 g_ImGuiOverlayPropFilter = 0;
 static s32 g_ImGuiOverlayObjFilter = 0;
@@ -234,6 +235,16 @@ static void imguiOverlayFocusProp(struct prop *prop)
 	g_ImGuiOverlayPropTextFilter.Clear();
 }
 
+static void imguiOverlayFocusChr(struct chrdata *chr)
+{
+	if (!imguiOverlayChrIsCurrent(chr)) {
+		return;
+	}
+
+	g_ImGuiOverlayFocusChr = chr;
+	g_ImGuiOverlayChrTextFilter.Clear();
+}
+
 static void imguiOverlayPropJumpLine(const char *label, struct prop *prop)
 {
 	char text[96];
@@ -248,6 +259,23 @@ static void imguiOverlayPropJumpLine(const char *label, struct prop *prop)
 	}
 	if (ImGui::IsItemHovered()) {
 		ImGui::SetTooltip("Double-click to show this prop in Props");
+	}
+}
+
+static void imguiOverlayChrJumpLine(const char *label, struct chrdata *chr)
+{
+	char text[96];
+	if (!imguiOverlayChrIsCurrent(chr)) {
+		return;
+	}
+
+	snprintf(text, sizeof(text), "%s: %p", label, chr);
+	if (ImGui::Selectable(text, false, ImGuiSelectableFlags_AllowDoubleClick)
+			&& ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		imguiOverlayFocusChr(chr);
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Double-click to show this character in Characters");
 	}
 }
 
@@ -420,6 +448,7 @@ static void imguiOverlayDescribeProp(struct prop *prop)
 		if (g_ImGuiOverlayExpandLatch) {
 			ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
 		}
+		imguiOverlayChrJumpLine("Chr", prop->chr);
 		if (ImGui::TreeNode(prop->chr, "Chr (%p)", prop->chr)) {
 			imguiOverlayDescribeChr(prop->chr);
 			ImGui::TreePop();
@@ -795,6 +824,17 @@ static void imguiOverlayDrawStagePanel(void)
 
 static void imguiOverlayDrawEntitiesPanel(void)
 {
+	if (ImGui::Button("Expand all")) {
+		g_ImGuiOverlayExpandLatch = true;
+		g_ImGuiOverlayExpandValue = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Close all")) {
+		g_ImGuiOverlayExpandLatch = true;
+		g_ImGuiOverlayExpandValue = false;
+	}
+	ImGui::Separator();
+
 	if (ImGui::CollapsingHeader("Players", ImGuiTreeNodeFlags_DefaultOpen)) {
 		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
 			struct player *player = g_Vars.players[i];
@@ -876,6 +916,9 @@ static void imguiOverlayDrawEntitiesPanel(void)
 		ImGui::EndChild();
 	}
 
+	if (g_ImGuiOverlayFocusChr) {
+		ImGui::SetNextItemOpen(true);
+	}
 	if (g_ChrSlots && g_NumChrSlots && ImGui::CollapsingHeader("Characters", ImGuiTreeNodeFlags_DefaultOpen)) {
 		ImGui::Text("Count: %d/%d", g_NumChrs, g_NumChrSlots);
 		g_ImGuiOverlayChrTextFilter.Draw("Search characters", 180.0f);
@@ -885,15 +928,24 @@ static void imguiOverlayDrawEntitiesPanel(void)
 				if (chr->chrnum < 0 || !imguiOverlayChrPassesTextFilter(chr, index)) {
 					continue;
 				}
-				if (g_ImGuiOverlayExpandLatch) {
-					ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
+				const bool focus = chr == g_ImGuiOverlayFocusChr;
+				if (g_ImGuiOverlayExpandLatch || focus) {
+					ImGui::SetNextItemOpen(focus ? true : g_ImGuiOverlayExpandValue);
 				}
 				if (ImGui::TreeNode(chr, "Slot %d: 0x%04x (%p)", index, (u16)chr->chrnum, chr)) {
+					if (focus) {
+						ImGui::SetScrollHereY(0.25f);
+						g_ImGuiOverlayFocusChr = NULL;
+					}
 					imguiOverlayDescribeChr(chr);
 					if (chr->prop) {
 						imguiOverlayPropJumpLine("Prop", chr->prop);
 					}
 					ImGui::TreePop();
+				}
+				if (focus && g_ImGuiOverlayFocusChr) {
+					ImGui::SetScrollHereY(0.25f);
+					g_ImGuiOverlayFocusChr = NULL;
 				}
 			}
 		}
