@@ -3,6 +3,10 @@
 
 #include <PR/ultratypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MOD_CONFIG_FNAME "modconfig.txt"
 
 #define MOD_FLAG_FORCE_LOAD    (1 << 0)
@@ -36,4 +40,9 @@ s32 modLookupBodyByName(const char *name);
 s32 modLookupHandFileByName(const char *name);
 s32 modLookupHeadnumByName(const char *name);
 const char *modGetNameForHeadBodyIndex(s32 headBodyIndex);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

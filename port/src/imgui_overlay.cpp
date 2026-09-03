@@ -13,6 +13,7 @@
 #include "fs.h"
 #include "imgui_overlay.h"
 #include "input.h"
+#include "mod.h"
 #include "romdata.h"
 #include "system.h"
 
@@ -26,6 +27,7 @@ static bool g_ImGuiOverlayRestoreMouseLock = false;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
+static struct prop *g_ImGuiOverlayFocusProp = NULL;
 static s32 g_ImGuiOverlaySlotMod = -1;
 static s32 g_ImGuiOverlayPropFilter = 0;
 static s32 g_ImGuiOverlayObjFilter = 0;
@@ -194,6 +196,38 @@ static const char *imguiOverlayRoomListString(RoomNum *rooms, s32 maxRooms)
 
 static void imguiOverlayDescribeProp(struct prop *prop);
 
+static const char *imguiOverlayHeadBodyName(s32 index)
+{
+	const char *name = modGetNameForHeadBodyIndex(index);
+	return name ? name : "unknown";
+}
+
+static void imguiOverlayFocusProp(struct prop *prop)
+{
+	if (!prop) {
+		return;
+	}
+
+	g_ImGuiOverlayFocusProp = prop;
+	g_ImGuiOverlayShowActivePropsOnly = false;
+	g_ImGuiOverlayPropFilter = 0;
+	g_ImGuiOverlayObjFilter = 0;
+	g_ImGuiOverlayPropTextFilter.Clear();
+}
+
+static void imguiOverlayPropJumpLine(const char *label, struct prop *prop)
+{
+	char text[96];
+	snprintf(text, sizeof(text), "%s: %p", label, prop);
+	if (ImGui::Selectable(text, false, ImGuiSelectableFlags_AllowDoubleClick)
+			&& ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		imguiOverlayFocusProp(prop);
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Double-click to show this prop in Props");
+	}
+}
+
 static void imguiOverlayDescribeProjectile(struct projectile *projectile)
 {
 	ImGui::Text("Drop type: 0x%04x", (u16)projectile->droptype);
@@ -233,8 +267,8 @@ static void imguiOverlayDescribeWeapon(struct weaponobj *weapon)
 static void imguiOverlayDescribeChr(struct chrdata *chr)
 {
 	ImGui::Text("Number: 0x%04x", (u16)chr->chrnum);
-	ImGui::Text("Body: 0x%04x", (u16)chr->bodynum);
-	ImGui::Text("Head: 0x%02x", (u8)chr->headnum);
+	ImGui::Text("Body: 0x%04x %s", (u16)chr->bodynum, imguiOverlayHeadBodyName(chr->bodynum));
+	ImGui::Text("Head: 0x%02x %s", (u8)chr->headnum, imguiOverlayHeadBodyName(chr->headnum));
 	ImGui::Text("Team: 0x%02x", chr->team);
 	ImGui::Text("Tude: 0x%02x", chr->tude);
 	ImGui::Text("Action: %s (0x%02x)", imguiOverlayActionName(chr->actiontype), (u8)chr->actiontype);
@@ -253,8 +287,12 @@ static void imguiOverlayDescribeChr(struct chrdata *chr)
 			if (g_ImGuiOverlayExpandLatch) {
 				ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
 			}
-			if (ImGui::TreeNode(chr->weapons_held[handIndex], "%s (%p)", label,
-						chr->weapons_held[handIndex])) {
+			const bool open = ImGui::TreeNode(chr->weapons_held[handIndex], "%s (%p)", label,
+						chr->weapons_held[handIndex]);
+			if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+				imguiOverlayFocusProp(chr->weapons_held[handIndex]);
+			}
+			if (open) {
 				imguiOverlayDescribeProp(chr->weapons_held[handIndex]);
 				ImGui::TreePop();
 			}
@@ -335,8 +373,9 @@ static bool imguiOverlayChrPassesTextFilter(struct chrdata *chr, s32 index)
 {
 	char text[256];
 
-	snprintf(text, sizeof(text), "slot:%d chr:%04x %p body:%04x head:%02x team:%02x tude:%02x action:%s actionid:%02x damage:%.3f shield:%.3f",
-			index, (u16)chr->chrnum, chr, (u16)chr->bodynum, (u8)chr->headnum,
+	snprintf(text, sizeof(text), "slot:%d chr:%04x %p body:%04x %s head:%02x %s team:%02x tude:%02x action:%s actionid:%02x damage:%.3f shield:%.3f",
+			index, (u16)chr->chrnum, chr, (u16)chr->bodynum, imguiOverlayHeadBodyName(chr->bodynum),
+			(u8)chr->headnum, imguiOverlayHeadBodyName(chr->headnum),
 			chr->team, chr->tude, imguiOverlayActionName(chr->actiontype),
 			(u8)chr->actiontype, chr->damage, chr->cshield);
 
@@ -349,13 +388,22 @@ static void imguiOverlayDrawPropNode(struct prop *prop, s32 index)
 		return;
 	}
 
-	if (g_ImGuiOverlayExpandLatch) {
-		ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
+	const bool focus = prop == g_ImGuiOverlayFocusProp;
+	if (g_ImGuiOverlayExpandLatch || focus) {
+		ImGui::SetNextItemOpen(focus ? true : g_ImGuiOverlayExpandValue);
 	}
 
 	if (ImGui::TreeNode(prop, "%s %d (%p)", imguiOverlayPropTypeName(prop->type), index, prop)) {
+		if (focus) {
+			ImGui::SetScrollHereY(0.25f);
+			g_ImGuiOverlayFocusProp = NULL;
+		}
 		imguiOverlayDescribeProp(prop);
 		ImGui::TreePop();
+	}
+	if (focus && g_ImGuiOverlayFocusProp) {
+		ImGui::SetScrollHereY(0.25f);
+		g_ImGuiOverlayFocusProp = NULL;
 	}
 }
 
@@ -518,6 +566,9 @@ void imguiOverlayRender(void)
 				}
 			}
 
+			if (g_ImGuiOverlayFocusProp) {
+				ImGui::SetNextItemOpen(true);
+			}
 			if (ImGui::CollapsingHeader("Props")) {
 				ImGui::Text("Visible: %d", g_Vars.numonscreenprops);
 				ImGui::Text("Allocated slots: %d", g_Vars.maxprops);
@@ -594,7 +645,7 @@ void imguiOverlayRender(void)
 						if (ImGui::TreeNode(chr, "Slot %d: 0x%04x (%p)", index, (u16)chr->chrnum, chr)) {
 							imguiOverlayDescribeChr(chr);
 							if (chr->prop) {
-								ImGui::Text("Prop: %p", chr->prop);
+								imguiOverlayPropJumpLine("Prop", chr->prop);
 							}
 							ImGui::TreePop();
 						}

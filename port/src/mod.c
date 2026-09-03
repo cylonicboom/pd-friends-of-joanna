@@ -817,6 +817,75 @@ static struct { char *name; s32 id; } g_VanillaHeadNames[] = {
 	{ NULL, -1 }
 };
 
+static struct { char *name; s32 id; } g_VanillaBodyNames[] = {
+	{ "body_dark_combat", BODY_DARK_COMBAT },
+	{ "body_elvis1", BODY_ELVIS1 },
+	{ "body_area51guard", BODY_AREA51GUARD },
+	{ "body_overall", BODY_OVERALL },
+	{ "body_carrington", BODY_CARRINGTON },
+	{ "body_mrblonde", BODY_MRBLONDE },
+	{ "body_skedar", BODY_SKEDAR },
+	{ "body_trent", BODY_TRENT },
+	{ "body_ddshock", BODY_DDSHOCK },
+	{ "body_labtech", BODY_LABTECH },
+	{ "body_stripes", BODY_STRIPES },
+	{ "body_dark_frock", BODY_DARK_FROCK },
+	{ "body_dark_trench", BODY_DARK_TRENCH },
+	{ "body_officeworker", BODY_OFFICEWORKER },
+	{ "body_officeworker2", BODY_OFFICEWORKER2 },
+	{ "body_secretary", BODY_SECRETARY },
+	{ "body_cassandra", BODY_CASSANDRA },
+	{ "body_theking", BODY_THEKING },
+	{ "body_fem_guard", BODY_FEM_GUARD },
+	{ "body_dd_labtech", BODY_DD_LABTECH },
+	{ "body_dd_secguard", BODY_DD_SECGUARD },
+	{ "body_drcaroll", BODY_DRCAROLL },
+	{ "body_eyespy", BODY_EYESPY },
+	{ "body_dark_ripped", BODY_DARK_RIPPED },
+	{ "body_dd_guard", BODY_DD_GUARD },
+	{ "body_dd_shock_inf", BODY_DD_SHOCK_INF },
+	{ "body_testchr", BODY_TESTCHR },
+	{ "body_biotech", BODY_BIOTECH },
+	{ "body_fbiguy", BODY_FBIGUY },
+	{ "body_ciaguy", BODY_CIAGUY },
+	{ "body_a51trooper", BODY_A51TROOPER },
+	{ "body_a51airman", BODY_A51AIRMAN },
+	{ "body_chicrob", BODY_CHICROB },
+	{ "body_steward", BODY_STEWARD },
+	{ "body_stewardess", BODY_STEWARDESS },
+	{ "body_president", BODY_PRESIDENT },
+	{ "body_stewardess_coat", BODY_STEWARDESS_COAT },
+	{ "body_miniskedar", BODY_MINISKEDAR },
+	{ "body_nsa_lackey", BODY_NSA_LACKEY },
+	{ "body_pres_security", BODY_PRES_SECURITY },
+	{ "body_negotiator", BODY_NEGOTIATOR },
+	{ "body_g5_guard", BODY_G5_GUARD },
+	{ "body_pelagic_guard", BODY_PELAGIC_GUARD },
+	{ "body_g5_swat_guard", BODY_G5_SWAT_GUARD },
+	{ "body_alaskan_guard", BODY_ALASKAN_GUARD },
+	{ "body_maian_soldier", BODY_MAIAN_SOLDIER },
+	{ "body_president_clone", BODY_PRESIDENT_CLONE },
+	{ "body_president_clone2", BODY_PRESIDENT_CLONE2 },
+	{ "body_dark_af1", BODY_DARK_AF1 },
+	{ "body_darkwet", BODY_DARKWET },
+	{ "body_darkaqualung", BODY_DARKAQUALUNG },
+	{ "body_darksnow", BODY_DARKSNOW },
+	{ "body_darklab", BODY_DARKLAB },
+	{ "body_femlabtech", BODY_FEMLABTECH },
+	{ "body_ddsniper", BODY_DDSNIPER },
+	{ "body_pilotaf1", BODY_PILOTAF1 },
+	{ "body_cilabtech", BODY_CILABTECH },
+	{ "body_cifemtech", BODY_CIFEMTECH },
+	{ "body_carreveningsuit", BODY_CARREVENINGSUIT },
+	{ "body_jonathan", BODY_JONATHAN },
+	{ "body_cisoldier", BODY_CISOLDIER },
+	{ "body_skedarking", BODY_SKEDARKING },
+	{ "body_elviswaistcoat", BODY_ELVISWAISTCOAT },
+	{ "body_dark_leather", BODY_DARK_LEATHER },
+	{ "body_dark_negotiator", BODY_DARK_NEGOTIATOR },
+	{ NULL, -1 }
+};
+
 s32 modLookupHeadByName(const char *name)
 {
 	if (!name || !name[0]) return -1;
@@ -886,10 +955,10 @@ s32 modLookupBodyByName(const char *name)
 	if (!name || !name[0]) return -1;
 
 	// Check vanilla names
-	for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
-		if (!strcmp(name, g_VanillaHeadNames[i].name)) {
+	for (s32 i = 0; g_VanillaBodyNames[i].name; ++i) {
+		if (!strcmp(name, g_VanillaBodyNames[i].name)) {
 			for (s32 j = 0; j < g_NumMpBodies; ++j) {
-				if (g_MpBodies[j].bodynum == g_VanillaHeadNames[i].id) {
+				if (g_MpBodies[j].bodynum == g_VanillaBodyNames[i].id) {
 					return j;
 				}
 			}
@@ -924,6 +993,11 @@ const char *modGetNameForHeadBodyIndex(s32 headBodyIndex)
 	for (s32 i = 0; g_VanillaHeadNames[i].name; ++i) {
 		if (g_VanillaHeadNames[i].id == headBodyIndex) {
 			return g_VanillaHeadNames[i].name;
+		}
+	}
+	for (s32 i = 0; g_VanillaBodyNames[i].name; ++i) {
+		if (g_VanillaBodyNames[i].id == headBodyIndex) {
+			return g_VanillaBodyNames[i].name;
 		}
 	}
 	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
