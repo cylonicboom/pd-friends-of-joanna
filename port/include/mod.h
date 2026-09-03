@@ -26,6 +26,24 @@ void modScanAllMods(void);
 void modCacheAllConfigs(void);
 
 s32 modTextureLoad(u16 num, void *dst, u32 dstSize);
+#define MOD_TEXTURE_RESOLVE_MAX_ATTEMPTS 5
+struct modTextureResolveAttempt {
+	char name[128];
+	s32 fileNum;
+};
+struct modTextureResolveInfo {
+	s32 modNum;
+	s32 modelFileNum;
+	u16 requestedId;
+	u16 reverseLocalId;
+	u16 resolvedLocalId;
+	s32 fileNum;
+	s32 matchedAttempt;
+	s32 attemptCount;
+	struct modTextureResolveAttempt attempts[MOD_TEXTURE_RESOLVE_MAX_ATTEMPTS];
+};
+s32 modTextureResolveFileDetailed(s32 modNum, s32 modelFileNum, u16 textureId,
+		struct modTextureResolveInfo *info);
 s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
 		u16 *resolvedLocalId, char *resolvedName, u32 resolvedNameSize);
 

@@ -2166,6 +2166,104 @@ static void imguiOverlayDrawWorkspaceLods(u16 textureId)
 	}
 }
 
+static void imguiOverlayDiagnosticRow(const char *stage, const char *result, const char *detail)
+{
+	ImGui::TableNextRow();
+	ImGui::TableSetColumnIndex(0);
+	ImGui::TextUnformatted(stage);
+	ImGui::TableSetColumnIndex(1);
+	ImGui::TextUnformatted(result);
+	ImGui::TableSetColumnIndex(2);
+	ImGui::TextWrapped("%s", detail);
+}
+
+static void imguiOverlayDrawTextureRoutingDiagnostics(s32 textureMod, s32 modelFileNum,
+		u16 localTexId, u16 portTexId)
+{
+	const u16 engineTexId = portTexId != localTexId ? portTexId : localTexId;
+	struct modTextureResolveInfo resolution;
+	modTextureResolveFileDetailed(textureMod, modelFileNum, engineTexId, &resolution);
+	const bool hasExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
+	const bool hasRomTexture = imguiOverlayHasRomTexture(engineTexId);
+	struct modeldefEditorWorkspaceInfo workspace;
+	const bool workspaceMatches = modeldefEditorWorkspaceGetInfo(&workspace)
+		&& workspace.fileid == (modelFileNum | (textureMod << 16));
+	const bool workspaceTexture = workspaceMatches
+		&& modeldefEditorWorkspaceFindTexture(engineTexId) != NULL;
+	const bool probeMatches = g_ImGuiOverlayEngineProbeAttempted
+		&& g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
+		&& g_ImGuiOverlayEngineProbeTexId == engineTexId;
+	struct GfxTextureDebugInfo submitted;
+	const bool gpuImported = probeMatches && gfx_get_submitted_debug_texture(&submitted);
+	char detail[256];
+
+	ImGui::SeparatorText("Texture Routing Diagnostics");
+	if (ImGui::BeginTable("Texture routing diagnostics", 3,
+			ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter)) {
+		ImGui::TableSetupColumn("Stage", ImGuiTableColumnFlags_WidthFixed, 108.0f);
+		ImGui::TableSetupColumn("Result", ImGuiTableColumnFlags_WidthFixed, 76.0f);
+		ImGui::TableSetupColumn("Detail", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableHeadersRow();
+
+		snprintf(detail, sizeof(detail), "local 0x%04x -> engine 0x%04x%s",
+			localTexId, engineTexId, engineTexId != localTexId ? " via texMap" : " (identity)");
+		imguiOverlayDiagnosticRow("ID mapping", "ok", detail);
+
+		snprintf(detail, sizeof(detail), "model 0x%04x, local 0x%04x%s",
+			modelFileNum, localTexId, hasExtTex ? "; PNG-first path wins" : "; native path continues");
+		imguiOverlayDiagnosticRow("ext_tex", hasExtTex ? "override" : "none", detail);
+
+		for (s32 attemptIndex = 0; attemptIndex < resolution.attemptCount; ++attemptIndex) {
+			const struct modTextureResolveAttempt *attempt = &resolution.attempts[attemptIndex];
+			snprintf(detail, sizeof(detail), "%s%s", attempt->name,
+				attempt->fileNum > 0 ? "" : " (not in mod filetable)");
+			imguiOverlayDiagnosticRow(attemptIndex == 0 ? "Native lookup" : "", attempt->fileNum > 0 ? "hit" : "miss", detail);
+		}
+		if (resolution.attemptCount == 0) {
+			imguiOverlayDiagnosticRow("Native lookup", "skipped", "invalid mod/model context");
+		}
+
+		if (resolution.fileNum > 0) {
+			struct romdatafileslotinfo slotInfo;
+			const bool hasSlot = romdataGetFileSlotInfo(textureMod, resolution.fileNum, &slotInfo);
+			const s32 source = hasSlot && slotInfo.source != 0 ? slotInfo.source
+				: hasSlot ? slotInfo.configuredSource : 0;
+			snprintf(detail, sizeof(detail), "slot 0x%04x, local 0x%04x, source %s, %u bytes%s",
+				resolution.fileNum, resolution.resolvedLocalId,
+				hasSlot ? imguiOverlayFileSourceName(source) : "unknown",
+				hasSlot ? slotInfo.size : 0,
+				hasSlot && slotInfo.size > 4096 ? "; exceeds 4096-byte texture staging buffer" : "");
+			imguiOverlayDiagnosticRow("Payload",
+				hasSlot && slotInfo.size > 4096 ? "oversized" : "mod file", detail);
+		} else if (hasRomTexture) {
+			snprintf(detail, sizeof(detail), "g_Textures[0x%04x], %u compressed bytes",
+				engineTexId, g_Textures[engineTexId + 1].dataoffset - g_Textures[engineTexId].dataoffset);
+			imguiOverlayDiagnosticRow("Payload", "ROM bank", detail);
+		} else {
+			imguiOverlayDiagnosticRow("Payload", "missing", "no mod filetable match and no vanilla ROM texture span");
+		}
+
+		snprintf(detail, sizeof(detail), "%s%s", workspaceMatches ? "selected model loaded" : "selected model not loaded",
+			workspaceMatches ? (workspaceTexture ? "; texture decoded in workspace pool" : "; texture absent from workspace pool") : "");
+		imguiOverlayDiagnosticRow("Workspace", workspaceTexture ? "resident" : workspaceMatches ? "absent" : "not loaded", detail);
+
+		imguiOverlayDiagnosticRow("CPU decode",
+			!probeMatches ? "not run" : g_ImGuiOverlayEngineProbeDecoded ? "ok" : "failed",
+			!probeMatches ? "click Load through engine" : g_ImGuiOverlayEngineProbeDecoded
+				? "struct tex created and texture-only GDL queued" : "texLoad produced no matching struct tex");
+
+		if (gpuImported) {
+			snprintf(detail, sizeof(detail), "GL texture %u; type %u, model 0x%04x, texture 0x%04x",
+				submitted.texture_id, submitted.type, submitted.id, submitted.texnum);
+			imguiOverlayDiagnosticRow("Fast3D import", "ok", detail);
+		} else {
+			imguiOverlayDiagnosticRow("Fast3D import", probeMatches && g_ImGuiOverlayEngineProbeDecoded ? "pending" : "not run",
+				probeMatches && g_ImGuiOverlayEngineProbeDecoded ? "waiting for the next renderer frame" : "CPU decode has not queued a texture GDL");
+		}
+		ImGui::EndTable();
+	}
+}
+
 static float imguiOverlayWrapTextureCoord(float value, float size)
 {
 	if (size <= 0.0f) return 0.0f;
@@ -2635,6 +2733,9 @@ static void imguiOverlayDrawTexturesPanel(void)
 	} else if (modelFileNum > 0) {
 		ImGui::TextUnformatted("texture source: enter texture ID");
 		ImGui::TextUnformatted("ext_tex model entry: enter texture ID");
+	}
+	if (modelFileNum > 0 && hasProbeId) {
+		imguiOverlayDrawTextureRoutingDiagnostics(textureMod, modelFileNum, localTexId, portTexId);
 	}
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
 	if (modelFileNum > 0 && hasProbeId) {

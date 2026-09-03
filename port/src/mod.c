@@ -1858,8 +1858,20 @@ static const char *modGetTexPrefix(s32 modNum, char *buf, size_t bufSize)
 	return buf;
 }
 
-s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
-		u16 *resolvedLocalId, char *resolvedName, u32 resolvedNameSize)
+static s32 modTextureResolveTry(s32 modNum, const char *candidate,
+		struct modTextureResolveInfo *info)
+{
+	const s32 fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+	if (info && info->attemptCount < MOD_TEXTURE_RESOLVE_MAX_ATTEMPTS) {
+		struct modTextureResolveAttempt *attempt = &info->attempts[info->attemptCount++];
+		snprintf(attempt->name, sizeof(attempt->name), "%s", candidate);
+		attempt->fileNum = fileNum;
+	}
+	return fileNum;
+}
+
+s32 modTextureResolveFileDetailed(s32 modNum, s32 modelFileNum, u16 textureId,
+		struct modTextureResolveInfo *info)
 {
 	char candidate[128];
 	char prefixBuf[32];
@@ -1867,12 +1879,20 @@ s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
 	u16 localId = textureId;
 	s32 fileNum = 0;
 
-	if (resolvedLocalId) *resolvedLocalId = textureId;
-	if (resolvedName && resolvedNameSize > 0) resolvedName[0] = '\0';
+	if (info) {
+		memset(info, 0, sizeof(*info));
+		info->modNum = modNum;
+		info->modelFileNum = modelFileNum;
+		info->requestedId = textureId;
+		info->reverseLocalId = 0xffff;
+		info->resolvedLocalId = textureId;
+		info->matchedAttempt = -1;
+	}
 	if (modNum < 0 || (u32)modNum >= g_NumModDirs) return 0;
 
 	if (textureId >= NUM_TEXTURES) {
 		u16 reverseId = modTexMapReverseLookup(modNum, textureId);
+		if (info) info->reverseLocalId = reverseId;
 		if (reverseId != 0xffff) localId = reverseId;
 	}
 
@@ -1883,7 +1903,7 @@ s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
 			nameStart = nameStart ? nameStart + 2 : modelName;
 			if (strncmp(nameStart, "files/", 6) == 0) nameStart += 6;
 			snprintf(candidate, sizeof(candidate), "%s/%04x.bin", nameStart, localId);
-			fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+			fileNum = modTextureResolveTry(modNum, candidate, info);
 		}
 	}
 
@@ -1891,29 +1911,45 @@ s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
 	if (fileNum <= 0) {
 		localId = textureId;
 		snprintf(candidate, sizeof(candidate), "%04x.bin", textureId);
-		fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+		fileNum = modTextureResolveTry(modNum, candidate, info);
 	}
 	if (fileNum <= 0 && prefix) {
 		snprintf(candidate, sizeof(candidate), "%s_%04x.bin", prefix, textureId);
-		fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+		fileNum = modTextureResolveTry(modNum, candidate, info);
 	}
 	if (fileNum <= 0 && textureId >= NUM_TEXTURES) {
 		u16 reverseId = modTexMapReverseLookup(modNum, textureId);
 		if (reverseId != 0xffff && reverseId != textureId) {
 			localId = reverseId;
 			snprintf(candidate, sizeof(candidate), "%04x.bin", reverseId);
-			fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+			fileNum = modTextureResolveTry(modNum, candidate, info);
 			if (fileNum <= 0 && prefix) {
 				snprintf(candidate, sizeof(candidate), "%s_%04x.bin", prefix, reverseId);
-				fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+				fileNum = modTextureResolveTry(modNum, candidate, info);
 			}
 		}
 	}
 
 	if (fileNum > 0) {
-		if (resolvedLocalId) *resolvedLocalId = localId;
-		if (resolvedName && resolvedNameSize > 0) {
-			snprintf(resolvedName, resolvedNameSize, "%s", candidate);
+		if (info) {
+			info->resolvedLocalId = localId;
+			info->fileNum = fileNum;
+			info->matchedAttempt = info->attemptCount - 1;
+		}
+	}
+	return fileNum;
+}
+
+s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
+		u16 *resolvedLocalId, char *resolvedName, u32 resolvedNameSize)
+{
+	struct modTextureResolveInfo info;
+	const s32 fileNum = modTextureResolveFileDetailed(modNum, modelFileNum, textureId, &info);
+	if (resolvedLocalId) *resolvedLocalId = info.resolvedLocalId;
+	if (resolvedName && resolvedNameSize > 0) {
+		resolvedName[0] = '\0';
+		if (info.matchedAttempt >= 0) {
+			snprintf(resolvedName, resolvedNameSize, "%s", info.attempts[info.matchedAttempt].name);
 		}
 	}
 	return fileNum;
