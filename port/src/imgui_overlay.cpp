@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <vector>
 
 #include <SDL.h>
 #include <PR/os_thread.h>
@@ -49,6 +50,7 @@ static s32 g_ImGuiOverlayTextureModelMod = -1;
 static s32 g_ImGuiOverlayTextureModelFileNum = -1;
 static GLuint g_ImGuiOverlayTexturePreview = 0;
 static const u8 *g_ImGuiOverlayTexturePreviewPixels = NULL;
+static std::vector<u8> g_ImGuiOverlayTexturePreviewPixelStorage;
 static s32 g_ImGuiOverlayTexturePreviewModelFileNum = -1;
 static s32 g_ImGuiOverlayTexturePreviewTexId = -1;
 static u32 g_ImGuiOverlayTexturePreviewWidth = 0;
@@ -56,6 +58,15 @@ static u32 g_ImGuiOverlayTexturePreviewHeight = 0;
 static s32 g_ImGuiOverlayTexturePreviewZoom = 4;
 static s32 g_ImGuiOverlayRenderedTextureZoom = 4;
 static bool g_ImGuiOverlayRenderedTextureFlipY = true;
+static std::vector<u8> g_ImGuiOverlayRenderedTexturePixels;
+static s32 g_ImGuiOverlayRenderedPixelsModelFileNum = -1;
+static s32 g_ImGuiOverlayRenderedPixelsTexId = -1;
+static u32 g_ImGuiOverlayRenderedPixelsWidth = 0;
+static u32 g_ImGuiOverlayRenderedPixelsHeight = 0;
+static u64 g_ImGuiOverlayTextureCompareDifferentPixels = 0;
+static u64 g_ImGuiOverlayTextureCompareChannelDelta = 0;
+static u32 g_ImGuiOverlayTextureCompareMaxDelta = 0;
+static bool g_ImGuiOverlayTextureCompareValid = false;
 alignas(16) static u8 g_ImGuiOverlayTextureProbePoolData[64 * 1024];
 static struct texpool g_ImGuiOverlayTextureProbePool;
 static Gfx g_ImGuiOverlayTextureProbeGdl[64];
@@ -1506,10 +1517,12 @@ static void imguiOverlayClearTexturePreview(void)
 	}
 
 	g_ImGuiOverlayTexturePreviewPixels = NULL;
+	g_ImGuiOverlayTexturePreviewPixelStorage.clear();
 	g_ImGuiOverlayTexturePreviewModelFileNum = -1;
 	g_ImGuiOverlayTexturePreviewTexId = -1;
 	g_ImGuiOverlayTexturePreviewWidth = 0;
 	g_ImGuiOverlayTexturePreviewHeight = 0;
+	g_ImGuiOverlayTextureCompareValid = false;
 }
 
 static bool imguiOverlayLoadTexturePreview(s32 modelFileNum, u16 localTexId)
@@ -1537,7 +1550,8 @@ static bool imguiOverlayLoadTexturePreview(s32 modelFileNum, u16 localTexId)
 	glPixelStorei(GL_UNPACK_ALIGNMENT, previousUnpackAlignment);
 	glBindTexture(GL_TEXTURE_2D, previousBinding);
 
-	g_ImGuiOverlayTexturePreviewPixels = pixels;
+	g_ImGuiOverlayTexturePreviewPixelStorage.assign(pixels, pixels + (size_t)width * height * 4);
+	g_ImGuiOverlayTexturePreviewPixels = g_ImGuiOverlayTexturePreviewPixelStorage.data();
 	g_ImGuiOverlayTexturePreviewModelFileNum = modelFileNum;
 	g_ImGuiOverlayTexturePreviewTexId = localTexId;
 	g_ImGuiOverlayTexturePreviewWidth = width;
@@ -1624,6 +1638,77 @@ static bool imguiOverlayFindRenderedTexture(s32 modelFileNum, u16 localTexId, u1
 	return bestScore >= 0;
 }
 
+static void imguiOverlayClearRenderedPixels(void)
+{
+	g_ImGuiOverlayRenderedTexturePixels.clear();
+	g_ImGuiOverlayRenderedPixelsModelFileNum = -1;
+	g_ImGuiOverlayRenderedPixelsTexId = -1;
+	g_ImGuiOverlayRenderedPixelsWidth = 0;
+	g_ImGuiOverlayRenderedPixelsHeight = 0;
+	g_ImGuiOverlayTextureCompareValid = false;
+}
+
+static bool imguiOverlayCaptureRenderedPixels(const struct GfxTextureDebugInfo *info, s32 width, s32 height)
+{
+	if (!info || width <= 0 || height <= 0) {
+		return false;
+	}
+
+	GLint previousBinding = 0;
+	GLint previousPackAlignment = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousBinding);
+	glGetIntegerv(GL_PACK_ALIGNMENT, &previousPackAlignment);
+	g_ImGuiOverlayRenderedTexturePixels.resize((size_t)width * height * 4);
+	glBindTexture(GL_TEXTURE_2D, info->texture_id);
+	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+		g_ImGuiOverlayRenderedTexturePixels.data());
+	glPixelStorei(GL_PACK_ALIGNMENT, previousPackAlignment);
+	glBindTexture(GL_TEXTURE_2D, previousBinding);
+
+	g_ImGuiOverlayRenderedPixelsModelFileNum = info->id;
+	g_ImGuiOverlayRenderedPixelsTexId = info->texnum;
+	g_ImGuiOverlayRenderedPixelsWidth = width;
+	g_ImGuiOverlayRenderedPixelsHeight = height;
+	g_ImGuiOverlayTextureCompareValid = false;
+	return true;
+}
+
+static void imguiOverlayCompareTexturePixels(void)
+{
+	g_ImGuiOverlayTextureCompareDifferentPixels = 0;
+	g_ImGuiOverlayTextureCompareChannelDelta = 0;
+	g_ImGuiOverlayTextureCompareMaxDelta = 0;
+	g_ImGuiOverlayTextureCompareValid = false;
+
+	if (!g_ImGuiOverlayTexturePreviewPixels || g_ImGuiOverlayRenderedTexturePixels.empty()
+			|| g_ImGuiOverlayTexturePreviewWidth != g_ImGuiOverlayRenderedPixelsWidth
+			|| g_ImGuiOverlayTexturePreviewHeight != g_ImGuiOverlayRenderedPixelsHeight) {
+		return;
+	}
+
+	const u32 width = g_ImGuiOverlayRenderedPixelsWidth;
+	const u32 height = g_ImGuiOverlayRenderedPixelsHeight;
+	for (u32 y = 0; y < height; ++y) {
+		const u32 sourceY = height - 1 - y;
+		const u32 renderedY = g_ImGuiOverlayRenderedTextureFlipY ? height - 1 - y : y;
+		for (u32 x = 0; x < width; ++x) {
+			const u8 *source = &g_ImGuiOverlayTexturePreviewPixels[(sourceY * width + x) * 4];
+			const u8 *rendered = &g_ImGuiOverlayRenderedTexturePixels[(renderedY * width + x) * 4];
+			bool different = false;
+			for (u32 channel = 0; channel < 4; ++channel) {
+				const u32 delta = source[channel] > rendered[channel]
+					? source[channel] - rendered[channel] : rendered[channel] - source[channel];
+				g_ImGuiOverlayTextureCompareChannelDelta += delta;
+				g_ImGuiOverlayTextureCompareMaxDelta = ImMax(g_ImGuiOverlayTextureCompareMaxDelta, delta);
+				different |= delta != 0;
+			}
+			g_ImGuiOverlayTextureCompareDifferentPixels += different ? 1 : 0;
+		}
+	}
+	g_ImGuiOverlayTextureCompareValid = true;
+}
+
 static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum, u16 textureId)
 {
 	gfx_submit_debug_texture_gdl(NULL);
@@ -1681,6 +1766,11 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 		ImGui::TextDisabled("Not imported this frame. Load it above or keep the model visible.");
 		return;
 	}
+	if (!g_ImGuiOverlayRenderedTexturePixels.empty()
+			&& (g_ImGuiOverlayRenderedPixelsModelFileNum != info.id
+				|| g_ImGuiOverlayRenderedPixelsTexId != (s32)info.texnum)) {
+		imguiOverlayClearRenderedPixels();
+	}
 
 	GLint previousBinding = 0;
 	GLint width = 0;
@@ -1698,10 +1788,19 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 
 	ImGui::Text("type %u, model 0x%04x, tex 0x%04x, GL %u, %dx%d",
 		info.type, info.id, info.texnum, info.texture_id, width, height);
+	if (ImGui::Button("Capture rendered pixels")) {
+		imguiOverlayCaptureRenderedPixels(&info, width, height);
+	}
+	if (!g_ImGuiOverlayRenderedTexturePixels.empty()) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("snapshot captured");
+	}
 	ImGui::SetNextItemWidth(140.0f);
 	ImGui::SliderInt("Rendered zoom", &g_ImGuiOverlayRenderedTextureZoom, 1, 16, "%dx");
 	ImGui::SameLine();
-	ImGui::Checkbox("Flip Y", &g_ImGuiOverlayRenderedTextureFlipY);
+	if (ImGui::Checkbox("Flip Y", &g_ImGuiOverlayRenderedTextureFlipY)) {
+		g_ImGuiOverlayTextureCompareValid = false;
+	}
 
 	const ImVec2 imageSize((float)width * g_ImGuiOverlayRenderedTextureZoom,
 		(float)height * g_ImGuiOverlayRenderedTextureZoom);
@@ -1710,8 +1809,39 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 		const ImVec2 uv0 = g_ImGuiOverlayRenderedTextureFlipY ? ImVec2(0.0f, 1.0f) : ImVec2(0.0f, 0.0f);
 		const ImVec2 uv1 = g_ImGuiOverlayRenderedTextureFlipY ? ImVec2(1.0f, 0.0f) : ImVec2(1.0f, 1.0f);
 		ImGui::Image(ImTextureRef((ImTextureID)info.texture_id), imageSize, uv0, uv1);
+		if (ImGui::IsItemHovered() && !g_ImGuiOverlayRenderedTexturePixels.empty()) {
+			const ImVec2 imageMin = ImGui::GetItemRectMin();
+			const ImVec2 mousePos = ImGui::GetIO().MousePos;
+			const u32 x = ImMin((u32)((mousePos.x - imageMin.x) * width / imageSize.x), (u32)width - 1);
+			const u32 y = ImMin((u32)((mousePos.y - imageMin.y) * height / imageSize.y), (u32)height - 1);
+			const u32 storedY = g_ImGuiOverlayRenderedTextureFlipY ? height - 1 - y : y;
+			const u8 *pixel = &g_ImGuiOverlayRenderedTexturePixels[(storedY * width + x) * 4];
+			ImGui::SetTooltip("(%u, %u)\nRGBA %u, %u, %u, %u\n#%02X%02X%02X%02X",
+				x, y, pixel[0], pixel[1], pixel[2], pixel[3], pixel[0], pixel[1], pixel[2], pixel[3]);
+		}
 	}
 	ImGui::EndChild();
+
+	if (g_ImGuiOverlayTexturePreviewPixels && !g_ImGuiOverlayRenderedTexturePixels.empty()) {
+		if (ImGui::Button("Compare source and rendered")) {
+			imguiOverlayCompareTexturePixels();
+		}
+		if (g_ImGuiOverlayTexturePreviewWidth != g_ImGuiOverlayRenderedPixelsWidth
+				|| g_ImGuiOverlayTexturePreviewHeight != g_ImGuiOverlayRenderedPixelsHeight) {
+			ImGui::Text("Dimension mismatch: source %ux%u, rendered %ux%u",
+				g_ImGuiOverlayTexturePreviewWidth, g_ImGuiOverlayTexturePreviewHeight,
+				g_ImGuiOverlayRenderedPixelsWidth, g_ImGuiOverlayRenderedPixelsHeight);
+		} else if (g_ImGuiOverlayTextureCompareValid) {
+			const u64 pixelCount = (u64)g_ImGuiOverlayRenderedPixelsWidth * g_ImGuiOverlayRenderedPixelsHeight;
+			const double meanDelta = pixelCount > 0
+				? (double)g_ImGuiOverlayTextureCompareChannelDelta / (double)(pixelCount * 4) : 0.0;
+			ImGui::Text("Different pixels: %llu / %llu (%.2f%%)",
+				(unsigned long long)g_ImGuiOverlayTextureCompareDifferentPixels,
+				(unsigned long long)pixelCount,
+				pixelCount > 0 ? 100.0 * g_ImGuiOverlayTextureCompareDifferentPixels / pixelCount : 0.0);
+			ImGui::Text("Channel delta: mean %.3f, max %u", meanDelta, g_ImGuiOverlayTextureCompareMaxDelta);
+		}
+	}
 }
 
 static void imguiOverlayDrawTexturesPanel(void)
@@ -1812,9 +1942,10 @@ static void imguiOverlayDrawTexturesPanel(void)
 	ImGui::BulletText("Do not use texconfig ptr_raw except when debugging ROM texture-bank layout.");
 	ImGui::BulletText("Prefer per-model texture paths: textures/<ModelName>/<localTexId>.bin.");
 	ImGui::BulletText("PNG previews use model-scoped ext_tex ownership, nearest-neighbor sampling, and GL_UNPACK_ALIGNMENT=1.");
+	ImGui::BulletText("Rendered snapshots read the exact Fast3D cache texture; comparison isolates decode/upload differences from UV placement.");
 
 	ImGui::SeparatorText("Screenshot Alignment Plan");
-	ImGui::TextWrapped("Next step: compare the PNG preview against screenshot crops with diagnostic X/Y offsets before changing decode or UV code.");
+	ImGui::TextWrapped("First compare source and rendered pixels. If they match, continue with screenshot crops and diagnostic X/Y offsets before changing UV code.");
 }
 
 static void imguiOverlaySetVisible(bool visible)
