@@ -95,6 +95,24 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	buffer->appendf("LookingAt=%d\n\n", g_ImGuiOverlayShowLookingAt);
 }
 
+static u32 imguiOverlayGetWindowState(void)
+{
+	return (g_ImGuiOverlayShowRuntime ? 1u << 0 : 0)
+		| (g_ImGuiOverlayShowStage ? 1u << 1 : 0)
+		| (g_ImGuiOverlayShowEntities ? 1u << 2 : 0)
+		| (g_ImGuiOverlayShowAssets ? 1u << 3 : 0)
+		| (g_ImGuiOverlayShowTextures ? 1u << 4 : 0)
+		| (g_ImGuiOverlayShowMemory ? 1u << 5 : 0)
+		| (g_ImGuiOverlayShowProfiler ? 1u << 6 : 0)
+		| (g_ImGuiOverlayShowLookingAt ? 1u << 7 : 0);
+}
+
+static void imguiOverlaySaveWindowState(void)
+{
+	ImGui::MarkIniSettingsDirty();
+	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
+}
+
 #define CASE_NAME(x) case x: return #x;
 
 static const char *imguiOverlayActionName(s8 action)
@@ -1681,6 +1699,7 @@ void imguiOverlayRender(void)
 	}
 
 	if (g_ImGuiOverlayVisible) {
+		const u32 previousWindowState = imguiOverlayGetWindowState();
 		g_ImGuiOverlayExpandLatch = false;
 		if (!imguiOverlayPropIsCurrent(g_ImGuiOverlayFocusProp)) {
 			g_ImGuiOverlayFocusProp = NULL;
@@ -1756,6 +1775,10 @@ void imguiOverlayRender(void)
 				imguiOverlayDrawTexturesPanel();
 			}
 			ImGui::End();
+		}
+
+		if (imguiOverlayGetWindowState() != previousWindowState) {
+			imguiOverlaySaveWindowState();
 		}
 	}
 
