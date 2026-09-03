@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 
 #include <SDL.h>
 #include <PR/os_thread.h>
@@ -42,9 +43,12 @@ static s32 g_ImGuiOverlaySlotMod = -1;
 static s32 g_ImGuiOverlayPropFilter = 0;
 static s32 g_ImGuiOverlayObjFilter = 0;
 static s32 g_ImGuiOverlayTextureProbeId = 0;
+static s32 g_ImGuiOverlayTextureModelMod = -1;
+static s32 g_ImGuiOverlayTextureModelFileNum = -1;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
+static ImGuiTextFilter g_ImGuiOverlayModelFilter;
 
 extern s32 g_StageNum;
 extern s32 g_ModNum;
@@ -1036,20 +1040,117 @@ static void imguiOverlayDrawAssetsPanel(void)
 	}
 }
 
+static bool imguiOverlayIsModelSlotName(const char *name)
+{
+	if (!name || !name[0]) {
+		return false;
+	}
+
+	const char *base = strrchr(name, '/');
+	base = base ? base + 1 : name;
+	return base[0] == 'C' || base[0] == 'P' || base[0] == 'G';
+}
+
+static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentModelFileNum)
+{
+	if (g_ImGuiOverlayTextureModelMod < 0 || g_ImGuiOverlayTextureModelMod >= (s32)g_NumModDirs) {
+		g_ImGuiOverlayTextureModelMod = currentModelMod >= 0 ? currentModelMod : g_ModNum;
+	}
+
+	ImGui::SeparatorText("Model Search");
+	if (ImGui::BeginCombo("Model mod", g_ImGuiOverlayTextureModelMod >= 0
+			&& g_ImGuiOverlayTextureModelMod < (s32)g_NumModDirs
+			? modDirs[g_ImGuiOverlayTextureModelMod] : "none")) {
+		for (u32 modIndex = 0; modIndex < g_NumModDirs; ++modIndex) {
+			const bool selected = g_ImGuiOverlayTextureModelMod == (s32)modIndex;
+			if (ImGui::Selectable(modDirs[modIndex], selected)) {
+				g_ImGuiOverlayTextureModelMod = (s32)modIndex;
+				g_ImGuiOverlayTextureModelFileNum = -1;
+			}
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+	g_ImGuiOverlayModelFilter.Draw("Search models", 180.0f);
+	ImGui::SameLine();
+	if (ImGui::Button("Use current") && currentModelMod >= 0 && currentModelFileNum > 0) {
+		g_ImGuiOverlayTextureModelMod = currentModelMod;
+		g_ImGuiOverlayTextureModelFileNum = currentModelFileNum;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Clear")) {
+		g_ImGuiOverlayTextureModelFileNum = -1;
+	}
+
+	if (ImGui::BeginChild("Model slots", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) {
+		if (ImGui::BeginTable("Model slot table", 4,
+				ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed, 62.0f);
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("State", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+			ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+			ImGui::TableHeadersRow();
+
+			for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
+				struct romdatafileslotinfo slotInfo;
+				if (!romdataGetFileSlotInfo(g_ImGuiOverlayTextureModelMod, fileNum, &slotInfo)
+						|| !imguiOverlayIsModelSlotName(slotInfo.name)
+						|| !g_ImGuiOverlayModelFilter.PassFilter(slotInfo.name)) {
+					continue;
+				}
+
+				const bool selected = g_ImGuiOverlayTextureModelFileNum == fileNum;
+				const bool current = g_ImGuiOverlayTextureModelMod == currentModelMod && fileNum == currentModelFileNum;
+				ImGui::PushID(fileNum);
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+				ImGui::Text("0x%04x", fileNum);
+				ImGui::TableSetColumnIndex(1);
+				if (ImGui::Selectable(slotInfo.name, selected, ImGuiSelectableFlags_SpanAllColumns)) {
+					g_ImGuiOverlayTextureModelFileNum = fileNum;
+				}
+				ImGui::TableSetColumnIndex(2);
+				ImGui::TextUnformatted(current ? "current" : selected ? "selected" : "");
+				ImGui::TableSetColumnIndex(3);
+				if (ImGui::SmallButton("Select")) {
+					g_ImGuiOverlayTextureModelFileNum = fileNum;
+				}
+				ImGui::PopID();
+			}
+
+			ImGui::EndTable();
+		}
+	}
+	ImGui::EndChild();
+}
+
 static void imguiOverlayDrawTexturesPanel(void)
 {
-	const s32 textureMod = g_TexModNum;
-	const s32 modelFileNum = g_TexCurrentModelFileNum & 0xffff;
+	const s32 currentTextureMod = g_TexModNum;
+	const s32 currentModelFileNum = g_TexCurrentModelFileNum & 0xffff;
+	s32 textureMod = currentTextureMod;
+	s32 modelFileNum = currentModelFileNum;
 	const char *modelName = NULL;
+
+	if (g_ImGuiOverlayTextureModelMod >= 0 && g_ImGuiOverlayTextureModelFileNum > 0) {
+		textureMod = g_ImGuiOverlayTextureModelMod;
+		modelFileNum = g_ImGuiOverlayTextureModelFileNum;
+	}
 
 	if (textureMod >= 0 && modelFileNum > 0) {
 		modelName = romdataFileGetSlotName(textureMod, modelFileNum);
 	}
 
 	ImGui::SeparatorText("Current Texture Context");
-	ImGui::Text("Texture mod: %d", textureMod);
-	ImGui::Text("Current model file: 0x%04x", modelFileNum);
+	ImGui::Text("Runtime texture mod: %d", currentTextureMod);
+	ImGui::Text("Runtime model file: 0x%04x", currentModelFileNum);
+	ImGui::Text("Probe texture mod: %d", textureMod);
+	ImGui::Text("Probe model file: 0x%04x", modelFileNum);
 	ImGui::Text("Model name: %s", modelName ? modelName : "none");
+
+	imguiOverlayDrawTextureModelSearch(currentTextureMod, currentModelFileNum);
 
 	ImGui::SeparatorText("Texture ID Probe");
 	ImGui::SetNextItemWidth(110.0f);
