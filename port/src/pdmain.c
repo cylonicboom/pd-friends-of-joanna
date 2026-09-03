@@ -606,6 +606,7 @@ void mainTick(void) {
     }
 
     frametimeCalculate();
+	profile00009a98();
     profileReset();
     profileSetMarker(PROFILE_MAINTICK_START);
     joyDebugJoy();

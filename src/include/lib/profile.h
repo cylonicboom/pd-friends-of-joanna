@@ -29,6 +29,12 @@ struct profileframerecord {
 	f32 diffframe60f;
 	f32 diffframe240f;
 	s32 stage;
+	s32 rooms;
+	s32 chrs;
+	s32 onscreenprops;
+	s32 maxprops;
+	u32 stagefree;
+	u32 gfxpending;
 	u32 rdp_counters[4];
 };
 

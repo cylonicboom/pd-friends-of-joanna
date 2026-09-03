@@ -4,6 +4,9 @@
 #include "data.h"
 #include "types.h"
 #include "lib/profile.h"
+#include "lib/memp.h"
+
+extern u32 g_MainNumGfxTasks;
 
 static struct profileframerecord g_ProfileHistory[PROFILE_HISTORY_LEN];
 static struct profileframerecord g_ProfileCurrent;
@@ -34,6 +37,12 @@ static void profileBeginCurrent(void)
 	g_ProfileCurrent.diffframe60f = g_Vars.diffframe60f;
 	g_ProfileCurrent.diffframe240f = g_Vars.diffframe240f;
 	g_ProfileCurrent.stage = g_Vars.stagenum;
+	g_ProfileCurrent.rooms = g_Vars.roomcount;
+	g_ProfileCurrent.chrs = g_NumChrs;
+	g_ProfileCurrent.onscreenprops = g_Vars.numonscreenprops;
+	g_ProfileCurrent.maxprops = g_Vars.maxprops;
+	g_ProfileCurrent.stagefree = mempGetStageFree();
+	g_ProfileCurrent.gfxpending = g_MainNumGfxTasks;
 
 	for (s32 i = 0; i < PROFILE_MARKER_SLOT_COUNT; ++i) {
 		g_ProfileCurrent.markers[i] = 0;

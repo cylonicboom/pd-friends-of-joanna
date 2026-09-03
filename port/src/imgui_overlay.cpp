@@ -476,12 +476,62 @@ static f32 imguiOverlayProfileSpanMs(const struct profileframerecord *record,
 	return imguiOverlayCyclesToMs(record->markers[end] - record->markers[start]);
 }
 
+static void imguiOverlayDrawProfilerGraph(f32 *frameTimes, s32 count, f32 maxMs)
+{
+	const f32 graphHeight = 150.0f;
+	const f32 graphWidth = ImGui::GetContentRegionAvail().x;
+	const ImVec2 origin = ImGui::GetCursorScreenPos();
+	const ImVec2 size(graphWidth > 1.0f ? graphWidth : 1.0f, graphHeight);
+	ImDrawList *drawList = ImGui::GetWindowDrawList();
+	const f32 scaleMax = maxMs > 33.33f ? maxMs : 33.33f;
+	const f32 barWidth = size.x / (f32)(count > 0 ? count : 1);
+	const f32 line16 = origin.y + size.y - (16.6667f / scaleMax) * size.y;
+	const f32 line33 = origin.y + size.y - (33.3333f / scaleMax) * size.y;
+
+	drawList->AddRectFilled(origin, ImVec2(origin.x + size.x, origin.y + size.y), IM_COL32(12, 15, 18, 190));
+	drawList->AddLine(ImVec2(origin.x, line16), ImVec2(origin.x + size.x, line16), IM_COL32(70, 160, 90, 150));
+	drawList->AddLine(ImVec2(origin.x, line33), ImVec2(origin.x + size.x, line33), IM_COL32(200, 140, 55, 150));
+
+	for (s32 i = 0; i < count; ++i) {
+		const f32 value = frameTimes[i] > scaleMax ? scaleMax : frameTimes[i];
+		const f32 height = (value / scaleMax) * size.y;
+		const f32 x0 = origin.x + i * barWidth;
+		const f32 x1 = origin.x + (i + 1) * barWidth - 1.0f;
+		const f32 y0 = origin.y + size.y - height;
+		const ImU32 colour = frameTimes[i] > 33.3333f ? IM_COL32(220, 80, 70, 230)
+			: frameTimes[i] > 16.6667f ? IM_COL32(220, 170, 60, 230)
+			: IM_COL32(85, 185, 115, 230);
+		drawList->AddRectFilled(ImVec2(x0, y0), ImVec2(x1 > x0 ? x1 : x0 + 1.0f, origin.y + size.y), colour);
+	}
+
+	drawList->AddText(ImVec2(origin.x + 4.0f, line16 - 14.0f), IM_COL32(150, 220, 165, 220), "16.7 ms");
+	drawList->AddText(ImVec2(origin.x + 4.0f, line33 - 14.0f), IM_COL32(235, 190, 120, 220), "33.3 ms");
+	ImGui::Dummy(size);
+}
+
+static void imguiOverlayAddProfilerTopRow(const char *name, f32 latest, f32 avg, f32 max)
+{
+	ImGui::TableNextRow();
+	ImGui::TableSetColumnIndex(0);
+	ImGui::TextUnformatted(name);
+	ImGui::TableSetColumnIndex(1);
+	ImGui::Text("%.3f", latest);
+	ImGui::TableSetColumnIndex(2);
+	ImGui::Text("%.3f", avg);
+	ImGui::TableSetColumnIndex(3);
+	ImGui::Text("%.3f", max);
+}
+
 static void imguiOverlayDrawProfilerPanel(void)
 {
 	struct profileframerecord record;
 	struct profileframerecord latest;
 	const s32 count = profileGetFrameHistoryCount();
 	f32 frameTimes[PROFILE_HISTORY_LEN];
+	f32 latestSpans[4] = { 0.0f };
+	f32 sumSpans[4] = { 0.0f };
+	f32 maxSpans[4] = { 0.0f };
+	s32 spanCounts[4] = { 0 };
 	f32 minMs = 0.0f;
 	f32 maxMs = 0.0f;
 	f32 sumMs = 0.0f;
@@ -495,6 +545,12 @@ static void imguiOverlayDrawProfilerPanel(void)
 	for (s32 i = 0; i < count; ++i) {
 		profileGetFrameHistoryRecord(i, &record);
 		const f32 frameMs = record.diffframe60f * (1000.0f / 60.0f);
+		const f32 spans[4] = {
+			imguiOverlayProfileSpanMs(&record, PROFILE_SLOT_MAINTICK_START, PROFILE_SLOT_MAINTICK_END),
+			imguiOverlayProfileSpanMs(&record, PROFILE_SLOT_AUDIOFRAME_START, PROFILE_SLOT_AUDIOFRAME_END),
+			imguiOverlayProfileSpanMs(&record, PROFILE_SLOT_RSP_START, PROFILE_SLOT_RSP_END),
+			imguiOverlayProfileSpanMs(&record, PROFILE_SLOT_RDP_START, PROFILE_SLOT_RDP_END),
+		};
 		frameTimes[i] = frameMs;
 		if (valid == 0 || frameMs < minMs) {
 			minMs = frameMs;
@@ -504,28 +560,51 @@ static void imguiOverlayDrawProfilerPanel(void)
 		}
 		sumMs += frameMs;
 		valid++;
+
+		for (s32 span = 0; span < 4; ++span) {
+			if (spans[span] > 0.0f) {
+				sumSpans[span] += spans[span];
+				if (spanCounts[span] == 0 || spans[span] > maxSpans[span]) {
+					maxSpans[span] = spans[span];
+				}
+				spanCounts[span]++;
+			}
+		}
 	}
 
 	profileGetFrameHistoryRecord(count - 1, &latest);
 	const f32 avgMs = valid > 0 ? sumMs / valid : 0.0f;
 	const f32 latestMs = latest.diffframe60f * (1000.0f / 60.0f);
+	latestSpans[0] = imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_MAINTICK_START, PROFILE_SLOT_MAINTICK_END);
+	latestSpans[1] = imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_AUDIOFRAME_START, PROFILE_SLOT_AUDIOFRAME_END);
+	latestSpans[2] = imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_RSP_START, PROFILE_SLOT_RSP_END);
+	latestSpans[3] = imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_RDP_START, PROFILE_SLOT_RDP_END);
 
 	ImGui::Text("Samples: %d/%d", count, PROFILE_HISTORY_LEN);
 	ImGui::Text("Frame: %.2f ms  avg %.2f  min %.2f  max %.2f",
 			latestMs, avgMs, minMs, maxMs);
-	ImGui::PlotLines("Frame time", frameTimes, count, 0, NULL, 0.0f,
-			maxMs > 33.33f ? maxMs : 33.33f, ImVec2(0.0f, 120.0f));
+	imguiOverlayDrawProfilerGraph(frameTimes, count, maxMs);
 
-	ImGui::SeparatorText("Latest Frame");
+	ImGui::SeparatorText("pd top");
+	if (ImGui::BeginTable("pd top", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter)) {
+		ImGui::TableSetupColumn("Phase", ImGuiTableColumnFlags_WidthFixed, 92.0f);
+		ImGui::TableSetupColumn("Latest ms", ImGuiTableColumnFlags_WidthFixed, 82.0f);
+		ImGui::TableSetupColumn("Avg ms", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+		ImGui::TableSetupColumn("Max ms", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+		ImGui::TableHeadersRow();
+		imguiOverlayAddProfilerTopRow("frame", latestMs, avgMs, maxMs);
+		imguiOverlayAddProfilerTopRow("main", latestSpans[0], spanCounts[0] ? sumSpans[0] / spanCounts[0] : 0.0f, maxSpans[0]);
+		imguiOverlayAddProfilerTopRow("audio", latestSpans[1], spanCounts[1] ? sumSpans[1] / spanCounts[1] : 0.0f, maxSpans[1]);
+		imguiOverlayAddProfilerTopRow("rsp", latestSpans[2], spanCounts[2] ? sumSpans[2] / spanCounts[2] : 0.0f, maxSpans[2]);
+		imguiOverlayAddProfilerTopRow("rdp", latestSpans[3], spanCounts[3] ? sumSpans[3] / spanCounts[3] : 0.0f, maxSpans[3]);
+		ImGui::EndTable();
+	}
+
+	ImGui::SeparatorText("Runtime Counters");
 	ImGui::Text("Frame: %u  Stage: 0x%02x", latest.frame, (unsigned int)latest.stage);
-	ImGui::Text("Main tick: %.3f ms",
-			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_MAINTICK_START, PROFILE_SLOT_MAINTICK_END));
-	ImGui::Text("Audio: %.3f ms",
-			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_AUDIOFRAME_START, PROFILE_SLOT_AUDIOFRAME_END));
-	ImGui::Text("RSP: %.3f ms",
-			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_RSP_START, PROFILE_SLOT_RSP_END));
-	ImGui::Text("RDP: %.3f ms",
-			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_RDP_START, PROFILE_SLOT_RDP_END));
+	ImGui::Text("Rooms: %d  Chrs: %d", latest.rooms, latest.chrs);
+	ImGui::Text("Props: %d visible / %d slots", latest.onscreenprops, latest.maxprops);
+	ImGui::Text("Stage free: %u KiB  Gfx pending: %u", latest.stagefree / 1024, latest.gfxpending);
 
 	if (ImGui::CollapsingHeader("Markers")) {
 		static const char *markerNames[PROFILE_MARKER_SLOT_COUNT] = {
