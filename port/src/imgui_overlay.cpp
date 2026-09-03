@@ -287,6 +287,66 @@ static void imguiOverlayDescribeWeapon(struct weaponobj *weapon)
 	ImGui::Text("Timer: %d", weapon->timer240);
 }
 
+static void imguiOverlayDescribeHand(struct hand *hand)
+{
+	ImGui::Text("Gun num: 0x%02x", hand->gset.weaponnum);
+	ImGui::Text("Gun func: 0x%02x", hand->gset.weaponfunc);
+	ImGui::Text("Mode: 0x%02x -> 0x%02x", hand->mode, hand->modenext);
+	ImGui::Text("In use: %s", hand->inuse ? "yes" : "no");
+	ImGui::Text("Firing: %s", hand->firing ? "yes" : "no");
+	ImGui::Text("Aim pos: %s", imguiOverlayCoordString(&hand->aimpos));
+	ImGui::Text("Hit pos: %s", imguiOverlayCoordString(&hand->hitpos));
+}
+
+static bool imguiOverlayPlayerIsCurrent(struct player *player)
+{
+	if (!player) {
+		return false;
+	}
+
+	for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+		if (g_Vars.players[i] == player) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void imguiOverlayDescribePlayer(struct player *player)
+{
+	if (!imguiOverlayPlayerIsCurrent(player)) {
+		ImGui::TextUnformatted("Player is no longer available");
+		return;
+	}
+
+	ImGui::Text("Camera pos: %s", imguiOverlayCoordString(&player->cam_pos));
+	ImGui::Text("Camera look: %s", imguiOverlayCoordString(&player->cam_look));
+	ImGui::Text("Camera room: 0x%03x", (u32)player->cam_room);
+	ImGui::Text("Health: %.3f", player->bondhealth);
+	ImGui::Text("Shield: %.3f", player->apparentarmour);
+	ImGui::Text("Dead: %s", player->isdead ? "yes" : "no");
+
+	if (imguiOverlayPropIsCurrent(player->prop)) {
+		ImGui::Separator();
+		imguiOverlayPropJumpLine("Prop", player->prop);
+		if (ImGui::TreeNode(player->prop, "Prop details (%p)", player->prop)) {
+			imguiOverlayDescribeProp(player->prop);
+			ImGui::TreePop();
+		}
+	}
+
+	ImGui::Separator();
+	if (ImGui::TreeNode("Right hand")) {
+		imguiOverlayDescribeHand(&player->hands[HAND_RIGHT]);
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNode("Left hand")) {
+		imguiOverlayDescribeHand(&player->hands[HAND_LEFT]);
+		ImGui::TreePop();
+	}
+}
+
 static void imguiOverlayDescribeChr(struct chrdata *chr)
 {
 	if (!imguiOverlayChrIsCurrent(chr)) {
@@ -735,6 +795,20 @@ static void imguiOverlayDrawStagePanel(void)
 
 static void imguiOverlayDrawEntitiesPanel(void)
 {
+	if (ImGui::CollapsingHeader("Players", ImGuiTreeNodeFlags_DefaultOpen)) {
+		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+			struct player *player = g_Vars.players[i];
+			if (!player) {
+				continue;
+			}
+
+			if (ImGui::TreeNode(player, "Player %d (%p)", i + 1, player)) {
+				imguiOverlayDescribePlayer(player);
+				ImGui::TreePop();
+			}
+		}
+	}
+
 	if (g_ImGuiOverlayFocusProp) {
 		ImGui::SetNextItemOpen(true);
 	}
