@@ -183,6 +183,8 @@ bool modeldefEditorWorkspaceGetInfo(struct modeldefEditorWorkspaceInfo *info)
 	info->texturecapacity = g_ModeldefEditorWorkspace.texturecapacity;
 	info->texturebytesused = g_ModeldefEditorWorkspace.texturepool.leftpos
 		- g_ModeldefEditorWorkspace.texturepool.start;
+	info->texturecount = g_ModeldefEditorWorkspace.texturepool.end
+		- g_ModeldefEditorWorkspace.texturepool.rightpos;
 	return true;
 }
 
@@ -194,6 +196,27 @@ struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid)
 	struct tex *tex = texFindInPool(textureid, &g_ModeldefEditorWorkspace.texturepool);
 	g_TexModNum = previousMod;
 	return tex;
+}
+
+bool modeldefEditorWorkspaceGetTextureInfo(s32 index, struct modeldefEditorTextureInfo *info)
+{
+	if (!info || !g_ModeldefEditorWorkspace.modeldef || index < 0) return false;
+	const s32 textureCount = g_ModeldefEditorWorkspace.texturepool.end
+		- g_ModeldefEditorWorkspace.texturepool.rightpos;
+	if (index >= textureCount) return false;
+
+	struct tex *tex = &g_ModeldefEditorWorkspace.texturepool.rightpos[index];
+	info->textureid = tex->texturenum;
+	info->width = tex->width;
+	info->height = tex->height;
+	info->gbiformat = tex->gbiformat;
+	info->depth = tex->depth;
+	info->lutmode = tex->lutmodeindex;
+	info->palettecount = tex->lutmodeindex ? tex->numcolors + 1 : 0;
+	info->lodcount = tex->numlods;
+	info->hasloddata = tex->hasloddata;
+	info->decodedsize = texGetSizeInBytes(tex, 0);
+	return true;
 }
 
 // True if `portId` is a texture asset owned by `modIdx`: either a PNG

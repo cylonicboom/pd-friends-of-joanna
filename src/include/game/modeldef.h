@@ -46,12 +46,27 @@ struct modeldefEditorWorkspaceInfo {
 	u32 modelloadedsize;
 	u32 texturecapacity;
 	u32 texturebytesused;
+	s32 texturecount;
+};
+
+struct modeldefEditorTextureInfo {
+	u16 textureid;
+	u8 width;
+	u8 height;
+	u8 gbiformat;
+	u8 depth;
+	u8 lutmode;
+	u8 palettecount;
+	u8 lodcount;
+	bool hasloddata;
+	u32 decodedsize;
 };
 
 bool modeldefEditorWorkspaceLoad(s32 fileid, u32 texturecapacity);
 void modeldefEditorWorkspaceUnload(void);
 bool modeldefEditorWorkspaceGetInfo(struct modeldefEditorWorkspaceInfo *info);
 struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid);
+bool modeldefEditorWorkspaceGetTextureInfo(s32 index, struct modeldefEditorTextureInfo *info);
 
 s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,

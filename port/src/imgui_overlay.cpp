@@ -1306,6 +1306,38 @@ static s32 imguiOverlayCountModelTextureFiles(s32 modNum, const char *modelName)
 	return count;
 }
 
+static void imguiOverlayAddModelTextureId(u16 textureId)
+{
+	for (s32 idIndex = 0; idIndex < g_ImGuiOverlayModelTextureIdCount; ++idIndex) {
+		if (g_ImGuiOverlayModelTextureIds[idIndex] == textureId) return;
+	}
+	if (g_ImGuiOverlayModelTextureIdCount < ARRAYCOUNT(g_ImGuiOverlayModelTextureIds)) {
+		g_ImGuiOverlayModelTextureIds[g_ImGuiOverlayModelTextureIdCount++] = textureId;
+	}
+}
+
+static void imguiOverlayMergeWorkspaceTextureIds(s32 textureMod)
+{
+	struct modeldefEditorWorkspaceInfo workspaceInfo;
+	if (!modeldefEditorWorkspaceGetInfo(&workspaceInfo)) return;
+	for (s32 index = 0; index < workspaceInfo.texturecount; ++index) {
+		struct modeldefEditorTextureInfo textureInfo;
+		if (!modeldefEditorWorkspaceGetTextureInfo(index, &textureInfo)) continue;
+		const u16 localId = modTexMapReverseLookup(textureMod, textureInfo.textureid);
+		imguiOverlayAddModelTextureId(localId != 0xffff ? localId : textureInfo.textureid);
+	}
+}
+
+static bool imguiOverlayGetWorkspaceTextureInfo(u16 textureId, struct modeldefEditorTextureInfo *result)
+{
+	struct modeldefEditorWorkspaceInfo workspaceInfo;
+	if (!result || !modeldefEditorWorkspaceGetInfo(&workspaceInfo)) return false;
+	for (s32 index = 0; index < workspaceInfo.texturecount; ++index) {
+		if (modeldefEditorWorkspaceGetTextureInfo(index, result) && result->textureid == textureId) return true;
+	}
+	return false;
+}
+
 static void imguiOverlayScanModelTextureIds(s32 textureMod, s32 modelFileNum)
 {
 	struct modeldefTextureUsage usages[512];
@@ -1319,17 +1351,7 @@ static void imguiOverlayScanModelTextureIds(s32 textureMod, s32 modelFileNum)
 	g_ImGuiOverlayScannedTextureModelMod = textureMod;
 	g_ImGuiOverlayScannedTextureModelFileNum = modelFileNum;
 	for (s32 usageIndex = 0; usageIndex < usageCount; ++usageIndex) {
-		const u16 textureId = usages[usageIndex].textureid;
-		bool duplicate = false;
-		for (s32 idIndex = 0; idIndex < g_ImGuiOverlayModelTextureIdCount; ++idIndex) {
-			if (g_ImGuiOverlayModelTextureIds[idIndex] == textureId) {
-				duplicate = true;
-				break;
-			}
-		}
-		if (!duplicate && g_ImGuiOverlayModelTextureIdCount < ARRAYCOUNT(g_ImGuiOverlayModelTextureIds)) {
-			g_ImGuiOverlayModelTextureIds[g_ImGuiOverlayModelTextureIdCount++] = textureId;
-		}
+		imguiOverlayAddModelTextureId(usages[usageIndex].textureid);
 	}
 }
 
@@ -1339,7 +1361,7 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 		return;
 	}
 
-	ImGui::SeparatorText("Model Texture Files");
+	ImGui::SeparatorText("Model Textures");
 	if (ImGui::BeginChild("Model texture files", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) {
 		if (ImGui::BeginTable("Model texture file table", 8,
 				ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
@@ -1365,6 +1387,8 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 				const bool hasFile = fileNum > 0 && romdataGetFileSlotInfo(textureMod, fileNum, &slotInfo);
 				const u16 engineTexId = mapped ? portTexId : localTexId;
 				const bool hasRomTexture = imguiOverlayHasRomTexture(engineTexId);
+				struct modeldefEditorTextureInfo workspaceTextureInfo;
+				const bool inWorkspace = imguiOverlayGetWorkspaceTextureInfo(engineTexId, &workspaceTextureInfo);
 				const bool hasExtTex = extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
 				const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 				u16 width = 0;
@@ -1412,7 +1436,15 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 					ImGui::TextDisabled("no");
 				}
 				ImGui::TableSetColumnIndex(6);
-				if (hasDimensions) {
+				if (inWorkspace) {
+					ImGui::Text("%ux%u", workspaceTextureInfo.width, workspaceTextureInfo.height);
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("private workspace\nformat %u, depth %u\npalette %u, LODs %u\ndecoded %u bytes",
+							workspaceTextureInfo.gbiformat, workspaceTextureInfo.depth,
+							workspaceTextureInfo.palettecount, workspaceTextureInfo.lodcount,
+							workspaceTextureInfo.decodedsize);
+					}
+				} else if (hasDimensions) {
 					ImGui::Text("%ux%u", width, height);
 				} else {
 					ImGui::TextDisabled("-");
@@ -1478,8 +1510,8 @@ static void imguiOverlayDrawModelTextureFiles(s32 textureMod, s32 modelFileNum, 
 		}
 	}
 	ImGui::EndChild();
-	ImGui::TextDisabled("GDL bindings: %d unique from %d references", g_ImGuiOverlayModelTextureIdCount,
-		g_ImGuiOverlayModelTextureIdTotal);
+	ImGui::TextDisabled("Inspectable textures: %d; pre-expansion GDL references: %d",
+		g_ImGuiOverlayModelTextureIdCount, g_ImGuiOverlayModelTextureIdTotal);
 	ImGui::TextDisabled("modelTexId = model GDL texture ID; resolvedTexId = texMap rewrite target; fileSlot = filetable slot for <ModelName>/<modelTexId>.bin");
 	ImGui::TextDisabled("png/ext_tex rows are metadata only for now; PNG texture preview/loading is not implemented in this panel yet.");
 }
@@ -1878,7 +1910,9 @@ static void imguiOverlayDrawModelWorkspace(s32 textureMod, s32 modelFileNum)
 			gfx_forget_debug_texture_data(g_ImGuiOverlayTextureProbeData);
 			g_ImGuiOverlayTextureProbeData = NULL;
 		}
-		modeldefEditorWorkspaceLoad(encodedFileNum, 512 * 1024);
+		if (modeldefEditorWorkspaceLoad(encodedFileNum, 512 * 1024)) {
+			imguiOverlayMergeWorkspaceTextureIds(textureMod);
+		}
 	}
 	if (loaded) {
 		ImGui::SameLine();
@@ -1896,9 +1930,9 @@ static void imguiOverlayDrawModelWorkspace(s32 textureMod, s32 modelFileNum)
 		ImGui::Text("Loaded model: mod %d, file 0x%04x%s",
 			(info.fileid >> 16) & 0xff, info.fileid & 0xffff,
 			info.fileid == encodedFileNum ? " (selected)" : "");
-		ImGui::Text("Model memory: %u / %u bytes; texture pool: %u / %u bytes",
+		ImGui::Text("Model memory: %u / %u bytes; texture pool: %u / %u bytes (%d textures)",
 			info.modelloadedsize, info.modelcapacity,
-			info.texturebytesused, info.texturecapacity);
+			info.texturebytesused, info.texturecapacity, info.texturecount);
 	} else {
 		ImGui::TextDisabled("No private model loaded.");
 	}
