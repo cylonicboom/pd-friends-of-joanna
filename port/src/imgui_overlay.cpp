@@ -87,7 +87,7 @@ static u8 g_ImGuiOverlayEngineProbeHeight = 0;
 static u8 g_ImGuiOverlayEngineProbeFormat = 0;
 static u8 g_ImGuiOverlayEngineProbeDepth = 0;
 static u8 g_ImGuiOverlayEngineProbeLutMode = 0;
-static u8 g_ImGuiOverlayEngineProbePaletteCount = 0;
+static u16 g_ImGuiOverlayEngineProbePaletteCount = 0;
 static u8 g_ImGuiOverlayEngineProbeLodCount = 0;
 static bool g_ImGuiOverlayEngineProbeHasLodData = false;
 static struct modeldefTextureUsage g_ImGuiOverlayTextureUsage[64];
@@ -1938,6 +1938,58 @@ static void imguiOverlayDrawModelWorkspace(s32 textureMod, s32 modelFileNum)
 	}
 }
 
+static void imguiOverlayDrawWorkspacePalette(u16 textureId)
+{
+	struct modeldefEditorPaletteEntry entries[256];
+	const s32 count = modeldefEditorWorkspaceGetPalette(textureId, entries, ARRAYCOUNT(entries));
+	if (count <= 0) return;
+
+	s32 unusedCount = 0;
+	s32 duplicateCount = 0;
+	for (s32 index = 0; index < count; ++index) {
+		unusedCount += entries[index].usagecount == 0 ? 1 : 0;
+		duplicateCount += entries[index].duplicateof >= 0 ? 1 : 0;
+	}
+
+	ImGui::SeparatorText("Native Palette");
+	ImGui::Text("%d entries; %d unused in first LOD; %d duplicate values",
+		count, unusedCount, duplicateCount);
+	if (ImGui::BeginTable("Native palette entries", 6,
+			ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY,
+			ImVec2(0.0f, 260.0f))) {
+		ImGui::TableSetupColumn("Index", ImGuiTableColumnFlags_WidthFixed, 48.0f);
+		ImGui::TableSetupColumn("Color", ImGuiTableColumnFlags_WidthFixed, 46.0f);
+		ImGui::TableSetupColumn("Raw", ImGuiTableColumnFlags_WidthFixed, 58.0f);
+		ImGui::TableSetupColumn("RGBA", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Used", ImGuiTableColumnFlags_WidthFixed, 54.0f);
+		ImGui::TableSetupColumn("Duplicate", ImGuiTableColumnFlags_WidthFixed, 68.0f);
+		ImGui::TableHeadersRow();
+		for (s32 index = 0; index < count; ++index) {
+			const struct modeldefEditorPaletteEntry *entry = &entries[index];
+			ImGui::PushID(index);
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("%02x", index);
+			ImGui::TableSetColumnIndex(1);
+			const ImVec4 color(entry->red / 255.0f, entry->green / 255.0f,
+				entry->blue / 255.0f, entry->alpha / 255.0f);
+			ImGui::ColorButton("##palette", color,
+				ImGuiColorEditFlags_NoTooltip | ImGuiColorEditFlags_NoDragDrop,
+				ImVec2(24.0f, 16.0f));
+			ImGui::TableSetColumnIndex(2);
+			ImGui::Text("%04x", entry->rawvalue);
+			ImGui::TableSetColumnIndex(3);
+			ImGui::Text("%u, %u, %u, %u", entry->red, entry->green, entry->blue, entry->alpha);
+			ImGui::TableSetColumnIndex(4);
+			if (entry->usagecount > 0) ImGui::Text("%u", entry->usagecount); else ImGui::TextDisabled("unused");
+			ImGui::TableSetColumnIndex(5);
+			if (entry->duplicateof >= 0) ImGui::Text("0x%02x", entry->duplicateof); else ImGui::TextDisabled("-");
+			ImGui::PopID();
+		}
+		ImGui::EndTable();
+	}
+}
+
 static float imguiOverlayWrapTextureCoord(float value, float size)
 {
 	if (size <= 0.0f) return 0.0f;
@@ -2049,6 +2101,7 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 		} else {
 			ImGui::Text("Bytes: decoded pool payload %u", g_ImGuiOverlayEngineProbeDecodedSize);
 		}
+		imguiOverlayDrawWorkspacePalette(engineTexId);
 	}
 
 	const bool privateProbeMatches = g_ImGuiOverlayEngineProbeAttempted

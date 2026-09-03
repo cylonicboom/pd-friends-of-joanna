@@ -219,6 +219,58 @@ bool modeldefEditorWorkspaceGetTextureInfo(s32 index, struct modeldefEditorTextu
 	return true;
 }
 
+s32 modeldefEditorWorkspaceGetPalette(u16 textureid,
+		struct modeldefEditorPaletteEntry *entries, s32 maxentries)
+{
+	if (!entries || maxentries <= 0) return 0;
+	struct tex *tex = modeldefEditorWorkspaceFindTexture(textureid);
+	if (!tex || tex->gbiformat != G_IM_FMT_CI || tex->lutmodeindex == 0) return 0;
+
+	const s32 paletteCount = tex->numcolors + 1;
+	const s32 count = paletteCount < maxentries ? paletteCount : maxentries;
+	const u8 *palette = tex->data + tex->tlutoffset;
+	if (tex->data < g_ModeldefEditorWorkspace.texturepool.start
+			|| palette + paletteCount * 2 > g_ModeldefEditorWorkspace.texturepool.leftpos) {
+		return 0;
+	}
+	for (s32 index = 0; index < count; ++index) {
+		struct modeldefEditorPaletteEntry *entry = &entries[index];
+		const u16 raw = palette[index * 2] << 8 | palette[index * 2 + 1];
+		entry->rawvalue = raw;
+		entry->usagecount = 0;
+		entry->duplicateof = -1;
+		if (tex->lutmodeindex == (G_TT_IA16 >> G_MDSFT_TEXTLUT)) {
+			entry->red = entry->green = entry->blue = raw >> 8;
+			entry->alpha = raw & 0xff;
+		} else {
+			entry->red = (((raw >> 11) & 0x1f) * 255) / 31;
+			entry->green = (((raw >> 6) & 0x1f) * 255) / 31;
+			entry->blue = (((raw >> 1) & 0x1f) * 255) / 31;
+			entry->alpha = (raw & 1) ? 255 : 0;
+		}
+		for (s32 previous = 0; previous < index; ++previous) {
+			if (entries[previous].rawvalue == raw) {
+				entry->duplicateof = previous;
+				break;
+			}
+		}
+	}
+
+	const u32 rowBytes = tex->depth == G_IM_SIZ_8b ? tex->width : (tex->width + 1) / 2;
+	const u32 indexBytes = rowBytes * tex->height;
+	if (indexBytes <= tex->tlutoffset) {
+		for (u32 y = 0; y < tex->height; ++y) {
+			for (u32 x = 0; x < tex->width; ++x) {
+				const u8 value = tex->data[y * rowBytes + (tex->depth == G_IM_SIZ_8b ? x : x / 2)];
+				const u8 paletteIndex = tex->depth == G_IM_SIZ_8b
+					? value : (x & 1 ? value & 0xf : value >> 4);
+				if (paletteIndex < count) entries[paletteIndex].usagecount++;
+			}
+		}
+	}
+	return count;
+}
+
 // True if `portId` is a texture asset owned by `modIdx`: either a PNG
 // override registered under G_TEXTYPE_GENERAL (ext_tex/ path) or the mod's
 // own texmap maps some source ID to this port. Widened from the original

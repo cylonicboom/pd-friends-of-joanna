@@ -56,10 +56,20 @@ struct modeldefEditorTextureInfo {
 	u8 gbiformat;
 	u8 depth;
 	u8 lutmode;
-	u8 palettecount;
+	u16 palettecount;
 	u8 lodcount;
 	bool hasloddata;
 	u32 decodedsize;
+};
+
+struct modeldefEditorPaletteEntry {
+	u16 rawvalue;
+	u32 usagecount;
+	s16 duplicateof;
+	u8 red;
+	u8 green;
+	u8 blue;
+	u8 alpha;
 };
 
 bool modeldefEditorWorkspaceLoad(s32 fileid, u32 texturecapacity);
@@ -67,6 +77,8 @@ void modeldefEditorWorkspaceUnload(void);
 bool modeldefEditorWorkspaceGetInfo(struct modeldefEditorWorkspaceInfo *info);
 struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid);
 bool modeldefEditorWorkspaceGetTextureInfo(s32 index, struct modeldefEditorTextureInfo *info);
+s32 modeldefEditorWorkspaceGetPalette(u16 textureid,
+		struct modeldefEditorPaletteEntry *entries, s32 maxentries);
 
 s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
 		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
