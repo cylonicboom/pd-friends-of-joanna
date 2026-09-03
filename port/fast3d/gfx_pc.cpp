@@ -93,6 +93,7 @@ static struct {
 } gfx_texture_cache;
 
 static std::vector<GfxTextureDebugInfo> gfx_debug_textures;
+static Gfx *gfx_debug_texture_gdl;
 
 static void gfx_record_debug_texture(uint8_t type, uint16_t id, uint32_t texnum, uint32_t texture_id) {
     for (GfxTextureDebugInfo& info : gfx_debug_textures) {
@@ -2714,6 +2715,16 @@ extern "C" bool gfx_get_debug_texture(uint32_t index, struct GfxTextureDebugInfo
     return true;
 }
 
+extern "C" void gfx_submit_debug_texture_gdl(Gfx *gdl) {
+    gfx_debug_texture_gdl = gdl;
+}
+
+extern "C" void gfx_forget_debug_texture_data(const void *data) {
+    if (data) {
+        gfx_texture_cache_delete((const uint8_t *)data);
+    }
+}
+
 uint32_t num_dls = 0;
 
 extern "C" void gfx_run(Gfx* commands) {
@@ -2740,6 +2751,11 @@ extern "C" void gfx_run(Gfx* commands) {
     rendering_state.scissor = {};
     gfx_run_dl(commands);
     gfx_flush();
+    if (gfx_debug_texture_gdl) {
+        gfx_run_dl(gfx_debug_texture_gdl);
+        import_texture(0, 0, false);
+        rdp.textures_changed[0] = false;
+    }
     gfxFramebuffer = 0;
 
     if (game_renders_to_framebuffer) {

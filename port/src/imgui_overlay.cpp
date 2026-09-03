@@ -56,6 +56,12 @@ static u32 g_ImGuiOverlayTexturePreviewHeight = 0;
 static s32 g_ImGuiOverlayTexturePreviewZoom = 4;
 static s32 g_ImGuiOverlayRenderedTextureZoom = 4;
 static bool g_ImGuiOverlayRenderedTextureFlipY = true;
+alignas(16) static u8 g_ImGuiOverlayTextureProbePoolData[64 * 1024];
+static struct texpool g_ImGuiOverlayTextureProbePool;
+static Gfx g_ImGuiOverlayTextureProbeGdl[64];
+static const u8 *g_ImGuiOverlayTextureProbeData = NULL;
+static s32 g_ImGuiOverlayEngineProbeModelFileNum = -1;
+static s32 g_ImGuiOverlayEngineProbeTexId = -1;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -71,6 +77,10 @@ extern "C" u32 mempGetStageFree(void);
 extern "C" bool bgTestHitInRoom(struct coord *frompos, struct coord *topos, s32 roomnum, struct hitthing *hitthing);
 extern "C" struct prop *propFindAimingAt(s32 handnum, bool isshooting, u32 context);
 extern "C" void portal00018148(struct coord *pos, struct coord *pos2, RoomNum *rooms, RoomNum *arg3, RoomNum *arg4, s32 arg5);
+extern "C" void texInitPool(struct texpool *pool, u8 *start, s32 len);
+extern "C" void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg);
+extern "C" struct tex *texFindInPool(s32 texturenum, struct texpool *pool);
+extern "C" Gfx *texBuildDebugLoadGdl(Gfx *gdl, struct tex *tex);
 
 static void *imguiOverlaySettingsReadOpen(ImGuiContext *, ImGuiSettingsHandler *handler, const char *name)
 {
@@ -1614,12 +1624,61 @@ static bool imguiOverlayFindRenderedTexture(s32 modelFileNum, u16 localTexId, u1
 	return bestScore >= 0;
 }
 
-static void imguiOverlayDrawRenderedTexturePreview(s32 modelFileNum, u16 localTexId, u16 portTexId)
+static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum, u16 textureId)
+{
+	gfx_submit_debug_texture_gdl(NULL);
+	if (textureMod < 0 || textureMod >= (s32)g_NumModDirs || modelFileNum <= 0) {
+		return false;
+	}
+
+	if (g_ImGuiOverlayTextureProbeData) {
+		gfx_forget_debug_texture_data(g_ImGuiOverlayTextureProbeData);
+		g_ImGuiOverlayTextureProbeData = NULL;
+	}
+
+	const s32 previousMod = g_TexModNum;
+	const s32 previousModelFileNum = g_TexCurrentModelFileNum;
+	g_TexModNum = textureMod;
+	g_TexCurrentModelFileNum = modelFileNum;
+	texInitPool(&g_ImGuiOverlayTextureProbePool, g_ImGuiOverlayTextureProbePoolData,
+		sizeof(g_ImGuiOverlayTextureProbePoolData));
+	texnum_t updateword = textureId;
+	texLoad(&updateword, &g_ImGuiOverlayTextureProbePool, true);
+	struct tex *tex = texFindInPool(textureId, &g_ImGuiOverlayTextureProbePool);
+	if (tex) {
+		g_ImGuiOverlayTextureProbeData = tex->data;
+		texBuildDebugLoadGdl(g_ImGuiOverlayTextureProbeGdl, tex);
+		gfx_submit_debug_texture_gdl(g_ImGuiOverlayTextureProbeGdl);
+		g_ImGuiOverlayEngineProbeModelFileNum = modelFileNum;
+		g_ImGuiOverlayEngineProbeTexId = textureId;
+	}
+	g_TexCurrentModelFileNum = previousModelFileNum;
+	g_TexModNum = previousMod;
+	return tex != NULL;
+}
+
+static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFileNum,
+		u16 localTexId, u16 portTexId, bool hasTextureFile)
 {
 	struct GfxTextureDebugInfo info;
 	ImGui::SeparatorText("Engine Rendered Preview");
+	const u16 engineTexId = portTexId != localTexId ? portTexId : localTexId;
+	ImGui::BeginDisabled(!hasTextureFile);
+	if (ImGui::Button("Load through engine")) {
+		imguiOverlayRequestEngineTexture(textureMod, modelFileNum, engineTexId);
+	}
+	ImGui::EndDisabled();
+	if (!hasTextureFile && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("No model-scoped .bin file is registered for this texture ID.");
+	}
+	if (g_ImGuiOverlayEngineProbeModelFileNum == modelFileNum
+			&& g_ImGuiOverlayEngineProbeTexId == engineTexId) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("private engine probe active");
+	}
+
 	if (!imguiOverlayFindRenderedTexture(modelFileNum, localTexId, portTexId, &info)) {
-		ImGui::TextDisabled("Not used by the renderer this frame. Keep the model visible and probe again.");
+		ImGui::TextDisabled("Not imported this frame. Load it above or keep the model visible.");
 		return;
 	}
 
@@ -1702,6 +1761,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 	const bool reverseMapped = hasProbeId && textureMod >= 0 && reverseLocalTexId != 0xffff;
 	const bool hasModelExtTex = modelFileNum > 0 && hasProbeId
 		&& extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
+	bool hasTextureFile = false;
 	ImGui::Text("local -> port: %s", !hasProbeId ? "enter texture ID" : localMapped ? "mapped" : "unmapped");
 	if (localMapped) {
 		ImGui::SameLine();
@@ -1719,6 +1779,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 			? (snprintf(textureFileName, sizeof(textureFileName), "%s/%04x.bin", textureDirName, localTexId),
 				romdataFileGetNumForNameInMod(textureFileName, textureMod))
 			: -1;
+		hasTextureFile = textureFileNum > 0;
 		const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 		u16 width = 0;
 		u16 height = 0;
@@ -1741,7 +1802,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 	}
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
 	if (modelFileNum > 0 && hasProbeId) {
-		imguiOverlayDrawRenderedTexturePreview(modelFileNum, localTexId, portTexId);
+		imguiOverlayDrawRenderedTexturePreview(textureMod, modelFileNum, localTexId, portTexId, hasTextureFile);
 	}
 
 	imguiOverlayDrawModelTextureFiles(textureMod, modelFileNum, textureDirName);

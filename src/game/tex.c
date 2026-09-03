@@ -663,6 +663,24 @@ Gfx *texWriteTile(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offset, s
 	return gdl;
 }
 
+#ifndef PLATFORM_N64
+Gfx *texBuildDebugLoadGdl(Gfx *gdl, struct tex *tex)
+{
+	struct tilestate savedTileStates[ARRAYCOUNT(g_TexTileStates)];
+	bool savedPipeSynced = g_TexPipeSynced;
+
+	memcpy(savedTileStates, g_TexTileStates, sizeof(savedTileStates));
+	g_TexPipeSynced = false;
+	texResetTiles();
+	gdl = texWriteLoadToTmemAddr(gdl, tex, 0);
+	gdl = texWriteTile(gdl, tex, TXMODE_WRAP, TXMODE_WRAP, 0, 0);
+	gSPEndDisplayList(gdl++);
+	memcpy(g_TexTileStates, savedTileStates, sizeof(savedTileStates));
+	g_TexPipeSynced = savedPipeSynced;
+	return gdl;
+}
+#endif
+
 Gfx *texHandleType2(Gfx *gdl, struct tex *tex, s32 smode, s32 tmode, s32 offset, bool flag)
 {
 	s32 tile = 0;
