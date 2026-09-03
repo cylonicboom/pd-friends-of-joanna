@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "system.h"
 #include "fs.h"
+#include "imgui_overlay.h"
 
 #if !SDL_VERSION_ATLEAST(2, 0, 14)
 // this was added in 2.0.14
@@ -470,6 +471,16 @@ static inline void inputInitAllControllers(void)
 
 static int inputEventFilter(void *data, SDL_Event *event)
 {
+	if ((event->type == SDL_KEYDOWN || event->type == SDL_KEYUP)
+			&& imguiOverlayCapturesKeyboard()) {
+		return 0;
+	}
+	if ((event->type == SDL_MOUSEWHEEL || event->type == SDL_MOUSEBUTTONDOWN
+			|| event->type == SDL_MOUSEBUTTONUP || event->type == SDL_MOUSEMOTION)
+			&& imguiOverlayCapturesMouse()) {
+		return 0;
+	}
+
 	switch (event->type) {
 		case SDL_CONTROLLERDEVICEADDED:
 			for (s32 i = firstController; i < INPUT_MAX_CONTROLLERS; ++i) {
@@ -873,6 +884,16 @@ static inline void inputUpdateMouse(void)
 {
 	s32 mx, my;
 	mouseButtons = SDL_GetMouseState(&mx, &my);
+	if (imguiOverlayCapturesMouse()) {
+		mouseButtons = 0;
+		mouseWheel = 0;
+		SDL_GetRelativeMouseState(NULL, NULL);
+		mouseDX = 0;
+		mouseDY = 0;
+		mouseX = mx;
+		mouseY = my;
+		return;
+	}
 
 	if (mouseWheel > 0) {
 		mouseButtons |= WHEEL_UP_MASK;
@@ -1170,11 +1191,17 @@ const u32 *inputKeyGetBinds(s32 idx, u32 ck)
 s32 inputKeyPressed(u32 vk)
 {
 	if (vk >= VK_KEYBOARD_BEGIN && vk < VK_MOUSE_BEGIN) {
+		if (imguiOverlayCapturesKeyboard()) {
+			return 0;
+		}
 		const u8 *state = SDL_GetKeyboardState(NULL);
 		return state[vk - VK_KEYBOARD_BEGIN];
 	}
 
 	if (vk >= VK_MOUSE_BEGIN && vk < VK_JOY_BEGIN) {
+		if (imguiOverlayCapturesMouse()) {
+			return 0;
+		}
 		return (mouseButtons & SDL_BUTTON(vk - VK_MOUSE_BEGIN + 1)) != 0;
 	}
 
@@ -1503,6 +1530,9 @@ s32 inputIsTextInputActive(void)
 
 u32 inputGetKeyModState(void)
 {
+	if (imguiOverlayCapturesKeyboard()) {
+		return 0;
+	}
 	return SDL_GetModState();
 }
 

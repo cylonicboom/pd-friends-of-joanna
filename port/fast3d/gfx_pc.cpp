@@ -30,6 +30,7 @@
 #include "gfx_window_manager_api.h"
 #include "gfx_rendering_api.h"
 #include "gfx_screen_config.h"
+#include "imgui_overlay.h"
 
 extern "C" {
 #include "ext_tex.h"
@@ -2569,6 +2570,7 @@ extern "C" void gfx_init(const GfxInitSettings *settings) {
     gfx_rapi = settings->rapi;
     gfx_wapi->init(&settings->window_settings);
     gfx_rapi->init();
+	imguiOverlayInit(gfx_wapi->get_window_handle());
     gfx_rapi->update_framebuffer_parameters(0, settings->window_settings.width, settings->window_settings.height, 1, false, true, true, true);
     gfx_current_dimensions.internal_mul = 1;
     gfx_current_game_window_viewport.width = gfx_current_dimensions.width = settings->window_settings.width;
@@ -2601,6 +2603,7 @@ extern "C" void gfx_destroy(void) {
 
     // Texture cache and loaded textures store references to Resources which need to be unreferenced.
     gfx_texture_cache_clear();
+	imguiOverlayShutdown();
 }
 
 extern "C" struct GfxRenderingAPI* gfx_get_current_rendering_api(void) {
@@ -2674,6 +2677,7 @@ extern "C" void gfx_start_frame(void) {
 
     // update aspect scale and offset
     gfx_update_aspect_mode();
+	imguiOverlayStartFrame();
 }
 
 uint32_t num_dls = 0;
@@ -2724,6 +2728,7 @@ extern "C" void gfx_run(Gfx* commands) {
     }
 
     gfx_rapi->end_frame();
+	imguiOverlayRender();
     gfx_wapi->swap_buffers_begin();
 }
 

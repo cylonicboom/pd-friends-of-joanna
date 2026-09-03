@@ -5,6 +5,7 @@
 
 #include "platform.h"
 #include "system.h"
+#include "imgui_overlay.h"
 
 #include "gfx_window_manager_api.h"
 #include "gfx_screen_config.h"
@@ -291,6 +292,7 @@ static void gfx_sdl_get_dimensions(uint32_t* width, uint32_t* height, int32_t* p
 static void gfx_sdl_handle_events(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        imguiOverlayProcessEvent(&event);
         switch (event.type) {
             case SDL_KEYDOWN:
                 if (event.key.keysym.sym == SDLK_RETURN && (event.key.keysym.mod & KMOD_ALT)) {

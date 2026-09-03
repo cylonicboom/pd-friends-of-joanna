@@ -163,6 +163,8 @@ include_directories("${CMAKE_BINARY_DIR}/src/generated/${ROMID}")
 include_directories("${CMAKE_SOURCE_DIR}/src/lib/ultra/audio")
 include_directories("${CMAKE_SOURCE_DIR}/port/include")
 include_directories("${CMAKE_BINARY_DIR}/port/include")
+include_directories("${CMAKE_SOURCE_DIR}/port/third_party/imgui")
+include_directories("${CMAKE_SOURCE_DIR}/port/third_party/imgui/backends")
 
 # Set Release optimization to -Og until I fix the -O2 issues
 if(NOT (CMAKE_BUILD_TYPE STREQUAL "Debug"))
@@ -261,6 +263,14 @@ list(APPEND LIBS "${EXTRA_LIBRARIES}")
 
 file(GLOB_RECURSE SRC_PORT "${CMAKE_SOURCE_DIR}/port/*.c")
 file(GLOB_RECURSE SRC_PORT_CXX "${CMAKE_SOURCE_DIR}/port/*.cpp")
+list(FILTER SRC_PORT_CXX EXCLUDE REGEX "/port/third_party/imgui/")
+list(APPEND SRC_PORT_CXX
+  port/third_party/imgui/imgui.cpp
+  port/third_party/imgui/imgui_draw.cpp
+  port/third_party/imgui/imgui_tables.cpp
+  port/third_party/imgui/imgui_widgets.cpp
+  port/third_party/imgui/backends/imgui_impl_sdl2.cpp
+)
 
 file(GLOB_RECURSE SRC_GAME "${CMAKE_SOURCE_DIR}/src/game/*.c")
 
