@@ -1854,6 +1854,20 @@ static void imguiOverlayDrawTextureUvOverlay(const ImVec2 &imageMin, const ImVec
 	drawList->PopClipRect();
 }
 
+static void imguiOverlayScanTextureUsage(s32 textureMod, s32 modelFileNum,
+		u16 localTexId, u16 portTexId)
+{
+	const s32 encodedFileNum = modelFileNum | (textureMod << 16);
+	g_ImGuiOverlayTextureUsageCount = modeldefInspectTextureUsage(encodedFileNum,
+		localTexId, portTexId, g_ImGuiOverlayTextureUsage,
+		ARRAYCOUNT(g_ImGuiOverlayTextureUsage), &g_ImGuiOverlayTextureUsageTotal,
+		g_ImGuiOverlayTextureTriangles, ARRAYCOUNT(g_ImGuiOverlayTextureTriangles),
+		&g_ImGuiOverlayTextureTriangleCount, &g_ImGuiOverlayTextureTriangleTotal);
+	g_ImGuiOverlayTextureUsageModelFileNum = modelFileNum;
+	g_ImGuiOverlayTextureUsageLocalId = localTexId;
+	g_ImGuiOverlayTextureUsagePortId = portTexId;
+}
+
 static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFileNum,
 		u16 localTexId, u16 portTexId, s32 textureFileNum)
 {
@@ -1863,7 +1877,9 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	const bool hasTextureFile = textureFileNum > 0;
 	ImGui::BeginDisabled(!hasTextureFile);
 	if (ImGui::Button("Load through engine")) {
-		imguiOverlayRequestEngineTexture(textureMod, modelFileNum, textureFileNum, engineTexId);
+		if (imguiOverlayRequestEngineTexture(textureMod, modelFileNum, textureFileNum, engineTexId)) {
+			imguiOverlayScanTextureUsage(textureMod, modelFileNum, localTexId, portTexId);
+		}
 	}
 	ImGui::EndDisabled();
 	if (!hasTextureFile && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
@@ -1936,7 +1952,15 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	ImGui::Checkbox("UV overlay", &g_ImGuiOverlayShowTextureUvOverlay);
 	ImGui::SameLine();
 	ImGui::Checkbox("Wrap UVs", &g_ImGuiOverlayWrapTextureUvs);
-	if (g_ImGuiOverlayShowTextureUvOverlay && g_ImGuiOverlayTextureTriangleCount > 0) {
+	const bool usageMatches = g_ImGuiOverlayTextureUsageModelFileNum == modelFileNum
+		&& g_ImGuiOverlayTextureUsageLocalId == localTexId
+		&& g_ImGuiOverlayTextureUsagePortId == portTexId;
+	if (!usageMatches) {
+		ImGui::TextDisabled("UV overlay: model usage has not been scanned.");
+	} else if (g_ImGuiOverlayTextureTriangleCount <= 0) {
+		ImGui::TextDisabled("UV overlay: no safely attributed triangles found (%d references).",
+			g_ImGuiOverlayTextureUsageTotal);
+	} else if (g_ImGuiOverlayShowTextureUvOverlay) {
 		ImGui::TextDisabled("UV overlay: opaque yellow, translucent cyan; wrapping normalizes each vertex.");
 	}
 
@@ -1988,15 +2012,7 @@ static void imguiOverlayDrawTextureUsage(s32 textureMod, s32 modelFileNum, u16 l
 {
 	ImGui::SeparatorText("Model GDL Usage");
 	if (ImGui::Button("Scan model GDL usage")) {
-		const s32 encodedFileNum = modelFileNum | (textureMod << 16);
-		g_ImGuiOverlayTextureUsageCount = modeldefInspectTextureUsage(encodedFileNum,
-			localTexId, portTexId, g_ImGuiOverlayTextureUsage,
-			ARRAYCOUNT(g_ImGuiOverlayTextureUsage), &g_ImGuiOverlayTextureUsageTotal,
-			g_ImGuiOverlayTextureTriangles, ARRAYCOUNT(g_ImGuiOverlayTextureTriangles),
-			&g_ImGuiOverlayTextureTriangleCount, &g_ImGuiOverlayTextureTriangleTotal);
-		g_ImGuiOverlayTextureUsageModelFileNum = modelFileNum;
-		g_ImGuiOverlayTextureUsageLocalId = localTexId;
-		g_ImGuiOverlayTextureUsagePortId = portTexId;
+		imguiOverlayScanTextureUsage(textureMod, modelFileNum, localTexId, portTexId);
 	}
 
 	if (g_ImGuiOverlayTextureUsageModelFileNum != modelFileNum
