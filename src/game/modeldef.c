@@ -318,6 +318,124 @@ static void modeldefRemapGdlTexnumsForMod(struct modeldef *modeldef, s32 modIdx,
 		++s_logCount;
 	}
 }
+
+static void modeldefGetNodeUvEnvelope(struct modeldef *modeldef, s32 loadedSize,
+		struct modelnode *node, struct modeldefTextureUsage *entry)
+{
+	Vtx *vertices = NULL;
+	s32 numvertices = 0;
+
+	if ((node->type & 0xff) == MODELNODETYPE_DL) {
+		vertices = node->rodata->dl.vertices;
+		numvertices = node->rodata->dl.numvertices;
+	} else if ((node->type & 0xff) == MODELNODETYPE_GUNDL) {
+		vertices = node->rodata->gundl.vertices;
+		numvertices = node->rodata->gundl.numvertices;
+	}
+
+	entry->numvertices = numvertices;
+	entry->minS = entry->maxS = 0;
+	entry->minT = entry->maxT = 0;
+	if (!vertices || numvertices <= 0
+			|| (uintptr_t)vertices < (uintptr_t)modeldef
+			|| (uintptr_t)vertices + (u32)numvertices * sizeof(Vtx) > (uintptr_t)modeldef + loadedSize) {
+		entry->numvertices = 0;
+		return;
+	}
+
+	entry->minS = entry->maxS = vertices[0].s;
+	entry->minT = entry->maxT = vertices[0].t;
+	for (s32 i = 1; i < numvertices; ++i) {
+		if (vertices[i].s < entry->minS) entry->minS = vertices[i].s;
+		if (vertices[i].s > entry->maxS) entry->maxS = vertices[i].s;
+		if (vertices[i].t < entry->minT) entry->minT = vertices[i].t;
+		if (vertices[i].t > entry->maxT) entry->maxT = vertices[i].t;
+	}
+}
+
+s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
+		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches)
+{
+	const u32 allocationSize = fileGetAllocationSize(fileid);
+	if (totalmatches) *totalmatches = 0;
+	if (allocationSize == 0 || allocationSize > 16 * 1024 * 1024
+			|| !entries || maxentries <= 0) return 0;
+
+	u8 *buffer = sysMemAlloc(allocationSize);
+	if (!buffer) return 0;
+	u8 previousLoadType = g_LoadType;
+	g_LoadType = LOADTYPE_MODEL;
+	struct modeldef *modeldef = fileLoadToAddr(fileid, FILELOADMETHOD_EXTRAMEM, buffer, allocationSize);
+	g_LoadType = previousLoadType;
+	if (!modeldef) {
+		sysMemFree(buffer);
+		return 0;
+	}
+
+	modelPromoteTypeToPointer(modeldef);
+	modelPromoteOffsetsToPointers(modeldef, 0x5000000, (uintptr_t)modeldef);
+	const s32 loadedSize = fileGetLoadedSize(fileid);
+	if (loadedSize <= 0 || (u32)loadedSize > allocationSize) {
+		sysMemFree(buffer);
+		return 0;
+	}
+	struct modelnode *node = NULL;
+	Gfx *gdl = NULL;
+	s32 written = 0;
+	s32 total = 0;
+	modelIterateDisplayLists(modeldef, &node, &gdl);
+
+	while (node && gdl) {
+		struct modelnode *currentNode = node;
+		Gfx *currentGdl = gdl;
+		modelIterateDisplayLists(modeldef, &node, &gdl);
+		const u32 currentOffset = UNSEGADDR(currentGdl) & 0xffffff;
+		const u32 nextOffset = gdl ? UNSEGADDR(gdl) & 0xffffff : loadedSize;
+		if (currentOffset >= (u32)loadedSize || nextOffset > (u32)loadedSize || nextOffset <= currentOffset) {
+			continue;
+		}
+		const s32 bytes = nextOffset - currentOffset;
+#ifdef PLATFORM_64BIT
+		const s32 commandCount = bytes >> 4;
+#else
+		const s32 commandCount = bytes >> 3;
+#endif
+		Gfx *commands = (Gfx *)((uintptr_t)modeldef + currentOffset);
+		u8 listType = 2;
+		if ((currentNode->type & 0xff) == MODELNODETYPE_DL) {
+			listType = currentGdl == currentNode->rodata->dl.opagdl ? 0 : 1;
+		} else if ((currentNode->type & 0xff) == MODELNODETYPE_GUNDL) {
+			listType = currentGdl == currentNode->rodata->gundl.opagdl ? 0 : 1;
+		}
+
+		for (s32 commandIndex = 0; commandIndex < commandCount; ++commandIndex) {
+			if (commands[commandIndex].texture.cmd != G_NOOP) continue;
+			const u16 ids[2] = {
+				(u16)(commands[commandIndex].words.w1 & 0xfff),
+				(u16)((commands[commandIndex].words.w1 >> 12) & 0xfff),
+			};
+			const s32 slotCount = commands[commandIndex].unkc0.subcmd == 1 ? 2 : 1;
+			for (s32 slot = 0; slot < slotCount; ++slot) {
+				if (ids[slot] != textureid1 && ids[slot] != textureid2) continue;
+				if (written < maxentries) {
+					struct modeldefTextureUsage *entry = &entries[written++];
+					entry->nodeoffset = (u32)((uintptr_t)currentNode - (uintptr_t)modeldef);
+					entry->nodetype = currentNode->type;
+					entry->listtype = listType;
+					entry->textureslot = slot;
+					entry->commandindex = commandIndex;
+					entry->textureid = ids[slot];
+					modeldefGetNodeUvEnvelope(modeldef, loadedSize, currentNode, entry);
+				}
+				++total;
+			}
+		}
+	}
+
+	if (totalmatches) *totalmatches = total;
+	sysMemFree(buffer);
+	return written;
+}
 #endif
 
 void modeldef0f1a7560(struct modeldef *modeldef, s32 filenum, u32 arg2, struct modeldef *modeldef2, struct texpool *texpool, bool arg5)

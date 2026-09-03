@@ -14,6 +14,7 @@
 #undef false
 #include "ext_tex.h"
 #include "fs.h"
+#include "game/modeldef.h"
 #include "imgui_overlay.h"
 #include "input.h"
 #include "mod.h"
@@ -86,6 +87,12 @@ static u8 g_ImGuiOverlayEngineProbeLutMode = 0;
 static u8 g_ImGuiOverlayEngineProbePaletteCount = 0;
 static u8 g_ImGuiOverlayEngineProbeLodCount = 0;
 static bool g_ImGuiOverlayEngineProbeHasLodData = false;
+static struct modeldefTextureUsage g_ImGuiOverlayTextureUsage[64];
+static s32 g_ImGuiOverlayTextureUsageCount = 0;
+static s32 g_ImGuiOverlayTextureUsageTotal = 0;
+static s32 g_ImGuiOverlayTextureUsageModelFileNum = -1;
+static s32 g_ImGuiOverlayTextureUsageLocalId = -1;
+static s32 g_ImGuiOverlayTextureUsagePortId = -1;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
@@ -1921,6 +1928,77 @@ static void imguiOverlayDrawRenderedTexturePreview(s32 textureMod, s32 modelFile
 	}
 }
 
+static void imguiOverlayDrawTextureUsage(s32 textureMod, s32 modelFileNum, u16 localTexId, u16 portTexId)
+{
+	ImGui::SeparatorText("Model GDL Usage");
+	if (ImGui::Button("Scan model GDL usage")) {
+		const s32 encodedFileNum = modelFileNum | (textureMod << 16);
+		g_ImGuiOverlayTextureUsageCount = modeldefInspectTextureUsage(encodedFileNum,
+			localTexId, portTexId, g_ImGuiOverlayTextureUsage,
+			ARRAYCOUNT(g_ImGuiOverlayTextureUsage), &g_ImGuiOverlayTextureUsageTotal);
+		g_ImGuiOverlayTextureUsageModelFileNum = modelFileNum;
+		g_ImGuiOverlayTextureUsageLocalId = localTexId;
+		g_ImGuiOverlayTextureUsagePortId = portTexId;
+	}
+
+	if (g_ImGuiOverlayTextureUsageModelFileNum != modelFileNum
+			|| g_ImGuiOverlayTextureUsageLocalId != localTexId
+			|| g_ImGuiOverlayTextureUsagePortId != portTexId) {
+		ImGui::TextDisabled("Scan the selected model for pre-expansion texture bindings.");
+		return;
+	}
+
+	ImGui::Text("References: %d total, %d shown", g_ImGuiOverlayTextureUsageTotal,
+		g_ImGuiOverlayTextureUsageCount);
+	ImGui::TextDisabled("UV bounds cover all vertices owned by the matching node; raw S/T use 5 fractional bits.");
+	if (g_ImGuiOverlayTextureUsageCount <= 0) {
+		return;
+	}
+
+	if (ImGui::BeginTable("Model texture usage", 7,
+			ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY,
+			ImVec2(0.0f, 240.0f))) {
+		ImGui::TableSetupColumn("Node", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 50.0f);
+		ImGui::TableSetupColumn("List", ImGuiTableColumnFlags_WidthFixed, 42.0f);
+		ImGui::TableSetupColumn("Cmd", ImGuiTableColumnFlags_WidthFixed, 48.0f);
+		ImGui::TableSetupColumn("Slot/ID", ImGuiTableColumnFlags_WidthFixed, 70.0f);
+		ImGui::TableSetupColumn("Vertices", ImGuiTableColumnFlags_WidthFixed, 58.0f);
+		ImGui::TableSetupColumn("Node UV envelope", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableHeadersRow();
+
+		for (s32 index = 0; index < g_ImGuiOverlayTextureUsageCount; ++index) {
+			const struct modeldefTextureUsage *usage = &g_ImGuiOverlayTextureUsage[index];
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("+0x%04x", usage->nodeoffset);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Text("0x%02x", usage->nodetype & 0xff);
+			ImGui::TableSetColumnIndex(2);
+			ImGui::TextUnformatted(usage->listtype == 0 ? "opa" : usage->listtype == 1 ? "xlu" : "other");
+			ImGui::TableSetColumnIndex(3);
+			ImGui::Text("%u", usage->commandindex);
+			ImGui::TableSetColumnIndex(4);
+			ImGui::Text("%u/%03x", usage->textureslot, usage->textureid);
+			ImGui::TableSetColumnIndex(5);
+			ImGui::Text("%d", usage->numvertices);
+			ImGui::TableSetColumnIndex(6);
+			if (usage->numvertices > 0) {
+				ImGui::Text("S %.2f..%.2f, T %.2f..%.2f",
+					usage->minS / 32.0f, usage->maxS / 32.0f,
+					usage->minT / 32.0f, usage->maxT / 32.0f);
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("raw S %d..%d\nraw T %d..%d",
+						usage->minS, usage->maxS, usage->minT, usage->maxT);
+				}
+			} else {
+				ImGui::TextDisabled("unavailable");
+			}
+		}
+		ImGui::EndTable();
+	}
+}
+
 static void imguiOverlayDrawTexturesPanel(void)
 {
 	const s32 currentTextureMod = g_TexModNum;
@@ -2013,6 +2091,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);
 	if (modelFileNum > 0 && hasProbeId) {
 		imguiOverlayDrawRenderedTexturePreview(textureMod, modelFileNum, localTexId, portTexId, textureFileNum);
+		imguiOverlayDrawTextureUsage(textureMod, modelFileNum, localTexId, portTexId);
 	}
 
 	imguiOverlayDrawModelTextureFiles(textureMod, modelFileNum, textureDirName);
