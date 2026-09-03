@@ -21,6 +21,7 @@
 #include "lib/profile.h"
 
 #include "imgui.h"
+#include "imgui_internal.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_opengl3.h"
 
@@ -61,6 +62,38 @@ extern "C" u32 mempGetStageFree(void);
 extern "C" bool bgTestHitInRoom(struct coord *frompos, struct coord *topos, s32 roomnum, struct hitthing *hitthing);
 extern "C" struct prop *propFindAimingAt(s32 handnum, bool isshooting, u32 context);
 extern "C" void portal00018148(struct coord *pos, struct coord *pos2, RoomNum *rooms, RoomNum *arg3, RoomNum *arg4, s32 arg5);
+
+static void *imguiOverlaySettingsReadOpen(ImGuiContext *, ImGuiSettingsHandler *handler, const char *name)
+{
+	return strcmp(name, "Windows") == 0 ? handler : NULL;
+}
+
+static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line)
+{
+	int value;
+
+	if (sscanf(line, "Runtime=%d", &value) == 1) { g_ImGuiOverlayShowRuntime = value != 0; return; }
+	if (sscanf(line, "Stage=%d", &value) == 1) { g_ImGuiOverlayShowStage = value != 0; return; }
+	if (sscanf(line, "Entities=%d", &value) == 1) { g_ImGuiOverlayShowEntities = value != 0; return; }
+	if (sscanf(line, "Assets=%d", &value) == 1) { g_ImGuiOverlayShowAssets = value != 0; return; }
+	if (sscanf(line, "Textures=%d", &value) == 1) { g_ImGuiOverlayShowTextures = value != 0; return; }
+	if (sscanf(line, "Memory=%d", &value) == 1) { g_ImGuiOverlayShowMemory = value != 0; return; }
+	if (sscanf(line, "Profiler=%d", &value) == 1) { g_ImGuiOverlayShowProfiler = value != 0; return; }
+	if (sscanf(line, "LookingAt=%d", &value) == 1) { g_ImGuiOverlayShowLookingAt = value != 0; }
+}
+
+static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer)
+{
+	buffer->appendf("[%s][Windows]\n", handler->TypeName);
+	buffer->appendf("Runtime=%d\n", g_ImGuiOverlayShowRuntime);
+	buffer->appendf("Stage=%d\n", g_ImGuiOverlayShowStage);
+	buffer->appendf("Entities=%d\n", g_ImGuiOverlayShowEntities);
+	buffer->appendf("Assets=%d\n", g_ImGuiOverlayShowAssets);
+	buffer->appendf("Textures=%d\n", g_ImGuiOverlayShowTextures);
+	buffer->appendf("Memory=%d\n", g_ImGuiOverlayShowMemory);
+	buffer->appendf("Profiler=%d\n", g_ImGuiOverlayShowProfiler);
+	buffer->appendf("LookingAt=%d\n\n", g_ImGuiOverlayShowLookingAt);
+}
 
 #define CASE_NAME(x) case x: return #x;
 
@@ -1539,9 +1572,12 @@ static void imguiOverlaySetVisible(bool visible)
 		g_ImGuiOverlayRestoreMouseLock = inputMouseIsLocked() != 0;
 		inputLockMouse(0);
 		inputMouseShowCursor(1);
-	} else if (g_ImGuiOverlayRestoreMouseLock) {
-		inputLockMouse(1);
-		g_ImGuiOverlayRestoreMouseLock = false;
+	} else {
+		ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
+		if (g_ImGuiOverlayRestoreMouseLock) {
+			inputLockMouse(1);
+			g_ImGuiOverlayRestoreMouseLock = false;
+		}
 	}
 }
 
@@ -1586,6 +1622,13 @@ void imguiOverlayInit(void *window)
 	io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 	snprintf(g_ImGuiOverlayIniPath, sizeof(g_ImGuiOverlayIniPath), "%s/fojo-imgui.ini", fsGetSaveDir());
 	io.IniFilename = g_ImGuiOverlayIniPath;
+	ImGuiSettingsHandler settingsHandler;
+	settingsHandler.TypeName = "Fojo";
+	settingsHandler.TypeHash = ImHashStr(settingsHandler.TypeName);
+	settingsHandler.ReadOpenFn = imguiOverlaySettingsReadOpen;
+	settingsHandler.ReadLineFn = imguiOverlaySettingsReadLine;
+	settingsHandler.WriteAllFn = imguiOverlaySettingsWriteAll;
+	ImGui::AddSettingsHandler(&settingsHandler);
 
 	ImGui::StyleColorsDark();
 	ImGui_ImplSDL2_InitForOpenGL((SDL_Window *)window, SDL_GL_GetCurrentContext());
