@@ -16,6 +16,7 @@
 #include "mod.h"
 #include "romdata.h"
 #include "system.h"
+#include "lib/profile.h"
 
 #include "imgui.h"
 #include "backends/imgui_impl_sdl2.h"
@@ -29,6 +30,7 @@ static bool g_ImGuiOverlayShowStage = true;
 static bool g_ImGuiOverlayShowEntities = true;
 static bool g_ImGuiOverlayShowAssets = true;
 static bool g_ImGuiOverlayShowMemory = true;
+static bool g_ImGuiOverlayShowProfiler = true;
 static bool g_ImGuiOverlayShowActivePropsOnly = true;
 static bool g_ImGuiOverlayExpandLatch = false;
 static bool g_ImGuiOverlayExpandValue = false;
@@ -458,6 +460,89 @@ static const char *imguiOverlayFileSourceName(s32 source)
 	}
 }
 
+static f32 imguiOverlayCyclesToMs(u32 cycles)
+{
+	return (f32)((double)cycles * 1000.0 / (double)OS_CPU_COUNTER);
+}
+
+static f32 imguiOverlayProfileSpanMs(const struct profileframerecord *record,
+		enum profilemarkerslot start, enum profilemarkerslot end)
+{
+	const u32 mask = (1 << start) | (1 << end);
+	if ((record->markermask & mask) != mask) {
+		return 0.0f;
+	}
+
+	return imguiOverlayCyclesToMs(record->markers[end] - record->markers[start]);
+}
+
+static void imguiOverlayDrawProfilerPanel(void)
+{
+	struct profileframerecord record;
+	struct profileframerecord latest;
+	const s32 count = profileGetFrameHistoryCount();
+	f32 frameTimes[PROFILE_HISTORY_LEN];
+	f32 minMs = 0.0f;
+	f32 maxMs = 0.0f;
+	f32 sumMs = 0.0f;
+	s32 valid = 0;
+
+	if (count <= 0) {
+		ImGui::TextUnformatted("Waiting for frame samples...");
+		return;
+	}
+
+	for (s32 i = 0; i < count; ++i) {
+		profileGetFrameHistoryRecord(i, &record);
+		const f32 frameMs = record.diffframe60f * (1000.0f / 60.0f);
+		frameTimes[i] = frameMs;
+		if (valid == 0 || frameMs < minMs) {
+			minMs = frameMs;
+		}
+		if (valid == 0 || frameMs > maxMs) {
+			maxMs = frameMs;
+		}
+		sumMs += frameMs;
+		valid++;
+	}
+
+	profileGetFrameHistoryRecord(count - 1, &latest);
+	const f32 avgMs = valid > 0 ? sumMs / valid : 0.0f;
+	const f32 latestMs = latest.diffframe60f * (1000.0f / 60.0f);
+
+	ImGui::Text("Samples: %d/%d", count, PROFILE_HISTORY_LEN);
+	ImGui::Text("Frame: %.2f ms  avg %.2f  min %.2f  max %.2f",
+			latestMs, avgMs, minMs, maxMs);
+	ImGui::PlotLines("Frame time", frameTimes, count, 0, NULL, 0.0f,
+			maxMs > 33.33f ? maxMs : 33.33f, ImVec2(0.0f, 120.0f));
+
+	ImGui::SeparatorText("Latest Frame");
+	ImGui::Text("Frame: %u  Stage: 0x%02x", latest.frame, (unsigned int)latest.stage);
+	ImGui::Text("Main tick: %.3f ms",
+			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_MAINTICK_START, PROFILE_SLOT_MAINTICK_END));
+	ImGui::Text("Audio: %.3f ms",
+			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_AUDIOFRAME_START, PROFILE_SLOT_AUDIOFRAME_END));
+	ImGui::Text("RSP: %.3f ms",
+			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_RSP_START, PROFILE_SLOT_RSP_END));
+	ImGui::Text("RDP: %.3f ms",
+			imguiOverlayProfileSpanMs(&latest, PROFILE_SLOT_RDP_START, PROFILE_SLOT_RDP_END));
+
+	if (ImGui::CollapsingHeader("Markers")) {
+		static const char *markerNames[PROFILE_MARKER_SLOT_COUNT] = {
+			"main start", "main end", "audio start", "audio end",
+			"rsp start", "rsp end", "rdp start", "rdp end",
+		};
+
+		for (s32 i = 0; i < PROFILE_MARKER_SLOT_COUNT; ++i) {
+			if (latest.markermask & (1 << i)) {
+				ImGui::Text("%s: 0x%08x", markerNames[i], latest.markers[i]);
+			} else {
+				ImGui::TextDisabled("%s: missing", markerNames[i]);
+			}
+		}
+	}
+}
+
 static void imguiOverlayDrawRuntimePanel(void)
 {
 	ImGui::Text("Stage: 0x%02x", (unsigned int)g_StageNum);
@@ -789,6 +874,7 @@ void imguiOverlayRender(void)
 			ImGui::Checkbox("Entities", &g_ImGuiOverlayShowEntities);
 			ImGui::Checkbox("Assets", &g_ImGuiOverlayShowAssets);
 			ImGui::Checkbox("Memory", &g_ImGuiOverlayShowMemory);
+			ImGui::Checkbox("Profiler", &g_ImGuiOverlayShowProfiler);
 			ImGui::Separator();
 			ImGui::Text("F12 closes overlay");
 		}
@@ -806,6 +892,14 @@ void imguiOverlayRender(void)
 			ImGui::SetNextWindowSize(ImVec2(300.0f, 0.0f), ImGuiCond_FirstUseEver);
 			if (ImGui::Begin("Fojo Memory", &g_ImGuiOverlayShowMemory)) {
 				imguiOverlayDrawMemoryPanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowProfiler) {
+			ImGui::SetNextWindowSize(ImVec2(520.0f, 0.0f), ImGuiCond_FirstUseEver);
+			if (ImGui::Begin("Fojo Profiler", &g_ImGuiOverlayShowProfiler)) {
+				imguiOverlayDrawProfilerPanel();
 			}
 			ImGui::End();
 		}
