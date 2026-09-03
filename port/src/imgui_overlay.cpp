@@ -1891,7 +1891,14 @@ static void imguiOverlayDrawTexturesPanel(void)
 	const bool reverseMapped = hasProbeId && textureMod >= 0 && reverseLocalTexId != 0xffff;
 	const bool hasModelExtTex = modelFileNum > 0 && hasProbeId
 		&& extTexModelHasEntryForTexid((s16)modelFileNum, localTexId);
-	bool hasTextureFile = false;
+	const u16 engineTexId = localMapped ? portTexId : localTexId;
+	u16 resolvedLocalId = engineTexId;
+	char resolvedTextureName[128] = { 0 };
+	const s32 textureFileNum = modelFileNum > 0 && hasProbeId
+		? modTextureResolveFile(textureMod, modelFileNum, engineTexId,
+			&resolvedLocalId, resolvedTextureName, sizeof(resolvedTextureName))
+		: 0;
+	const bool hasTextureFile = textureFileNum > 0;
 	ImGui::Text("local -> port: %s", !hasProbeId ? "enter texture ID" : localMapped ? "mapped" : "unmapped");
 	if (localMapped) {
 		ImGui::SameLine();
@@ -1904,20 +1911,16 @@ static void imguiOverlayDrawTexturesPanel(void)
 	}
 
 	if (modelFileNum > 0 && hasProbeId) {
-		char textureFileName[128];
-		const s32 textureFileNum = textureDirName
-			? (snprintf(textureFileName, sizeof(textureFileName), "%s/%04x.bin", textureDirName, localTexId),
-				romdataFileGetNumForNameInMod(textureFileName, textureMod))
-			: -1;
-		hasTextureFile = textureFileNum > 0;
 		const s8 owner = extTexGetOwnerMod(1, (u16)modelFileNum, localTexId);
 		u16 width = 0;
 		u16 height = 0;
 		const u8 hasDimensions = extTexGetDimensions(1, (u16)modelFileNum, localTexId, &width, &height);
-		ImGui::Text("model texture file: %s", textureFileNum > 0 ? "yes" : "no");
+		ImGui::Text("native texture file: %s", hasTextureFile ? "yes" : "no");
 		if (textureFileNum > 0) {
 			ImGui::SameLine();
 			ImGui::Text("file 0x%04x", textureFileNum);
+			ImGui::Text("resolved path: %s", resolvedTextureName);
+			ImGui::Text("engine ID 0x%04x -> file local ID 0x%04x", engineTexId, resolvedLocalId);
 		}
 		ImGui::Text("ext_tex model entry: %s", hasModelExtTex ? "yes" : "no");
 		ImGui::Text("ext_tex owner mod: %d", owner);
@@ -1927,7 +1930,7 @@ static void imguiOverlayDrawTexturesPanel(void)
 			ImGui::TextUnformatted("ext_tex dimensions: unavailable");
 		}
 	} else if (modelFileNum > 0) {
-		ImGui::TextUnformatted("model texture file: enter texture ID");
+		ImGui::TextUnformatted("native texture file: enter texture ID");
 		ImGui::TextUnformatted("ext_tex model entry: enter texture ID");
 	}
 	imguiOverlayDrawTexturePreview(modelFileNum, localTexId, hasModelExtTex);

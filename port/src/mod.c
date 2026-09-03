@@ -1858,6 +1858,67 @@ static const char *modGetTexPrefix(s32 modNum, char *buf, size_t bufSize)
 	return buf;
 }
 
+s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
+		u16 *resolvedLocalId, char *resolvedName, u32 resolvedNameSize)
+{
+	char candidate[128];
+	char prefixBuf[32];
+	const char *prefix;
+	u16 localId = textureId;
+	s32 fileNum = 0;
+
+	if (resolvedLocalId) *resolvedLocalId = textureId;
+	if (resolvedName && resolvedNameSize > 0) resolvedName[0] = '\0';
+	if (modNum < 0 || (u32)modNum >= g_NumModDirs) return 0;
+
+	if (textureId >= NUM_TEXTURES) {
+		u16 reverseId = modTexMapReverseLookup(modNum, textureId);
+		if (reverseId != 0xffff) localId = reverseId;
+	}
+
+	if (modelFileNum > 0) {
+		const char *modelName = romdataFileGetSlotName(modNum, modelFileNum);
+		if (modelName) {
+			const char *nameStart = strstr(modelName, "::");
+			nameStart = nameStart ? nameStart + 2 : modelName;
+			if (strncmp(nameStart, "files/", 6) == 0) nameStart += 6;
+			snprintf(candidate, sizeof(candidate), "%s/%04x.bin", nameStart, localId);
+			fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+		}
+	}
+
+	prefix = modGetTexPrefix(modNum, prefixBuf, sizeof(prefixBuf));
+	if (fileNum <= 0) {
+		localId = textureId;
+		snprintf(candidate, sizeof(candidate), "%04x.bin", textureId);
+		fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+	}
+	if (fileNum <= 0 && prefix) {
+		snprintf(candidate, sizeof(candidate), "%s_%04x.bin", prefix, textureId);
+		fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+	}
+	if (fileNum <= 0 && textureId >= NUM_TEXTURES) {
+		u16 reverseId = modTexMapReverseLookup(modNum, textureId);
+		if (reverseId != 0xffff && reverseId != textureId) {
+			localId = reverseId;
+			snprintf(candidate, sizeof(candidate), "%04x.bin", reverseId);
+			fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+			if (fileNum <= 0 && prefix) {
+				snprintf(candidate, sizeof(candidate), "%s_%04x.bin", prefix, reverseId);
+				fileNum = romdataFileGetNumForNameInMod(candidate, modNum);
+			}
+		}
+	}
+
+	if (fileNum > 0) {
+		if (resolvedLocalId) *resolvedLocalId = localId;
+		if (resolvedName && resolvedNameSize > 0) {
+			snprintf(resolvedName, resolvedNameSize, "%s", candidate);
+		}
+	}
+	return fileNum;
+}
+
 s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 {
 	// Only attempt mod texture loading when we have an explicit model-level mod context
@@ -1877,8 +1938,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	// overrides live under `ext_tex/<ModelName>/<texid>.png` and prevents
 	// two models in the same mod that reference the same source texid from
 	// pulling each other's bytes.
-	char name[128];
-	s32 fileNum = 0;
+	char name[128] = { 0 };
 	if (g_TexCurrentModelFileNum > 0) {
 		const char *modelName = romdataFileGetSlotName(modNum, g_TexCurrentModelFileNum);
 		if (modelName) {
@@ -1888,16 +1948,10 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 			// Also strip a leading files/ directory if present.
 			if (strncmp(nameStart, "files/", 6) == 0) nameStart += 6;
 			modelNameForLog = nameStart;
-
-			extern u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
-			if (num >= NUM_TEXTURES) {
-				u16 local = modTexMapReverseLookup(modNum, num);
-				if (local != 0xffff) lookup = local;
-			}
-			snprintf(name, sizeof(name), "%s/%04x.bin", nameStart, lookup);
-			fileNum = romdataFileGetNumForNameInMod(name, modNum);
 		}
 	}
+	s32 fileNum = modTextureResolveFile(modNum, g_TexCurrentModelFileNum, num,
+		&lookup, name, sizeof(name));
 
 	if (modNum == 2 && (g_TexCurrentModelFileNum == 2025 || g_TexCurrentModelFileNum == 2028)) {
 		static u8 s_seen[2][512];
@@ -1915,34 +1969,6 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 					lookup,
 					fileNum,
 					name[0] ? name : "(none)");
-			}
-		}
-	}
-
-	// Try filetable lookup. Texture entries can be named either bare ("0104.bin")
-	// or with a short mod prefix ("gex_0104.bin"); accept both forms.
-	char prefixBuf[32];
-	const char *prefix = modGetTexPrefix(modNum, prefixBuf, sizeof(prefixBuf));
-	if (fileNum <= 0) {
-		snprintf(name, sizeof(name), "%04x.bin", num);
-		fileNum = romdataFileGetNumForNameInMod(name, modNum);
-	}
-	if (fileNum <= 0 && prefix) {
-		char altName[80];
-		snprintf(altName, sizeof(altName), "%s_%04x.bin", prefix, num);
-		fileNum = romdataFileGetNumForNameInMod(altName, modNum);
-	}
-
-	if (fileNum <= 0 && num >= NUM_TEXTURES) {
-		extern u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
-		u16 local = modTexMapReverseLookup(modNum, num);
-		if (local != 0xffff && local != num) {
-			snprintf(name, sizeof(name), "%04x.bin", local);
-			fileNum = romdataFileGetNumForNameInMod(name, modNum);
-			if (fileNum <= 0 && prefix) {
-				char altName[80];
-				snprintf(altName, sizeof(altName), "%s_%04x.bin", prefix, local);
-				fileNum = romdataFileGetNumForNameInMod(altName, modNum);
 			}
 		}
 	}

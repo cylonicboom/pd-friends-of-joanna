@@ -26,6 +26,8 @@ void modScanAllMods(void);
 void modCacheAllConfigs(void);
 
 s32 modTextureLoad(u16 num, void *dst, u32 dstSize);
+s32 modTextureResolveFile(s32 modNum, s32 modelFileNum, u16 textureId,
+		u16 *resolvedLocalId, char *resolvedName, u32 resolvedNameSize);
 
 s32 modAnimationLoadDescriptor(u16 num, struct animtableentry *anim);
 void *modAnimationLoadData(u16 num);
