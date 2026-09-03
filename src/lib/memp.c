@@ -60,6 +60,11 @@ struct memorypool {
 struct memorypool g_MempOnboardPools[9];
 struct memorypool g_MempExpansionPools[9];
 
+static bool mempUseExpansionStagePool(void)
+{
+	return !IS4MB() && g_MempExpansionPools[MEMPOOL_STAGE].leftpos != NULL;
+}
+
 void mempInit(void)
 {
 	// empty
@@ -144,10 +149,10 @@ u32 mempGetStageFree(void)
 {
 	u32 free;
 
-	if (IS4MB()) {
-		free = g_MempOnboardPools[MEMPOOL_STAGE].rightpos - g_MempOnboardPools[MEMPOOL_STAGE].leftpos;
-	} else {
+	if (mempUseExpansionStagePool()) {
 		free = g_MempExpansionPools[MEMPOOL_STAGE].rightpos - g_MempExpansionPools[MEMPOOL_STAGE].leftpos;
+	} else {
+		free = g_MempOnboardPools[MEMPOOL_STAGE].rightpos - g_MempOnboardPools[MEMPOOL_STAGE].leftpos;
 	}
 
 	return free;
@@ -157,10 +162,10 @@ void *mempGetNextStageAllocation(void)
 {
 	void *next;
 
-	if (IS4MB()) {
-		next = g_MempOnboardPools[MEMPOOL_STAGE].leftpos;
-	} else {
+	if (mempUseExpansionStagePool()) {
 		next = g_MempExpansionPools[MEMPOOL_STAGE].leftpos;
+	} else {
+		next = g_MempOnboardPools[MEMPOOL_STAGE].leftpos;
 	}
 
 	return next;
@@ -178,12 +183,16 @@ void *mempAllocFromBank(struct memorypool *pool, u32 size, u8 poolnum)
 		return allocation;
 	}
 
+	u8 poolfull = 0;
 	if (pool->leftpos > pool->rightpos) {
-		sysLogPrintf(LOG_NOTE, "#warning: memory pool %x is full. Req: %d\n", pool, size);
-		return 0;
+		poolfull = 1;
 	}
 
 	if (pool->leftpos + size > pool->rightpos) {
+		poolfull = 1;
+	}
+
+	if (poolfull){
 		sysLogPrintf(LOG_NOTE, "#warning: memory pool %x is full. Req: %d\n", pool, size);
 		return 0;
 	}
