@@ -6,6 +6,8 @@
 
 #include "constants.h"
 
+#define PDFT_PADS(...) if (getenv("PD_DEBUG_FILETABLE")) { sysLogPrintf(LOG_NOTE, "PDFT pads " __VA_ARGS__); }
+
 struct n64_header {
 	s32 num_pads;
 	s32 num_covers;
@@ -275,6 +277,11 @@ static u32 convertPadsFile(u8 *dst, u8 *src)
 
 u8* preprocessPadsFile(u8 *data, u32 size, u32 *outSize, s32 modNum) {
 	u32 newSizeEstimated = romdataFileGetEstimatedSize(size, LOADTYPE_PADS);
+	struct n64_header *srcHeader = (struct n64_header *)data;
+	PDFT_PADS("begin mod=%d input=%u estimate=%u pads=%d covers=%d waypoints=0x%x waygroups=0x%x cover=0x%x",
+		modNum, size, newSizeEstimated, PD_BE32(srcHeader->num_pads),
+		PD_BE32(srcHeader->num_covers), PD_BE32(srcHeader->ptr_waypoints),
+		PD_BE32(srcHeader->ptr_waygroups), PD_BE32(srcHeader->ptr_cover));
 	u8* dst = sysMemZeroAlloc(newSizeEstimated);
 
 	u32 newSize = convertPadsFile(dst, data);
@@ -287,6 +294,10 @@ u8* preprocessPadsFile(u8 *data, u32 size, u32 *outSize, s32 modNum) {
 	sysMemFree(dst);
 
 	*outSize = newSize;
+	struct host_header *dstHeader = (struct host_header *)data;
+	PDFT_PADS("end mod=%d output=%u pads=%d covers=%d waypoints=0x%lx waygroups=0x%lx cover=0x%lx",
+		modNum, newSize, dstHeader->num_pads, dstHeader->num_covers,
+		dstHeader->ptr_waypoints, dstHeader->ptr_waygroups, dstHeader->ptr_cover);
 
 	return 0;
 }

@@ -60,6 +60,8 @@
 
 static bool g_DebugFileLoad = false;
 #define DEBUG_FLOAD(...) if (g_DebugFileLoad) { sysLogPrintf(LOG_NOTE, __VA_ARGS__); }
+static bool g_DebugFileTable = false;
+#define PDFT(...) if (g_DebugFileTable) { sysLogPrintf(LOG_NOTE, "PDFT " __VA_ARGS__); }
 
 #define FT_HASH_BITS  11
 #define FT_HASH_SIZE  (1u << FT_HASH_BITS)          // 2048 buckets
@@ -624,6 +626,9 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 	sysLogPrintf(LOG_NOTE, "Loading file table v%u: %u files, %u romSources (mod=%d, %s)",
 	             version, numFiles, numRomSources, ownerModIdx,
 	             isGlobal ? "global" : "per-mod");
+	PDFT("parse table=%s mod=%d bytes=%u version=%u entries=%u romSources=%u",
+	     isGlobal ? "global" : "fragment", ownerModIdx, size, version,
+	     numFiles, numRomSources);
 
 	if (version >= 2) {
 		u8 fragRomIdxMap[256];
@@ -675,6 +680,9 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			if (i < 256 && globalIdx >= 0) {
 				fragRomIdxMap[i] = (u8)globalIdx;
 			}
+			PDFT("romsource table=%s mod=%d index=%u id='%s' file='%s' expected=%u flags=0x%02x fallback=%u mapped=%d",
+			     isGlobal ? "global" : "fragment", ownerModIdx, i, rsId, rsFn,
+			     expectedSize, rsFlags, rsFallback, globalIdx);
 		}
 
 		if (g_NumRomSources > 0) {
@@ -730,6 +738,12 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 					as->compression = altCompression;
 				}
 			}
+
+			PDFT("entry table=%s mod=%d index=%u id=0x%04x flags=0x%08x name='%.*s' path='%.*s' romOffset=0x%x romSize=%u altRom=%d altOffset=0x%x altSize=%u altCompression=%u",
+			     isGlobal ? "global" : "fragment", ownerModIdx, i, id, flags,
+			     nameLen > 0 ? nameLen - 1 : 0, name,
+			     pathLen > 0 ? pathLen - 1 : 0, path,
+			     offset, fileSize, altRomIdx, altOffset, altSize, altCompression);
 
 			if (id >= ROMDATA_MAX_FILES) {
 				continue;
@@ -802,6 +816,11 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
 			char *path = (char*)p; p += pathLen;
 
+			PDFT("entry table=%s mod=%d index=%u id=0x%04x flags=0x%08x name='%.*s' path='%.*s' romOffset=0x%x romSize=%u",
+			     isGlobal ? "global" : "fragment", ownerModIdx, i, id, flags,
+			     nameLen > 0 ? nameLen - 1 : 0, name,
+			     pathLen > 0 ? pathLen - 1 : 0, path, offset, fileSize);
+
 			if (id >= ROMDATA_MAX_FILES) continue;
 
 			s32 modLo = isGlobal ? 0 : ownerModIdx;
@@ -839,10 +858,12 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 		if (isGlobal) {
 			p += (size_t)numTexMap * 4;
 			sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (global, ignored)", numTexMap);
+			PDFT("texmap table=global mod=%d entries=%u action=ignored", ownerModIdx, numTexMap);
 			return 1;
 		}
 
 		struct modTexMap *m = &g_ModTexMap[ownerModIdx];
+		u32 modBase = g_NextGlobalTexPort;
 		if (m->entries) {
 			sysMemFree(m->entries);
 			m->entries = NULL;
@@ -855,7 +876,6 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				             numTexMap, ownerModIdx);
 				return 1;
 			}
-			u32 modBase = g_NextGlobalTexPort;
 			for (u32 i = 0; i < numTexMap; ++i) {
 				u16 localId = PD_BE16(*(u16*)p); p += 2;
 				u16 slotIdx = PD_BE16(*(u16*)p); p += 2;
@@ -876,6 +896,8 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 		}
 
 		sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (mod=%d)", numTexMap, ownerModIdx);
+		PDFT("texmap table=fragment mod=%d entries=%u portBase=0x%03x nextPort=0x%03x",
+		     ownerModIdx, numTexMap, modBase, g_NextGlobalTexPort);
 	}
 
 	return 1;
@@ -945,111 +967,11 @@ static inline s32 romdataLoadExternalFileTable(void)
 	}
 	externalFileTableSize = size;
 
-	u8 *data = externalFileTableData;
-	if (memcmp(data, "PDFT", 4) != 0) {
-		sysLogPrintf(LOG_ERROR, "Invalid file table magic");
+	if (!romdataParseFileTable(externalFileTableData, size, -1)) {
+		sysLogPrintf(LOG_ERROR, "Failed to parse external file table");
 		sysMemFree(externalFileTableData);
 		externalFileTableData = NULL;
 		return 0;
-	}
-
-	u32 version = PD_BE32(*(u32*)(data + 4));
-	u32 numFiles = PD_BE32(*(u32*)(data + 8));
-	u8 *p = data + 12;
-
-	sysLogPrintf(LOG_NOTE, "Loading external file table v%d with %d files", version, numFiles);
-
-	for (u32 i = 0; i < numFiles; ++i) {
-		if (p + 16 > data + size) break;
-
-		u32 id = PD_BE32(*(u32*)p); p += 4;
-		u32 flags = PD_BE32(*(u32*)p); p += 4;
-		u32 offset = PD_BE32(*(u32*)p); p += 4;
-		u32 fileSize = PD_BE32(*(u32*)p); p += 4;
-
-		u16 nameLen = PD_BE16(*(u16*)p); p += 2;
-		char *name = (char*)p;
-		p += nameLen;
-
-		u16 pathLen = PD_BE16(*(u16*)p); p += 2;
-		char *path = (char*)p;
-		p += pathLen;
-
-		if (id < ROMDATA_MAX_FILES) {
-			// Check if path contains export flag and mod constraint
-			bool hasExport = false;
-			const char *pathAfterDoubleColon = NULL;
-			const char *modConstraint = NULL;
-
-			if ((flags & 2) && pathLen > 1) {
-				// Look for "export" keyword in path
-				if (strstr(path, "export")) {
-					hasExport = true;
-				}
-				// Look for "mod:" prefix to extract owner mod
-				const char *modPrefix = strstr(path, "mod:");
-				if (modPrefix) {
-					modConstraint = modPrefix + 4; // points to start of mod name
-				}
-				// Find the "::" separator to extract the actual path
-				const char *separator = strstr(path, "::");
-				if (separator) {
-					pathAfterDoubleColon = separator + 2;
-				}
-			}
-
-			for (s32 mod = 0; mod <= g_NumModDirs; ++mod) {
-				if (flags & 1) {
-					fileSlots[mod][id].data = g_RomFile + offset;
-					fileSlots[mod][id].size = fileSize;
-					fileSlots[mod][id].source = SRC_UNLOADED;
-				}
-
-				if ((flags & 2) && pathLen > 1) {
-					// If file is exported and has a mod constraint
-					if (hasExport && modConstraint && pathAfterDoubleColon) {
-						// Get current mod's name (basename of mod directory)
-						const char *currentModName = NULL;
-						if (mod > 0 && mod <= g_NumModDirs && modDirs[mod - 1][0]) {
-							currentModName = strrchr(modDirs[mod - 1], '/');
-							if (currentModName) {
-								currentModName++; // skip the '/'
-							} else {
-								currentModName = modDirs[mod - 1];
-							}
-						}
-
-						// Check if this mod is the owner (matches the mod constraint)
-						bool isOwner = false;
-						if (currentModName) {
-							// Check if modConstraint starts with currentModName
-							size_t modNameLen = strlen(currentModName);
-							if (strncmp(modConstraint, currentModName, modNameLen) == 0) {
-								// Make sure it's followed by comma, colon, or end of metadata
-								char next = modConstraint[modNameLen];
-								if (next == ',' || next == ':') {
-									isOwner = true;
-								}
-							}
-						}
-
-
-						if (isOwner) {
-							// Owner mod: use full path with metadata
-							fileSlots[mod][id].name = path;
-						} else {
-							// Non-owner mod: use simplified path (after ::)
-							fileSlots[mod][id].name = pathAfterDoubleColon;
-						}
-					} else {
-						// No export or no mod constraint: use path as-is
-						fileSlots[mod][id].name = path;
-					}
-				} else if (nameLen > 1) {
-					fileSlots[mod][id].name = name;
-				}
-			}
-		}
 	}
 
 	return 1;
@@ -1197,6 +1119,10 @@ s32 romdataInit(void)
 	if (getenv("PD_DEBUG_FILELOAD")) {
 		g_DebugFileLoad = true;
 		sysLogPrintf(LOG_NOTE, "File loading debugging enabled");
+	}
+	if (getenv("PD_DEBUG_FILETABLE")) {
+		g_DebugFileTable = true;
+		sysLogPrintf(LOG_NOTE, "PDFT tracing enabled");
 	}
 
 	romSourcesInit();

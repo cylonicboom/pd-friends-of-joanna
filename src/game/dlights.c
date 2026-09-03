@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include <stdlib.h>
 #include "constants.h"
 #include "game/cheats.h"
 #include "game/dlights.h"
@@ -29,6 +30,9 @@
 #include "data.h"
 #include "types.h"
 #include "platform.h"
+#include "system.h"
+
+#define DLIGHT(...) if (getenv("PD_DEBUG_DLIGHTS")) { sysLogPrintf(LOG_NOTE, "DLIGHT " __VA_ARGS__); }
 
 const char var7f1a78e0[] = "LIGHTS : Hit occured on light %d in room %d\n";
 const char var7f1a7910[] = "L2(%d) -> ";
@@ -587,6 +591,8 @@ void func0f001c0c(void)
 
 	if (1);
 	for (g_NumPortals = 0; g_BgPortals[g_NumPortals].verticesoffset != 0; g_NumPortals++);
+	DLIGHT("portals count=%d ptr=%p firstOffset=0x%x rooms=%d",
+		g_NumPortals, g_BgPortals, g_BgPortals[0].verticesoffset, g_Vars.roomcount);
 
 	if (g_NumPortals == 0) {
 		return;
@@ -1730,8 +1736,11 @@ void func0f004c6c(void)
 	}
 
 	s4 = align16(s4);
+	DLIGHT("dist begin portals=%d rowIndexBytes=%d rowDataBytes=%d",
+		g_NumPortals, sp38, s4);
 	ptr = mempAlloc(align16(s4), MEMPOOL_STAGE);
 	var80061430 = (void *)ptr;
+	DLIGHT("dist lookup ptr=%p allocated=%d", ptr, align16(s4));
 
 	ptr += sp38;
 
@@ -1753,6 +1762,8 @@ void func0f004c6c(void)
 	align16((s32)s4);
 
 	ptr = mempGetNextStageAllocation();
+	DLIGHT("dist workspace ptr=%p bytes=%d queueBytes=%d visibilityBytes=%d rowPointersBytes=%d matrixBytes=%d",
+		ptr, s4, sp44, sp40, sp38, g_NumPortals * sp34);
 	var8009cad0 = (void *)ptr;
 	ptr += sp44;
 
@@ -1779,6 +1790,7 @@ void func0f004c6c(void)
 			var8006142c[i][j] = 0x8009;
 		}
 	}
+	DLIGHT("dist rows initialized portals=%d rows=%p", g_NumPortals, var8006142c);
 
 	for (i = 0; i < g_NumPortals; i++) {
 		var8009cad8[i] = portalGetXluFrac(i) > 0.5f;

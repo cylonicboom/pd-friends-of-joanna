@@ -10,6 +10,8 @@
 
 extern u32 chraiGetAilistLength(u8 *list);
 
+#define PDFT_SETUP(...) if (getenv("PD_DEBUG_FILETABLE")) { sysLogPrintf(LOG_NOTE, "PDFT setup " __VA_ARGS__); }
+
 static inline void convF32(f32 *dst, f32 src) { *(u32*)dst = PD_BE32(*(u32*)&src); }
 static inline void convU32(u32 *dst, u32 src) { *dst = PD_BE32(src); }
 static inline void convS32(s32 *dst, s32 src) { *dst = PD_BE32(src); }
@@ -1176,6 +1178,11 @@ static u32 convertSetup(u8 *dst, u8 *src, u32 srclen, s32 modNum)
 
 u8 *preprocessSetupFile(u8 *data, u32 size, u32 *outSize, s32 modNum) {
 	u32 newSizeEstimated = romdataFileGetEstimatedSize(size, LOADTYPE_SETUP);
+	struct n64_stagesetup *srcHeader = (struct n64_stagesetup *)data;
+	PDFT_SETUP("begin mod=%d input=%u estimate=%u props=0x%x intro=0x%x ailists=0x%x paths=0x%x",
+		modNum, size, newSizeEstimated,
+		PD_BE32(srcHeader->ptr_props), PD_BE32(srcHeader->ptr_intro),
+		PD_BE32(srcHeader->ptr_ailists), PD_BE32(srcHeader->ptr_paths));
 	u8 *dst = sysMemZeroAlloc(newSizeEstimated);
 
 	u32 newSize = convertSetup(dst, data, size, modNum);
@@ -1188,6 +1195,10 @@ u8 *preprocessSetupFile(u8 *data, u32 size, u32 *outSize, s32 modNum) {
 	sysMemFree(dst);
 
 	*outSize = newSize;
+	struct stagesetup *dstHeader = (struct stagesetup *)data;
+	PDFT_SETUP("end mod=%d output=%u props=0x%lx intro=0x%lx ailists=0x%lx paths=0x%lx",
+		modNum, newSize, (uintptr_t)dstHeader->props, (uintptr_t)dstHeader->intro,
+		(uintptr_t)dstHeader->ailists, (uintptr_t)dstHeader->paths);
 
 	return 0;
 }

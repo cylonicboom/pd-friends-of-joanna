@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include <stdlib.h>
 #include "constants.h"
 #include "game/bondhead.h"
 #include "game/bg.h"
@@ -12,6 +13,9 @@
 #include "data.h"
 #include "types.h"
 #include "platform.h"
+#include "system.h"
+
+#define PDFT_PADS(...) if (getenv("PD_DEBUG_FILETABLE")) { sysLogPrintf(LOG_NOTE, "PDFT pads " __VA_ARGS__); }
 
 /**
  * The function assumes that a pad file's data has been loaded from the ROM
@@ -39,6 +43,8 @@ void setupPreparePads(void)
 	RoomNum inrooms[24];
 	RoomNum aboverooms[22];
 	s32 offset;
+	s32 numWaypoints = 0;
+	s32 numWaygroups = 0;
 
 	g_PadsFile = (struct padsfileheader *)g_StageSetup.padfiledata;
 #ifdef PLATFORM_64BIT
@@ -95,6 +101,10 @@ void setupPreparePads(void)
 	g_StageSetup.waypoints = (struct waypoint *) ((uintptr_t)g_StageSetup.padfiledata + g_PadsFile->waypointsoffset);
 	g_StageSetup.waygroups = (struct waygroup *) ((uintptr_t)g_StageSetup.padfiledata + g_PadsFile->waygroupsoffset);
 	g_StageSetup.cover = (void *) ((intptr_t)g_StageSetup.padfiledata + g_PadsFile->coversoffset);
+	PDFT_PADS("rebase begin data=%p pads=%d waypointOffset=0x%lx waygroupOffset=0x%lx coverOffset=0x%lx waypointPtr=%p waygroupPtr=%p coverPtr=%p",
+		g_StageSetup.padfiledata, numpads, (uintptr_t)g_PadsFile->waypointsoffset,
+		(uintptr_t)g_PadsFile->waygroupsoffset, (uintptr_t)g_PadsFile->coversoffset,
+		g_StageSetup.waypoints, g_StageSetup.waygroups, g_StageSetup.cover);
 
 	if (g_StageSetup.cover != NULL) {
 		setupPrepareCover();
@@ -106,6 +116,7 @@ void setupPreparePads(void)
 	while (waypoint->padnum >= 0) {
 		waypoint->neighbours = (s32 *)((uintptr_t)g_StageSetup.padfiledata + (uintptr_t)waypoint->neighbours);
 		waypoint++;
+		numWaypoints++;
 	}
 
 	// Promote offsets to pointers in waygroups
@@ -115,5 +126,9 @@ void setupPreparePads(void)
 		waygroup->neighbours = (s32 *)((uintptr_t)g_StageSetup.padfiledata + (uintptr_t)waygroup->neighbours);
 		waygroup->waypoints = (s32 *)((uintptr_t)g_StageSetup.padfiledata + (uintptr_t)waygroup->waypoints);
 		waygroup++;
+		numWaygroups++;
 	}
+
+	PDFT_PADS("rebase end data=%p pads=%d waypoints=%d waygroups=%d coverPtr=%p",
+		g_StageSetup.padfiledata, numpads, numWaypoints, numWaygroups, g_StageSetup.cover);
 }
