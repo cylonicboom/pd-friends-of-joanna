@@ -3,6 +3,8 @@
 
 #include "../fast3d/glad/glad.h"
 #include "../fast3d/gfx_pc.h"
+#include "bss.h"
+#undef bool
 #include "fs.h"
 #include "imgui_overlay.h"
 #include "input.h"
@@ -22,6 +24,8 @@ static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
 extern s32 g_StageNum;
 extern s32 g_ModNum;
 extern u32 g_OsMemSize;
+extern s32 g_StageIndex;
+extern struct stagetableentry g_Stages[87];
 extern "C" u32 mempGetStageFree(void);
 
 static const char *imguiOverlayFileSourceName(s32 source)
@@ -130,6 +134,53 @@ void imguiOverlayRender(void)
 			if (ImGui::CollapsingHeader("Memory", ImGuiTreeNodeFlags_DefaultOpen)) {
 				ImGui::Text("Emulated heap: %u MiB", g_OsMemSize / (1024 * 1024));
 				ImGui::Text("Stage pool free: %u KiB", mempGetStageFree() / 1024);
+			}
+
+			if (ImGui::CollapsingHeader("Time")) {
+				ImGui::Text("Level frame: %d", g_Vars.lvframenum);
+				ImGui::Text("Level tick: %d (60 Hz), %d (240 Hz)",
+						g_Vars.lvframe60, g_Vars.lvframe240);
+				ImGui::Text("Frame time: %.2f (60 Hz), %.2f (240 Hz)",
+						g_Vars.diffframe60f, g_Vars.diffframe240f);
+				ImGui::Text("Lost time: %d (60 Hz), %d (240 Hz)",
+						g_Vars.lostframetime60t, g_Vars.lostframetime240t);
+			}
+
+			if (ImGui::CollapsingHeader("Stage", ImGuiTreeNodeFlags_DefaultOpen)) {
+				ImGui::Text("Stage: 0x%02x, table index: 0x%02x",
+						(unsigned int)g_Vars.stagenum, (unsigned int)g_StageIndex);
+				if (g_StageIndex >= 0 && g_StageIndex < 87) {
+					const char *setupName = romdataFileGetName(g_Stages[g_StageIndex].setupfileid);
+					ImGui::Text("Setup: %s", setupName ? setupName : "unregistered");
+				}
+				ImGui::Text("Rooms: %d", g_Vars.roomcount);
+
+				if (g_Rooms && ImGui::TreeNode("Rooms")) {
+					if (ImGui::BeginChild("Stage rooms", ImVec2(0.0f, 220.0f), ImGuiChildFlags_Borders)) {
+						if (ImGui::BeginTable("Stage room table", 4,
+								ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+							ImGui::TableSetupColumn("Room", ImGuiTableColumnFlags_WidthFixed, 58.0f);
+							ImGui::TableSetupColumn("Loaded", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+							ImGui::TableSetupColumn("Portals", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+							ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+							ImGui::TableHeadersRow();
+							for (s32 roomNum = 1; roomNum < g_Vars.roomcount; ++roomNum) {
+								ImGui::TableNextRow();
+								ImGui::TableSetColumnIndex(0);
+								ImGui::Text("0x%03x", roomNum);
+								ImGui::TableSetColumnIndex(1);
+								ImGui::Text("%d", g_Rooms[roomNum].loaded240);
+								ImGui::TableSetColumnIndex(2);
+								ImGui::Text("%d", g_Rooms[roomNum].numportals);
+								ImGui::TableSetColumnIndex(3);
+								ImGui::Text("0x%04x", g_Rooms[roomNum].flags);
+							}
+							ImGui::EndTable();
+						}
+					}
+					ImGui::EndChild();
+					ImGui::TreePop();
+				}
 			}
 
 			if (ImGui::CollapsingHeader("Mods", ImGuiTreeNodeFlags_DefaultOpen)) {
