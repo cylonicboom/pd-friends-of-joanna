@@ -202,9 +202,21 @@ static const char *imguiOverlayHeadBodyName(s32 index)
 	return name ? name : "unknown";
 }
 
+static bool imguiOverlayPropIsCurrent(struct prop *prop)
+{
+	return prop && g_Vars.props && g_Vars.maxprops > 0
+		&& prop >= g_Vars.props && prop < g_Vars.props + g_Vars.maxprops;
+}
+
+static bool imguiOverlayChrIsCurrent(struct chrdata *chr)
+{
+	return chr && g_ChrSlots && g_NumChrSlots > 0
+		&& chr >= g_ChrSlots && chr < g_ChrSlots + g_NumChrSlots && chr->chrnum >= 0;
+}
+
 static void imguiOverlayFocusProp(struct prop *prop)
 {
-	if (!prop) {
+	if (!imguiOverlayPropIsCurrent(prop)) {
 		return;
 	}
 
@@ -218,6 +230,10 @@ static void imguiOverlayFocusProp(struct prop *prop)
 static void imguiOverlayPropJumpLine(const char *label, struct prop *prop)
 {
 	char text[96];
+	if (!imguiOverlayPropIsCurrent(prop)) {
+		return;
+	}
+
 	snprintf(text, sizeof(text), "%s: %p", label, prop);
 	if (ImGui::Selectable(text, false, ImGuiSelectableFlags_AllowDoubleClick)
 			&& ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
@@ -266,9 +282,14 @@ static void imguiOverlayDescribeWeapon(struct weaponobj *weapon)
 
 static void imguiOverlayDescribeChr(struct chrdata *chr)
 {
+	if (!imguiOverlayChrIsCurrent(chr)) {
+		ImGui::TextUnformatted("Character is no longer available");
+		return;
+	}
+
 	ImGui::Text("Number: 0x%04x", (u16)chr->chrnum);
 	ImGui::Text("Body: 0x%04x %s", (u16)chr->bodynum, imguiOverlayHeadBodyName(chr->bodynum));
-	ImGui::Text("Head: 0x%02x %s", (u8)chr->headnum, imguiOverlayHeadBodyName(chr->headnum));
+	ImGui::Text("Head: 0x%02x %s", (u8)chr->headnum, imguiOverlayHeadBodyName((u8)chr->headnum));
 	ImGui::Text("Team: 0x%02x", chr->team);
 	ImGui::Text("Tude: 0x%02x", chr->tude);
 	ImGui::Text("Action: %s (0x%02x)", imguiOverlayActionName(chr->actiontype), (u8)chr->actiontype);
@@ -281,7 +302,7 @@ static void imguiOverlayDescribeChr(struct chrdata *chr)
 	ImGui::Text("Chr flags: 0x%08x", chr->chrflags);
 
 	for (s32 handIndex = 0; handIndex < 3; ++handIndex) {
-		if (chr->weapons_held[handIndex]) {
+		if (imguiOverlayPropIsCurrent(chr->weapons_held[handIndex])) {
 			const char *label = handIndex == HAND_RIGHT ? "Right hand prop"
 				: handIndex == HAND_LEFT ? "Left hand prop" : "Hat prop";
 			if (g_ImGuiOverlayExpandLatch) {
@@ -302,11 +323,20 @@ static void imguiOverlayDescribeChr(struct chrdata *chr)
 
 static void imguiOverlayDescribeProp(struct prop *prop)
 {
+	if (!imguiOverlayPropIsCurrent(prop)) {
+		ImGui::TextUnformatted("Prop is no longer available");
+		return;
+	}
+
 	ImGui::TextUnformatted(prop->active ? "Active" : "Inactive");
 	ImGui::Text("Type: %s (0x%02x)", imguiOverlayPropTypeName(prop->type), prop->type);
 	ImGui::Text("Flags: 0x%02x", prop->flags);
 	ImGui::Text("Position: %s", imguiOverlayCoordString(&prop->pos));
 	ImGui::Text("Rooms: %s", imguiOverlayRoomListString(prop->rooms, 8));
+
+	if (!prop->active) {
+		return;
+	}
 
 	if ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
 		if (g_ImGuiOverlayExpandLatch) {
@@ -318,7 +348,8 @@ static void imguiOverlayDescribeProp(struct prop *prop)
 		}
 	}
 
-	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY) && prop->chr) {
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY)
+			&& imguiOverlayChrIsCurrent(prop->chr)) {
 		if (g_ImGuiOverlayExpandLatch) {
 			ImGui::SetNextItemOpen(g_ImGuiOverlayExpandValue);
 		}
@@ -339,9 +370,9 @@ static void imguiOverlayDescribeProp(struct prop *prop)
 
 static bool imguiOverlayPropPassesFilters(struct prop *prop)
 {
-	return prop
+	return imguiOverlayPropIsCurrent(prop)
 		&& (!g_ImGuiOverlayPropFilter || prop->type == g_ImGuiOverlayPropFilter)
-		&& (!g_ImGuiOverlayObjFilter || ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR
+		&& (!g_ImGuiOverlayObjFilter || (prop->active && (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR
 				|| prop->type == PROPTYPE_WEAPON) && prop->obj && prop->obj->type == g_ImGuiOverlayObjFilter));
 }
 
@@ -352,12 +383,13 @@ static bool imguiOverlayPropPassesTextFilter(struct prop *prop, s32 index)
 	s32 objType = 0;
 	s32 chrNum = -1;
 
-	if ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
+	if (prop->active && (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
 		objTypeName = imguiOverlayObjTypeName(prop->obj->type);
 		objType = prop->obj->type;
 	}
 
-	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY) && prop->chr) {
+	if (prop->active && (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY)
+			&& imguiOverlayChrIsCurrent(prop->chr)) {
 		chrNum = prop->chr->chrnum;
 	}
 
@@ -372,10 +404,13 @@ static bool imguiOverlayPropPassesTextFilter(struct prop *prop, s32 index)
 static bool imguiOverlayChrPassesTextFilter(struct chrdata *chr, s32 index)
 {
 	char text[256];
+	if (!imguiOverlayChrIsCurrent(chr)) {
+		return false;
+	}
 
 	snprintf(text, sizeof(text), "slot:%d chr:%04x %p body:%04x %s head:%02x %s team:%02x tude:%02x action:%s actionid:%02x damage:%.3f shield:%.3f",
 			index, (u16)chr->chrnum, chr, (u16)chr->bodynum, imguiOverlayHeadBodyName(chr->bodynum),
-			(u8)chr->headnum, imguiOverlayHeadBodyName(chr->headnum),
+			(u8)chr->headnum, imguiOverlayHeadBodyName((u8)chr->headnum),
 			chr->team, chr->tude, imguiOverlayActionName(chr->actiontype),
 			(u8)chr->actiontype, chr->damage, chr->cshield);
 
@@ -501,6 +536,9 @@ void imguiOverlayRender(void)
 
 	if (g_ImGuiOverlayVisible) {
 		g_ImGuiOverlayExpandLatch = false;
+		if (!imguiOverlayPropIsCurrent(g_ImGuiOverlayFocusProp)) {
+			g_ImGuiOverlayFocusProp = NULL;
+		}
 		ImGui::SetNextWindowSize(ImVec2(320.0f, 0.0f), ImGuiCond_FirstUseEver);
 		if (ImGui::Begin("Fojo Runtime", &g_ImGuiOverlayVisible)) {
 			if (ImGui::CollapsingHeader("Runtime", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -617,6 +655,9 @@ void imguiOverlayRender(void)
 					if (g_ImGuiOverlayShowActivePropsOnly) {
 						struct prop *prop = g_Vars.activeprops;
 						for (s32 index = 0; prop && prop != g_Vars.pausedprops && index <= g_Vars.maxprops; ++index) {
+							if (!imguiOverlayPropIsCurrent(prop)) {
+								break;
+							}
 							struct prop *next = prop->next;
 							imguiOverlayDrawPropNode(prop, index);
 							prop = next;
