@@ -248,8 +248,10 @@ s32 fsInit(void)
 			path = "$E";
 		} else {
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_OSX)
-			// check if there's a config in the working directory, otherwise default to homeDir
-			if (fsFileSize("./" CONFIG_FNAME) >= 0) {
+			// Prefer a config next to the executable/basedir bundle, then cwd, then homeDir.
+			if (fsFileSize("$E/" CONFIG_FNAME) >= 0) {
+				path = "$E";
+			} else if (fsFileSize("./" CONFIG_FNAME) >= 0) {
 				path = ".";
 			} else {
 				path = "$H";

@@ -352,8 +352,15 @@ void menuTick(void)
 		g_PlayersWithControl[0] = false;
 
 		if (g_Vars.lvframenum > 30 && g_Vars.tickmode != TICKMODE_CUTSCENE) {
-			if (filemgrDefaultProfileLoaded(0)) {
+			s32 defaultrealityresult = filemgrTryLoadDefaultReality();
+
+			if (defaultrealityresult == 1 || filemgrDefaultRealityLoaded()) {
 				g_FileState = FILESTATE_SELECTED;
+				g_PlayersWithControl[0] = true;
+				return;
+			}
+
+			if (defaultrealityresult == 2) {
 				return;
 			}
 

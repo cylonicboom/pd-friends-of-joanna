@@ -22,10 +22,18 @@
 #include "data.h"
 #include "types.h"
 #include "mpsetups.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 
 #ifndef PLATFORM_N64
 static s32 g_FilemgrDefaultProfileAttempted[4][MAX_PLAYERS];
 static s32 g_FilemgrDefaultProfileLoaded[MAX_PLAYERS];
+static s32 g_FilemgrDefaultRealityLoaded;
+
+#define DEFAULT_PROFILE_NOT_LOADED 0
+#define DEFAULT_PROFILE_LOADED 1
+#define DEFAULT_PROFILE_PENDING 2
 
 static void filemgrTrimProfileName(char *name)
 {
@@ -44,6 +52,13 @@ static void filemgrGetDefaultProfileListName(struct filelistfile *file, u8 filet
 	name[0] = '\0';
 
 	switch (filetype) {
+	case FILETYPE_GAME:
+		{
+			u8 stage;
+			u8 difficulty;
+			gamefileGetOverview(file->name, name, &stage, &difficulty, &playtime);
+		}
+		break;
 	case FILETYPE_MPPLAYER:
 		mpplayerfileGetOverview(file->name, name, &playtime);
 		break;
@@ -55,39 +70,51 @@ static void filemgrGetDefaultProfileListName(struct filelistfile *file, u8 filet
 	filemgrTrimProfileName(name);
 }
 
-s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
+static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, u8 filetype, s32 playernum)
 {
-	char wanted[sizeof(g_DefaultProfile)];
+	char wanted[64];
 	char name[32];
 	struct fileguid guid;
 
-	if (!g_DefaultProfile[0] || filetype != FILETYPE_MPPLAYER
-			|| filetype >= ARRAYCOUNT(g_FilemgrDefaultProfileAttempted)
+	if (!configured[0] || filetype >= ARRAYCOUNT(g_FilemgrDefaultProfileAttempted)
 			|| playernum < 0 || playernum >= MAX_PLAYERS) {
-		return false;
+		return DEFAULT_PROFILE_NOT_LOADED;
 	}
 
-	if (g_FilemgrDefaultProfileAttempted[filetype][playernum]) {
-		return false;
+	if (g_FilemgrDefaultProfileAttempted[filetype][playernum] < 0) {
+		return DEFAULT_PROFILE_NOT_LOADED;
 	}
 
-	g_FilemgrDefaultProfileAttempted[filetype][playernum] = true;
-	strncpy(wanted, g_DefaultProfile, sizeof(wanted) - 1);
+	if ((filetype == FILETYPE_MPPLAYER && g_FilemgrDefaultProfileLoaded[playernum])
+			|| (filetype == FILETYPE_GAME && g_FilemgrDefaultRealityLoaded)) {
+		return DEFAULT_PROFILE_LOADED;
+	}
+
+	strncpy(wanted, configured, sizeof(wanted) - 1);
 	wanted[sizeof(wanted) - 1] = '\0';
 	filemgrTrimProfileName(wanted);
 
 	if (!wanted[0]) {
-		return false;
+		return DEFAULT_PROFILE_NOT_LOADED;
 	}
+
+	g_FilemgrDefaultProfileAttempted[filetype][playernum]++;
 
 	filelistCreate(0, filetype);
 
 	if (!g_FileLists[0]) {
-		return false;
+		sysLogPrintf(LOG_NOTE, "Default %s '%s': waiting for file list", label, wanted);
+		return DEFAULT_PROFILE_PENDING;
 	}
 
 	filelistUpdate(g_FileLists[0]);
 	g_FileLists[0]->updatedthisframe = true;
+
+	if (g_FileLists[0]->numfiles == 0 && g_FilemgrDefaultProfileAttempted[filetype][playernum] < 60) {
+		sysLogPrintf(LOG_NOTE, "Default %s '%s': waiting for files (%d)", label,
+				wanted, g_FilemgrDefaultProfileAttempted[filetype][playernum]);
+		return DEFAULT_PROFILE_PENDING;
+	}
 
 	for (s32 i = 0; i < g_FileLists[0]->numfiles; ++i) {
 		struct filelistfile *file = &g_FileLists[0]->files[i];
@@ -97,35 +124,77 @@ s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
 			guid.fileid = file->fileid;
 			guid.deviceserial = file->deviceserial;
 
-			if (!filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum)) {
-				return false;
+			if (filetype == FILETYPE_MPPLAYER) {
+				if (!filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum)) {
+					g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
+					return DEFAULT_PROFILE_NOT_LOADED;
+				}
+				iniProcessPendingProfiles();
+				iniRegisterPlayerSave(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
+				updatePlayerNames();
+				g_FilemgrDefaultProfileLoaded[playernum] = true;
+			} else if (filetype == FILETYPE_GAME) {
+				g_GameFileGuid = guid;
+				if (!filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_LOAD_GAME, 0)) {
+					g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
+					return DEFAULT_PROFILE_NOT_LOADED;
+				}
+				mpsetupCopyAllFromPak();
+				mpsetupLoadCurrentFile();
+				g_FilemgrDefaultRealityLoaded = true;
+			} else {
+				g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
+				return DEFAULT_PROFILE_NOT_LOADED;
 			}
-			iniProcessPendingProfiles();
-			iniRegisterPlayerSave(&g_PlayerConfigsArray[playernum].fileguid, 1, playernum);
-			updatePlayerNames();
-			g_FilemgrDefaultProfileLoaded[playernum] = true;
 
 			fileListFreeAll();
-			return true;
+			sysLogPrintf(LOG_NOTE, "Default %s '%s' loaded", label, wanted);
+			return DEFAULT_PROFILE_LOADED;
 		}
 	}
 
-	osSyncPrintf("Default profile '%s' was not found for file type %d; showing file select menu\n",
-			wanted, filetype);
-	return false;
+	sysLogPrintf(LOG_WARNING, "Default %s '%s' was not found among %d files; showing selection menu",
+			label, wanted, g_FileLists[0]->numfiles);
+	g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
+	return DEFAULT_PROFILE_NOT_LOADED;
+}
+
+s32 filemgrTryLoadDefaultProfile(s32 playernum)
+{
+	return filemgrTryLoadDefaultFile("profile", g_DefaultProfile, FILETYPE_MPPLAYER, playernum);
+}
+
+s32 filemgrTryLoadDefaultReality(void)
+{
+	return filemgrTryLoadDefaultFile("reality", g_DefaultReality, FILETYPE_GAME, 0);
 }
 
 s32 filemgrDefaultProfileLoaded(s32 playernum)
 {
 	return playernum >= 0 && playernum < MAX_PLAYERS && g_FilemgrDefaultProfileLoaded[playernum];
 }
+
+s32 filemgrDefaultRealityLoaded(void)
+{
+	return g_FilemgrDefaultRealityLoaded;
+}
 #else
-s32 filemgrTryLoadDefaultProfile(u8 filetype, s32 playernum)
+s32 filemgrTryLoadDefaultProfile(s32 playernum)
+{
+	return false;
+}
+
+s32 filemgrTryLoadDefaultReality(void)
 {
 	return false;
 }
 
 s32 filemgrDefaultProfileLoaded(s32 playernum)
+{
+	return false;
+}
+
+s32 filemgrDefaultRealityLoaded(void)
 {
 	return false;
 }

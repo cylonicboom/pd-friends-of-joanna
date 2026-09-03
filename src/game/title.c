@@ -38,6 +38,7 @@
 #include "string.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "system.h"
 #endif
 
 #ifdef PLATFORM_N64
@@ -2738,10 +2739,32 @@ void titleExitProfileSelect(void) {
 extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
 extern struct menudialogdef g_FojoTitleProfileSelectMenu;
 
+static s32 titleTryDefaultProfile(void)
+{
+	if (!g_DefaultProfile[0]) {
+		return 0;
+	}
+
+	s32 result = filemgrTryLoadDefaultProfile(0);
+	if (result == 1) {
+		sysLogPrintf(LOG_NOTE, "Default profile: skipping title profile select");
+		titleSetNextMode(TITLEMODE_RARELOGO);
+		return 1;
+	}
+	if (result == 0) {
+		sysLogPrintf(LOG_NOTE, "Default profile: falling back to title profile select");
+	}
+
+	return result == 2;
+}
+
 void titleTickProfileSelect(void) {
 	// Skip menuTick once a mode change is pending; the exit fn (or simply
 	// transition state) means the player/menu state is no longer valid to tick.
 	if (titleIsChangingMode()) {
+		return;
+	}
+	if (titleTryDefaultProfile()) {
 		return;
 	}
 	menuTick();
@@ -2779,8 +2802,7 @@ void titleInitProfileSelect(void) {
 		}
 	}
 	menuReset();
-	if (filemgrTryLoadDefaultProfile(FILETYPE_MPPLAYER, 0)) {
-		titleSetNextMode(TITLEMODE_RARELOGO);
+	if (titleTryDefaultProfile()) {
 		return;
 	}
 	menuPushRootDialog(&g_FojoTitleProfileSelectMenu, MENUROOT_FILEMGR);

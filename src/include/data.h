@@ -576,6 +576,7 @@ extern s32 g_TickExtraSleep;
 extern s32 g_MusicDisableMpDeath;
 extern s32 g_BgunGeMuzzleFlashes;
 extern char g_DefaultProfile[64];
+extern char g_DefaultReality[64];
 extern s32 g_FileAutoSelect;
 
 extern s32 g_AIOPresent;
