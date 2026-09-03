@@ -365,6 +365,7 @@ static bool imguiOverlayPlayerIsCurrent(struct player *player)
 static bool imguiOverlayCanAimInspect(void)
 {
 	return g_Vars.currentplayer
+		&& g_Vars.tickmode == TICKMODE_NORMAL
 		&& imguiOverlayPlayerIsCurrent(g_Vars.currentplayer)
 		&& imguiOverlayPropIsCurrent(g_Vars.currentplayer->prop)
 		&& g_Rooms
@@ -1097,7 +1098,7 @@ static void imguiOverlayDrawLookingAtPanel(void)
 {
 	if (!imguiOverlayCanAimInspect()) {
 		ImGui::TextUnformatted("Aim inspection unavailable");
-		ImGui::TextDisabled("Requires live player, prop, room, and camera state.");
+		ImGui::TextDisabled("Requires normal gameplay with live player, room, and camera state.");
 		return;
 	}
 
