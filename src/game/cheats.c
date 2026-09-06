@@ -312,7 +312,7 @@ MenuItemHandlerResult cheatCheckboxMenuHandler(s32 operation, struct menuitem *i
 			return false;
 		}
 
-		if (g_CheatsEnabledBank1 & (1 << item->param)) {
+		if (g_CheatsEnabledBank1 & (1 << (item->param - 32))) {
 			return true;
 		}
 
@@ -337,11 +337,11 @@ MenuItemHandlerResult cheatCheckboxMenuHandler(s32 operation, struct menuitem *i
 				}
 			} else {
 				// Bank 1
-				if (g_CheatsEnabledBank1 & (1 << item->param)) {
+				if (g_CheatsEnabledBank1 & (1 << (item->param - 32))) {
 					if (1);
-					g_CheatsEnabledBank1 = g_CheatsEnabledBank1 & ~(1 << item->param);
+					g_CheatsEnabledBank1 = g_CheatsEnabledBank1 & ~(1 << (item->param - 32));
 				} else {
-					g_CheatsEnabledBank1 = g_CheatsEnabledBank1 | 1 << item->param;
+					g_CheatsEnabledBank1 = g_CheatsEnabledBank1 | 1 << (item->param - 32);
 				}
 			}
 
