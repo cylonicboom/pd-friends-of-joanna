@@ -3857,6 +3857,10 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 			// a pause if the world behind it has actually stopped. with pausing off
 			// the solo menu leaves the background empty and the live game shows
 			// through. endscreens and the title menu still freeze, so they keep it.
+			//
+			// the institute is deliberately inside the gate. STAGE_CITRAINING is
+			// 0x26, well under STAGE_TITLE, so CI gets no backdrop either -- it
+			// counts as being in the world, same as a mission.
 			bool livegame = !pauseIsAllowed()
 				&& g_Vars.stagenum < STAGE_TITLE
 				&& (root == MENUROOT_MAINMENU || root == MENUROOT_FILEMGR);
