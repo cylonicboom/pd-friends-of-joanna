@@ -521,7 +521,7 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 				if (skipEntry) *skipEntry = 1;
 				return NULL;
 			}
-			item->filenum = tmp | (modNum << 16);
+			item->filenum = MOD_FILEID_MAKE(modNum, tmp);
 		} else if (!strcmp(token, "scale")) {
 			p = modConfigParseFloatValue(p, token, &tmpf);
 			if (!p) return NULL;
@@ -538,7 +538,7 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 				if (skipEntry) *skipEntry = 1;
 				return NULL;
 			}
-			item->handfilenum = tmp | (modNum << 16);
+			item->handfilenum = MOD_FILEID_MAKE(modNum, tmp);
 			if (slotInfo) {
 				strncpy(slotInfo->handName, strUnquote(token), 63);
 				slotInfo->handName[63] = '\0';
@@ -601,7 +601,7 @@ static char *modConfigParseModelStates(char *p, char *token, s32 modNum)
 				s32 fileNum = 0;
 				p = modConfigParseFileValue(p, token, &fileNum, modNum);
 				if (!p) return NULL;
-				g_ModelStates[modelId].fileid = fileNum | (modNum << 16);
+				g_ModelStates[modelId].fileid = MOD_FILEID_MAKE(modNum, fileNum);
 			} else if (!strcasecmp(token, "Scale")) {
 				f32 scale = 0.0f;
 				p = modConfigParseFloatValue(p, token, &scale);
@@ -2025,7 +2025,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	if (fileNum > 0) {
 		DEBUG_MODELS("modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, modNum);
 		u32 size = 0;
-		s32 encodedFileNum = fileNum | (modNum << 16);
+		s32 encodedFileNum = MOD_FILEID_MAKE(modNum, fileNum);
 		u8 *data = romdataFileLoad(encodedFileNum, &size);
 
 

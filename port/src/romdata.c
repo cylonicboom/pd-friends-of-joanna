@@ -1406,7 +1406,7 @@ s32 romdataFileGetSize(s32 fileNum)
 	}
 
 	// ensure any external files are loaded and we use their size
-	if (romdataFileLoad(fileNum | (modNum << 16), NULL)) {
+	if (romdataFileLoad(MOD_FILEID_MAKE(modNum, fileNum), NULL)) {
 		return fileSlots[modNum][fileNum].size;
 	}
 
