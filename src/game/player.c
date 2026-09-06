@@ -2455,8 +2455,9 @@ void playerTickPauseMenu(void)
 
 		if (opened) {
 			struct trainingdata *data = dtGetData();
-			// fojo: the menu and its blurred backdrop are unchanged; only the world
-			// freeze is conditional. the cheat gives back vanilla pausing.
+			// fojo: only the world freeze is conditional here. the blurred
+			// backdrop is dropped alongside it in menuPushRootDialog. the cheat
+			// gives back vanilla pausing.
 			if (pauseIsAllowed()) {
 				lvSetPaused(true);
 			}

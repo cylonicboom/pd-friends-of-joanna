@@ -3843,7 +3843,19 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 	case MENUROOT_MPENDSCREEN:
 	case MENUROOT_FILEMGR:
 	case MENUROOT_TRAINING:
-		menuSetBackground(MENUBG_BLUR);
+		{
+			// fojo: the blurred backdrop is a still screenshot, so it only reads as
+			// a pause if the world behind it has actually stopped. with pausing off
+			// the solo menu leaves the background empty and the live game shows
+			// through. endscreens and the title menu still freeze, so they keep it.
+			bool livegame = !pauseIsAllowed()
+				&& g_Vars.stagenum < STAGE_TITLE
+				&& (root == MENUROOT_MAINMENU || root == MENUROOT_FILEMGR);
+
+			if (!livegame) {
+				menuSetBackground(MENUBG_BLUR);
+			}
+		}
 		break;
 	case MENUROOT_COOPCONTINUE:
 		break;
