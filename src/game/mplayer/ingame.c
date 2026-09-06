@@ -11,6 +11,7 @@
 #include "game/lv.h"
 #include "game/mplayer/ingame.h"
 #include "game/challenge.h"
+#include "game/cheats.h"
 #include "game/lang.h"
 #include "game/mplayer/mplayer.h"
 #include "game/mplayer/setup.h"
