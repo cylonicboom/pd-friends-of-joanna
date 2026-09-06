@@ -9,6 +9,30 @@ extern "C" {
 
 #define MOD_CONFIG_FNAME "modconfig.txt"
 
+/* Mod-tagged file ids.
+ *
+ * A file id is either a plain vanilla id, or a mod-owned id carrying its owning
+ * mod in the high bits: (modNum << 16) | rawId. The convention was open-coded
+ * at a dozen sites with three different spellings of the extraction - masked to
+ * 0xff, masked to 0xffff, and unmasked - so use these instead of writing the
+ * shift by hand.
+ *
+ * rawId is 16 bits. modNum fits in 6: g_ModelStates_PerMod / g_ExplosionTypes_PerMod
+ * are 64 entries and modSwitch bounds g_ModNum to < 64.
+ *
+ * Note there is no "is this tagged" test, deliberately: mod 0 is the boot mod,
+ * so a zero modNum is a real owner, not an absence.
+ */
+#define MOD_FILEID_SHIFT    16
+#define MOD_FILEID_RAW_MASK 0xffff
+#define MOD_FILEID_MOD_MASK 0xff
+
+#define MOD_FILEID_MOD(id)  ((s32)(((s32)(id) >> MOD_FILEID_SHIFT) & MOD_FILEID_MOD_MASK))
+#define MOD_FILEID_RAW(id)  ((s32)((s32)(id) & MOD_FILEID_RAW_MASK))
+#define MOD_FILEID_MAKE(modNum, rawId) \
+	((s32)((((s32)(modNum) & MOD_FILEID_MOD_MASK) << MOD_FILEID_SHIFT) \
+		| ((s32)(rawId) & MOD_FILEID_RAW_MASK)))
+
 #define MOD_FLAG_FORCE_LOAD    (1 << 0)
 #define MOD_FLAG_FORCE_VANILLA (1 << 1)
 
