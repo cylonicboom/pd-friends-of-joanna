@@ -679,6 +679,31 @@ u32 chraiGoToLabel(u8 *ailist, u32 aioffset, u8 label)
 	} while (true);
 }
 
+#ifndef PLATFORM_N64
+/**
+ * Report an opcode the dispatch table cannot service.
+ *
+ * Rate limited to one line per second, because a chr whose list is stuck on a
+ * bad opcode reaches this every frame.
+ */
+static void chraiWarnNoHandler(s32 type)
+{
+	static s32 s_NextWarn60 = 0;
+
+	if (g_Vars.lvframe60 >= s_NextWarn60) {
+		bool isglobal = false;
+
+		s_NextWarn60 = g_Vars.lvframe60 + 60;
+		sysLogPrintf(LOG_WARNING,
+				"chrai: opcode 0x%04x has no handler - yielding; chr %d list %d offset 0x%x",
+				type,
+				g_Vars.chrdata ? g_Vars.chrdata->chrnum : -1,
+				chraiGetListIdByList(g_Vars.ailist, &isglobal),
+				g_Vars.aioffset);
+	}
+}
+#endif
+
 void chraiExecute(void *entity, s32 proptype)
 {
 	g_Vars.chrdata = NULL;
@@ -819,16 +844,36 @@ void chraiExecute(void *entity, s32 proptype)
 #endif
 
 			if (type >= 0 && type < ARRAYCOUNT(g_CommandPointers)) {
+#ifndef PLATFORM_N64
+				// 40 in-range slots are NULL - opcodes the table reserves but
+				// does not implement. Calling one is a jump through a null
+				// pointer, so treat it exactly like an out-of-range opcode.
+				if (!g_CommandPointers[type]) {
+					chraiWarnNoHandler(type);
+					break;
+				}
+#endif
+
 				// TODO: Consider adding a check for the chrnummach mode here.
 				// Ensure that commands are used to reset it to the default state if necessary.
 				if (g_CommandPointers[type]()) {
 					break;
 				}
 			} else {
+#ifndef PLATFORM_N64
+				// An opcode the table cannot service cannot be stepped over
+				// either: g_CommandLengths has no meaningful entry for a
+				// command that does not exist, so advancing by it lands in the
+				// middle of the next one and every byte after it is garbage.
+				// Yield the list instead of walking off into it.
+				chraiWarnNoHandler(type);
+				break;
+#else
 				// This is attempting to handle situations where the command
 				// type is invalid by passing over them and continuing
 				// execution. This would very likely result in a crash though.
 				g_Vars.aioffset += chraiGetCommandLength(g_Vars.ailist, g_Vars.aioffset);
+#endif
 			}
 		}
 	}
