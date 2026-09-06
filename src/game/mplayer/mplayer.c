@@ -1641,11 +1641,21 @@ void func0f1895e8(void) {
 
 s32 mpGetWeaponSet(void) { return mpCountWeaponSetThing(g_MpWeaponSetNum); }
 
+/**
+ * Whether the player may pause an mp match at all.
+ *
+ * Pausing is off in fojo. This is the single seam a cheat will flip to turn it
+ * back on; keep every pause decision routed through here rather than testing
+ * player counts at the call site.
+ */
+bool mpPauseIsAllowed(void) {
+  return false;
+}
+
 bool mpIsPaused(void) {
-  if (PLAYERCOUNT() == 1 && g_Vars.mplayerisrunning &&
-      g_Menus[g_Vars.currentplayerstats->mpindex].curdialog) {
-    return true;
-  }
+  // vanilla paused a 1-player mp match whenever a dialog was open, even though
+  // menuhandlerMpPause already hid the Pause option at that player count. the
+  // option was hidden and the game froze anyway.
 
   if (g_MpSetup.paused == PAUSEMODE_UNPAUSED) {
     return false;
