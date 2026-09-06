@@ -571,7 +571,6 @@ void mpStartMatch(void) {
   sysLogPrintf(LOG_NOTE, "mpStartMatch: calling modSwitch(-1, 0x%02x)",
                stagenum);
   modSwitch(-1, stagenum);
-  g_NotLoadMod = false;
   // Set textures surfacetype (Resets when multiplayer ends)
 #endif
 

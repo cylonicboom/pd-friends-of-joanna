@@ -598,8 +598,6 @@ extern s16 g_MpCurrentSetup;
 // 1: GoldenEye X Mod
 // 2: Kakariko Village Mod
 extern s32 g_ModNum;
-// All Solos in Multi Mod
-extern bool g_NotLoadMod;
 
 extern s32 g_ModStageNums[STAGE_4MBMENU];
 

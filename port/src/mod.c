@@ -71,7 +71,6 @@ s32 g_ModStageNums[STAGE_4MBMENU];
 
 static bool g_DebugModStage = false;
 #define MODSTAGE(...) if (g_DebugModStage) { sysLogPrintf(LOG_NOTE, "MODSTAGE " __VA_ARGS__); }
-u8 g_StageModFlags[256];
 
 char g_ModNames[64][64];
 char g_ModVersions[64][32];
@@ -1447,8 +1446,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	p = strParseToken(p, token, NULL);
 	const s32 stagenum = strtol(token, NULL, 0);
 	// g_ModStageNums is STAGE_4MBMENU entries; the old bound was 0xff, so a
-	// stage number past the end wrote into g_StageModFlags, which is declared
-	// immediately after it.
+	// stage number past the end wrote into whatever followed it in bss.
 	if (stagenum <= 0x01 || stagenum >= (s32)ARRAYCOUNT(g_ModStageNums)) {
 		sysLogPrintf(LOG_ERROR, "modconfig: invalid stage number: %x", stagenum);
 		return NULL;
@@ -1535,11 +1533,17 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 				return NULL;
 			}
 		} else if (!strcmp(token, "use_mod_files")) {
+			// Retired. Both this and force_vanilla were per-stage overrides of
+			// g_NotLoadMod, the All-Solos-in-Multi switch fojo never sets. The
+			// value is still parsed and validated, then discarded, so an older
+			// modconfig does not hard-fail on an unknown key. Delete this arm
+			// next release.
 			PARSE_STAGE_INT("", "use_mod_files", tmp, 0, 1);
-			if (tmp) g_StageModFlags[stagenum] |= MOD_FLAG_FORCE_LOAD;
+			sysLogPrintf(LOG_WARNING, "modconfig: stage 0x%02x: 'use_mod_files' is retired and ignored", stagenum);
 		} else if (!strcmp(token, "force_vanilla")) {
+			// Retired; see use_mod_files above.
 			PARSE_STAGE_INT("", "force_vanilla", tmp, 0, 1);
-			if (tmp) g_StageModFlags[stagenum] |= MOD_FLAG_FORCE_VANILLA;
+			sysLogPrintf(LOG_WARNING, "modconfig: stage 0x%02x: 'force_vanilla' is retired and ignored", stagenum);
 		} else {
 			sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: invalid key: %s", stagenum, token);
 			return NULL;
@@ -1589,10 +1593,9 @@ void modStageDumpOwnership(const char *when)
 		stageindex = stageGetIndex(stagenum);
 		entry = (stageindex >= 0) ? &g_Stages[stageindex] : NULL;
 
-		MODSTAGE("claim when=%s stage=0x%02x mod=%d name='%s' flags=0x%02x",
+		MODSTAGE("claim when=%s stage=0x%02x mod=%d name='%s'",
 				when, stagenum, modnum,
-				(modnum >= 0 && modnum < 64) ? g_ModNames[modnum] : "?",
-				g_StageModFlags[stagenum]);
+				(modnum >= 0 && modnum < 64) ? g_ModNames[modnum] : "?");
 
 		if (entry) {
 			// The five overloadable fields, as they stand in the stage table.
@@ -1705,9 +1708,6 @@ void modInit(void)
 	if (getenv("PD_DEBUG_MODSTAGE")) {
 		g_DebugModStage = true;
 	}
-
-	// Reset stage flags
-	memset(g_StageModFlags, 0, sizeof(g_StageModFlags));
 
 	// Reset mod stage mapping
 	for (s32 i = 0; i < STAGE_4MBMENU; i++) {

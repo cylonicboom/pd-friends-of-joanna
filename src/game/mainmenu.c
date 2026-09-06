@@ -137,9 +137,6 @@ extern const uintptr_t g_PlayerRoleNames[] = {
     (uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
     (uintptr_t)"Operative",         // PLAYERROLE_BOND
 };
-#ifndef PLATFORM_N64 // All Solos in Multi Mod
-bool g_NotLoadMod;
-#endif
 
 char *menuTextCurrentStageName(struct menuitem *item) {
   sprintf(g_StringPointer, "%s\n",
@@ -881,11 +878,9 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation,
   if (operation == MENUOP_SET) {
     menuStop();
 
-#ifndef PLATFORM_N64 // All Solos in Multi Mod
-    g_NotLoadMod = false;
-
+#ifndef PLATFORM_N64 // PC port: mod file slots are reset per mission
     // Check if restarting the same level and set restartlevel BEFORE calling
-    // romdataFileFreeForSolo
+    // romdataResetActiveMod
     if (g_Vars.stagenum == g_MissionConfig.stagenum) {
       g_Vars.restartlevel = true;
     }
@@ -897,7 +892,7 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation,
              g_Vars.stagenum == g_MissionConfig.stagenum, g_Vars.restartlevel);
     }
 
-    romdataFileFreeForSolo();
+    romdataResetActiveMod();
 #endif
 
     titleSetNextStage(g_MissionConfig.stagenum);
@@ -6122,13 +6117,10 @@ menuhandlerMainMenuCombatSimulator(s32 operation, struct menuitem *item,
     menuSaveAndRecordPrevMenuRoot(&g_CombatSimulatorMenuDialog,
                                   MENUROOT_MPSETUP);
     menuResetJoinFadeAlpha();
-#ifndef PLATFORM_N64 // All Solos in Multi Mod
-    g_NotLoadMod = false;
-    // Check if the stage is forced to be vanilla
-    // Note: We don't know the next stage yet in CS menu, but
-    // romdataFileFreeForSolo will clear everything. The actual check happens in
-    // romdataFileLoad.
-    romdataFileFreeForSolo();
+#ifndef PLATFORM_N64 // PC port: mod file slots are reset on entering CS
+    // The next stage is not known yet here, so drop every loaded slot and let
+    // romdataFileLoad resolve afresh.
+    romdataResetActiveMod();
 #endif
   }
 

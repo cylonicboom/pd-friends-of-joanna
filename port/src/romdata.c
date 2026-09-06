@@ -1448,16 +1448,10 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 		char tmp[FS_MAXPATH] = { 0 };
 		char resolvedName[FS_MAXPATH];
 
-		// All Solos in Multi Mod: do not load in solo, coop, counter-op
-		bool allowMod = !g_NotLoadMod;
-		if (g_StageNum >= 0 && g_StageNum < 256) {
-			if (g_StageModFlags[g_StageNum] & MOD_FLAG_FORCE_LOAD) {
-				allowMod = true;
-			} else if (g_StageModFlags[g_StageNum] & MOD_FLAG_FORCE_VANILLA) {
-				allowMod = false;
-			}
-		}
-
+		// Mod files are always eligible. The All-Solos-in-Multi switch
+		// (g_NotLoadMod) and its per-stage overrides are retired; suppression
+		// by context is not something the ownership model expresses.
+		bool allowMod = true;
 
 		// Always allow setup files to be modded
 		const char *fileName = fileSlots[modNum][fileNum].name;
@@ -1550,8 +1544,8 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 			fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
 			// external file; do not apply patches to this
 			fileSlots[modNum][fileNum].numpatches = 0;
-		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d, g_NotLoadMod=%d)",
-			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d)",
+			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), allowMod);
 	}
 
 	// Try alternate-ROM data source if no loose file was found.
@@ -1594,8 +1588,8 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
 		// tried and failed, fall back to ROM
 		fileSlots[modNum][fileNum].source = SRC_ROM;
-		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d, g_NotLoadMod=%d)",
-			fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), !g_NotLoadMod, g_NotLoadMod);
+		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d)",
+			fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), allowMod);
 	}
 	}
 
@@ -1666,9 +1660,9 @@ void romdataFileFree(s32 fileNum)
 	fileSlots[modNum][fileNum].source = SRC_UNLOADED;
 }
 
-void romdataFileFreeForSolo(void)
+void romdataResetActiveMod(void)
 {
-	DEBUG_FLOAD("romdataFileFreeForSolo: Resetting files for mod %d (g_StageNum=0x%02x, restartlevel=%d)",
+	DEBUG_FLOAD("romdataResetActiveMod: Resetting files for mod %d (g_StageNum=0x%02x, restartlevel=%d)",
 		g_ModNum, g_StageNum, g_Vars.restartlevel);
 	romdataResetMod(g_ModNum);
 }

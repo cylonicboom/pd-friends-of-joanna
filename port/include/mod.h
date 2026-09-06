@@ -33,10 +33,6 @@ extern "C" {
 	((s32)((((s32)(modNum) & MOD_FILEID_MOD_MASK) << MOD_FILEID_SHIFT) \
 		| ((s32)(rawId) & MOD_FILEID_RAW_MASK)))
 
-#define MOD_FLAG_FORCE_LOAD    (1 << 0)
-#define MOD_FLAG_FORCE_VANILLA (1 << 1)
-
-extern u8 g_StageModFlags[256];
 extern char g_ModNames[64][64];
 extern s32 g_TexModNum;
 extern s32 g_TexCurrentModelFileNum;  // low 16 bits: fileSlot of the model currently being loaded/rendered; 0 when none
