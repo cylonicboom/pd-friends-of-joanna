@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 260" width="800" height="260" role="img" aria-label="AI characters use a different convention: chr height is a flat 185 standing, 135 ducking and 90 crouching regardless of body, and AI eyes are always 20 units below that.">
+  <rect x="0" y="0" width="800" height="260" fill="#0d1117"/>
+  <rect x="0.5" y="0.5" width="799" height="259" fill="none" stroke="#30363d" stroke-width="1"/>
+  <line x1="88" y1="220" x2="760" y2="220" stroke="#20262d" stroke-width="1"/>
+  <line x1="88" y1="170" x2="760" y2="170" stroke="#20262d" stroke-width="1"/>
+  <line x1="88" y1="120" x2="760" y2="120" stroke="#20262d" stroke-width="1"/>
+  <line x1="88" y1="70" x2="760" y2="70" stroke="#20262d" stroke-width="1"/>
+  <line x1="88" y1="30" x2="88" y2="220" stroke="#39424c" stroke-width="1.5"/>
+  <line x1="82" y1="220" x2="88" y2="220" stroke="#39424c" stroke-width="1"/>
+  <text x="76" y="224" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11.5" fill="#78838f">0</text>
+  <line x1="82" y1="170" x2="88" y2="170" stroke="#39424c" stroke-width="1"/>
+  <text x="76" y="174" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11.5" fill="#78838f">50</text>
+  <line x1="82" y1="120" x2="88" y2="120" stroke="#39424c" stroke-width="1"/>
+  <text x="76" y="124" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11.5" fill="#78838f">100</text>
+  <line x1="82" y1="70" x2="88" y2="70" stroke="#39424c" stroke-width="1"/>
+  <text x="76" y="74" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11.5" fill="#78838f">150</text>
+  <line x1="82" y1="35" x2="88" y2="35" stroke="#39424c" stroke-width="1"/>
+  <text x="76" y="39" text-anchor="end" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="11.5" fill="#78838f">185</text>
+  <line x1="120" y1="220" x2="470" y2="220" stroke="#39424c" stroke-width="1.5"/>
+
+  <circle cx="190" cy="47" r="12" fill="none" stroke="#a3aeba" stroke-width="2.6"/>
+  <line x1="190" y1="59" x2="190" y2="132" stroke="#a3aeba" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="190" y1="76" x2="166" y2="120" stroke="#a3aeba" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="190" y1="76" x2="214" y2="120" stroke="#a3aeba" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="190" y1="132" x2="176" y2="220" stroke="#a3aeba" stroke-width="2.6" stroke-linecap="round"/>
+  <line x1="190" y1="132" x2="204" y2="220" stroke="#a3aeba" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="184" cy="55" r="1.8" fill="#dfa93f"/>
+  <circle cx="196" cy="55" r="1.8" fill="#dfa93f"/>
+
+  <line x1="120" y1="35" x2="470" y2="35" stroke="#78838f" stroke-width="1"/>
+  <polyline points="470,35 494,35 512,35" fill="none" stroke="#78838f" stroke-width="0.9"/>
+  <text x="518" y="31" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12.5" fill="#e7eaee">185</text>
+  <text x="554" y="31" font-family="system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif" font-size="13" fill="#e7eaee">chr-&gt;height &#8212; standing</text>
+  <text x="518" y="47" font-family="system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif" font-size="11.5" fill="#78838f">flat, ignores the body row entirely. 135 ducking, 90 crouching.</text>
+
+  <line x1="120" y1="55" x2="470" y2="55" stroke="#dfa93f" stroke-width="1.8"/>
+  <polyline points="470,55 494,95 512,95" fill="none" stroke="#78838f" stroke-width="0.9"/>
+  <text x="518" y="91" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12.5" fill="#dfa93f">165</text>
+  <text x="554" y="91" font-family="system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif" font-size="13" fill="#dfa93f">AI eyes &#8212; chr-&gt;height &#8722; 20</text>
+  <text x="518" y="107" font-family="system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif" font-size="11.5" fill="#78838f">the only eye offset anywhere in the codebase</text>
+
+  <polyline points="470,220 494,220 512,220" fill="none" stroke="#78838f" stroke-width="0.9"/>
+  <text x="518" y="216" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="12.5" fill="#e7eaee">0</text>
+  <text x="540" y="216" font-family="system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif" font-size="13" fill="#e7eaee">chr-&gt;ground</text>
+</svg>
