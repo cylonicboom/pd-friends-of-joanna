@@ -343,6 +343,7 @@ void mainProc(void) {
   mainInit();
 	modScanAllMods();
   modCacheAllConfigs();
+  modStageDumpOwnership("scan");
   for (s32 i = 0; i < g_NumModDirs; i++) {
     sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod %d", i);
     modSwitch(i, -1);

@@ -68,6 +68,9 @@ s8 g_ExplosionTypes_PerMod[64][NUM_MODELS];
 static bool g_ModConfigsCached = false;
 
 s32 g_ModStageNums[STAGE_4MBMENU];
+
+static bool g_DebugModStage = false;
+#define MODSTAGE(...) if (g_DebugModStage) { sysLogPrintf(LOG_NOTE, "MODSTAGE " __VA_ARGS__); }
 u8 g_StageModFlags[256];
 
 char g_ModNames[64][64];
@@ -1532,6 +1535,56 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 
 static s32 g_ModsScanned = 0;
 
+/**
+ * Report stage ownership as the engine currently sees it.
+ *
+ * Gated on PD_DEBUG_MODSTAGE=1; every record begins with MODSTAGE so it can be
+ * filtered with grep '^MODSTAGE ' pd.log.
+ *
+ * This is the parity baseline for replacing the single-active-mod switch with
+ * per-stage resolution: dump before the change, dump after, diff. It reads
+ * state and emits records; it must not alter anything.
+ */
+void modStageDumpOwnership(const char *when)
+{
+	s32 stagenum;
+	s32 stageindex;
+	s32 claimed = 0;
+
+	if (!g_DebugModStage) {
+		return;
+	}
+
+	for (stagenum = 0; stagenum < (s32)ARRAYCOUNT(g_ModStageNums); stagenum++) {
+		const s32 modnum = g_ModStageNums[stagenum];
+		struct stagetableentry *entry;
+
+		if (modnum < 0) {
+			continue;
+		}
+
+		claimed++;
+		stageindex = stageGetIndex(stagenum);
+		entry = (stageindex >= 0) ? &g_Stages[stageindex] : NULL;
+
+		MODSTAGE("claim when=%s stage=0x%02x mod=%d name='%s' flags=0x%02x",
+				when, stagenum, modnum,
+				(modnum >= 0 && modnum < 64) ? g_ModNames[modnum] : "?",
+				g_StageModFlags[stagenum]);
+
+		if (entry) {
+			// The five overloadable fields, as they stand in the stage table.
+			// They are u16, so any owner tag written into them is already gone;
+			// that is exactly what the resolution work has to replace.
+			MODSTAGE("fields stage=0x%02x setup=0x%04x mpsetup=0x%04x bg=0x%04x tiles=0x%04x pads=0x%04x",
+					stagenum, entry->setupfileid, entry->mpsetupfileid,
+					entry->bgfileid, entry->tilefileid, entry->padsfileid);
+		}
+	}
+
+	MODSTAGE("summary when=%s claimed=%d activemod=%d", when, claimed, g_ModNum);
+}
+
 void modScanAllMods(void)
 {
 	if (g_ModsScanned) return;
@@ -1627,6 +1680,10 @@ s32 modLoadAIO(void)
 
 void modInit(void)
 {
+	if (getenv("PD_DEBUG_MODSTAGE")) {
+		g_DebugModStage = true;
+	}
+
 	// Reset stage flags
 	memset(g_StageModFlags, 0, sizeof(g_StageModFlags));
 
@@ -2261,6 +2318,7 @@ void modSwitch(s32 modnum, s32 stagenum) {
 	romdataResetMod(g_ModNum);
 
 	sysLogPrintf(LOG_NOTE, "g_ModNum: %d", g_ModNum);
+	modStageDumpOwnership("switch");
 
 	// Use cached config data instead of re-parsing (fast, atomic, no overwrites)
 	if (g_ModConfigsCached && g_ModNum >= 0 && g_ModNum < 64) {

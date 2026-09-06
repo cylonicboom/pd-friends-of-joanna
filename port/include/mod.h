@@ -47,6 +47,7 @@ void modInit(void);
 s32 modConfigLoad(const char *path);
 s32 modLoadAIO(void);
 void modScanAllMods(void);
+void modStageDumpOwnership(const char *when);
 void modCacheAllConfigs(void);
 
 s32 modTextureLoad(u16 num, void *dst, u32 dstSize);
