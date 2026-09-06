@@ -4200,7 +4200,7 @@ void fileLoad(u8 *dst, u32 allocationlen, romptr_t *romaddrptr, struct fileinfo 
 #ifndef PLATFORM_N64
 			if (result == 0) {
 				const s32 modNum = MOD_FILEID_MOD(filenum);
-				const s32 fileId = filenum & 0xffff;
+				const s32 fileId = MOD_FILEID_RAW(filenum);
 				const char *slotName = romdataFileGetSlotName(modNum, fileId);
 				sysLogPrintf(LOG_ERROR,
 					"fileLoad: rzipInflate FAILED filenum=0x%08x (mod=%d id=0x%04x) name='%s' "

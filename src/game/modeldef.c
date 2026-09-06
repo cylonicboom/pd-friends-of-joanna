@@ -352,7 +352,7 @@ static u32 modeldefRemapOneTexnumSlot(u32 orig, s32 modIdx, bool *didRemap, stru
 	if (g_TexCurrentModelFileNum < 2018) {
 		return orig;
 	}
-	if (extTexModelHasEntryForTexid((s16)(g_TexCurrentModelFileNum & 0xffff), (s32)orig)) {
+	if (extTexModelHasEntryForTexid((s16)MOD_FILEID_RAW(g_TexCurrentModelFileNum), (s32)orig)) {
 		return orig;
 	}
 	u16 mapped = modTexMapLookup(modIdx, (u16)orig);
@@ -801,7 +801,7 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 	{
 		s32 modIdx = MOD_FILEID_MOD(fileid);
 		s32 prevModelFN = g_TexCurrentModelFileNum;
-		g_TexCurrentModelFileNum = fileid & 0xffff;
+		g_TexCurrentModelFileNum = MOD_FILEID_RAW(fileid);
 		modeldefRemapTexconfigsForMod(modeldef, modIdx);
 		modeldefRemapGdlTexnumsForMod(modeldef, modIdx, fileid);
 		modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
