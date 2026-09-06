@@ -14,6 +14,7 @@ extern struct menudialogdef g_CheatsBuddiesMenuDialog;
 
 u32 cheatIsUnlocked(s32 cheat_id);
 bool cheatIsActive(s32 cheat_id);
+bool pauseIsAllowed(void);
 void cheatActivate(s32 cheat_id);
 void cheatDeactivate(s32 cheat_id);
 void cheatsInit(void);

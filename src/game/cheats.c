@@ -143,6 +143,18 @@ u32 cheatIsUnlocked(s32 cheat_id)
 	return unlocked;
 }
 
+/**
+ * Whether the player may pause at all, in solo or mp.
+ *
+ * Pausing is off in fojo. Turning the cheat on restores vanilla behaviour
+ * exactly - the mp pause option comes back, and solo pauses with the blurred
+ * background as it always did. Route every pause decision through here.
+ */
+bool pauseIsAllowed(void)
+{
+	return cheatIsActive(CHEAT_ALLOWPAUSING);
+}
+
 bool cheatIsActive(s32 cheat_id)
 {
 	if (cheat_id < 32) {

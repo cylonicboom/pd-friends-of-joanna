@@ -165,7 +165,7 @@ MenuItemHandlerResult menuhandlerMpPause(s32 operation, struct menuitem *item, u
 	}
 
 	if (operation == MENUOP_CHECKHIDDEN) {
-		if (!mpPauseIsAllowed()) {
+		if (!pauseIsAllowed()) {
 			return true;
 		}
 	}

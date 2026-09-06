@@ -1649,16 +1649,12 @@ s32 mpGetWeaponSet(void) { return mpCountWeaponSetThing(g_MpWeaponSetNum); }
  * back on; keep every pause decision routed through here rather than testing
  * player counts at the call site.
  */
-bool mpPauseIsAllowed(void) {
-  return cheatIsActive(CHEAT_ALLOWPAUSING);
-}
-
 bool mpIsPaused(void) {
   // vanilla pauses a 1-player mp match whenever a dialog is open. off by
   // default in fojo - menuhandlerMpPause already hid the Pause option at this
   // player count, so the option was hidden and the game froze anyway - and
   // restored verbatim when the cheat is on.
-  if (mpPauseIsAllowed() && PLAYERCOUNT() == 1 && g_Vars.mplayerisrunning &&
+  if (pauseIsAllowed() && PLAYERCOUNT() == 1 && g_Vars.mplayerisrunning &&
       g_Menus[g_Vars.currentplayerstats->mpindex].curdialog) {
     return true;
   }
