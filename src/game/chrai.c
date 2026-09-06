@@ -812,8 +812,15 @@ u32 chraiGetCommandLength(u8 *ailist, u32 aioffset)
 
 	if (type == CMD_PRINT) {
 		u32 prop = aioffset + 2;
+		// CMD_PRINT carries a NUL-terminated string. Cap the terminator scan so a
+		// truncated or corrupt list (one whose final CMD_PRINT has no NUL before
+		// the end of the buffer) cannot read past it. Real print strings are far
+		// shorter than this bound. A tighter bound is not available here:
+		// chraiGetAilistLength() calls back into this function, so using it would
+		// recurse. Taken from the Perfect Dark Kai fork.
+		const u32 limit = prop + 256;
 
-		while (ailist[prop] != 0) {
+		while (prop < limit && ailist[prop] != 0) {
 			++prop;
 		}
 
