@@ -505,6 +505,15 @@ bool (*g_CommandPointers[])(void) = {
 #endif
 };
 
+#ifndef PLATFORM_N64
+// 0x0400 is the floor of the mod-local aicmd window. If a port-native addition
+// ever grows the vanilla table into that range, mod opcodes would land on real
+// handlers instead of being remapped, silently and at load time. Fail the build
+// instead.
+_Static_assert(ARRAYCOUNT(g_CommandPointers) <= 0x0400,
+		"g_CommandPointers has grown into the mod-local aicmd window at 0x0400");
+#endif
+
 u16 g_CommandLengths[] = {
 	/*0x0000*/ 3,  /*0x0001*/ 3,  /*0x0002*/ 3,  /*0x0003*/ 2,
 	/*0x0004*/ 2,  /*0x0005*/ 5,  /*0x0006*/ 5,  /*0x0007*/ 4,
