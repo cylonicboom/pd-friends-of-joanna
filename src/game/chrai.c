@@ -9,6 +9,7 @@
 #include "lib/model.h"
 #include "data.h"
 #include "types.h"
+#include "system.h" // sysLogPrintf/LOG_* for the ailist iteration cap
 
 bool (*g_CommandPointers[])(void) = {
 	/*0x0000*/ aiGoToNext,
@@ -785,9 +786,37 @@ void chraiExecute(void *entity, s32 proptype)
 		}
 
 		// Iterate and execute the ailist
+#ifndef PLATFORM_N64
+		// A list that never yields would spin here forever - a bad jump, a
+		// corrupt list, or an opcode outside g_CommandPointers falling into
+		// the advance-by-one branch below. Decompiled loops hang, they don't
+		// crash. 100k is far past any legitimate list; hitting the cap yields
+		// rather than aborting the game.
+		s32 iterations = 0;
+#endif
+
 		while (g_Vars.ailist) {
 			u8 *cmd = g_Vars.aioffset + g_Vars.ailist;
 			s32 type = (cmd[0] << 8) + cmd[1];
+
+#ifndef PLATFORM_N64
+			if (++iterations >= 100000) {
+				static s32 s_NextWarn60 = 0;
+
+				if (g_Vars.lvframe60 >= s_NextWarn60) {
+					bool isglobal = false;
+
+					s_NextWarn60 = g_Vars.lvframe60 + 60;
+					sysLogPrintf(LOG_WARNING,
+							"chrai: runaway ailist (100000 iterations without yield) - yielding; chr %d list %d offset 0x%x",
+							g_Vars.chrdata ? g_Vars.chrdata->chrnum : -1,
+							chraiGetListIdByList(g_Vars.ailist, &isglobal),
+							g_Vars.aioffset);
+				}
+
+				break;
+			}
+#endif
 
 			if (type >= 0 && type < ARRAYCOUNT(g_CommandPointers)) {
 				// TODO: Consider adding a check for the chrnummach mode here.
