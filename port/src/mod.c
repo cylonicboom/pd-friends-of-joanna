@@ -501,7 +501,7 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 			PARSE_INT("HeadsAndBodies", "ismale", tmp, 0, 1, NULL);
 			item->ismale = tmp;
 		}	else if (!strcmp(token, "requiresrom")) {
-			p = modConfigParseStringValue(p, token, &tmps);
+			p = modConfigParseStringValue(p, token, tmps);
 			if (p) {
 				sysLogPrintf(LOG_NOTE, "requiresrom %s", tmps);
 				if (!romsourceIsMounted(tmps)){
