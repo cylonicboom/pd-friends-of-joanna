@@ -127,6 +127,18 @@ void stageAllocateBgChrs(void)
 	g_SquadronList = mempAlloc((MAX_CHRSPERSQUADRON + 1) * MAX_SQUADRONS * sizeof(s16), MEMPOOL_STAGE);
 }
 
+/**
+ * Preload the models an ailist will ask for.
+ *
+ * Has no callers anywhere in the tree and never has had. Kept, corrected,
+ * because the aicmd work wants this shape back as a mod-aware preloader - at
+ * which point it also has to consult the mod tier for opcodes at or above the
+ * mod-local window, not just the vanilla AICMD_* constants below.
+ *
+ * It read cmd[0] as the opcode. Opcodes are 16-bit big-endian, so for every
+ * opcode below 0x100 the high byte is zero: the AICMD_END test never matched
+ * and no case ever fired. Harmless only because nothing calls it.
+ */
 void stageLoadAllAilistModels(void)
 {
 	u8 *cmd = g_StageSetup.ailists[0].list;
@@ -139,11 +151,13 @@ void stageLoadAllAilistModels(void)
 
 	do {
 		while (true) {
-			if (cmd[0] == AICMD_END) {
+			const s32 type = (cmd[0] << 8) + cmd[1];
+
+			if (type == AICMD_END) {
 				break;
 			}
 
-			switch (cmd[0]) {
+			switch (type) {
 			case AICMD_DROPITEM:
 				id = cmd[3] | (cmd[2] << 8);
 				if (setupLoadModeldef(id));
