@@ -1,6 +1,7 @@
 #include <ultra64.h>
 #include "constants.h"
 #include "../lib/naudio/n_sndp.h"
+#include "game/cheats.h"
 #include "game/camdraw.h"
 #include "game/game_006900.h"
 #include "game/body.h"
@@ -3864,7 +3865,9 @@ void func0f0f85e0(struct menudialogdef *dialogdef, s32 root)
 	}
 
 	menuPushRootDialog(dialogdef, root);
-	lvSetPaused(true);
+	if (pauseIsAllowed()) {
+		lvSetPaused(true);
+	}
 	g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
 }
 
@@ -6091,7 +6094,9 @@ void menuPushPakDialogForPlayer(struct menudialogdef *dialogdef, s32 playernum, 
 	if (g_Menus[g_MpPlayerNum].curdialog == NULL) {
 		if (PLAYERCOUNT() == 1) {
 			menuPushRootDialog(dialogdef, MENUROOT_MAINMENU);
-			lvSetPaused(true);
+			if (pauseIsAllowed()) {
+				lvSetPaused(true);
+			}
 			g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
 		} else {
 			menuPushRootDialog(dialogdef, MENUROOT_MPPAUSE);

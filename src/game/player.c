@@ -2455,7 +2455,11 @@ void playerTickPauseMenu(void)
 
 		if (opened) {
 			struct trainingdata *data = dtGetData();
-			lvSetPaused(true);
+			// fojo: the menu and its blurred backdrop are unchanged; only the world
+			// freeze is conditional. the cheat gives back vanilla pausing.
+			if (pauseIsAllowed()) {
+				lvSetPaused(true);
+			}
 			g_Vars.currentplayer->pausemode = PAUSEMODE_PAUSED;
 
 			if ((g_GlobalMenuRoot == MENUROOT_MAINMENU || g_GlobalMenuRoot == MENUROOT_TRAINING)
