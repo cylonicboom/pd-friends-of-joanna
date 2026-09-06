@@ -1421,7 +1421,10 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	// stage number
 	p = strParseToken(p, token, NULL);
 	const s32 stagenum = strtol(token, NULL, 0);
-	if (stagenum <= 0x01 || stagenum > 0xff) {
+	// g_ModStageNums is STAGE_4MBMENU entries; the old bound was 0xff, so a
+	// stage number past the end wrote into g_StageModFlags, which is declared
+	// immediately after it.
+	if (stagenum <= 0x01 || stagenum >= (s32)ARRAYCOUNT(g_ModStageNums)) {
 		sysLogPrintf(LOG_ERROR, "modconfig: invalid stage number: %x", stagenum);
 		return NULL;
 	}
