@@ -3657,6 +3657,15 @@ void menuClose(void)
 		g_PlayersWithControl[g_Menus[g_MpPlayerNum].playernum] = true;
 	}
 
+	// fojo: control normally comes back at the end of the backdrop fade-out --
+	// menutick queues nextbg = 0, and func0f0fa6ac runs when that lands. with no
+	// backdrop raised there is nothing to fade, so the fade never starts and the
+	// player never gets control back. do it here instead. a pending transition
+	// still owns the handoff, so leave that case alone.
+	if (g_MenuData.bg == 0 && g_MenuData.nextbg == 255) {
+		func0f0fa6ac();
+	}
+
 	g_MenuData.count--;
 
 	if (g_MenuData.root == MENUROOT_MPPAUSE && g_Vars.currentplayer->activemenumode == AMMODE_EDIT) {
