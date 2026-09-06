@@ -15,6 +15,7 @@
 #include "game/quaternion.h"
 #include "game/game_097aa0.h"
 #include "game/bondgun.h"
+#include "mod.h"
 #include "game/gunfx.h"
 #include "game/game_0b0fd0.h"
 #include "game/modeldef.h"
@@ -3864,7 +3865,7 @@ void bgunTickGunLoad(void)
 
 		fileGetLoadedSize(player->gunctrl.loadfilenum);
 
-		fileinfo = &g_FileInfo[player->gunctrl.loadfilenum];
+		fileinfo = &g_FileInfo[MOD_FILEID_RAW(player->gunctrl.loadfilenum)];
 		fileinfo->allocsize = allocsize;
 		end = ALIGN16((uintptr_t)ptr + allocsize);
 		allocsize = end - ptr;
@@ -3893,7 +3894,7 @@ void bgunTickGunLoad(void)
 		osSyncPrintf("BriGun:  BriGunLoadTick process GUN_LOADSTATE_DECOMPRESS_TEXTURES\n");
 
 		gunfileinfo = &player->gunctrl.fileinfo;
-		fileinfo = &g_FileInfo[player->gunctrl.loadfilenum];
+		fileinfo = &g_FileInfo[MOD_FILEID_RAW(player->gunctrl.loadfilenum)];
 		*fileinfo = *gunfileinfo;
 		modeldef = *player->gunctrl.loadtomodeldef;
 
@@ -3931,7 +3932,7 @@ void bgunTickGunLoad(void)
 	if (player->gunctrl.gunloadstate == GUNLOADSTATE_DLS) {
 		osSyncPrintf("BriGun:  BriGunLoadTick process GUN_LOADSTATE_DECOMPRESS_DLS\n");
 
-		fileinfo = &g_FileInfo[player->gunctrl.loadfilenum];
+		fileinfo = &g_FileInfo[MOD_FILEID_RAW(player->gunctrl.loadfilenum)];
 		*fileinfo = player->gunctrl.fileinfo;
 		modeldef = *player->gunctrl.loadtomodeldef;
 
@@ -4020,9 +4021,12 @@ void bgunTickMasterLoad(void)
 	s32 newweaponnum;
 	struct player *player = g_Vars.currentplayer;
 	bool hashands;
-	u16 handfilenum;
+	// s32, not u16: both carry file ids that may arrive mod-tagged. The
+	// gunctrl fields they are stored into are still u16, so the tag is lost
+	// at that boundary - widening those is gun-mod work, not this pass.
+	s32 handfilenum;
 	s32 sum;
-	u16 filenum;
+	s32 filenum;
 	s32 i;
 	struct casing *casing;
 	struct hand *hand;

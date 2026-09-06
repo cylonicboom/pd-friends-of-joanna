@@ -1207,7 +1207,10 @@ void setupLoadBriefing(s32 stagenum, u8 *buffer, s32 bufferlen, struct briefing 
 	if (stagenum < STAGE_TITLE) {
 		s32 stageindex = stageGetIndex(stagenum);
 		struct defaultobj *start;
-		u16 setupfilenum;
+		// s32, not u16: stage file ids become mod-tagged (owner in the high
+		// 16 bits) once stageGetFileId lands, and a u16 here would drop the
+		// owner between the stage table and fileLoadToAddr.
+		s32 setupfilenum;
 		s32 setupfilesize;
 		struct objective *objective;
 		struct briefingobj *briefingobj;
@@ -1299,7 +1302,9 @@ void setupLoadFiles(s32 stagenum)
 	s32 numobjs = 0;
 	s32 extra;
 	struct stagesetup *setup;
-	u16 filenum;
+	// s32, not u16 - see setupLoadBriefing: this carries a stage file id and
+	// must be able to hold an owner tag.
+	s32 filenum;
 	bool modified;
 
 	g_PadEffects = NULL;

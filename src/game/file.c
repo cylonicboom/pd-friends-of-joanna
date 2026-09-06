@@ -4252,10 +4252,13 @@ void filesInit(void)
 	if (j);
 }
 
-void fileLoadPartToAddr(u16 filenum, void *memaddr, s32 offset, u32 len)
+void fileLoadPartToAddr(s32 filenum, void *memaddr, s32 offset, u32 len)
 {
 	u32 stack[2];
-	const s32 rawFilenum = filenum & 0xFFFF;
+	// s32 parameter, not u16: the caller passes a stage file id, and a u16
+	// parameter truncated the owner tag at the call boundary - before this
+	// function could pass the full id to romdataFileGetData below.
+	const s32 rawFilenum = MOD_FILEID_RAW(filenum);
 
 	if (fileGetRomSizeByTableAddress((uintptr_t*)&g_FileTable[rawFilenum])) {
 #ifdef PLATFORM_N64

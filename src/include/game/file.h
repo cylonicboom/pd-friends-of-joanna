@@ -11,7 +11,7 @@
 romptr_t fileGetRomAddress(s32 filenum);
 s32 fileGetRomSize(s32 filenum);
 void filesInit(void);
-void fileLoadPartToAddr(u16 filenum, void *memaddr, s32 offset, u32 len);
+void fileLoadPartToAddr(s32 filenum, void *memaddr, s32 offset, u32 len);
 u32 fileGetInflatedSize(s32 filenum, u32 loadtype);
 void *fileLoadToNew(s32 filenum, u32 method, u32 loadtype);
 void *fileLoadToAddr(s32 filenum, s32 method, u8 *ptr, u32 size);

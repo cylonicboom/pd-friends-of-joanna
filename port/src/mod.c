@@ -104,6 +104,28 @@ static s32 g_NumImportedAssets = 0;
 		return NULL; \
 	}
 
+/*
+ * Store a resolved file id into one of stagetableentry's five u16 file fields.
+ *
+ * struct stagetableentry is shared with the decomp and those fields are u16, so
+ * an owner tag cannot survive the store. Until the binding table and
+ * stageGetFileId replace them, this is the exact point where a mod's ownership
+ * of a stage file is thrown away - so say so loudly instead of truncating in
+ * silence. Owner 0 is a real owner but is indistinguishable from an untagged
+ * id here, so it cannot be reported.
+ */
+#define SET_STAGE_FILEID(field, name, id) \
+	do { \
+		const s32 stageFileId = (s32)(id); \
+		if (MOD_FILEID_MOD(stageFileId) != 0) { \
+			sysLogPrintf(LOG_ERROR, \
+					"modconfig: stage 0x%02x: " name " id 0x%08x is owned by mod %d, " \
+					"which a u16 stage field cannot carry - owner dropped", \
+					stagenum, stageFileId, MOD_FILEID_MOD(stageFileId)); \
+		} \
+		(field) = (u16)MOD_FILEID_RAW(stageFileId); \
+	} while (0)
+
 #define PARSE_STAGE_STRING(sec, name, v) \
 	p = strParseToken(p, token, NULL); \
 	if (!p) { \
@@ -1467,23 +1489,23 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		if (!strcmp(token, "bgfile")) {
 			// bg FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "bgfile", tmp);
-			stab->bgfileid = tmp;
+			SET_STAGE_FILEID(stab->bgfileid, "bgfile", tmp);
 		} else if (!strcmp(token, "tilesfile")) {
 			// tilesfile FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "tilesfile", tmp);
-			stab->tilefileid = tmp;
+			SET_STAGE_FILEID(stab->tilefileid, "tilesfile", tmp);
 		} else if (!strcmp(token, "padsfile")) {
 			// padsfile FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "padsfile", tmp);
-			stab->padsfileid = tmp;
+			SET_STAGE_FILEID(stab->padsfileid, "padsfile", tmp);
 		} else if (!strcmp(token, "setupfile") || !strcmp(token, "setupFile")) {
 			// setupfile FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "setupfile", tmp);
-			stab->setupfileid = tmp;
+			SET_STAGE_FILEID(stab->setupfileid, "setupfile", tmp);
 		} else if (!strcmp(token, "mpsetupfile")) {
 			// mpsetupfile FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "mpsetupfile", tmp);
-			stab->mpsetupfileid = tmp;
+			SET_STAGE_FILEID(stab->mpsetupfileid, "mpsetupfile", tmp);
 		} else if (!strcmp(token, "alarm")) {
 			PARSE_STAGE_INT("", "alarm", tmp, 1, 0xFFFF);
 			stab->alarm = tmp;
