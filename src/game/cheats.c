@@ -102,6 +102,7 @@ struct cheat g_Cheats[] = {
 	{ L_MPWEAPONS_116, WEAPON_RCP45,      0,                             0,       CHEATFLAG_FIRINGRANGE                        }, // RC-P45
 #ifndef PLATFORM_N64
 	{ L_MPWEAPONS_215, 0,                 SOLOSTAGEINDEX_EXTRACTION,     DIFF_A,  CHEATFLAG_COMPLETION                         }, // Dual wield all guns
+	{ L_MPWEAPONS_215, 0,                 0,                             0,       CHEATFLAG_ALWAYSUNLOCKED                     }, // Allow Pausing (FOJ)
 #endif
 };
 
@@ -407,6 +408,10 @@ static const char *cheatGetNameStr(s32 cheat_id)
 {
 	if (cheat_id == CHEAT_MOONJUMP) {
 		return "Moon Jump\n";
+	}
+
+	if (cheat_id == CHEAT_ALLOWPAUSING) {
+		return "Allow Pausing\n";
 	}
 	return langGet(g_Cheats[cheat_id].nametextid);
 }
@@ -958,6 +963,14 @@ struct menudialogdef g_CheatsConfirmUnlockMenuDialog = {
 #endif
 
 struct menuitem g_CheatsFunMenuItems[] = {
+	{
+		MENUITEMTYPE_CHECKBOX,
+		CHEAT_ALLOWPAUSING,
+		0,
+		(uintptr_t)&cheatGetNameIfUnlocked,
+		0,
+		cheatCheckboxMenuHandler,
+	},
 	{
 		MENUITEMTYPE_CHECKBOX,
 		CHEAT_DKMODE,

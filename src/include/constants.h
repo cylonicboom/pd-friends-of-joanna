@@ -459,6 +459,7 @@
 #define CHEAT_AR53                   40
 #define CHEAT_RCP45                  41
 #define CHEAT_DUALWIELDALLGUNS       42
+#define CHEAT_ALLOWPAUSING            43 // FOJ: pausing is off unless this is on
 
 #define CHEATFLAG_TIMED           0
 #define CHEATFLAG_ALWAYSON        1
