@@ -192,7 +192,7 @@ struct tex *modeldefEditorWorkspaceFindTexture(u16 textureid)
 {
 	if (!g_ModeldefEditorWorkspace.modeldef) return NULL;
 	const s32 previousMod = g_TexModNum;
-	g_TexModNum = (g_ModeldefEditorWorkspace.fileid >> 16) & 0xff;
+	g_TexModNum = MOD_FILEID_MOD(g_ModeldefEditorWorkspace.fileid);
 	struct tex *tex = texFindInPool(textureid, &g_ModeldefEditorWorkspace.texturepool);
 	g_TexModNum = previousMod;
 	return tex;
@@ -715,7 +715,7 @@ void modeldef0f1a7560(struct modeldef *modeldef, s32 filenum, u32 arg2, struct m
 
 #ifndef PLATFORM_N64
 	s32 prevTexMod = g_TexModNum;
-	g_TexModNum = filenum >> 16;
+	g_TexModNum = MOD_FILEID_MOD(filenum);
 #endif
 
 	modelIterateDisplayLists(modeldef, &node, (Gfx **)&gdl);
@@ -799,7 +799,7 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 
 #ifndef PLATFORM_N64
 	{
-		s32 modIdx = (fileid >> 16) & 0xff;
+		s32 modIdx = MOD_FILEID_MOD(fileid);
 		s32 prevModelFN = g_TexCurrentModelFileNum;
 		g_TexCurrentModelFileNum = fileid & 0xffff;
 		modeldefRemapTexconfigsForMod(modeldef, modIdx);

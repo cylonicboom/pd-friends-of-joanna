@@ -12,6 +12,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "system.h"
+#include "mod.h"
 #endif
 
 /**
@@ -4198,7 +4199,7 @@ void fileLoad(u8 *dst, u32 allocationlen, romptr_t *romaddrptr, struct fileinfo 
 
 #ifndef PLATFORM_N64
 			if (result == 0) {
-				const s32 modNum = (filenum >> 16) & 0xffff;
+				const s32 modNum = MOD_FILEID_MOD(filenum);
 				const s32 fileId = filenum & 0xffff;
 				const char *slotName = romdataFileGetSlotName(modNum, fileId);
 				sysLogPrintf(LOG_ERROR,

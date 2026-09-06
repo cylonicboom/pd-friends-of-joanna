@@ -1396,7 +1396,7 @@ s32 romdataFileGetSize(s32 fileNum)
 {
 	s32 modNum = g_ModNum;
 	if (fileNum & 0xFFFF0000) {
-		modNum = (fileNum >> 16) & 0xFF;
+		modNum = MOD_FILEID_MOD(fileNum);
 		fileNum = fileNum & 0xFFFF;
 	}
 
@@ -1432,7 +1432,7 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 {
 	s32 modNum = g_ModNum;
 	if (fileNum & 0xFFFF0000) {
-		modNum = (fileNum >> 16) & 0xFF;
+		modNum = MOD_FILEID_MOD(fileNum);
 		fileNum = fileNum & 0xFFFF;
 	}
 
@@ -1615,7 +1615,7 @@ void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *o
 {
 	s32 modNum = g_ModNum;
 	if (fileNum & 0xFFFF0000) {
-		modNum = (fileNum >> 16) & 0xFF;
+		modNum = MOD_FILEID_MOD(fileNum);
 		fileNum = fileNum & 0xFFFF;
 	}
 
@@ -1649,7 +1649,7 @@ void romdataFileFree(s32 fileNum)
 {
 	s32 modNum = g_ModNum;
 	if (fileNum & 0xFFFF0000) {
-		modNum = (fileNum >> 16) & 0xFF;
+		modNum = MOD_FILEID_MOD(fileNum);
 		fileNum = fileNum & 0xFFFF;
 	}
 
