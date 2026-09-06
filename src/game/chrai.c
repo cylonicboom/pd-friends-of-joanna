@@ -842,7 +842,12 @@ u32 chraiGetAilistLength(u8* list)
 	u8* cmd = list;
 
 	while (true) {
-		u8 type = cmd[1];
+		// Read the full 16-bit opcode, not just the low byte. Comparing cmd[1]
+		// alone to AICMD_END (0x0004) falsely terminates the walk on any opcode
+		// whose low byte is 0x04 -- 0x0104 remove_object_at_proppreset today,
+		// and any mod-window opcode ending in 04 in future. The caller memcpy()s
+		// listsize bytes, so a short length silently truncates the list.
+		s32 type = (cmd[0] << 8) + cmd[1];
 		cmd += chraiGetCommandLength(cmd, 0);
 		if (type == AICMD_END) break;
 	}
