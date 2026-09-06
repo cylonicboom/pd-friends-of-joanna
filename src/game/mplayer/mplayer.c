@@ -1,5 +1,6 @@
 #include <ultra64.h>
 #include "constants.h"
+#include "game/cheats.h"
 #include "game/camdraw.h"
 #include "game/title.h"
 #include "game/pdmode.h"
@@ -1649,13 +1650,18 @@ s32 mpGetWeaponSet(void) { return mpCountWeaponSetThing(g_MpWeaponSetNum); }
  * player counts at the call site.
  */
 bool mpPauseIsAllowed(void) {
-  return false;
+  return cheatIsActive(CHEAT_ALLOWPAUSING);
 }
 
 bool mpIsPaused(void) {
-  // vanilla paused a 1-player mp match whenever a dialog was open, even though
-  // menuhandlerMpPause already hid the Pause option at that player count. the
-  // option was hidden and the game froze anyway.
+  // vanilla pauses a 1-player mp match whenever a dialog is open. off by
+  // default in fojo - menuhandlerMpPause already hid the Pause option at this
+  // player count, so the option was hidden and the game froze anyway - and
+  // restored verbatim when the cheat is on.
+  if (mpPauseIsAllowed() && PLAYERCOUNT() == 1 && g_Vars.mplayerisrunning &&
+      g_Menus[g_Vars.currentplayerstats->mpindex].curdialog) {
+    return true;
+  }
 
   if (g_MpSetup.paused == PAUSEMODE_UNPAUSED) {
     return false;
