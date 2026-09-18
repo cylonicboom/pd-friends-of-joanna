@@ -2149,6 +2149,58 @@ static bool romdataValidate(void *data, u32 size)
 	return true;
 }
 
+// Resolve a file from a declared alternate ROM source - a PDFT entry that names
+// the mounted image its bytes live in, and where inside it.
+//
+// The bytes returned are a pointer INTO that image, never an allocation. The
+// slot is marked SRC_ALT_ROM for exactly that reason: romdataResetMod() and
+// romdataFileFree() free a slot's data if and only if its source is
+// SRC_EXTERNAL, so an alt slot is never handed to sysMemFree(). numpatches is
+// zeroed for the same reason romdataFilePreprocess() matters here at all - it
+// patches in place, and a patch applied to these bytes would write into the
+// mounted image and corrupt it for every other file pointing at the same
+// buffer.
+//
+// *outUnreadable is set when the declaration resolved to real bytes inside a
+// mounted image that this build cannot decode. That is an engine gap, not a
+// missing file, and the caller treats it differently from a miss.
+static u8 *romdataFileLoadAltSource(s32 modNum, s32 fileNum,
+		const struct romaltsource *as, bool *outUnreadable)
+{
+	if (as->romIdx == 0xff || as->romIdx >= g_NumRomSources) {
+		return NULL;
+	}
+
+	struct romsource *rs = &g_RomSources[as->romIdx];
+
+	// Declared, but the image is not mounted or the extent does not fit inside
+	// it. Nothing is claimed; the caller falls back exactly as before.
+	if (!rs->mounted || !rs->data
+			|| (u64)as->offset + (u64)as->size > (u64)rs->size) {
+		return NULL;
+	}
+
+	if (as->compression != 0) {
+		sysLogPrintf(LOG_WARNING,
+			"romdataFileLoad: file %d altRom compression=%u not implemented",
+			fileNum, as->compression);
+		if (outUnreadable) {
+			*outUnreadable = true;
+		}
+		return NULL;
+	}
+
+	fileSlots[modNum][fileNum].data = rs->data + as->offset;
+	fileSlots[modNum][fileNum].size = as->size;
+	fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
+	fileSlots[modNum][fileNum].numpatches = 0;
+
+	// sysLogPrintf(LOG_NOTE, "romdataFileLoad: file %d (%s) loaded from altRom '%s' at 0x%x (size=%u)",
+	// 	fileNum, fileSlots[modNum][fileNum].name, rs->id, as->offset, as->size);
+
+	return fileSlots[modNum][fileNum].data;
+}
+
 u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 {
 	// The tagged test used to be `fileNum & 0xFFFF0000` written out by hand.
@@ -2178,7 +2230,7 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 
 	u8 *out = NULL;
 
-	// try to load external file
+	// resolve the file's bytes: declared source, then loose files, then ROM
 	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
 		char tmp[FS_MAXPATH] = { 0 };
 		char resolvedName[FS_MAXPATH];
@@ -2215,150 +2267,161 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 
 		bool requireExport = !allowMod;
 
-		// 1. Try All Mods (Reverse Order)
-		for (s32 i = g_NumModDirs - 1; i >= 0; --i) {
-			if (modDirs[i][0]) {
-				// Extract mod name from path (basename)
-				const char *modName = strrchr(modDirs[i], '/');
-				if (modName) {
-					modName++; // Skip '/'
-				} else {
-					modName = modDirs[i];
-				}
+		// 1. Try the file's own declared source.
+		//
+		// This lane used to run LAST, after the walk and the base dir, guarded
+		// by `!out`. That made a declaration the WEAKEST claim on a file's
+		// bytes: the walk scans every mod dir highest-index-first, so any mod
+		// later in the roster that happened to ship a matching relative path
+		// overrode a mod that had said exactly where its bytes come from. A
+		// declared source is authoritative now and the walk is the fallback.
+		//
+		// Mod files baked into a custom z64 (e.g. gex.z64) are pointed at by
+		// g_FileAltSource[modIdx][localFileId], populated during PDFT v2/v3
+		// fragment parse; modIdx is 0-based. Only the OWNER's own row is
+		// promoted here - the `romIdx == 0xff` fallback to row 0 stays at its
+		// old rank, below the walk. See the note on it further down.
+		bool altUnreadable = false;
 
-					// Resolve path specifically for this mod
-				romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), modName, ownerModName, requireExport);
-
-				if (resolvedName[0] == '\0') {
-					continue; // No match for this mod
-				}
-
-				// If resolvedName already starts with "files/", don't prepend ROMDATA_FILEDIR
-				if (strncmp(resolvedName, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1) == 0) {
-					snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
-				} else if (strncmp(resolvedName, "textures/", 9) == 0) {
-					// Special case for textures: check both files/textures and just textures
-					snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
-					if (fsFileSize(tmp) <= 0) {
-						snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
-					}
-				} else {
-					snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
-				}
-
-				// if (fileNum == FILE_CHEADGREY) {
-				// 	sysLogPrintf(LOG_NOTE, "DEBUG: Checking for FILE_CHEADGREY at '%s'", tmp);
-				// }
-
-				if (fsFileSize(tmp) > 0) {
-					out = fsFileLoad(tmp, &loadedSize);
-					if (romdataValidate(out, loadedSize)) {
-						sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from mod %d (%s)", fileNum, resolvedName, i, modName);
-
-						// The name came out of fileSlots[modNum], the bytes came
-						// out of modDirs[i], and the result is about to be cached
-						// as modNum's file. When those differ, one mod's asset is
-						// being served as another's - which is how a stage ends up
-						// loading a foreign setup or background without anything
-						// being said. Whether this lane is a deliberate override
-						// or a leak is d-ownership; until that is settled, say it
-						// happened.
-						if (i != modNum) {
-							static s32 s_crossModWarnings = 0;
-
-							if (s_crossModWarnings < 64) {
-								++s_crossModWarnings;
-								sysLogPrintf(LOG_WARNING,
-										"romdataFileLoad: file %d (%s) is mod %d's, but its bytes came from mod %d (%s)"
-										"%s",
-										fileNum, resolvedName, modNum, i, modName,
-										s_crossModWarnings == 64 ? " [further cross-mod loads not logged]" : "");
-							}
-						}
-
-						break;
-					} else {
-						sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in mod %d, skipping", fileNum, resolvedName, i);
-						if (out) { sysMemFree(out); out = NULL; }
-					}
-				}
-			}
-		}
-
-		// 2. Try Base Dir (if not found in mod or corrupted)
-		if (!out) {
-			// Resolve generic path (no mod constraint)
-			romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), NULL, ownerModName, requireExport);
-
-			if (resolvedName[0] != '\0') {
-				snprintf(tmp, sizeof(tmp), "$B/" ROMDATA_FILEDIR "/%s", resolvedName);
-				if (fsFileSize(tmp) > 0) {
-					out = fsFileLoad(tmp, &loadedSize);
-					if (romdataValidate(out, loadedSize)) {
-						sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from base", fileNum, resolvedName);
-					} else {
-						sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in base, falling back", fileNum, resolvedName);
-						if (out) { sysMemFree(out); out = NULL; }
-					}
-				}
-			}
-		}
-
-		if (out) {
-			fileSlots[modNum][fileNum].data = out;
-			fileSlots[modNum][fileNum].size = loadedSize;
-			fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
-			// external file; do not apply patches to this
-			fileSlots[modNum][fileNum].numpatches = 0;
-		DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d)",
-			fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), allowMod);
-	}
-
-	// Try alternate-ROM data source if no loose file was found.
-	// Mod files baked into a custom z64 (e.g. gex.z64) are pointed at
-	// by g_FileAltSource[modIdx][localFileId] populated during PDFT v2/v3
-	// fragment parse. modIdx is 0-based, so the fallback to row 0 below is
-	// mod 0's own row as well as the global table's - for mod 0 the two
-	// lookups are the same row.
-	if (!out && fileNum >= 0 && fileNum < ROMDATA_MAX_FILES) {
 		s32 modSlot = (modNum >= 0 && modNum < MOD_TEX_MAP_MAX_MODS) ? modNum : 0;
-		struct romaltsource *as = &g_FileAltSource[modSlot][fileNum];
-		const char *asScope = "perMod";
-		if (as->romIdx == 0xff) {
-			as = &g_FileAltSource[0][fileNum];
-			asScope = "global";
-		}
-		// sysLogPrintf(LOG_NOTE, "altRom lookup: modNum=%d fileNum=0x%x scope=%s romIdx=%u offset=0x%x size=%u comp=%u numRomSources=%u",
-		// 	modNum, fileNum, asScope, as->romIdx, as->offset, as->size, as->compression, g_NumRomSources);
-		if (as->romIdx != 0xff && as->romIdx < g_NumRomSources) {
-			struct romsource *rs = &g_RomSources[as->romIdx];
-			// sysLogPrintf(LOG_NOTE, "altRom rs: id=%s mounted=%d data=%p size=%u",
-			// 	rs->id, rs->mounted, rs->data, rs->size);
-			if (rs->mounted && rs->data
-			    && (u64)as->offset + (u64)as->size <= (u64)rs->size) {
-				if (as->compression == 0) {
-					fileSlots[modNum][fileNum].data = rs->data + as->offset;
-					fileSlots[modNum][fileNum].size = as->size;
-					fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
-					fileSlots[modNum][fileNum].numpatches = 0;
-					out = fileSlots[modNum][fileNum].data;
-					// sysLogPrintf(LOG_NOTE, "romdataFileLoad: file %d (%s) loaded from altRom '%s' at 0x%x (size=%u)",
-					// 	fileNum, fileSlots[modNum][fileNum].name, rs->id, as->offset, as->size);
-				} else {
-					sysLogPrintf(LOG_WARNING,
-						"romdataFileLoad: file %d altRom compression=%u not implemented",
-						fileNum, as->compression);
+
+		out = romdataFileLoadAltSource(modNum, fileNum,
+				&g_FileAltSource[modSlot][fileNum], &altUnreadable);
+
+		// A declaration that resolved to bytes we cannot decode is not a miss
+		// and does not fall through to the loose-file lanes. The point of
+		// declaring a source is to say where the bytes come from; quietly
+		// serving some other mod's file instead is the failure this ordering
+		// exists to prevent. Fall through to the ROM.
+		if (!out && !altUnreadable) {
+			// 2. Try All Mods (Reverse Order)
+			for (s32 i = g_NumModDirs - 1; i >= 0; --i) {
+				if (modDirs[i][0]) {
+					// Extract mod name from path (basename)
+					const char *modName = strrchr(modDirs[i], '/');
+					if (modName) {
+						modName++; // Skip '/'
+					} else {
+						modName = modDirs[i];
+					}
+
+						// Resolve path specifically for this mod
+					romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), modName, ownerModName, requireExport);
+
+					if (resolvedName[0] == '\0') {
+						continue; // No match for this mod
+					}
+
+					// If resolvedName already starts with "files/", don't prepend ROMDATA_FILEDIR
+					if (strncmp(resolvedName, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1) == 0) {
+						snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
+					} else if (strncmp(resolvedName, "textures/", 9) == 0) {
+						// Special case for textures: check both files/textures and just textures
+						snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
+						if (fsFileSize(tmp) <= 0) {
+							snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
+						}
+					} else {
+						snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
+					}
+
+					// if (fileNum == FILE_CHEADGREY) {
+					// 	sysLogPrintf(LOG_NOTE, "DEBUG: Checking for FILE_CHEADGREY at '%s'", tmp);
+					// }
+
+					if (fsFileSize(tmp) > 0) {
+						out = fsFileLoad(tmp, &loadedSize);
+						if (romdataValidate(out, loadedSize)) {
+							sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from mod %d (%s)", fileNum, resolvedName, i, modName);
+
+							// The name came out of fileSlots[modNum], the bytes came
+							// out of modDirs[i], and the result is about to be cached
+							// as modNum's file. When those differ, one mod's asset is
+							// being served as another's - which is how a stage ends up
+							// loading a foreign setup or background without anything
+							// being said. Whether this lane is a deliberate override
+							// or a leak is d-ownership; until that is settled, say it
+							// happened.
+							if (i != modNum) {
+								static s32 s_crossModWarnings = 0;
+
+								if (s_crossModWarnings < 64) {
+									++s_crossModWarnings;
+									sysLogPrintf(LOG_WARNING,
+											"romdataFileLoad: file %d (%s) is mod %d's, but its bytes came from mod %d (%s)"
+											"%s",
+											fileNum, resolvedName, modNum, i, modName,
+											s_crossModWarnings == 64 ? " [further cross-mod loads not logged]" : "");
+								}
+							}
+
+							break;
+						} else {
+							sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in mod %d, skipping", fileNum, resolvedName, i);
+							if (out) { sysMemFree(out); out = NULL; }
+						}
+					}
 				}
 			}
-		}
-	}
 
-	if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
-		// tried and failed, fall back to ROM
-		fileSlots[modNum][fileNum].source = SRC_ROM;
-		DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d)",
-			fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), allowMod);
-	}
+			// 3. Try Base Dir (if not found in mod or corrupted)
+			if (!out) {
+				// Resolve generic path (no mod constraint)
+				romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), NULL, ownerModName, requireExport);
+
+				if (resolvedName[0] != '\0') {
+					snprintf(tmp, sizeof(tmp), "$B/" ROMDATA_FILEDIR "/%s", resolvedName);
+					if (fsFileSize(tmp) > 0) {
+						out = fsFileLoad(tmp, &loadedSize);
+						if (romdataValidate(out, loadedSize)) {
+							sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from base", fileNum, resolvedName);
+						} else {
+							sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in base, falling back", fileNum, resolvedName);
+							if (out) { sysMemFree(out); out = NULL; }
+						}
+					}
+				}
+			}
+
+			if (out) {
+				fileSlots[modNum][fileNum].data = out;
+				fileSlots[modNum][fileNum].size = loadedSize;
+				fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
+				// external file; do not apply patches to this
+				fileSlots[modNum][fileNum].numpatches = 0;
+				DEBUG_FLOAD("romdataFileLoad: file %d (%s) loaded EXTERNALLY (size=%u, context=%s, allowMod=%d)",
+					fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), allowMod);
+			}
+
+			// 4. Row 0 as a global alt-source table, at its old rank.
+			//
+			// g_FileAltSource row 0 is doubly booked - it is mod 0's own row AND
+			// the row an isGlobal filetable.dat writes (see the note at the array
+			// declaration). The old lane fell back to it whenever the per-mod row
+			// said 0xff, and it stays HERE, below the walk, deliberately.
+			//
+			// Promoting it alongside the per-mod lane would change what it can
+			// shadow. File ids are mod-local, so rows collide by construction:
+			// measured on the shipped roster, mod_fojo's 46 declared ids (0x7e5
+			// upwards) are ids the four unsourced mods also use, for unrelated
+			// textures they ship as loose files. Promoted, row 0 would serve
+			// Mikado head bytes for 46 ids in each of mod_aio_characters,
+			// mod_gex_stages, mod_aio_stages and mod_kakariko_stages - 184
+			// resolutions, every one of them wrong. A row-0 entry is not a
+			// declaration BY the mod being loaded, so it does not get a
+			// declaration's authority.
+			if (!out && g_FileAltSource[modSlot][fileNum].romIdx == 0xff) {
+				out = romdataFileLoadAltSource(modNum, fileNum,
+						&g_FileAltSource[0][fileNum], NULL);
+			}
+		}
+
+		if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
+			// tried and failed, fall back to ROM
+			fileSlots[modNum][fileNum].source = SRC_ROM;
+			DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d)",
+				fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), allowMod);
+		}
 	}
 
 	// Model swap (pd.model_swap): serve a flagged vanilla character-model file
