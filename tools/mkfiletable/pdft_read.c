@@ -145,12 +145,13 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 		flags = rd32(&r);
 		f->offset = rd32(&r);
 		f->size = rd32(&r);
-		f->romResident = (flags & 0x1) != 0;
+		f->romResident = (flags & PDFT_F_ROMRESIDENT) != 0;
+		f->selfSource = (flags & PDFT_F_SELFSOURCE) != 0;
 		f->name = rdStr(&r, rd16(&r));
 		f->path = rdStr(&r, rd16(&r));
 		f->alt.romIdx = -1;
 
-		if (flags & 0x4) {
+		if (flags & PDFT_F_ALT) {
 			f->alt.romIdx = rd8(&r);
 			f->alt.offset = rd32(&r);
 			f->alt.size = rd32(&r);

@@ -21,6 +21,18 @@
 #define PDFT_ROMSOURCE_ID   16    /* char id[16] in the reader, terminator included */
 #define PDFT_ROMSOURCE_FILE 64    /* char filename[64], likewise */
 
+/* Per-entry flags, as romdataParseFileTable() reads them. The field is a u32
+ * and the reader tests individual bits, so an unknown bit is ignored rather
+ * than mis-parsed: a bit added here does not move any byte and does not
+ * desync an older reader, which is why SELFSOURCE below needs no new version.
+ */
+#define PDFT_F_ROMRESIDENT 0x1  /* bind g_RomFile + offset */
+#define PDFT_F_PATH        0x2  /* the path field is present and non-empty */
+#define PDFT_F_ALT         0x4  /* the alt-ROM tail follows the path */
+#define PDFT_F_SELFSOURCE  0x8  /* resolve `path` in the OWNING mod's own
+                                 * directory, and nowhere else. See the note
+                                 * on pdftFile.selfSource. */
+
 enum pdftFallback {
 	PDFT_FALLBACK_SKIP = 0,
 	PDFT_FALLBACK_VANILLA = 1,
@@ -49,6 +61,22 @@ struct pdftFile {
 	const char *path;     /* NULL or "" for none */
 	struct pdftAlt alt;
 	bool romResident;     /* flag 0x1: bind g_RomFile + offset. Nothing sets this today */
+
+	/**
+	 * flag 0x8. The bytes are the loose file at `path` inside the directory of
+	 * the mod that OWNS this entry, and the engine is to look there and give
+	 * up rather than walk every mounted mod for a matching relative path.
+	 *
+	 * This is the file-based twin of an alt-ROM source, and it deliberately
+	 * carries no offset and no size. A ROM source needs both because the bytes
+	 * sit at a position inside an image the engine has to be told about; a
+	 * directory source needs neither, because the engine already knows the
+	 * owning mod's directory and `path` already says where in it. It also
+	 * consumes no romSource slot - g_RomSources[] is global across every
+	 * mounted mod and only eight deep, so a per-mod source that spent one
+	 * would run the table out on the ninth mod.
+	 */
+	bool selfSource;
 	uint32_t offset;
 	uint32_t size;
 };
@@ -79,7 +107,8 @@ struct pdftInput {
  * PDFT_MAX_FILES (skipped without a word), more than PDFT_MAX_ROMSOURCES
  * (dropped with a warning), a name or path longer than a u16 can count, an id
  * or filename too long for the reader's fixed buffers, a compression mode the
- * loader does not implement, and texmap slot indices with holes in them — the
+ * loader does not implement, a self-source with no path or with an alt-ROM
+ * source as well, and texmap slot indices with holes in them — the
  * reader advances its global port base by the entry COUNT while mapping by
  * slot index, so a hole makes the next mod's texture ports overlap this one's.
  */

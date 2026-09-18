@@ -195,6 +195,25 @@ static bool checkInput(const struct pdftInput *in, uint32_t version, char *err, 
 			}
 		}
 
+		if (f->selfSource) {
+			/* The path is the whole of a self-source: there is no offset to
+			 * fall back on and no image to look in. Without it the flag says
+			 * "my own directory" and names nothing there, and the engine would
+			 * resolve the entry by its name against the mod walk - which is
+			 * exactly the accident the flag exists to stop. */
+			if (!f->path || !f->path[0]) {
+				return fail(err, errLen, "'%s' is self-sourced with no path", f->name);
+			}
+
+			/* Two answers to where the bytes are. Which one wins would be
+			 * decided by the order the engine happens to test them in, which
+			 * is the same kind of luck a declared source is meant to remove. */
+			if (f->alt.romIdx >= 0) {
+				return fail(err, errLen, "'%s' declares both a self source and romSource %d",
+						f->name, f->alt.romIdx);
+			}
+		}
+
 		if (f->alt.romIdx >= 0) {
 			if (version < 2) {
 				return fail(err, errLen, "'%s' has an alt-ROM tail; the reader only reads one in a v2 table "
@@ -294,15 +313,23 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 		uint32_t flags = 0;
 
 		if (f->romResident) {
-			flags |= 0x1;
+			flags |= PDFT_F_ROMRESIDENT;
 		}
 
 		if (hasPath) {
-			flags |= 0x2;
+			flags |= PDFT_F_PATH;
 		}
 
 		if (hasAlt) {
-			flags |= 0x4;
+			flags |= PDFT_F_ALT;
+		}
+
+		/* No tail and no new field: the whole declaration is this bit plus the
+		 * path that was already being written. That is what keeps the format
+		 * at v3 and keeps an older reader merely ignorant of the flag rather
+		 * than desynced by it. */
+		if (f->selfSource) {
+			flags |= PDFT_F_SELFSOURCE;
 		}
 
 		put32(&b, f->id);
