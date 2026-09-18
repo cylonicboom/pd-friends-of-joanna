@@ -26,6 +26,7 @@ src/assets/*/textures/*.bin
 src/generated
 tools/mkrom/mkrom
 tools/mkfiletable/mkfiletable
+tools/mkfiletable/slugmod
 tools/mkfiletable/pdft_reencode
 tools/modsetcheck/modsetcheck
 release-*/*

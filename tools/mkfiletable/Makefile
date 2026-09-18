@@ -11,10 +11,17 @@ LDLIBS  ?= -lz
 
 OBJS    = mkfiletable.o pdft_write.o vendor/parson/parson.o
 
-all: mkfiletable
+all: mkfiletable slugmod
 
 mkfiletable: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDLIBS)
+
+# slugmod rewrites a manifest and renames files; mkfiletable never edits either.
+# Two contracts that far apart do not belong behind one argv, so they are two
+# binaries rather than a subcommand: nothing that runs in a build can reach the
+# one that moves files by mistyping a flag.
+slugmod: slugmod.o vendor/parson/parson.o
+	$(CC) $(CFLAGS) -o $@ slugmod.o vendor/parson/parson.o
 
 # The test driver is not part of the tool; see pdft_test.py.
 pdft_reencode: pdft_reencode.o pdft_write.o
@@ -24,6 +31,6 @@ test: mkfiletable pdft_reencode
 	python3 pdft_test.py ./pdft_reencode
 
 clean:
-	rm -f mkfiletable pdft_reencode $(OBJS) pdft_reencode.o
+	rm -f mkfiletable slugmod pdft_reencode $(OBJS) slugmod.o pdft_reencode.o
 
 .PHONY: all test clean
