@@ -156,6 +156,25 @@ local function runall()
 		return refused and pd.persist_get("core_smoke_huge") == nil and edge
 			and #pd.persist_get("core_smoke_edge") == 2000
 	end)
+	check("persist_set delimiters", function()
+		-- the store file is one key=value per line, so a value with a line
+		-- break in it used to read back as a forged second entry, and an '='
+		-- in a key moved the split. both are refused now; an '=' in a value
+		-- is still fine, because the reader splits on the first one only.
+		local nl = pd.persist_set("core_smoke_nl", "x\ny=forged") == false
+		local cr = pd.persist_set("core_smoke_cr", "x\ry=forged") == false
+		local nul = pd.persist_set("core_smoke_nul", "x\0y") == false
+		local eqkey = pd.persist_set("core_smoke=eq", "v") == false
+		local eqval = pd.persist_set("core_smoke_eqval", "a=b=c") == true
+		return nl and cr and nul and eqkey and eqval
+			and pd.persist_get("core_smoke_nl") == nil
+			and pd.persist_get("core_smoke_cr") == nil
+			and pd.persist_get("core_smoke_nul") == nil
+			and pd.persist_get("core_smoke=eq") == nil
+			and pd.persist_get("core_smoke_eqval") == "a=b=c",
+			string.format("nl=%s cr=%s nul=%s eqkey=%s eqval=%s", tostring(nl),
+				tostring(cr), tostring(nul), tostring(eqkey), tostring(eqval))
+	end)
 	check("persist_set", function()
 		pd.persist_set("core_smoke", "ok=1")
 		pd.persist_set("~core_smoke_session", "yes")
