@@ -298,7 +298,7 @@ static void luaEventDispatchInts(const char *name, int argc, const lua_Integer *
 	lua_State *L = luaaiGetState();
 	int a;
 
-	if (!L) {
+	if (!L || luaaiIsSuspended()) {
 		return;
 	}
 
@@ -1485,8 +1485,8 @@ void luaTick(void)
 {
 	s32 i, w;
 
-	/* Lua off: nothing to load, nothing to age. */
-	if (!g_LuaAiEnabled) {
+	/* Lua off, or suspended for this stage: nothing to load, nothing to age. */
+	if (!g_LuaAiEnabled || luaaiIsSuspended()) {
 		return;
 	}
 
@@ -1582,8 +1582,9 @@ Gfx *luaHudRender(Gfx *gdl)
 #ifndef PLATFORM_N64
 	s32 i, w;
 
-	/* Lua off, or no state yet: nothing was queued and nobody listens. */
-	if (!g_LuaAiEnabled || !luaaiGetState()) {
+	/* Lua off, suspended, or no state yet: nothing was queued and nobody
+	 * listens. */
+	if (!g_LuaAiEnabled || luaaiIsSuspended() || !luaaiGetState()) {
 		g_LuaXrayCount = 0;
 		return gdl;
 	}
