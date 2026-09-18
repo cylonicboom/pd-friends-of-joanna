@@ -770,9 +770,19 @@ void hudmsgCreateAsSubtitle(char *srctext, s32 type, u8 colourindex, s32 audioch
 		s32 wrapwidth;
 		char accum[250];
 		char prewrap[250];
+#ifndef PLATFORM_N64
+		// textWrap's dst is unbounded and its output is longer than its
+		// input — a newline per wrapped word, plus g_WrapIndentCount spaces,
+		// and that count is zero because nothing calls textSetWrapIndent.
+		// prewrap is capped at sizeof(prewrap) - 2 below, so 1024 covers the
+		// worst input at three output bytes per two input bytes.
+		char postwrap[1024];
+#else
 		char postwrap[250];
+#endif
 		char msg[250];
 		s32 msglen;
+		s32 prewraplen;
 		bool split;
 		s32 accumlen;
 		s32 linecount;
@@ -830,7 +840,13 @@ void hudmsgCreateAsSubtitle(char *srctext, s32 type, u8 colourindex, s32 audioch
 				// - if it's a space at the start of the string
 				// - if it's a consecutive space
 				// - if it's a line break (sometimes copy a space instead)
-				if (msglen < 249) {
+				// msg picks up a trailing space after this loop, then a
+				// '\n' and a '\0' when it is queued on its own, so stop
+				// three bytes short of the end and not one. This used to be
+				// slack: srctext is a langGet result, and langGet applies
+				// the text gags now, so a line that is 80 bytes in the bank
+				// can arrive here several hundred bytes long.
+				if (msglen < (s32)sizeof(msg) - 3) {
 					bool ignore = false;
 
 					if (srctext[i] == ' ') {
@@ -877,16 +893,21 @@ void hudmsgCreateAsSubtitle(char *srctext, s32 type, u8 colourindex, s32 audioch
 			// Rebuild prewrap by concatenating the accumulator and msg.
 			// prewrap will be everything that's been read so far and has yet to
 			// be queued.
-			for (j = 0; j < accumlen; j++) {
-				prewrap[j] = accum[j];
+			// accumlen + msglen can be twice what prewrap holds, so build it
+			// with its own index and leave room for the break and the
+			// terminator.
+			prewraplen = 0;
+
+			for (j = 0; j < accumlen && prewraplen < (s32)sizeof(prewrap) - 2; j++) {
+				prewrap[prewraplen++] = accum[j];
 			}
 
-			for (j = 0; j < msglen; j++) {
-				prewrap[j + accumlen] = msg[j];
+			for (j = 0; j < msglen && prewraplen < (s32)sizeof(prewrap) - 2; j++) {
+				prewrap[prewraplen++] = msg[j];
 			}
 
-			prewrap[accumlen + msglen] = '\n';
-			prewrap[accumlen + msglen + 1] = '\0';
+			prewrap[prewraplen] = '\n';
+			prewrap[prewraplen + 1] = '\0';
 
 			// Apply text wrapping to prewrap
 			textWrap(wrapwidth, prewrap, postwrap, g_CharsHandelGothicSm, g_FontHandelGothicSm);
@@ -933,11 +954,12 @@ void hudmsgCreateAsSubtitle(char *srctext, s32 type, u8 colourindex, s32 audioch
 			}
 
 			if (append) {
-				for (j = 0; j < msglen; j++) {
-					accum[accumlen + j] = msg[j];
+				// What resets accumlen is the wrapped line count, which is
+				// measured in pixels, so nothing here bounds the accumulator
+				// in bytes. Leave room for the break and the terminator.
+				for (j = 0; j < msglen && accumlen < (s32)sizeof(accum) - 2; j++) {
+					accum[accumlen++] = msg[j];
 				}
-
-				accumlen += msglen;
 			}
 
 			msg[msglen] = '\0';
