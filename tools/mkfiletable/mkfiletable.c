@@ -20,6 +20,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <zlib.h>
+#include <sys/stat.h>
 #include "pdft_write.h"
 #include "vendor/parson/parson.h"
 
@@ -716,8 +717,61 @@ static void usage(FILE *out)
 		"  --vanilla     a snapshotted {name: id} map, as an alternative to\n"
 		"                reading the base ROM. Wins over it when both are given.\n"
 		"  --allow-orphans  drop manifest rows whose 'replaces' resolves to\n"
-		"                nothing, instead of failing\n");
+		"                nothing, instead of failing\n"
+		"\n"
+		"A file entry may declare where its bytes come from:\n"
+		"\n"
+		"  \"source\": { \"rom\": \"jpn\", \"lookup\": \"byName\",\n"
+		"               \"alias\": \"Cheaddark_combatZ\" }\n"
+		"      bytes out of a mounted ROM image, found by name, id or offset.\n"
+		"      Costs one of the engine's eight global romSource slots.\n"
+		"\n"
+		"  \"source\": { \"self\": true, \"alias\": \"bg_mp20.seg\" }\n"
+		"      bytes out of this mod's OWN directory, at the entry's path. Costs\n"
+		"      no romSource slot and carries no offset - the engine knows the\n"
+		"      owning mod's directory and the path says where in it. The path is\n"
+		"      checked against the output directory here, so a declaration that\n"
+		"      resolves to nothing fails the build instead of the load. `alias`\n"
+		"      records the name the file answers to outside the mod and must\n"
+		"      agree with `replaces` when both are given.\n");
 }
+
+/**
+ * Where a loose `path` actually lands inside a mod directory, by the same rule
+ * romdataFileLoad() uses: a path already under files/ is joined straight on,
+ * a textures/ path is tried under files/ first and then bare, and anything
+ * else gets files/ prepended. Composing it here is what lets the tool fail a
+ * self source whose file is not there, instead of shipping a table whose entry
+ * resolves to nothing at runtime and falls back to the ROM without a word.
+ */
+static bool selfSourceFile(const char *modDir, const char *path, char *dst, size_t dstLen)
+{
+	struct stat st;
+
+	if (!strncmp(path, "files/", 6)) {
+		if (snprintf(dst, dstLen, "%s/%s", modDir, path) >= (int)dstLen) {
+			return false;
+		}
+
+		return stat(dst, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0;
+	}
+
+	if (snprintf(dst, dstLen, "%s/files/%s", modDir, path) < (int)dstLen
+			&& stat(dst, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0) {
+		return true;
+	}
+
+	if (strncmp(path, "textures/", 9)) {
+		return false;
+	}
+
+	if (snprintf(dst, dstLen, "%s/%s", modDir, path) >= (int)dstLen) {
+		return false;
+	}
+
+	return stat(dst, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0;
+}
+
 
 /**
  * A file's id is its slot in the ROM's own file table. That is the same number
@@ -1011,6 +1065,7 @@ int main(int argc, char **argv)
 			bool replaces;
 			long fixedId;      /* from the vanilla map, for a replacer */
 			int altRom;        /* index into roms[], or -1 */
+			bool selfSrc;      /* source: { self: true } */
 			uint32_t altOfs, altSize;
 			bool drop;         /* an orphan, kept out of the output */
 		};
@@ -1036,6 +1091,7 @@ int main(int argc, char **argv)
 			ents[i].replaces = replaces != NULL;
 			ents[i].fixedId = -1;
 			ents[i].altRom = -1;
+			ents[i].selfSrc = false;
 
 			if (replaces) {
 				const char *nameSource;
@@ -1068,7 +1124,56 @@ int main(int argc, char **argv)
 				}
 			}
 
-			if (src) {
+			if (src && json_object_get_boolean(src, "self") == 1) {
+				/* A source in this mod's OWN directory. The file-based twin of
+				 * a romSource, and the one a mod that ships loose files can
+				 * actually use: it names no image, so it costs no romSource
+				 * slot, and g_RomSources[] is global across every mounted mod
+				 * and eight deep.
+				 *
+				 * The alias is the name this file answers to outside the mod -
+				 * the vanilla name it was slugged away from. It is authoring
+				 * and provenance, not wire data: nothing is emitted for it, and
+				 * 'replaces' is what actually pins the id. Checked against
+				 * 'replaces' when both are given, because two different answers
+				 * to what this file used to be called is a manifest bug that
+				 * would otherwise ship silently. */
+				const char *alias = json_object_get_string(src, "alias");
+				char resolved[PATHMAX];
+
+				if (json_object_get_string(src, "rom")) {
+					die("%s: '%s' declares both self and rom in one source; "
+							"the bytes are in one place or the other", manifestPath, name);
+				}
+
+				if (!ents[i].path || !ents[i].path[0]) {
+					die("%s: '%s' is self-sourced and has no path; the path is the whole "
+							"of the declaration", manifestPath, name);
+				}
+
+				/* The pipe/:: grammar exists so the walk can CHOOSE between
+				 * candidate paths. A self source is the statement that there
+				 * is nothing to choose, and a variant list here would mean the
+				 * tool could not say which file it just promised was there. */
+				if (strchr(ents[i].path, '|') || strstr(ents[i].path, "::")) {
+					die("%s: '%s' is self-sourced with a path-variant list; a self source "
+							"names exactly one file", manifestPath, name);
+				}
+
+				if (alias && replaces && strcmp(alias, replaces)) {
+					die("%s: '%s' aliases '%s' but replaces '%s'; a file has one name "
+							"outside the mod", manifestPath, name, alias, replaces);
+				}
+
+				if (!selfSourceFile(output, ents[i].path, resolved, sizeof(resolved))) {
+					die("%s: '%s' is self-sourced at '%s', which is not a readable file "
+							"under %s. A declared source that resolves to nothing is worse "
+							"than a loose path: it fails silently at load and falls back to "
+							"the ROM", manifestPath, name, ents[i].path, output);
+				}
+
+				ents[i].selfSrc = true;
+			} else if (src) {
 				const char *romId = json_object_get_string(src, "rom");
 				const char *lookup = json_object_get_string(src, "lookup");
 				uint32_t k;
@@ -1172,6 +1277,7 @@ int main(int argc, char **argv)
 			out[numOut].id = ents[i].fixedId >= 0 ? (uint32_t)ents[i].fixedId : nextLocalId++;
 			out[numOut].name = ents[i].name;
 			out[numOut].path = ents[i].path;
+			out[numOut].selfSource = ents[i].selfSrc;
 			out[numOut].alt.romIdx = ents[i].altRom;
 			out[numOut].alt.offset = ents[i].altOfs;
 			out[numOut].alt.size = ents[i].altSize;
@@ -1283,8 +1389,18 @@ int main(int argc, char **argv)
 
 		fwrite(blob, 1, blobLen, f);
 		fclose(f);
-		printf("wrote %s: v%u, %u files, %u romSources, %u textures, %u bytes\n",
-				outPath, pdftVersionFor(&in), numOut, numRoms, numTex, blobLen);
+		{
+			uint32_t k, numSelf = 0;
+
+			for (k = 0; k < numOut; ++k) {
+				if (out[k].selfSource) {
+					++numSelf;
+				}
+			}
+
+			printf("wrote %s: v%u, %u files, %u romSources, %u self-sourced, %u textures, %u bytes\n",
+					outPath, pdftVersionFor(&in), numOut, numRoms, numSelf, numTex, blobLen);
+		}
 	}
 
 	/* Write the texmap back so the next build keeps these ports. */
