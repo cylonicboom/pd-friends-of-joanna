@@ -403,22 +403,23 @@ void amApply(s32 slot)
 }
 
 /*
- * amGetSlotDetails writes into its caller's `label`, and all three callers
- * pass a char[32] (amCalculateSlotWidth, the slot draw loop, the cramped
- * halfwidth measure). Every source it copies from is a langGet result, and
- * langGet can now return g_ChaosLangOverrideStr — 63 bytes of whatever
- * pd.weapon_rename was handed. Copy bounded on the port; AMLABELCPY
- * preprocesses to the original strcpy on N64.
+ * amGetSlotDetails writes into its caller's `label`. There are four callers,
+ * not three: amCalculateSlotWidth, the slot draw loop and the cramped
+ * halfwidth measure all pass a char[AM_SLOT_LABEL_LEN], but the slot-focus
+ * block in activemenutick.c passed a char[28], so bounding the copies at a
+ * constant 32 overflowed that one by four bytes. Every source is a langGet
+ * result, and langGet can now return g_ChaosLangOverrideStr — 63 bytes of
+ * whatever pd.weapon_rename was handed. Take the caller's size instead of
+ * asserting it in a comment; AMLABELCPY preprocesses to the original strcpy
+ * on N64, where there is no Lua and langGet cannot be overridden.
  */
-#define AM_SLOT_LABEL_LEN 32
-
 #ifndef PLATFORM_N64
-#define AMLABELCPY(dst, src) snprintf((dst), AM_SLOT_LABEL_LEN, "%s", (src))
+#define AMLABELCPY(dst, len, src) snprintf((dst), (len), "%s", (src))
 #else
-#define AMLABELCPY(dst, src) strcpy((dst), (src))
+#define AMLABELCPY(dst, len, src) strcpy((dst), (src))
 #endif
 
-void amGetSlotDetails(s32 slot, u32 *flags, char *label)
+void amGetSlotDetails(s32 slot, u32 *flags, char *label, s32 len)
 {
 	u32 weaponnum;
 	s32 qty;
@@ -430,7 +431,7 @@ void amGetSlotDetails(s32 slot, u32 *flags, char *label)
 	switch (g_AmMenus[g_AmIndex].screenindex) {
 	case 0: // Weapon screen
 		if (slot == 4) {
-			AMLABELCPY(label, langGet(L_MISC_170)); // "Weapon"
+			AMLABELCPY(label, len, langGet(L_MISC_170)); // "Weapon"
 			return;
 		}
 
@@ -443,16 +444,16 @@ void amGetSlotDetails(s32 slot, u32 *flags, char *label)
 		}
 
 		if (g_AmMenus[g_AmIndex].invindexes[slot] >= invGetCount()) {
-			AMLABELCPY(label, "");
+			AMLABELCPY(label, len, "");
 		} else {
 			if (invGetWeaponNumByIndex(g_AmMenus[g_AmIndex].invindexes[slot]) == WEAPON_CLOAKINGDEVICE) {
 				// Special case: "Cloak %d"
 				qty = bgunGetReservedAmmoCount(AMMOTYPE_CLOAK);
 				secs = qty / TICKS(60);
 				modulo = (qty - (secs * TICKS(60))) * 100 / TICKS(60);
-				snprintf(label, AM_SLOT_LABEL_LEN, langGet(L_OPTIONS_491), secs + (modulo > 0 ? 1 : 0)); // "cloak %d"
+				snprintf(label, len, langGet(L_OPTIONS_491), secs + (modulo > 0 ? 1 : 0)); // "cloak %d"
 			} else {
-				AMLABELCPY(label, invGetShortNameByIndex(g_AmMenus[g_AmIndex].invindexes[slot]));
+				AMLABELCPY(label, len, invGetShortNameByIndex(g_AmMenus[g_AmIndex].invindexes[slot]));
 			}
 		}
 
@@ -469,10 +470,10 @@ void amGetSlotDetails(s32 slot, u32 *flags, char *label)
 		}
 		break;
 	case 1: // Function screen
-		AMLABELCPY(label, "");
+		AMLABELCPY(label, len, "");
 
 		if (slot == 4) {
-			AMLABELCPY(label, langGet(L_MISC_171)); // "Function"
+			AMLABELCPY(label, len, langGet(L_MISC_171)); // "Function"
 		} else if (slot == 1 || slot == 7) {
 			prifunc = weaponGetFunction(&g_Vars.currentplayer->hands[HAND_RIGHT].gset, FUNC_PRIMARY);
 			secfunc = weaponGetFunction(&g_Vars.currentplayer->hands[HAND_RIGHT].gset, FUNC_SECONDARY);
@@ -483,7 +484,7 @@ void amGetSlotDetails(s32 slot, u32 *flags, char *label)
 				}
 
 				if (prifunc) {
-					AMLABELCPY(label, langGet(prifunc->name));
+					AMLABELCPY(label, len, langGet(prifunc->name));
 				}
 			} else {
 				if (!prifunc || FUNCISSEC()) {
@@ -491,31 +492,31 @@ void amGetSlotDetails(s32 slot, u32 *flags, char *label)
 				}
 
 				if (secfunc) {
-					AMLABELCPY(label, langGet(secfunc->name));
+					AMLABELCPY(label, len, langGet(secfunc->name));
 				}
 			}
 		}
 		break;
 	default: // Orders screen
-		AMLABELCPY(label, "");
+		AMLABELCPY(label, len, "");
 
 		if (g_MissionConfig.iscoop) {
 			if (slot == 4) {
-				AMLABELCPY(label, langGet(L_MISC_474)); // "Perfect Buddies"
+				AMLABELCPY(label, len, langGet(L_MISC_474)); // "Perfect Buddies"
 			} else if (slot == 1) {
-				AMLABELCPY(label, langGet(L_MISC_472)); // "Aggressive"
+				AMLABELCPY(label, len, langGet(L_MISC_472)); // "Aggressive"
 			} else if (slot == 7) {
-				AMLABELCPY(label, langGet(L_MISC_473)); // "Passive"
+				AMLABELCPY(label, len, langGet(L_MISC_473)); // "Passive"
 #if VERSION >= VERSION_NTSC_1_0
 			} else if (slot == 3) {
-				AMLABELCPY(label, langGet(L_MISC_475)); // "Stealth"
+				AMLABELCPY(label, len, langGet(L_MISC_475)); // "Stealth"
 #endif
 			}
 		} else {
 			if (slot == 4) {
-				AMLABELCPY(label, langGet(L_MISC_172)); // "Orders"
+				AMLABELCPY(label, len, langGet(L_MISC_172)); // "Orders"
 			} else {
-				AMLABELCPY(label, botGetCommandName(g_AmBotCommands[slot]));
+				AMLABELCPY(label, len, botGetCommandName(g_AmBotCommands[slot]));
 			}
 		}
 		break;
@@ -586,7 +587,7 @@ s16 amCalculateSlotWidth(void)
 	char text[32];
 
 	for (i = 0; i < ARRAYCOUNT(g_AmBotCommands); i++) {
-		amGetSlotDetails(i, &flags, text);
+		amGetSlotDetails(i, &flags, text, sizeof(text));
 		textMeasure(&textheight, &textwidth, text, g_AmFont1, g_AmFont2, 0);
 
 		if (textwidth > max) {
@@ -1465,7 +1466,7 @@ Gfx *amRender(Gfx *gdl)
 					colour = 0x4f4f4f7f;
 				}
 
-				amGetSlotDetails(column + row * 3, &flags, text);
+				amGetSlotDetails(column + row * 3, &flags, text, sizeof(text));
 
 				if (column == 1 && row == 1) {
 					if (!amIsCramped()) {
@@ -1541,7 +1542,7 @@ Gfx *amRender(Gfx *gdl)
 					char text[32];
 					u32 flags;
 
-					amGetSlotDetails(4, &flags, text);
+					amGetSlotDetails(4, &flags, text, sizeof(text));
 					textMeasure(&textheight, &textwidth, text, g_AmFont1, g_AmFont2, 0);
 
 					halfwidth = textwidth / 2 + 2;
