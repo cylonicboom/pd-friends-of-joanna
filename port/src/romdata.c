@@ -193,8 +193,22 @@ struct romsource {
 	u8   mounted;
 };
 
+// A declared source that is NOT a mounted image: the file at this entry's
+// path, inside the directory of the mod that owns the entry.
+//
+// It sits in romIdx rather than in a field of its own because it is the same
+// question - where do this file's bytes come from - and because it must cost
+// nothing. g_RomSources[] is global across every mounted mod and ROMSOURCES_MAX
+// is 8; six mods are mounted today, and a per-mod source that spent a slot
+// would run the table out on the ninth mod, silently (romdataParseFileTable
+// warns and drops, and the entry then resolves by the walk as if it had never
+// declared anything). A self source spends no slot and needs no offset or
+// size: the engine already knows the owning mod's directory, and the path says
+// where in it.
+#define ROMSOURCE_SELF 0xfe
+
 struct romaltsource {
-	u8  romIdx;       // 0xff = none
+	u8  romIdx;       // 0xff = none, 0xfe = ROMSOURCE_SELF, else g_RomSources[]
 	u8  compression;  // 0=raw, 1=rzip(1173)
 	u32 offset;
 	u32 size;
@@ -807,6 +821,39 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				}
 			}
 
+			// flag 0x8: the bytes are the loose file at `path`, inside the
+			// directory of the mod that owns this entry, and nowhere else.
+			// Recorded against the OWNER's row only. Row 0 is doubly booked as
+			// mod 0's row and the row an isGlobal table writes, and "the
+			// owning mod's directory" means nothing for a table that has no
+			// owning mod, so a global table's self flag is dropped rather than
+			// given mod 0's directory by accident.
+			if ((flags & 8) && id < ROMDATA_MAX_FILES) {
+				if (isGlobal) {
+					sysLogPrintf(LOG_WARNING,
+						"PDFT: id %u is self-sourced in the global table, which has no "
+						"owning mod; ignoring the flag", id);
+				} else if (pathLen <= 1) {
+					sysLogPrintf(LOG_WARNING,
+						"PDFT: id %u (mod=%d) is self-sourced with no path; ignoring the flag",
+						id, ownerModIdx);
+				} else if (g_FileAltSource[ownerModIdx][id].romIdx != 0xff) {
+					// Both a mounted image and this mod's own directory. Which
+					// won would be decided by the order the lanes are tested
+					// in, which is the luck a declaration exists to remove.
+					sysLogPrintf(LOG_WARNING,
+						"PDFT: id %u (mod=%d) declares both romSource %u and a self source; "
+						"keeping the romSource",
+						id, ownerModIdx, g_FileAltSource[ownerModIdx][id].romIdx);
+				} else {
+					struct romaltsource *as = &g_FileAltSource[ownerModIdx][id];
+					as->romIdx = ROMSOURCE_SELF;
+					as->compression = 0;
+					as->offset = 0;
+					as->size = 0;
+				}
+			}
+
 			PDFT("entry table=%s mod=%d index=%u id=0x%04x flags=0x%08x name='%.*s' path='%.*s' romOffset=0x%x romSize=%u altRom=%d altOffset=0x%x altSize=%u altCompression=%u",
 			     isGlobal ? "global" : "fragment", ownerModIdx, i, id, flags,
 			     nameLen > 0 ? nameLen - 1 : 0, name,
@@ -894,6 +941,39 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			char *name = (char*)p; p += nameLen;
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
 			char *path = (char*)p; p += pathLen;
+
+			// flag 0x8: the bytes are the loose file at `path`, inside the
+			// directory of the mod that owns this entry, and nowhere else.
+			// Recorded against the OWNER's row only. Row 0 is doubly booked as
+			// mod 0's row and the row an isGlobal table writes, and "the
+			// owning mod's directory" means nothing for a table that has no
+			// owning mod, so a global table's self flag is dropped rather than
+			// given mod 0's directory by accident.
+			if ((flags & 8) && id < ROMDATA_MAX_FILES) {
+				if (isGlobal) {
+					sysLogPrintf(LOG_WARNING,
+						"PDFT: id %u is self-sourced in the global table, which has no "
+						"owning mod; ignoring the flag", id);
+				} else if (pathLen <= 1) {
+					sysLogPrintf(LOG_WARNING,
+						"PDFT: id %u (mod=%d) is self-sourced with no path; ignoring the flag",
+						id, ownerModIdx);
+				} else if (g_FileAltSource[ownerModIdx][id].romIdx != 0xff) {
+					// Both a mounted image and this mod's own directory. Which
+					// won would be decided by the order the lanes are tested
+					// in, which is the luck a declaration exists to remove.
+					sysLogPrintf(LOG_WARNING,
+						"PDFT: id %u (mod=%d) declares both romSource %u and a self source; "
+						"keeping the romSource",
+						id, ownerModIdx, g_FileAltSource[ownerModIdx][id].romIdx);
+				} else {
+					struct romaltsource *as = &g_FileAltSource[ownerModIdx][id];
+					as->romIdx = ROMSOURCE_SELF;
+					as->compression = 0;
+					as->offset = 0;
+					as->size = 0;
+				}
+			}
 
 			PDFT("entry table=%s mod=%d index=%u id=0x%04x flags=0x%08x name='%.*s' path='%.*s' romOffset=0x%x romSize=%u",
 			     isGlobal ? "global" : "fragment", ownerModIdx, i, id, flags,
@@ -2201,6 +2281,102 @@ static u8 *romdataFileLoadAltSource(s32 modNum, s32 fileNum,
 	return fileSlots[modNum][fileNum].data;
 }
 
+// Resolve a file from a declared SELF source - a PDFT entry carrying flag 0x8,
+// which says its bytes are the loose file at its own path inside the directory
+// of the mod that owns it.
+//
+// This is the file-based twin of an alt-ROM source and it is deliberately not
+// folded into that lane, because the two differ in the one way that matters for
+// memory: an alt-ROM hit hands back a pointer INTO a mounted image and must be
+// marked SRC_ALT_ROM so romdataResetMod() and romdataFileFree() leave it alone,
+// while this hands back an fsFileLoad() allocation and is SRC_EXTERNAL like any
+// other loose file. Sharing one function would put an allocation and a borrowed
+// pointer behind the same source tag.
+//
+// What it does NOT do is walk. That is the whole point: the walk scans every
+// mounted mod dir highest index first, so two mods shipping the same relative
+// path resolve by roster order, and a mod that says exactly where its bytes
+// live should not be at the mercy of that. A miss here falls through to the
+// walk rather than to the ROM, because unlike an alt-ROM extent this
+// declaration can be wrong about a file that simply is not on disk, and the old
+// behaviour is the safer floor.
+//
+// The slot is bound HERE rather than by the caller's shared `if (out)` block,
+// even though that block would do the same thing today. The block sits between
+// the walk and the ROM fallback, and wt/aliasfirst moves it inside a guard that
+// a declared-source hit skips - correctly, for an alt-ROM hit, which borrows a
+// pointer into a mounted image and must stay SRC_ALT_ROM. A self hit is an
+// allocation and does want SRC_EXTERNAL, so it cannot depend on where that
+// block ends up sitting.
+static u8 *romdataFileLoadSelfSource(s32 modNum, s32 fileNum, u32 *outLoadedSize)
+{
+	char resolved[FS_MAXPATH];
+	char tmp[FS_MAXPATH];
+	const char *modName;
+	u32 loadedSize = 0;
+	u8 *out;
+
+	if (modNum < 0 || modNum >= (s32)g_NumModDirs || !modDirs[modNum][0]) {
+		return NULL;
+	}
+
+	modName = strrchr(modDirs[modNum], '/');
+	modName = modName ? modName + 1 : modDirs[modNum];
+
+	// mkfiletable refuses a self source whose path carries the pipe/:: variant
+	// grammar, so this is a plain path for anything it built. Resolved anyway,
+	// with the owner as the current mod, so a hand-written table behaves rather
+	// than having its metadata handed to fopen().
+	romdataResolvePath(resolved, fileSlots[modNum][fileNum].name, sizeof(resolved),
+			modName, modName, false);
+
+	if (resolved[0] == '\0') {
+		return NULL;
+	}
+
+	// The same three-way join the walk uses, against the owner's directory only.
+	if (!strncmp(resolved, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1)) {
+		snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[modNum], resolved);
+	} else if (!strncmp(resolved, "textures/", 9)) {
+		snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[modNum], resolved);
+		if (fsFileSize(tmp) <= 0) {
+			snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[modNum], resolved);
+		}
+	} else {
+		snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[modNum], resolved);
+	}
+
+	if (fsFileSize(tmp) <= 0) {
+		sysLogPrintf(LOG_WARNING,
+				"romdataFileLoad: file %d (%s) is self-sourced in mod %d (%s), and %s is not "
+				"there; falling back to the walk",
+				fileNum, resolved, modNum, modName, tmp);
+		return NULL;
+	}
+
+	out = fsFileLoad(tmp, &loadedSize);
+
+	if (!romdataValidate(out, loadedSize)) {
+		sysLogPrintf(LOG_WARNING, "file %d (%s) corrupted in its own mod %d (%s)",
+				fileNum, resolved, modNum, modName);
+		if (out) {
+			sysMemFree(out);
+		}
+		return NULL;
+	}
+
+	fileSlots[modNum][fileNum].data = out;
+	fileSlots[modNum][fileNum].size = loadedSize;
+	fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
+	fileSlots[modNum][fileNum].numpatches = 0;
+
+	sysLogPrintf(LOG_NOTE, "file %d (%s) loaded from its own mod %d (%s)",
+			fileNum, resolved, modNum, modName);
+
+	*outLoadedSize = loadedSize;
+	return out;
+}
+
 u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 {
 	// The tagged test used to be `fileNum & 0xFFFF0000` written out by hand.
@@ -2267,7 +2443,26 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 
 		bool requireExport = !allowMod;
 
-		// 1. Try the file's own declared source.
+		// 1. Try the file's own declared SELF source.
+		//
+		// An entry carrying PDFT flag 0x8 has said its bytes are the loose file
+		// at its own path inside its own mod's directory. That claim has to be
+		// tested BEFORE the walk or it is worth nothing: the walk scans every
+		// mounted mod dir highest index first, so the mod latest in the roster
+		// that happens to ship a matching relative path wins, and reordering
+		// the roster silently changes which mod's level a stage loads.
+		//
+		// Only the owner's own row is read - never the row-0 fallback the
+		// alt-ROM lane below uses. File ids are mod-local and row 0 is doubly
+		// booked as mod 0's row and the global table's, so a self source found
+		// there is not a declaration BY the mod being loaded, and "its own
+		// directory" would mean mod 0's.
+		if (modNum >= 0 && modNum < MOD_TEX_MAP_MAX_MODS
+				&& g_FileAltSource[modNum][fileNum].romIdx == ROMSOURCE_SELF) {
+			out = romdataFileLoadSelfSource(modNum, fileNum, &loadedSize);
+		}
+
+		// 2. Try the file's own declared ROM source.
 		//
 		// This lane used to run LAST, after the walk and the base dir, guarded
 		// by `!out`. That made a declaration the WEAKEST claim on a file's
@@ -2305,7 +2500,7 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 		// serving some other mod's file instead is the failure this ordering
 		// exists to prevent. Fall through to the ROM.
 		if (!out && !altUnreadable) {
-			// 2. Try All Mods (Reverse Order)
+			// 3. Try All Mods (Reverse Order)
 			for (s32 i = g_NumModDirs - 1; i >= 0; --i) {
 				if (modDirs[i][0]) {
 					// Extract mod name from path (basename)
@@ -2375,7 +2570,7 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 				}
 			}
 
-			// 3. Try Base Dir (if not found in mod or corrupted)
+			// 4. Try Base Dir (if not found in mod or corrupted)
 			if (!out) {
 				// Resolve generic path (no mod constraint)
 				romdataResolvePath(resolvedName, fileSlots[modNum][fileNum].name, sizeof(resolvedName), NULL, ownerModName, requireExport);
@@ -2404,7 +2599,7 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 					fileNum, fileSlots[modNum][fileNum].name, loadedSize, romdataGetContextPrefix(), allowMod);
 			}
 
-			// 4. Row 0 as a global alt-source table, at its old rank.
+			// 5. Row 0 as a global alt-source table, at its old rank.
 			//
 			// g_FileAltSource row 0 is doubly booked - it is mod 0's own row AND
 			// the row an isGlobal filetable.dat writes (see the note at the array
