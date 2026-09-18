@@ -298,7 +298,7 @@ static void luaEventDispatchInts(const char *name, int argc, const lua_Integer *
 	lua_State *L = luaaiGetState();
 	int a;
 
-	if (!L) {
+	if (!L || luaaiIsSuspended()) {
 		return;
 	}
 
@@ -568,6 +568,31 @@ static void luaApiPersistEnsureLoaded(void)
 #endif
 }
 
+/* The reader splits the file on '\n'/'\r' and splits each line on its first
+ * '=', and none of that is recoverable once it is written. A value carrying a
+ * line break comes back as a truncated value plus a forged second entry under
+ * a key the script was never given; an '=' inside a key moves the split, so
+ * the key reads back short and the value reads back long; and an embedded NUL
+ * counts toward the length checked below but stops what fputs actually writes,
+ * so the accounting and the file disagree. Refuse all three at write time. An
+ * '=' in a VALUE is fine -- the reader only splits on the first one. */
+static s32 luaApiPersistBadChars(const char *s, size_t len, s32 iskey)
+{
+	size_t i;
+
+	for (i = 0; i < len; i++) {
+		if (s[i] == '\n' || s[i] == '\r' || s[i] == '\0') {
+			return 1;
+		}
+
+		if (iskey && s[i] == '=') {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /* pd.persist_set(key, value): a nil/absent value clears the key. A key starting
  * with '~' is session-only -- kept in memory, never written to the file. */
 static int l_pd_persist_set(lua_State *L)
@@ -582,6 +607,12 @@ static int l_pd_persist_set(lua_State *L)
 	 * find out a value was too long only when it drops the '~'. */
 	if (keylen + vallen + 1 > LUA_PERSIST_MAXENTRY) {
 		luaApiLog2("pd.persist_set: entry too long for the settings file, refused: ", key);
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+
+	if (luaApiPersistBadChars(key, keylen, 1) || (val && luaApiPersistBadChars(val, vallen, 0))) {
+		luaApiLog2("pd.persist_set: a line break or NUL, or an '=' in the key, refused: ", key);
 		lua_pushboolean(L, 0);
 		return 1;
 	}
@@ -1454,8 +1485,8 @@ void luaTick(void)
 {
 	s32 i, w;
 
-	/* Lua off: nothing to load, nothing to age. */
-	if (!g_LuaAiEnabled) {
+	/* Lua off, or suspended for this stage: nothing to load, nothing to age. */
+	if (!g_LuaAiEnabled || luaaiIsSuspended()) {
 		return;
 	}
 
@@ -1551,8 +1582,9 @@ Gfx *luaHudRender(Gfx *gdl)
 #ifndef PLATFORM_N64
 	s32 i, w;
 
-	/* Lua off, or no state yet: nothing was queued and nobody listens. */
-	if (!g_LuaAiEnabled || !luaaiGetState()) {
+	/* Lua off, suspended, or no state yet: nothing was queued and nobody
+	 * listens. */
+	if (!g_LuaAiEnabled || luaaiIsSuspended() || !luaaiGetState()) {
 		g_LuaXrayCount = 0;
 		return gdl;
 	}

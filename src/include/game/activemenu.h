@@ -13,7 +13,11 @@ void amSetAiBuddyTemperament(bool aggressive);
 void amSetAiBuddyStealth(void);
 s32 amGetFirstBuddyIndex(void);
 void amApply(s32 slot);
-void amGetSlotDetails(s32 slot, u32 *flags, char *label);
+// Longest label amGetSlotDetails will write, and the size every caller
+// except the slot-focus block in activemenutick.c already used.
+#define AM_SLOT_LABEL_LEN 32
+
+void amGetSlotDetails(s32 slot, u32 *flags, char *label, s32 len);
 void amReset(void);
 s16 amCalculateSlotWidth(void);
 void amChangeScreen(s32 step);

@@ -343,10 +343,10 @@ void amTick(void)
 						}
 					} else {
 						bool gotoslot = true;
-						char text[28];
+						char text[AM_SLOT_LABEL_LEN];
 						u32 flags;
 
-						amGetSlotDetails(slotnum, &flags, text);
+						amGetSlotDetails(slotnum, &flags, text, sizeof(text));
 
 						if (strcmp(text, "") == 0) {
 							gotoslot = false;

@@ -257,10 +257,11 @@ static void luaai_quarantine(void *list)
 
 	if (g_LuaErrIsMem) {
 		/* Lua could not allocate. That says the process is short of memory, not
-		 * that this list is at fault, and leaving the other lists running would
-		 * keep asking for memory that is not there. Give the state back now. */
+		 * that this list is at fault, and leaving Lua running would keep asking
+		 * for memory that is not there. Suspend every script path until the next
+		 * stage load, which is where luaaiReset closes the state and frees it. */
 		sysLogPrintf(LOG_ERROR, "luaai: %s in list %d: %s", g_LuaErrWhat, id, g_LuaErrMsg);
-		sysLogPrintf(LOG_ERROR, "luaai: out of memory; Lua AI suspended until the next stage");
+		sysLogPrintf(LOG_ERROR, "luaai: out of memory; Lua suspended until the next stage");
 		g_LuaSuspended = 1;
 		return;
 	}
@@ -708,6 +709,17 @@ void luaaiReset(void)
 s32 luaaiPcall(struct lua_State *L, s32 nargs, s32 nresults)
 {
 	return luaai_pcall_budget(L, nargs, nresults, LUAAI_INSTRUCTION_BUDGET);
+}
+
+/* Whether Lua is suspended for the rest of this stage: too many failed lists,
+ * or an allocation failure. Callers outside the ailist path (the event
+ * dispatcher, luaTick, luaHudRender) check it so a suspend stops every script
+ * path, not just AI lists — an out-of-memory suspend that left handlers
+ * running would go on asking for memory that is not there. Cleared by
+ * luaaiReset on the next stage load. */
+s32 luaaiIsSuspended(void)
+{
+	return g_LuaSuspended;
 }
 
 /* An error value as text, for callers outside this file. See

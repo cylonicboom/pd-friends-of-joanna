@@ -128,6 +128,7 @@ f32 luaApiOptNumR(lua_State *L, s32 idx, f32 def, f32 lo, f32 hi);
  * armed call it shares that budget, so a looping callback ends in an error
  * instead of a hung frame. */
 s32 luaaiPcall(lua_State *L, s32 nargs, s32 nresults);
+s32 luaaiIsSuspended(void);
 
 /* The error value at idx as text, without lua_tostring's number conversion
  * (which allocates). */
