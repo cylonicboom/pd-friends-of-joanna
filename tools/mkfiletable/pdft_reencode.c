@@ -7,10 +7,12 @@
  * the encoder from a table it decoded elsewhere.
  *
  *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback>
- *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp>
+ *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource]
  *   T <localTexId> <slotIdx>
  *
  * A hex field of "-" is an absent string; altRom of -1 is no alt-ROM tail.
+ * selfSource is optional and defaults to 0, so a spec written before the flag
+ * existed still reads.
  * Not built by anything but the test.
  */
 #include <stdio.h>
@@ -103,10 +105,13 @@ int main(int argc, char **argv)
 			sources[numSources].fallback = (uint8_t)d;
 			++numSources;
 		} else if (line[0] == 'F') {
-			unsigned altOfs, altSize, altComp;
+			unsigned altOfs, altSize, altComp, self = 0;
+			int got = sscanf(line, "F %u %u %u %u %s %s %d %u %u %u %u",
+					&a, &b, &c, &d, hexA, hexB, &alt, &altOfs, &altSize, &altComp, &self);
 
-			if (sscanf(line, "F %u %u %u %u %s %s %d %u %u %u",
-					&a, &b, &c, &d, hexA, hexB, &alt, &altOfs, &altSize, &altComp) != 10) continue;
+			if (got != 10 && got != 11) continue;
+
+			if (got == 10) self = 0;
 
 			if (numFiles == capFiles) {
 				capFiles = capFiles ? capFiles * 2 : 256;
@@ -124,6 +129,7 @@ int main(int argc, char **argv)
 			files[numFiles].alt.offset = altOfs;
 			files[numFiles].alt.size = altSize;
 			files[numFiles].alt.compression = (uint8_t)altComp;
+			files[numFiles].selfSource = !!self;
 			++numFiles;
 		} else if (line[0] == 'T') {
 			if (sscanf(line, "T %u %u", &e, &f) != 2) continue;

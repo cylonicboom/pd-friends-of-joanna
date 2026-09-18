@@ -115,11 +115,12 @@ def to_spec(t):
                                             int(s['required']), int(s['strict']), s['fallback']))
     for f in t['files']:
         a = f['alt']
-        out.append("F %u %u %u %u %s %s %d %u %u %u" % (
+        out.append("F %u %u %u %u %s %s %d %u %u %u %u" % (
             f['id'], 1 if f['flags'] & 1 else 0, f['offset'], f['size'],
             hx(f['name']), hx(f['path']),
             a['rom'] if a else -1, a['offset'] if a else 0,
-            a['size'] if a else 0, a['compression'] if a else 0))
+            a['size'] if a else 0, a['compression'] if a else 0,
+            1 if f['flags'] & 8 else 0))
     for local, slot in t['texmap']:
         out.append("T %u %u" % (local, slot))
     return "\n".join(out) + "\n"
