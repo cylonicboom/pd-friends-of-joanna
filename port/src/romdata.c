@@ -2285,8 +2285,19 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 
 		s32 modSlot = (modNum >= 0 && modNum < MOD_TEX_MAP_MAX_MODS) ? modNum : 0;
 
-		out = romdataFileLoadAltSource(modNum, fileNum,
-				&g_FileAltSource[modSlot][fileNum], &altUnreadable);
+		// Guarded, though nothing sets `out` above it today. This is the first
+		// lane, so the test is dead on this branch - and it is the invariant
+		// every lane below already keeps. Leaving it off would make this the
+		// one assignment in the chain that CLEARS a hit rather than skipping:
+		// romdataFileLoadAltSource() answers NULL for anything that is not an
+		// index into g_RomSources, so a second declared-source lane added above
+		// it would have its result overwritten with NULL and fall through to
+		// the walk - silently, and only for files that had declared a source,
+		// which is the failure this whole ordering exists to prevent.
+		if (!out) {
+			out = romdataFileLoadAltSource(modNum, fileNum,
+					&g_FileAltSource[modSlot][fileNum], &altUnreadable);
+		}
 
 		// A declaration that resolved to bytes we cannot decode is not a miss
 		// and does not fall through to the loose-file lanes. The point of
