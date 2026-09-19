@@ -1194,7 +1194,16 @@ struct chrdata {
   /*0x002*/ s8 accuracyrating;
   /*0x003*/ s8 speedrating; // 0-100
   /*0x004*/ u8 firecount[2];
-  /*0x006*/ s8 headnum;
+  // Widened from the N64's s8. g_HeadsAndBodiesOriginal is 159 rows and
+  // modConfigParseHeadsAndBodies appends every mod-declared head past the end
+  // of it, so a modded head index starts at 159 and the shipped mods reach
+  // roughly 300 - all of which wrapped negative in an s8 and indexed
+  // g_HeadsAndBodies out of bounds. The offset comments from here to `hidden`
+  // are the N64's and no longer describe this struct; they already did not,
+  // because 64-bit pointers move everything from `prop` on (measured: `prop`
+  // is at 0x020, not 0x01c) and AVOID_UB reshapes structs in this header
+  // anyway. Nothing serialises a chrdata, so no layout is owed to a file.
+  /*0x006*/ s16 headnum;
   /*0x007*/ s8 actiontype;
   /*0x008*/ s8 sleep;
   /*0x009*/ s8 invalidmove;

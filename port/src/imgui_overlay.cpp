@@ -737,7 +737,7 @@ static void imguiOverlayDescribeChr(struct chrdata *chr)
 
 	ImGui::Text("Number: 0x%04x", (u16)chr->chrnum);
 	ImGui::Text("Body: 0x%04x %s", (u16)chr->bodynum, imguiOverlayHeadBodyName(chr->bodynum));
-	ImGui::Text("Head: 0x%02x %s", (u8)chr->headnum, imguiOverlayHeadBodyName((u8)chr->headnum));
+	ImGui::Text("Head: 0x%04x %s", (u16)chr->headnum, imguiOverlayHeadBodyName(chr->headnum));
 	ImGui::Text("Team: 0x%02x", chr->team);
 	ImGui::Text("Tude: 0x%02x", chr->tude);
 	ImGui::Text("Action: %s (0x%02x)", imguiOverlayActionName(chr->actiontype), (u8)chr->actiontype);
@@ -857,9 +857,9 @@ static bool imguiOverlayChrPassesTextFilter(struct chrdata *chr, s32 index)
 		return false;
 	}
 
-	snprintf(text, sizeof(text), "slot:%d chr:%04x %p body:%04x %s head:%02x %s team:%02x tude:%02x action:%s actionid:%02x damage:%.3f shield:%.3f",
+	snprintf(text, sizeof(text), "slot:%d chr:%04x %p body:%04x %s head:%04x %s team:%02x tude:%02x action:%s actionid:%02x damage:%.3f shield:%.3f",
 			index, (u16)chr->chrnum, chr, (u16)chr->bodynum, imguiOverlayHeadBodyName(chr->bodynum),
-			(u8)chr->headnum, imguiOverlayHeadBodyName((u8)chr->headnum),
+			(u16)chr->headnum, imguiOverlayHeadBodyName(chr->headnum),
 			chr->team, chr->tude, imguiOverlayActionName(chr->actiontype),
 			(u8)chr->actiontype, chr->damage, chr->cshield);
 
@@ -3785,7 +3785,7 @@ static void imguiOverlayDrawProportionsPanel(void)
 	// The head row's own height stacks on the body's to make the crown, which is
 	// the number a person recognises as a height -- the body row alone is eye
 	// level. Vanilla uses 13 for every human head and 27 for every Maian one.
-	s32 propheadnum = (s32)(u8)chr->headnum;
+	s32 propheadnum = (s32)chr->headnum;
 	s32 headadd = (propheadnum >= 0 && propheadnum < g_NumHeadsAndBodies)
 		? (s32)g_HeadsAndBodies[propheadnum].height
 		: 13;

@@ -4451,7 +4451,12 @@ void chrChoke(struct chrdata *chr, s32 choketype)
 		}
 	}
 
-	if (g_HeadsAndBodies[chr->headnum].ismale) {
+	// headnum is a runtime index into an array a mod grows, so it is checked
+	// before it is used. An out of range one reads plausible garbage rather
+	// than crashing, and the only thing it decides here is which set of argh
+	// and cough samples the chr gets - which is exactly why nobody noticed.
+	if (chr->headnum >= 0 && chr->headnum < g_NumHeadsAndBodies
+			&& g_HeadsAndBodies[chr->headnum].ismale) {
 		male = true;
 	}
 
