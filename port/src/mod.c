@@ -1808,8 +1808,13 @@ void modStageRegReport(void)
 	for (s32 i = 0; i < g_NumModStageReg; i++) {
 		const struct modStageRegEntry *e = &g_ModStageReg[i];
 
-		MODSTAGE("reg stage=0x%02x kind=%s mod=%d feature=%d name='%s'",
-				e->stagenum, kindnames[e->kind & MODSTAGE_KIND_BOTH], e->modnum,
+		const char *stagename = stageGetName(e->stagenum);
+
+		/* stage= is the identity a modconfig now declares; arena= is the
+		 * display string an MP block set, which is a different thing. */
+		MODSTAGE("reg stage=0x%02x/%s kind=%s mod=%d feature=%d arena='%s'",
+				e->stagenum, stagename ? stagename : "?",
+				kindnames[e->kind & MODSTAGE_KIND_BOTH], e->modnum,
 				e->requirefeature, e->name ? e->name : "");
 	}
 
@@ -1948,6 +1953,24 @@ void modStageBindingsReset(void)
  * stages as contested by mod 0 with itself, which is the opposite of what this
  * record exists to say.
  */
+/*
+ * The mod directory's basename, for a log line a person has to act on.
+ * "$B/mods/mod_fojo" reads as "mod_fojo"; an index with no directory reads as
+ * its number, because that is still better than nothing.
+ */
+static const char *modDirName(s32 modnum, char *buf, size_t bufSize)
+{
+	if (modnum >= 0 && (u32)modnum < g_NumModDirs && modDirs[modnum][0]) {
+		const char *slash = strrchr(modDirs[modnum], '/');
+
+		return slash ? slash + 1 : modDirs[modnum];
+	}
+
+	snprintf(buf, bufSize, "mod %d", modnum);
+
+	return buf;
+}
+
 void modStageBindingClaim(s32 stagenum, s32 modnum)
 {
 	struct modStageBinding *b;
@@ -1968,10 +1991,22 @@ void modStageBindingClaim(s32 stagenum, s32 modnum)
 		}
 
 		if (b->claimCount > 1) {
+			/* Now that a declaration names the stage, this is the only way two
+			 * mods can land on one row, so it says which stage by name and which
+			 * mods by directory rather than leaving a reader to look up two
+			 * integers. It is LOG_WARNING and ungated on purpose: with names,
+			 * reaching here means two mods asked for the same thing. */
+			char mine[16];
+			char theirs[16];
+			const char *stagename = stageGetName(stagenum);
+
 			sysLogPrintf(LOG_WARNING,
-					"modstage: stage 0x%02x claimed by mod %d and previously by mod %d "
-					"(%u claims); the later claim's fields win by parse order",
-					stagenum, modnum, b->claimedBy, b->claimCount);
+					"modstage: %s and %s both declare stage %s (0x%02x); %u claims, "
+					"and the later one's fields win by parse order",
+					modDirName(b->claimedBy, theirs, sizeof(theirs)),
+					modDirName(modnum, mine, sizeof(mine)),
+					stagename ? stagename : "with no stage table row",
+					stagenum, b->claimCount);
 		}
 	}
 
@@ -2063,24 +2098,88 @@ void modStageBindingReport(void)
 			claimed, claimed == 1 ? "" : "s", contested);
 }
 
+/*
+ * stage STAGE_NAME { ... }, or the older stage NUMBER { ... }.
+ *
+ * Identity is the name, the way it is for a head or a body. A declaration that
+ * names an existing stage REPLACES that row - which is all any shipped stage
+ * mod is doing - and two mods then collide only when they name the same stage,
+ * which is a real conflict and is reported, instead of colliding on an integer
+ * they both happened to pick out of a comment table.
+ *
+ * A name also settles the ambiguity that made inferring the claim from a mod's
+ * files unusable: one bg seg is several vanilla rows (bg_arec.seg is 0x03,
+ * 0x3d, 0x4f and 0x53), so inference claims STAGE_EXTRA* duplicates, while a
+ * declaration naming STAGE_TEST_MP8 touches exactly the row it names.
+ *
+ * A name this build has no row for is NOT appended yet, and the block is
+ * skipped with that said out loud. Appending needs a stagenum with a g_Stages
+ * row behind it and there is no spare one: the 87 rows carry 87 distinct ids
+ * inside 0x01..0x5b, 0x02..0x04 are the MP_RANDOM pseudo-stages, 0x5c..0x5e are
+ * title/bootpak/credits, and 0x5f up is past ARRAYCOUNT(g_ModStageNums).
+ * Allocation is a separate change that grows g_Stages first.
+ *
+ * The number keeps working, unchanged and unwarned. Nine modconfigs in the tree
+ * declare stages by number, and it is the same resolution with the answer
+ * written out by hand - not a legacy path with different semantics.
+ */
 static char *modConfigParseStage(char *p, char *token, s32 modnum)
 {
-	// stage number
+	// stage NUMBER, or stage NAME / stage "NAME"
 	p = strParseToken(p, token, NULL);
-	const s32 stagenum = strtol(token, NULL, 0);
-	// g_ModStageNums is STAGE_4MBMENU entries; the old bound was 0xff, so a
-	// stage number past the end wrote into whatever followed it in bss.
-	if (stagenum <= 0x01 || stagenum >= (s32)ARRAYCOUNT(g_ModStageNums)) {
-		sysLogPrintf(LOG_ERROR, "modconfig: invalid stage number: %x", stagenum);
-		return NULL;
+
+	char *spec = token;
+
+	if (spec[0] == '"') {
+		spec = strUnquote(spec);
 	}
 
-	g_ModStageNums[stagenum] = modnum;
-	sysLogPrintf(LOG_NOTE, "modconfig: mapped stage 0x%02x to mod %d", stagenum, modnum);
-	modStageBindingClaim(stagenum, modnum);
+	// A STAGE_* name never starts with a digit and a number never starts with
+	// a letter, so the two spellings cannot be confused for each other.
+	s32 stagenum = -1;
 
-	// modConfigSkipBlock eats the opening bracket itself, so the skip arm below
-	// has to be handed the file position from before it, the way the
+	if (spec[0] >= '0' && spec[0] <= '9') {
+		stagenum = strtol(spec, NULL, 0);
+		// g_ModStageNums is STAGE_4MBMENU entries; the old bound was 0xff, so a
+		// stage number past the end wrote into whatever followed it in bss.
+		if (stagenum <= 0x01 || stagenum >= (s32)ARRAYCOUNT(g_ModStageNums)) {
+			sysLogPrintf(LOG_ERROR, "modconfig: invalid stage number: %x", stagenum);
+			return NULL;
+		}
+	} else {
+		const s32 named = stageGetIndexByName(spec);
+
+		if (named < 0) {
+			sysLogPrintf(LOG_ERROR,
+					"modconfig: no stage is named '%s'; skipping the block. "
+					"A name with no stage table row is not appended yet - g_StageNames "
+					"(src/game/stagetable.c) is the list of names that exist",
+					spec);
+		} else if (g_Stages[named].id <= 0x01
+				|| g_Stages[named].id >= (s32)ARRAYCOUNT(g_ModStageNums)) {
+			// No row is outside that range today - all 87 ids sit in 0x01..0x5b
+			// and g_ModStageNums covers 0x00..0x5c - but g_ModStageNums is the
+			// smaller table, and growing g_Stages past it must fail here rather
+			// than become a write past the end of it.
+			sysLogPrintf(LOG_ERROR,
+					"modconfig: stage '%s' is 0x%02x, past the end of g_ModStageNums; skipping the block",
+					spec, g_Stages[named].id);
+		} else {
+			stagenum = g_Stages[named].id;
+		}
+	}
+
+	if (stagenum >= 0) {
+		const char *stagename = stageGetName(stagenum);
+
+		g_ModStageNums[stagenum] = modnum;
+		sysLogPrintf(LOG_NOTE, "modconfig: mapped stage 0x%02x (%s) to mod %d",
+				stagenum, stagename ? stagename : "no stage table row", modnum);
+		modStageBindingClaim(stagenum, modnum);
+	}
+
+	// modConfigSkipBlock eats the opening bracket itself, so the skip arms below
+	// have to be handed the file position from before it, the way the
 	// HeadsAndBodies skip is. Handing it the position after meant it took the
 	// block's first key for the bracket and returned NULL, which is not a skip -
 	// it aborts the whole modconfig.
@@ -2090,6 +2189,12 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	p = strParseToken(p, token, NULL);
 	if (token[0] != '{' || token[1] != '\0') {
 		return NULL;
+	}
+
+	if (stagenum < 0) {
+		// An unresolved name. Said so above; skip the block and keep reading
+		// the rest of the modconfig.
+		return modConfigSkipBlock(blockStart, token);
 	}
 
 	// find the stage table pointers this corresponds to
