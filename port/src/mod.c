@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "romdata.h"
 #include "mod.h"
+#include "config.h"
 #include "data.h"
 #include "bss.h"
 #include "game/body.h"
@@ -102,6 +103,242 @@ static s32 g_NumModHeadNames = 0;
 
 static struct { char *name; u32 filenum; } *g_ModHandFileNames = NULL;
 static s32 g_NumModHandFileNames = 0;
+
+/*
+ * Persisted mp-slot reservations.
+ *
+ * A mod head that declares no slotnum is appended to g_MpHeads, and the index
+ * it lands on is the index a saved profile stores: mpheadnum indexes
+ * g_MpHeads (mpGetHeadId, mplayer.c:3161), not g_HeadsAndBodies. Appending
+ * meant that index was decided by --moddir order, so adding a mod ahead of
+ * another one in the roster moved every head behind it and a saved profile
+ * came back wearing a different face. Nothing keyed the index to the head, and
+ * g_ModHeadNames - the only name -> id map there was - is rebuilt from the
+ * modconfigs every boot and never written anywhere.
+ *
+ * So the allocation is what gets persisted, in pd.ini, one key per head name:
+ *
+ *   [MpHeadSlots]
+ *   head_mikado=75
+ *
+ * A name that has been allocated a slot keeps it. A name that has not takes
+ * the lowest slot no reservation holds. A name whose mod is not loaded this
+ * session keeps its reservation, because the entry is registered with a live
+ * pointer at scan time and configSave writes back what it finds registered -
+ * the same reason iniBindProfileProperties binds [MpPlayer.*] sections for
+ * identities that are not present (mplayer.c:394).
+ *
+ * The entries array is fixed and never realloc'd: config holds a pointer into
+ * it for the lifetime of the process.
+ *
+ * Head names are unique across the shipped roster - 153 declarations in the
+ * three character mods, 153 distinct names, no collision - so the head name
+ * alone is the key and the mod name is not part of it. Two mods that do pick
+ * the same name already replace each other's row; this does not change that.
+ */
+#define MOD_SLOT_MAX_NAME 64
+#define MOD_MAX_SLOT_RESERVATIONS 512
+
+// Highest index a save file can hold: mpheadnum and mpbodynum are written in
+// 7 bits (mplayer.c:4171-4172 for the profile, :4701/:4716 for the bots).
+#define MOD_MAX_PERSISTABLE_SLOT 127
+
+// A reservation past this is a damaged ini, not an allocation.
+#define MOD_MAX_SLOT_INDEX 1023
+
+#define MOD_HEADSLOT_SECTION "MpHeadSlots"
+#define MOD_BODYSLOT_SECTION "MpBodySlots"
+
+struct modslotreservation {
+	char name[MOD_SLOT_MAX_NAME];
+	s32 slot;
+};
+
+struct modslottable {
+	const char *section;
+	s32 first;      // lowest index this table may hand out
+	s32 count;
+	u8 fullWarned;
+	u8 ceilingWarned;
+	struct modslotreservation entries[MOD_MAX_SLOT_RESERVATIONS];
+};
+
+static struct modslottable g_ModHeadSlots = { MOD_HEADSLOT_SECTION };
+static struct modslottable g_ModBodySlots = { MOD_BODYSLOT_SECTION };
+static bool g_ModSlotsLoaded = false;
+
+static struct modslotreservation *modSlotFind(struct modslottable *tbl, const char *name)
+{
+	for (s32 i = 0; i < tbl->count; ++i) {
+		if (!strcmp(tbl->entries[i].name, name)) {
+			return &tbl->entries[i];
+		}
+	}
+	return NULL;
+}
+
+static bool modSlotTaken(struct modslottable *tbl, s32 slot)
+{
+	for (s32 i = 0; i < tbl->count; ++i) {
+		if (tbl->entries[i].slot == slot) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const char *name, s32 slot)
+{
+	char key[CONFIG_MAX_KEYNAME + 1];
+	struct modslotreservation *r;
+
+	if (tbl->count >= MOD_MAX_SLOT_RESERVATIONS) {
+		if (!tbl->fullWarned) {
+			tbl->fullWarned = 1;
+			sysLogPrintf(LOG_WARNING,
+					"modconfig: more than %d [%s] reservations; '%s' and later names fall back to roster order",
+					MOD_MAX_SLOT_RESERVATIONS, tbl->section, name);
+		}
+		return NULL;
+	}
+
+	r = &tbl->entries[tbl->count++];
+	snprintf(r->name, sizeof(r->name), "%s", name);
+	r->slot = slot;
+
+	// min == max, so configSet does not clamp it.
+	snprintf(key, sizeof(key), "%s.%s", tbl->section, r->name);
+	configRegisterInt(key, &r->slot, 0, 0);
+
+	if (slot > MOD_MAX_PERSISTABLE_SLOT && !tbl->ceilingWarned) {
+		tbl->ceilingWarned = 1;
+		sysLogPrintf(LOG_WARNING,
+				"modconfig: [%s] '%s' got index %d; a save file holds 7 bits, so anything above %d cannot be stored",
+				tbl->section, name, slot, MOD_MAX_PERSISTABLE_SLOT);
+	}
+
+	return r;
+}
+
+static void modSlotScanned(const char *name, const char *value, void *ctx)
+{
+	struct modslottable *tbl = ctx;
+	s32 slot;
+
+	if (!name || !name[0] || !value) {
+		return;
+	}
+
+	slot = (s32)strtol(value, NULL, 0);
+
+	if (slot < tbl->first || slot > MOD_MAX_SLOT_INDEX) {
+		sysLogPrintf(LOG_WARNING, "modconfig: [%s] '%s' = %d is out of range; dropping the reservation",
+				tbl->section, name, slot);
+		return;
+	}
+
+	if (modSlotFind(tbl, name)) {
+		return;
+	}
+
+	if (modSlotTaken(tbl, slot)) {
+		sysLogPrintf(LOG_WARNING, "modconfig: [%s] '%s' wants index %d, already reserved; dropping the reservation",
+				tbl->section, name, slot);
+		return;
+	}
+
+	modSlotAdd(tbl, name, slot);
+}
+
+/*
+ * Read the reservations back before any modconfig is parsed. Dropped keys are
+ * simply not registered, so the next configSave writes the file without them
+ * and the name is reallocated on the run after that.
+ */
+void modSlotReservationsInit(void)
+{
+	if (g_ModSlotsLoaded) {
+		return;
+	}
+	g_ModSlotsLoaded = true;
+
+	g_ModHeadSlots.first = (s32)g_NumMpHeads_Original;
+	g_ModBodySlots.first = (s32)g_NumMpBodies_Original;
+
+	configScanSection(CONFIG_PATH, MOD_HEADSLOT_SECTION, modSlotScanned, &g_ModHeadSlots);
+	configScanSection(CONFIG_PATH, MOD_BODYSLOT_SECTION, modSlotScanned, &g_ModBodySlots);
+
+	sysLogPrintf(LOG_NOTE, "modconfig: restored %d head and %d body slot reservations from " CONFIG_FNAME,
+			g_ModHeadSlots.count, g_ModBodySlots.count);
+}
+
+static s32 modSlotReserve(struct modslottable *tbl, const char *name)
+{
+	struct modslotreservation *r;
+	s32 slot;
+
+	if (!name || !name[0]) {
+		return -1;
+	}
+
+	modSlotReservationsInit();
+
+	r = modSlotFind(tbl, name);
+	if (r) {
+		return r->slot;
+	}
+
+	slot = tbl->first;
+	while (modSlotTaken(tbl, slot)) {
+		slot++;
+	}
+
+	r = modSlotAdd(tbl, name, slot);
+
+	return r ? r->slot : -1;
+}
+
+/*
+ * An explicit slotnum is the modconfig's own choice, so it is recorded rather
+ * than allocated - otherwise a later auto-allocated name could be handed the
+ * same index.
+ */
+static void modSlotClaim(struct modslottable *tbl, const char *name, s32 slot)
+{
+	struct modslotreservation *r;
+
+	if (!name || !name[0]) {
+		return;
+	}
+
+	modSlotReservationsInit();
+
+	if (slot < tbl->first || slot > MOD_MAX_SLOT_INDEX) {
+		return;
+	}
+
+	r = modSlotFind(tbl, name);
+	if (r) {
+		if (r->slot != slot) {
+			sysLogPrintf(LOG_WARNING, "modconfig: [%s] '%s' is reserved at %d but the modconfig asks for %d; using %d",
+					tbl->section, name, r->slot, slot, slot);
+		}
+		return;
+	}
+
+	if (modSlotTaken(tbl, slot)) {
+		sysLogPrintf(LOG_WARNING, "modconfig: [%s] '%s' asks for index %d, already reserved by another name",
+				tbl->section, name, slot);
+		return;
+	}
+
+	modSlotAdd(tbl, name, slot);
+}
+
+s32 modHeadSlotReserve(const char *name) { return modSlotReserve(&g_ModHeadSlots, name); }
+s32 modBodySlotReserve(const char *name) { return modSlotReserve(&g_ModBodySlots, name); }
+void modHeadSlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModHeadSlots, name, slot); }
+void modBodySlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModBodySlots, name, slot); }
 
 // Per-mod cached config data (parsed once at boot, then just copied on modSwitch)
 struct modelstate g_ModelStates_PerMod[64][NUM_MODELS];
@@ -1504,6 +1741,8 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 
 	// Head-slot linking
 	if (slotInfo.slotNum >= 0) {
+		modHeadSlotClaim(name, slotInfo.slotNum);
+
 		if (g_MpHeads == g_MpHeadsOriginal) {
 			struct mphead *new_array = malloc(g_NumMpHeads * sizeof(struct mphead));
 			if (new_array) {
@@ -1529,7 +1768,12 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 			}
 		}
 	} else if (replaceIndex < 0 && slotInfo.bodySlotNum < 0) {
-		// New entry with no explicit slot and no body slot: auto-append to MpHeads.
+		// New entry with no explicit slot and no body slot: it goes to the
+		// index this head name has been allocated, which does not move when
+		// the roster does. A head with no name, or one past the end of the
+		// reservation table, falls back to appending.
+		s32 headSlot = modHeadSlotReserve(name);
+
 		if (g_MpHeads == g_MpHeadsOriginal) {
 			struct mphead *new_array = malloc(g_NumMpHeads * sizeof(struct mphead));
 			if (new_array) {
@@ -1538,15 +1782,25 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 			}
 		}
 
+		if (headSlot < 0) {
+			headSlot = g_NumMpHeads;
+		}
+
 		if (g_MpHeads != g_MpHeadsOriginal) {
-			struct mphead *new_array = realloc(g_MpHeads, (g_NumMpHeads + 1) * sizeof(struct mphead));
-			if (new_array) {
-				g_MpHeads = new_array;
-				g_MpHeads[g_NumMpHeads].headnum = headBodyIndex;
-				g_MpHeads[g_NumMpHeads].requirefeature = slotInfo.requireFeature;
-				g_NumMpHeads++;
-				sysLogPrintf(LOG_NOTE, "modconfig: auto-appended head '%s' to MpHeads[%d]",
-				             name, g_NumMpHeads - 1);
+			if (headSlot >= g_NumMpHeads) {
+				s32 oldNum = g_NumMpHeads;
+				struct mphead *new_array = realloc(g_MpHeads, (headSlot + 1) * sizeof(struct mphead));
+				if (new_array) {
+					g_MpHeads = new_array;
+					g_NumMpHeads = headSlot + 1;
+					memset(&g_MpHeads[oldNum], 0, (g_NumMpHeads - oldNum) * sizeof(struct mphead));
+				}
+			}
+
+			if (headSlot < g_NumMpHeads) {
+				g_MpHeads[headSlot].headnum = headBodyIndex;
+				g_MpHeads[headSlot].requirefeature = slotInfo.requireFeature;
+				sysLogPrintf(LOG_NOTE, "modconfig: head '%s' -> MpHeads[%d]", name, headSlot);
 			}
 		}
 	}
@@ -1556,17 +1810,24 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 		// bodyslotnum 1 is a flag meaning "auto-assign next available slot"
 		s32 bodySlot = slotInfo.bodySlotNum;
 		if (bodySlot == 1) {
-			// If a body slot already references this headBodyIndex (e.g. the
-			// modconfig has been re-parsed), update that slot in place instead
-			// of allocating a duplicate.
-			s32 existingSlot = -1;
-			for (s32 i = 0; i < g_NumMpBodies; ++i) {
-				if (g_MpBodies[i].bodynum == headBodyIndex) {
-					existingSlot = i;
-					break;
+			bodySlot = modBodySlotReserve(name);
+
+			if (bodySlot < 0) {
+				// No name, or the reservation table is full. If a body slot
+				// already references this headBodyIndex (e.g. the modconfig has
+				// been re-parsed), update that slot in place instead of
+				// allocating a duplicate.
+				s32 existingSlot = -1;
+				for (s32 i = 0; i < g_NumMpBodies; ++i) {
+					if (g_MpBodies[i].bodynum == headBodyIndex) {
+						existingSlot = i;
+						break;
+					}
 				}
+				bodySlot = (existingSlot >= 0) ? existingSlot : g_NumMpBodies;
 			}
-			bodySlot = (existingSlot >= 0) ? existingSlot : g_NumMpBodies;
+		} else {
+			modBodySlotClaim(name, bodySlot);
 		}
 
 		if (g_MpBodies == g_MpBodiesOriginal) {
@@ -2399,6 +2660,10 @@ void modInit(void)
 	if (getenv("PD_DEBUG_MODSTAGE")) {
 		g_DebugModStage = true;
 	}
+
+	// Before any modconfig is read, so the first HeadsAndBodies block already
+	// sees what this pd.ini has allocated.
+	modSlotReservationsInit();
 
 	// Reset mod stage mapping
 	for (s32 i = 0; i < STAGE_4MBMENU; i++) {

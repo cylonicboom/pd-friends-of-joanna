@@ -13,6 +13,7 @@
 struct configentry settings[CONFIG_MAX_SETTINGS];
 static s32 numSettings = 0;
 static u8 configMaxWarningLogged = 0;
+static u8 configGuidQueueWarningLogged = 0;
 
 static inline s32 configClampInt(s32 val, s32 min, s32 max)
 {
@@ -296,7 +297,22 @@ static inline s32 configLoadFileIdFromSection(const char *sec, u16 *deviceserial
     return 0;
 }
 
-s32 configLoadKey(const char *fname, char *key)
+/*
+ * One parser for the three ways the ini is read.
+ *
+ *   key == NULL, scan == NULL   full load: every key is applied and every
+ *                               [MpPlayer.*] header is queued for binding
+ *   key != NULL                 re-read exactly that one key, nothing else
+ *   scan != NULL                do not apply anything; hand every key in that
+ *                               one section to the callback, value included
+ *
+ * The third is for sections whose key names are not known until the file has
+ * been read - the caller allocates storage per name and registers it, which
+ * is what keeps the entry alive through the next configSave. Without that a
+ * key nobody registered sits in the table with a NULL ptr, and both configSet
+ * and configSaveEntry skip a NULL ptr, so it is silently dropped on save.
+ */
+static s32 configParseFile(const char *fname, char *key, const struct configsectionscan *scan)
 {
 	FILE *f = fsFileOpenRead(fname);
 	if (!f) {
@@ -305,6 +321,7 @@ s32 configLoadKey(const char *fname, char *key)
 
 	char curSec[CONFIG_MAX_SECNAME + 1] = { 0 };
 	char keyBuf[CONFIG_MAX_SECNAME * 2 + 2] = { 0 }; // SECTION + . + KEY + \0
+	char nameBuf[CONFIG_MAX_SECNAME + 1] = { 0 };   // KEY on its own, for scan
 	char token[UTIL_MAX_TOKEN + 1] = { 0 };
 	char lineBuf[2048] = { 0 };
 	char *line = lineBuf;
@@ -327,8 +344,14 @@ s32 configLoadKey(const char *fname, char *key)
 			u16 deviceserial = 0;
 			s32 fileid = 0;
 			s32 configindex = -1;
-			if (!key && configLoadFileIdFromSection(curSec, &deviceserial, &fileid)) {
-				g_GuidsToProcess[g_NumGuidsToProcess++] = (struct fileguid) { fileid, deviceserial };
+			if (!key && !scan && configLoadFileIdFromSection(curSec, &deviceserial, &fileid)) {
+				if (g_NumGuidsToProcess < ARRAYCOUNT(g_GuidsToProcess)) {
+					g_GuidsToProcess[g_NumGuidsToProcess++] = (struct fileguid) { fileid, deviceserial };
+				} else if (!configGuidQueueWarningLogged) {
+					configGuidQueueWarningLogged = 1;
+					sysLogPrintf(LOG_WARNING, "configLoad: more than %d [MpPlayer.*] sections in %s; the rest will not keep their settings",
+						ARRAYCOUNT(g_GuidsToProcess), fname);
+				}
 			}
 			// eat ]
 			line = strParseToken(line, token, NULL);
@@ -337,6 +360,7 @@ s32 configLoadKey(const char *fname, char *key)
 			}
 		} else if (token[0]) {
 			// probably a key=value pair; append key name to section name
+			snprintf(nameBuf, sizeof(nameBuf), "%s", token);
 			snprintf(keyBuf, sizeof(keyBuf) - 1, "%s.%s", curSec, token);
 			// eat =
 			line = strParseToken(line, token, NULL);
@@ -349,7 +373,11 @@ s32 configLoadKey(const char *fname, char *key)
 			if (line[0] == '"') {
 				line = strUnquote(line);
 			}
-			if (!key || (key && strcmp(keyBuf, key) == 0)) {
+			if (scan) {
+				if (!strcasecmp(curSec, scan->section)) {
+					scan->fn(nameBuf, line, scan->ctx);
+				}
+			} else if (!key || strcmp(keyBuf, key) == 0) {
 				configSetFromString(keyBuf, line);
 			}
 		}
@@ -360,9 +388,26 @@ s32 configLoadKey(const char *fname, char *key)
 	return 1;
 
 }
+
+s32 configLoadKey(const char *fname, char *key)
+{
+	return configParseFile(fname, key, NULL);
+}
+
 s32 configLoad(const char *fname)
 {
-	return configLoadKey(fname, 0);
+	return configParseFile(fname, 0, NULL);
+}
+
+s32 configScanSection(const char *fname, const char *section, configsectionfunc fn, void *ctx)
+{
+	struct configsectionscan scan = { section, fn, ctx };
+
+	if (!section || !fn) {
+		return 0;
+	}
+
+	return configParseFile(fname, 0, &scan);
 }
 
 void configInit(void)
