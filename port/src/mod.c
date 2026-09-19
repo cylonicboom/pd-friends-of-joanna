@@ -2834,25 +2834,69 @@ s32 modConfigLoad(const char *fname)
 {
 	u32 dataLen = 0;
 
-	// Resolve where this call will actually look. fsFullPath consults
-	// fsModFullPath, which probes modDirs[g_ModNum] first and falls
-	// back to other mod dirs — so a "not found" here is meaningful
-	// only when paired with the directory that was searched.
-	const char *resolvedPath = fsFullPath(fname);
 	const char *activeModDir = (g_ModNum >= 0 && g_ModNum < (s32)g_NumModDirs) ? modDirs[g_ModNum] : "(none)";
 	const char *activeModName = (g_ModNum >= 0 && g_ModNum < 64 && g_ModNames[g_ModNum][0]) ? g_ModNames[g_ModNum] : "(unnamed)";
 
-	char *data = fsFileLoad(fname, &dataLen);
+	/*
+	 * Build the path from the active mod's directory rather than handing the
+	 * bare filename to fsFullPath, which is what modLoadAIO has always done
+	 * and is the only route that works.
+	 *
+	 * fsFullPath's mod-dir probe cannot resolve this - or anything else. It
+	 * calls fsModFullPath(pathBuf, relPath) with its OWN static pathBuf, the
+	 * probe writes "<modDir>/<relPath>" into that buffer, and then asks
+	 * fsFileSize whether it exists. fsFileSize calls fsFullPath again, on the
+	 * very buffer fsFullPath is in the middle of filling. Every modDirs[]
+	 * entry is stored in "$B/mods/<name>" placeholder form, so that re-entry
+	 * takes the '$' branch and does
+	 *
+	 *     memcpy(pathBuf, baseDir, strlen(baseDir));
+	 *     strncpy(pathBuf + len, relPath + 2, ...);   // relPath IS pathBuf
+	 *
+	 * - the memcpy overwrites the candidate before the strncpy reads the tail
+	 * it was supposed to append, so the stat runs against baseDir with a slice
+	 * of baseDir glued onto it. It never matches, so the probe reports "not in
+	 * any mod dir" for every file, and fsFullPath falls back to
+	 * "<baseDir>/modconfig.txt", which does not exist. That is the 13 fsFileLoad
+	 * errors a boot log shows, one per modConfigLoad call.
+	 *
+	 * So this function has never parsed anything. modConfigLoad is the only
+	 * caller of modConfigParseStage, and modLoadAIO - the route that does open
+	 * these files - deliberately skips stage blocks, which is why heads and
+	 * bodies work and no stage has ever been claimed.
+	 *
+	 * Fixed here rather than in fsModFullPathCheck. The aliasing is real and
+	 * the helper is wrong, but it sits on every asset lookup in the game and
+	 * has resolved nothing since it was written ("found in modDir" appears
+	 * zero times in every log on disk), so repairing it turns on mod-dir
+	 * resolution for textures, files/ and sequences/ all at once. That is a
+	 * separate change with its own blast radius; it should not ride along with
+	 * a stage-parsing fix.
+	 *
+	 * The filename stays a parameter because every caller passes
+	 * MOD_CONFIG_FNAME and the log lines quote it, but the directory is not
+	 * the caller's to choose: g_ModNum is what the rest of this function
+	 * parses as (`modnum` below), so resolving the path against anything else
+	 * would let the file and the mod it is attributed to disagree. All four
+	 * callers set g_ModNum immediately before calling for exactly that reason.
+	 */
+	char path[FS_MAXPATH];
+	if (g_ModNum >= 0 && g_ModNum < (s32)g_NumModDirs && modDirs[g_ModNum][0]) {
+		snprintf(path, sizeof(path), "%s/%s", modDirs[g_ModNum], fname);
+	} else {
+		snprintf(path, sizeof(path), "%s", fname);
+	}
+
+	char *data = fsFileLoad(path, &dataLen);
 	if (!data) {
-		/* sysLogPrintf(LOG_NOTE,
-				"modconfig: probe miss for '%s' (g_ModNum=%d '%s' modDir='%s' resolved='%s') — "
-				"caller may try another mod dir",
-				fname, g_ModNum, activeModName, activeModDir, resolvedPath); */
+		sysLogPrintf(LOG_NOTE,
+				"modconfig: no config at '%s' (g_ModNum=%d '%s' modDir='%s')",
+				path, g_ModNum, activeModName, activeModDir);
 		return false;
 	}
 
 	sysLogPrintf(LOG_NOTE, "modconfig: loaded '%s' (%u bytes) for mod %d '%s' from '%s'",
-			fname, dataLen, g_ModNum, activeModName, resolvedPath);
+			fname, dataLen, g_ModNum, activeModName, path);
 
 	s32 modnum = g_ModNum;
 
