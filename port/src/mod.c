@@ -2079,6 +2079,13 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	sysLogPrintf(LOG_NOTE, "modconfig: mapped stage 0x%02x to mod %d", stagenum, modnum);
 	modStageBindingClaim(stagenum, modnum);
 
+	// modConfigSkipBlock eats the opening bracket itself, so the skip arm below
+	// has to be handed the file position from before it, the way the
+	// HeadsAndBodies skip is. Handing it the position after meant it took the
+	// block's first key for the bracket and returned NULL, which is not a skip -
+	// it aborts the whole modconfig.
+	char *blockStart = p;
+
 	// eat opening bracket
 	p = strParseToken(p, token, NULL);
 	if (token[0] != '{' || token[1] != '\0') {
@@ -2094,7 +2101,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	} else {
 		sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: unknown stage number", stagenum);
 		// Skip this block instead of failing completely
-		return modConfigSkipBlock(p, token);
+		return modConfigSkipBlock(blockStart, token);
 	}
 	for (struct stageallocation *p = g_StageAllocations8Mb; p->stagenum; ++p) {
 		if (p->stagenum == stagenum) {
