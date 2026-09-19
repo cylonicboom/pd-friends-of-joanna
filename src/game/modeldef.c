@@ -727,8 +727,84 @@ void modeldef0f1a7560(struct modeldef *modeldef, s32 filenum, u32 arg2, struct m
 	node = NULL;
 
 #ifndef PLATFORM_N64
+	// Scope this model's texture loads to whoever owns it, the same way
+	// bgLoadRoom scopes a room's - and, like bgLoadRoom, with a fallback,
+	// because the id alone cannot always say.
+	//
+	// The owner tag answers for anything a modconfig named: a HeadsAndBodies
+	// entry (mod.c:1136), a ModelStates row (mod.c:1215), a gun file. It cannot
+	// answer for a PROP. A prop's model arrives here via
+	// g_ModelStates[modelnum].fileid, and the setup file's object commands
+	// carry a MODEL NUMBER, not a file id - so the fileid is whatever the
+	// static g_ModelStates table holds, a plain vanilla id, unless a modconfig
+	// ModelStates block overwrote it with a tagged one. Not one mod in the
+	// working roster ships a ModelStates block, so in practice every prop
+	// reaches this line untagged, MOD_FILEID_MOD answers -1, and
+	// modTextureLoad's `g_TexModNum < 0` gate declines to probe any mod's
+	// filetable. The model's baked texture numbers then resolve in vanilla
+	// scope, which is how a mod's own prop ends up wearing a vanilla texture
+	// while the room around it is correct.
+	//
+	// The rule, in her words: if a prop is in a stage we can assume the owner
+	// is the same as the stage unless it is tagged otherwise explicitly. So:
+	// tag first, then the stage's claim, then nothing.
+	//
+	// NOT g_ModNum, which is the tempting answer and is wrong. For an untagged
+	// id g_ModNum is what romdataFileLoad used to pick the bytes, so it looks
+	// like the derived answer - but modSwitch only ASSIGNS it when the stage
+	// has a claim (`if (modNumFromStage(stagenum) > -1 && modnum < 0)`,
+	// mod.c:3479). On an unclaimed stage it keeps the previous stage's mod, and
+	// the `g_ModNum < 0` safety check below that cannot catch it because the
+	// value is stale-valid, not negative. 57 of the stage rows are claimed, so
+	// roughly thirty are not: load Kakariko, then load a vanilla arena, and
+	// every prop in it would resolve in Kakariko's texmap. Those stages are
+	// correct today. modNumFromStage answers -1 for them, which is the right
+	// answer - vanilla stage, vanilla scope - and is why there is no `else`
+	// here inventing an owner.
+	//
+	// WHAT COUNTS AS A LIVE STAGE, and why this test is false in the places
+	// that have no stage. g_Vars.stagenum is written in exactly one place,
+	// lvReset (lv.c:357), from g_StageNum. The bounds are the engine's own,
+	// not new:
+	//   - `< STAGE_TITLE` is what main.c:781/807/837/881/1043 and
+	//     pdmain.c:406/409/434/465 already use to mean "a real level is
+	//     loaded"; wallhitreset.c:91 and smokereset.c:15 use `>= STAGE_TITLE`
+	//     for the negation. STAGE_TITLE is 0x5c and STAGE_BOOTPAKMENU,
+	//     STAGE_4MBMENU and STAGE_CREDITS are all above it, so title, both pak
+	//     menus and the credits all fail the test. g_StageNum's INITIAL value
+	//     is STAGE_TITLE (main.c:78, pdmain.c:95), so the title logos load
+	//     with the test already false rather than merely not-yet-true.
+	//     The upper bound is load-bearing and not decoration: modconfig will
+	//     accept a claim on 0x5c (mod.c:2406 only refuses >= 0x5d), so without
+	//     it a mod claiming STAGE_TITLE would own every menu model.
+	//   - `> 0x01` mirrors the same modconfig refusal at the bottom of the
+	//     range, and covers boot: g_Vars is bss and varsinit.c never assigns
+	//     stagenum, so it is 0 until the first lvReset.
+	// The Carrington Institute is NOT excluded, deliberately - STAGE_CITRAINING
+	// is 0x26, a real stage that mod_fojo claims, and a prop in it is a prop in
+	// a stage. Heads, bodies and guns do not need this at all: their ids are
+	// tagged, so the tag answers before the fallback is consulted.
+	//
+	// Vanilla is preserved on a miss. modTexMapReverseLookup returns 0xffff
+	// (romdata.c:305) and modTextureResolveFileDetailed DISCARDS it rather than
+	// using it as an id, every candidate filename misses, and modTextureLoad
+	// returns 0 - which texdecompress.c:2343 treats as "not handled" and falls
+	// through to the vanilla ROM dmaExec. The mod only wins when it actually
+	// ships bytes for that texture number.
 	s32 prevTexMod = g_TexModNum;
-	g_TexModNum = MOD_FILEID_MOD(filenum);
+	{
+		s32 texMod = MOD_FILEID_MOD(filenum);
+
+		if (texMod < 0) {
+			const s32 stagenum = g_Vars.stagenum;
+
+			if (stagenum > 0x01 && stagenum < STAGE_TITLE) {
+				texMod = modNumFromStage(stagenum);
+			}
+		}
+
+		g_TexModNum = texMod;
+	}
 #endif
 
 	modelIterateDisplayLists(modeldef, &node, (Gfx **)&gdl);
