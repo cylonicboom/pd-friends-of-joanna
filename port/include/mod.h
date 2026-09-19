@@ -241,6 +241,14 @@ void modUnloadTextureSurfaceType(void);
 void modSwitch(s32 modnum, s32 stagenum);
 s32 modNumFromStage(s32 stagenum);
 s32 modLookupHeadByName(const char *name);
+
+// Persisted g_MpHeads / g_MpBodies index allocation, keyed by the head or body
+// name a modconfig declares. See the note above the store in mod.c.
+void modSlotReservationsInit(void);
+s32 modHeadSlotReserve(const char *name);
+s32 modBodySlotReserve(const char *name);
+void modHeadSlotClaim(const char *name, s32 slot);
+void modBodySlotClaim(const char *name, s32 slot);
 s32 modLookupBodyByName(const char *name);
 s32 modLookupHandFileByName(const char *name);
 s32 modLookupHeadnumByName(const char *name);

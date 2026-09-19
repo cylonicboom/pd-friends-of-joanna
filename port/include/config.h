@@ -41,6 +41,19 @@ void configInit(void);
 s32 configLoad(const char *fname);
 s32 configLoadKey(const char *fname, char *key);
 
+// Reads one section out of the file without applying anything, calling fn for
+// each key in it with the key name and the raw value. For sections whose key
+// names are only known from the file itself; the callback is expected to
+// allocate storage and configRegister* it, which is what keeps the key alive
+// through the next configSave.
+typedef void (*configsectionfunc)(const char *key, const char *value, void *ctx);
+struct configsectionscan {
+	const char *section;
+	configsectionfunc fn;
+	void *ctx;
+};
+s32 configScanSection(const char *fname, const char *section, configsectionfunc fn, void *ctx);
+
 // saves config to file (path extensions such as ! apply)
 s32 configSave(const char *fname);
 
