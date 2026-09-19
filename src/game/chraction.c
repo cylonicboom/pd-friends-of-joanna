@@ -16537,6 +16537,15 @@ struct prop *chrSpawnAtCoord(s32 bodynum, s32 headnum, struct coord *pos, RoomNu
 					chr->headnum = headnum;
 					chr->bodynum = bodynum;
 					chr->race = bodyGetRace(chr->bodynum);
+
+					// Same draw bodyAllocateChr and botmgr make. Without it
+					// the chr keeps chrInit's zero, which is VOICEBOX_MALE0.
+					chr->voicebox = rngRandom() % 3;
+
+					if (!g_HeadsAndBodies[chr->bodynum].ismale) {
+						chr->voicebox = VOICEBOX_FEMALE;
+					}
+
 					chr->flags = 0;
 					chr->flags2 = 0;
 #if VERSION >= VERSION_NTSC_1_0
