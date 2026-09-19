@@ -13,6 +13,7 @@
 struct configentry settings[CONFIG_MAX_SETTINGS];
 static s32 numSettings = 0;
 static u8 configMaxWarningLogged = 0;
+static u8 configGuidQueueWarningLogged = 0;
 
 static inline s32 configClampInt(s32 val, s32 min, s32 max)
 {
@@ -328,7 +329,13 @@ s32 configLoadKey(const char *fname, char *key)
 			s32 fileid = 0;
 			s32 configindex = -1;
 			if (!key && configLoadFileIdFromSection(curSec, &deviceserial, &fileid)) {
-				g_GuidsToProcess[g_NumGuidsToProcess++] = (struct fileguid) { fileid, deviceserial };
+				if (g_NumGuidsToProcess < ARRAYCOUNT(g_GuidsToProcess)) {
+					g_GuidsToProcess[g_NumGuidsToProcess++] = (struct fileguid) { fileid, deviceserial };
+				} else if (!configGuidQueueWarningLogged) {
+					configGuidQueueWarningLogged = 1;
+					sysLogPrintf(LOG_WARNING, "configLoad: more than %d [MpPlayer.*] sections in %s; the rest will not keep their settings",
+						ARRAYCOUNT(g_GuidsToProcess), fname);
+				}
 			}
 			// eat ]
 			line = strParseToken(line, token, NULL);

@@ -367,10 +367,17 @@ static inline s32 iniAllocateProfileSlot(struct fileguid *fileguid) {
   s32 index = getExtendedProfileIndexFromFileGuid(fileguid);
 
   if (index < 0) {
-    index = g_NumProfiles;
-
     if (g_NumProfiles < CONFIG_MAX_PROFILES) {
-      g_NumProfiles++;
+      index = g_NumProfiles++;
+    } else {
+      // The table is full. Alias the newcomer onto the last slot rather than
+      // writing one past the end of g_ExtendedProfiles.
+      index = CONFIG_MAX_PROFILES - 1;
+      sysLogPrintf(LOG_WARNING,
+                   "iniAllocateProfileSlot: more than %d profiles; %04x-%04x "
+                   "shares the last slot",
+                   CONFIG_MAX_PROFILES, fileguid->deviceserial,
+                   fileguid->fileid);
     }
 
     g_ExtendedProfiles[index] =
