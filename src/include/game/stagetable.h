@@ -7,4 +7,8 @@
 struct stagetableentry *stageGetCurrent(void);
 s32 stageGetIndex(s32 stagenum);
 
+/* Stage identity by name rather than by number - see g_StageNames. */
+s32 stageGetIndexByName(const char *name);
+const char *stageGetName(s32 stagenum);
+
 #endif

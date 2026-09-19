@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include <strings.h>
 #include "constants.h"
 #include "bss.h"
 #include "data.h"
@@ -137,4 +138,150 @@ s32 stageGetIndex(s32 stagenum)
 	}
 
 	return -1;
+}
+
+/*
+ * One name per g_Stages row, in the same order.
+ *
+ * The rows carry a STAGE_* constant and nothing else a person could type: the
+ * identifier is a preprocessor token, so no string form of it survived into
+ * the build before this table - grep for a STAGE_ string literal across src/
+ * and port/ and there is not one - and langGetStageName (mainmenu.c) is a
+ * display string for the 21 g_SoloStages rows only: localised, absent for
+ * every MP and TEST stage, and not unique.
+ * So a modconfig that wants to name the stage it means needs this table.
+ *
+ * The spelling is the identifier itself because that is what a mod author is
+ * already reading: the three shipped stage mods print exactly these names in
+ * their own ownership comment tables ("#   0x40  STAGE_TEST_MP8"). Matching is
+ * case-insensitive; see stageGetIndexByName.
+ *
+ * Kept positional and next to the table it names, under the same guard, so the
+ * two move together. The assert below is what actually holds them in step.
+ */
+const char *const g_StageNames[87] = {
+	/*0x00*/ "STAGE_MAIANSOS",
+	/*0x01*/ "STAGE_TEST_SILO",
+	/*0x02*/ "STAGE_WAR",
+	/*0x03*/ "STAGE_MP_RAVINE",
+	/*0x04*/ "STAGE_TEST_ARCH",
+	/*0x05*/ "STAGE_ESCAPE",
+	/*0x06*/ "STAGE_TEST_DEST",
+	/*0x07*/ "STAGE_RETAKING",
+	/*0x08*/ "STAGE_CRASHSITE",
+	/*0x09*/ "STAGE_CHICAGO",
+	/*0x0a*/ "STAGE_G5BUILDING",
+	/*0x0b*/ "STAGE_MP_COMPLEX",
+	/*0x0c*/ "STAGE_MP_G5BUILDING",
+	/*0x0d*/ "STAGE_PELAGIC",
+	/*0x0e*/ "STAGE_EXTRACTION",
+	/*0x0f*/ "STAGE_TEST_RUN",
+	/*0x10*/ "STAGE_24",
+	/*0x11*/ "STAGE_MP_TEMPLE",
+	/*0x12*/ "STAGE_CITRAINING",
+	/*0x13*/ "STAGE_AIRBASE",
+	/*0x14*/ "STAGE_28",
+	/*0x15*/ "STAGE_MP_PIPES",
+	/*0x16*/ "STAGE_SKEDARRUINS",
+	/*0x17*/ "STAGE_2B",
+	/*0x18*/ "STAGE_VILLA",
+	/*0x19*/ "STAGE_DEFENSE",
+	/*0x1a*/ "STAGE_TEST_ASH",
+	/*0x1b*/ "STAGE_INFILTRATION",
+	/*0x1c*/ "STAGE_DEFECTION",
+	/*0x1d*/ "STAGE_AIRFORCEONE",
+	/*0x1e*/ "STAGE_MP_SKEDAR",
+	/*0x1f*/ "STAGE_INVESTIGATION",
+	/*0x20*/ "STAGE_ATTACKSHIP",
+	/*0x21*/ "STAGE_RESCUE",
+	/*0x22*/ "STAGE_TEST_LEN",
+	/*0x23*/ "STAGE_MBR",
+	/*0x24*/ "STAGE_DEEPSEA",
+	/*0x25*/ "STAGE_TEST_UFF",
+	/*0x26*/ "STAGE_TEST_OLD",
+	/*0x27*/ "STAGE_DUEL",
+	/*0x28*/ "STAGE_TEST_LAM",
+	/*0x29*/ "STAGE_MP_BASE",
+	/*0x2a*/ "STAGE_TEST_MP2",
+	/*0x2b*/ "STAGE_MP_AREA52",
+	/*0x2c*/ "STAGE_MP_WAREHOUSE",
+	/*0x2d*/ "STAGE_MP_CARPARK",
+	/*0x2e*/ "STAGE_TEST_MP6",
+	/*0x2f*/ "STAGE_TEST_MP7",
+	/*0x30*/ "STAGE_TEST_MP8",
+	/*0x31*/ "STAGE_MP_RUINS",
+	/*0x32*/ "STAGE_MP_SEWERS",
+	/*0x33*/ "STAGE_MP_FELICITY",
+	/*0x34*/ "STAGE_MP_FORTRESS",
+	/*0x35*/ "STAGE_MP_VILLA",
+	/*0x36*/ "STAGE_TEST_MP14",
+	/*0x37*/ "STAGE_MP_GRID",
+	/*0x38*/ "STAGE_TEST_MP16",
+	/*0x39*/ "STAGE_TEST_MP17",
+	/*0x3a*/ "STAGE_TEST_MP18",
+	/*0x3b*/ "STAGE_TEST_MP19",
+	/*0x3c*/ "STAGE_TEST_MP20",
+#ifndef PLATFORM_N64
+	/*0x3d*/ "STAGE_EXTRA1",
+	/*0x3e*/ "STAGE_EXTRA2",
+	/*0x3f*/ "STAGE_EXTRA3",
+	/*0x40*/ "STAGE_EXTRA4",
+	/*0x41*/ "STAGE_EXTRA5",
+	/*0x42*/ "STAGE_EXTRA6",
+	/*0x43*/ "STAGE_EXTRA7",
+	/*0x44*/ "STAGE_EXTRA8",
+	/*0x45*/ "STAGE_EXTRA9",
+	/*0x46*/ "STAGE_EXTRA10",
+	/*0x47*/ "STAGE_EXTRA11",
+	/*0x48*/ "STAGE_EXTRA12",
+	/*0x49*/ "STAGE_EXTRA13",
+	/*0x4a*/ "STAGE_EXTRA14",
+	/*0x4b*/ "STAGE_EXTRA15",
+	/*0x4c*/ "STAGE_EXTRA16",
+	/*0x4d*/ "STAGE_EXTRA17",
+	/*0x4e*/ "STAGE_EXTRA18",
+	/*0x4f*/ "STAGE_EXTRA19",
+	/*0x50*/ "STAGE_EXTRA20",
+	/*0x51*/ "STAGE_EXTRA21",
+	/*0x52*/ "STAGE_EXTRA22",
+	/*0x53*/ "STAGE_EXTRA23",
+	/*0x54*/ "STAGE_EXTRA24",
+	/*0x55*/ "STAGE_EXTRA25",
+	/*0x56*/ "STAGE_EXTRA26",
+#endif
+};
+
+_Static_assert(ARRAYCOUNT(g_StageNames) == ARRAYCOUNT(g_Stages),
+		"every stage table row needs a name and every name needs a row");
+
+/*
+ * Resolve a STAGE_* name to its g_Stages index, case-insensitively.
+ *
+ * Returns -1 for an unknown name, which is the same "no such stage" answer
+ * stageGetIndex gives for an unknown number, so a caller handles one case.
+ */
+s32 stageGetIndexByName(const char *name)
+{
+	if (!name || !name[0]) {
+		return -1;
+	}
+
+	for (s32 i = 0; i < (s32)ARRAYCOUNT(g_StageNames); i++) {
+		if (g_StageNames[i] && strcasecmp(g_StageNames[i], name) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+/*
+ * The name of a stage number, or NULL. For log lines that would otherwise
+ * print a bare integer at a reader who has to go and look it up.
+ */
+const char *stageGetName(s32 stagenum)
+{
+	const s32 index = stageGetIndex(stagenum);
+
+	return index >= 0 ? g_StageNames[index] : NULL;
 }
