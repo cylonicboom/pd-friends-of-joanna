@@ -453,7 +453,12 @@ int main(int argc, char **argv)
 	 *
 	 * Only the contents of double-quoted strings are touched, and only when
 	 * the basename matches a name this run changed - so the credit blocks,
-	 * the comments and modname itself are left as they are. */
+	 * the comments and modname itself are left as they are. A '#' runs to the
+	 * end of its line and is copied out whole: the three stage modconfigs
+	 * reproduce their upstream revision histories verbatim, and those quote
+	 * model names the same mod ships - mod_gex_stages' own
+	 * `# Added the model "Pdd_grateZ"` would otherwise be edited into a line
+	 * the upstream author never wrote. */
 	{
 		FILE *f = fopen(modconfigPath, "rb");
 		char *buf;
@@ -487,12 +492,27 @@ int main(int argc, char **argv)
 
 			while (*p) {
 				char *open = strchr(p, '"');
-				char *close = open ? strchr(open + 1, '"') : NULL;
+				char *hash = strchr(p, '#');
+				char *close;
 				char val[PATHMAX];
 				const char *vbase;
 				char vdir[PATHMAX];
 				size_t vlen, k;
 				bool done = false;
+
+				/* A comment before the next quote: copy the rest of that line
+				 * out untouched. A '#' inside a quoted value is not reached,
+				 * because the quote pair is consumed first. */
+				if (hash && (!open || hash < open)) {
+					char *nl = strchr(hash, '\n');
+					size_t n = nl ? (size_t)(nl - p) + 1 : strlen(p);
+
+					fwrite(p, 1, n, f);
+					p += n;
+					continue;
+				}
+
+				close = open ? strchr(open + 1, '"') : NULL;
 
 				if (!open || !close) {
 					fwrite(p, 1, strlen(p), f);
