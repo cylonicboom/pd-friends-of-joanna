@@ -5494,75 +5494,124 @@ static bool imguiOverlayProjectToWindow(const struct coord *world, ImVec2 *out)
 	return true;
 }
 
-static struct chrdata *imguiOverlayPickChrAtMouse(const ImVec2 &mouse)
+// Every prop on screen this tick, as a screen-space pick shape: chrs are a
+// feet-to-head segment, everything else a point at the prop position with a
+// radius from a projected 30-unit offset. Nearest by distance over radius
+// wins, so a small object next to a chr can still be picked.
+struct imguiOverlayPickShape {
+	struct prop *prop;
+	ImVec2 a, b;   // segment (a == b for a point)
+	float radius;
+};
+
+static s32 imguiOverlayCollectPickShapes(imguiOverlayPickShape *out, s32 max)
 {
-	if (!imguiOverlayCanAimInspect() || !g_ChrSlots) {
-		return NULL;
+	s32 n = 0;
+
+	if (!imguiOverlayCanAimInspect()) {
+		return 0;
 	}
 
-	struct chrdata *best = NULL;
-	f32 bestdist = 1e9f;
+	struct prop *prop = g_Vars.activeprops;
+	for (s32 index = 0; prop && prop != g_Vars.pausedprops && index <= g_Vars.maxprops && n < max; ++index) {
+		if (!imguiOverlayPropIsCurrent(prop)) {
+			break;
+		}
+		struct prop *next = prop->next;
 
-	for (s32 i = 0; i < g_NumChrSlots; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+		if ((prop->flags & PROPFLAG_ONTHISSCREENTHISTICK)
+				&& (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER
+					|| prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON)) {
+			imguiOverlayPickShape sh;
+			sh.prop = prop;
+			struct coord side = prop->pos;
+			side.x += 30.0f;
+			ImVec2 c;
+			bool ok;
 
-		if (chr->chrnum < 0 || !chr->prop || !imguiOverlayChrIsCurrent(chr)) {
-			continue;
+			if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && imguiOverlayChrIsCurrent(prop->chr)) {
+				struct coord feet = prop->pos, head = prop->pos;
+				feet.y = prop->chr->ground;
+				head.y = prop->chr->ground + prop->chr->height;
+				ok = imguiOverlayProjectToWindow(&feet, &sh.a) && imguiOverlayProjectToWindow(&head, &sh.b)
+					&& imguiOverlayProjectToWindow(&side, &c);
+				if (ok) sh.radius = fabsf(c.x - sh.a.x) * 1.5f;
+			} else {
+				ok = imguiOverlayProjectToWindow(&prop->pos, &sh.a) && imguiOverlayProjectToWindow(&side, &c);
+				sh.b = sh.a;
+				if (ok) sh.radius = fabsf(c.x - sh.a.x) * 1.2f;
+			}
+
+			if (ok) {
+				if (sh.radius < 20.0f) sh.radius = 20.0f;
+				out[n++] = sh;
+			}
 		}
 
-		struct coord feet = chr->prop->pos;
-		struct coord head = chr->prop->pos;
-		struct coord side = chr->prop->pos;
-		feet.y = chr->ground;
-		head.y = chr->ground + chr->height;
-		side.x += 30.0f; // roughly a shoulder, for the pick radius
+		prop = next;
+	}
 
-		ImVec2 a, b, c;
-		if (!imguiOverlayProjectToWindow(&feet, &a) || !imguiOverlayProjectToWindow(&head, &b)
-				|| !imguiOverlayProjectToWindow(&side, &c)) {
-			continue;
-		}
+	return n;
+}
 
-		// distance from the mouse to the feet-head segment
-		const f32 vx = b.x - a.x, vy = b.y - a.y;
+static struct prop *imguiOverlayPickPropAtMouse(const ImVec2 &mouse)
+{
+	imguiOverlayPickShape shapes[256];
+	const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
+	struct prop *best = NULL;
+	f32 bestscore = 1.0f; // distance / radius, must be inside
+
+	for (s32 i = 0; i < n; i++) {
+		const imguiOverlayPickShape &sh = shapes[i];
+		const f32 vx = sh.b.x - sh.a.x, vy = sh.b.y - sh.a.y;
 		const f32 len2 = vx * vx + vy * vy;
-		f32 t = len2 > 0.0f ? ((mouse.x - a.x) * vx + (mouse.y - a.y) * vy) / len2 : 0.0f;
+		f32 t = len2 > 0.0f ? ((mouse.x - sh.a.x) * vx + (mouse.y - sh.a.y) * vy) / len2 : 0.0f;
 		t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
-		const f32 dx = mouse.x - (a.x + vx * t), dy = mouse.y - (a.y + vy * t);
-		const f32 dist = sqrtf(dx * dx + dy * dy);
-		f32 radius = fabsf(c.x - a.x) * 1.5f;
-		if (radius < 24.0f) radius = 24.0f;
+		const f32 dx = mouse.x - (sh.a.x + vx * t), dy = mouse.y - (sh.a.y + vy * t);
+		const f32 score = sqrtf(dx * dx + dy * dy) / sh.radius;
 
-		if (dist <= radius && dist < bestdist) {
-			bestdist = dist;
-			best = chr;
+		if (score <= bestscore) {
+			bestscore = score;
+			best = sh.prop;
 		}
 	}
 
 	return best;
 }
 
-static void imguiOverlayLatchChrEverywhere(struct chrdata *chr)
+static void imguiOverlayProbeModelFileTexture(u16 fileNum)
 {
-	g_ImGuiOverlaySkinChr = chr;
-	g_ImGuiOverlayShowSkinMatch = true;
-	imguiOverlayFocusChr(chr);
+	const u32 count = gfx_get_debug_texture_count();
+	for (u32 i = 0; i < count; i++) {
+		GfxTextureDebugInfo info;
+		if (gfx_get_debug_texture(i, &info) && info.type != G_TEXTYPE_NONE && info.id == fileNum) {
+			imguiOverlayFocusTextureId((s32)info.texnum);
+			return;
+		}
+	}
+}
 
-	if (chr->prop) {
-		g_ImGuiOverlayFocusProp = chr->prop;
+// Latch a picked prop everywhere it can go: the prop in Entities, and for a
+// chr also Characters, Skin Match and the body's first texture; for an object
+// its model's first texture.
+static void imguiOverlayLatchPropEverywhere(struct prop *prop)
+{
+	g_ImGuiOverlayFocusProp = prop;
+	g_ImGuiOverlayShowEntities = true;
+
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && imguiOverlayChrIsCurrent(prop->chr)) {
+		struct chrdata *chr = prop->chr;
+		g_ImGuiOverlaySkinChr = chr;
+		g_ImGuiOverlayShowSkinMatch = true;
+		imguiOverlayFocusChr(chr);
+		if (chr->bodynum >= 0) {
+			imguiOverlayProbeModelFileTexture((u16)(g_HeadsAndBodies[chr->bodynum].filenum & 0xffff));
+		}
+		return;
 	}
 
-	// probe the body's first texture drawn this frame
-	if (chr->bodynum >= 0) {
-		const u16 bodyFile = (u16)(g_HeadsAndBodies[chr->bodynum].filenum & 0xffff);
-		const u32 count = gfx_get_debug_texture_count();
-		for (u32 i = 0; i < count; i++) {
-			GfxTextureDebugInfo info;
-			if (gfx_get_debug_texture(i, &info) && info.type != G_TEXTYPE_NONE && info.id == bodyFile) {
-				imguiOverlayFocusTextureId((s32)info.texnum);
-				break;
-			}
-		}
+	if (prop->obj && prop->obj->modelnum >= 0 && prop->obj->modelnum < NUM_MODELS) {
+		imguiOverlayProbeModelFileTexture((u16)(g_ModelStates[prop->obj->modelnum].fileid & 0xffff));
 	}
 }
 
@@ -5683,30 +5732,31 @@ void imguiOverlayRender(void)
 
 		{
 			const ImGuiIO &io = ImGui::GetIO();
-			if (io.KeyCtrl && imguiOverlayCanAimInspect() && g_ChrSlots) {
-				// show where the picker thinks every chr is while ctrl is held,
-				// so a mis-scaled projection is visible rather than a mystery
+			if (io.KeyCtrl) {
+				// show where the picker thinks everything is while ctrl is held
+				imguiOverlayPickShape shapes[256];
+				const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
 				ImDrawList *fg = ImGui::GetForegroundDrawList();
-				for (s32 i = 0; i < g_NumChrSlots; i++) {
-					struct chrdata *chr = &g_ChrSlots[i];
-					if (chr->chrnum < 0 || !chr->prop || !imguiOverlayChrIsCurrent(chr)) continue;
-					struct coord feet = chr->prop->pos, head = chr->prop->pos;
-					feet.y = chr->ground;
-					head.y = chr->ground + chr->height;
-					ImVec2 a, b;
-					if (imguiOverlayProjectToWindow(&feet, &a) && imguiOverlayProjectToWindow(&head, &b)) {
-						fg->AddLine(a, b, IM_COL32(79, 216, 255, 200), 2.0f);
-						fg->AddCircle(b, 6.0f, IM_COL32(79, 216, 255, 255));
-						char label[32];
-						snprintf(label, sizeof(label), "chr %d", chr->chrnum);
-						fg->AddText(ImVec2(b.x + 8.0f, b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
+				for (s32 i = 0; i < n; i++) {
+					const imguiOverlayPickShape &sh = shapes[i];
+					const bool ischr = sh.prop->type == PROPTYPE_CHR || sh.prop->type == PROPTYPE_PLAYER;
+					const ImU32 col = ischr ? IM_COL32(79, 216, 255, 220) : IM_COL32(255, 210, 79, 200);
+					if (ischr) {
+						fg->AddLine(sh.a, sh.b, col, 2.0f);
+						fg->AddCircle(sh.b, 6.0f, col);
+					} else {
+						fg->AddCircle(sh.a, sh.radius, col, 0, 1.0f);
 					}
+					char label[32];
+					if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
+					else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
+					fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
 				}
 			}
 			if (!io.WantCaptureMouse && io.KeyCtrl && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-				struct chrdata *picked = imguiOverlayPickChrAtMouse(io.MousePos);
+				struct prop *picked = imguiOverlayPickPropAtMouse(io.MousePos);
 				if (picked) {
-					imguiOverlayLatchChrEverywhere(picked);
+					imguiOverlayLatchPropEverywhere(picked);
 				}
 			}
 		}
