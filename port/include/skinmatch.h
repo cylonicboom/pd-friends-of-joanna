@@ -52,10 +52,11 @@ struct skinmatchbody {
 	u16 id;
 	s32 texnum;
 	s8 ownerMod;
-	u16 width;
+	u16 width;      // mask dimensions: texture dimensions * maskscale
 	u16 height;
-	u8 *mask;       // 2 bytes per texel (R skin weight, G layer), rows in upload order
-	u8 *rgba;       // copy of the last texel0 pixels the descriptors were measured on
+	u8 maskscale;   // 1, 2 or 4 mask texels per texture texel (subdivision)
+	u8 *mask;       // 2 bytes per mask texel (R skin weight, G layer), rows in upload order
+	u8 *rgba;       // copy of the last texel0 pixels the descriptors were measured on (texture dims)
 	u32 maskgl;     // renderer texture id, 0 until uploaded
 	u8 maskdirty;   // mask edited since the last upload
 	u8 ready;       // descriptors measured against real pixels
@@ -66,6 +67,8 @@ struct skinmatchbody {
 	s32 nbare;
 	struct skinmatchgarment garment[SKINMATCH_MAX_LAYERS];
 	f32 nudge[SKINMATCH_MAX_LAYERS]; // opacity delta, percent
+	f32 strength;   // 0-1 how far masked texels move toward the head tone
+	f32 detail;     // 0-1 how much of the texel's own deviation from the skin axis survives
 	char path[FS_MAXPATH + 1];
 };
 
@@ -117,12 +120,16 @@ struct skinmatchhead *skinmatchHeadFor(u16 fileid, bool create);
 struct skinmatchhead *skinmatchHeadForTex(u16 id, s32 texnum);
 bool skinmatchWantsPixels(u8 type, u16 id, s32 texnum);
 void skinmatchOnTexturePixels(u8 type, u16 id, s32 texnum, const u8 *rgba, u32 width, u32 height);
-// Fills body/head/gain/off (36 floats: 6 + 6 + 12 + 12). False when either
-// side is not ready.
+// Fills body/head/gain/off/params (38 floats: 6 + 6 + 12 + 12 + 2). False
+// when either side is not ready.
 bool skinmatchResolve(const struct skinmatchbody *body, const struct skinmatchhead *head, f32 *out);
 
 // Editor side (imgui panel).
-struct skinmatchbody *skinmatchBodyCreateBlank(u8 type, u16 id, s32 texnum, u16 width, u16 height);
+struct skinmatchbody *skinmatchBodyCreateBlank(u8 type, u16 id, s32 texnum, u16 width, u16 height, u8 maskscale);
+// 3x3 blur of the skin weight, garment ids untouched: softens a mask edge.
+void skinmatchBodyFeather(struct skinmatchbody *body);
+// The texture texel under a mask texel.
+u32 skinmatchBodyTexIndex(const struct skinmatchbody *body, u32 mx, u32 my);
 struct skinmatchhead *skinmatchHeadCreateBlank(u16 id, s32 texnum);
 void skinmatchBodyRemeasure(struct skinmatchbody *body);
 void skinmatchHeadRemeasure(struct skinmatchhead *head);
