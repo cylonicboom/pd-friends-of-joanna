@@ -25,6 +25,7 @@ struct SkinMatchUniforms {
     float head[6];
     float gain[12];
     float off[12];
+    float params[2]; // strength, detail
 };
 
 struct GfxRenderingAPI {

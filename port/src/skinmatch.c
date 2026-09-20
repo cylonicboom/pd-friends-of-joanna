@@ -215,15 +215,32 @@ static int cmpLkey(const void *a, const void *b)
  * Gather the texels a predicate admits, sorted by Oklab L. Returns the count;
  * keys must hold width*height entries.
  */
+static u32 texW(const struct skinmatchbody *body) { return body->width / (body->maskscale ? body->maskscale : 1); }
+static u32 texH(const struct skinmatchbody *body) { return body->height / (body->maskscale ? body->maskscale : 1); }
+
+u32 skinmatchBodyTexIndex(const struct skinmatchbody *body, u32 mx, u32 my)
+{
+	u32 k = body->maskscale ? body->maskscale : 1;
+	return (my / k) * texW(body) + (mx / k);
+}
+
+/** Mask value at the centre of a texture texel's block. */
+static const u8 *maskAtTex(const struct skinmatchbody *body, u32 tx, u32 ty)
+{
+	u32 k = body->maskscale ? body->maskscale : 1;
+	return body->mask + (((ty * k + k / 2) * body->width) + (tx * k + k / 2)) * 2;
+}
+
 static s32 gatherSorted(const struct skinmatchbody *body, s32 layer, struct lkey *keys)
 {
-	u32 n = (u32)body->width * body->height;
+	u32 n = texW(body) * texH(body);
 	s32 count = 0;
 	u32 i;
 
 	for (i = 0; i < n; i++) {
-		u8 r = body->mask[i * 2];
-		u8 g = body->mask[i * 2 + 1];
+		const u8 *m = maskAtTex(body, i % texW(body), i / texW(body));
+		u8 r = m[0];
+		u8 g = m[1];
 		bool admit = layer == 0 ? (r > 127 && g == 0) : (g == layer);
 
 		if (!admit) {
@@ -367,7 +384,7 @@ void skinmatchBodyRemeasure(struct skinmatchbody *body)
 		return;
 	}
 
-	u32 n = (u32)body->width * body->height;
+	u32 n = texW(body) * texH(body);
 	struct lkey *bare = malloc(n * sizeof(struct lkey));
 	struct lkey *keys = malloc(n * sizeof(struct lkey));
 
@@ -499,6 +516,7 @@ static bool loadMaskPng(struct skinmatchbody *body, const char *path)
 	stbi_image_free(px);
 	body->width = (u16)w;
 	body->height = (u16)h;
+	body->maskscale = 1; // settled against the texture when its pixels arrive
 	strncpy(body->path, path, FS_MAXPATH);
 	body->path[FS_MAXPATH] = '\0';
 	return true;
@@ -590,6 +608,11 @@ static bool loadBodyNudges(struct skinmatchbody *body, const char *maskpath)
 		body->nudge[layer - 1] = strtof(strchr(pn, ':') + 1, NULL);
 	}
 
+	const char *ps = strstr(buf, "\"strength\"");
+	if (ps) body->strength = clampf(strtof(strchr(ps, ':') + 1, NULL), 0.0f, 1.0f);
+	const char *pd = strstr(buf, "\"detail\"");
+	if (pd) body->detail = clampf(strtof(strchr(pd, ':') + 1, NULL), 0.0f, 1.0f);
+
 	return true;
 }
 
@@ -637,12 +660,45 @@ s32 skinmatchBodySave(struct skinmatchbody *body, const char *dir)
 		for (layer = 1; layer <= SKINMATCH_MAX_LAYERS; layer++) {
 			fprintf(fp, "%s\"%d\":{\"nudge\":%g}", layer > 1 ? "," : "", layer, body->nudge[layer - 1]);
 		}
-		fprintf(fp, "}}\n");
+		fprintf(fp, "},\"strength\":%g,\"detail\":%g}\n", body->strength, body->detail);
 		fclose(fp);
 	}
 
 	sysLogPrintf(LOG_NOTE, "skinmatch: wrote %s", path);
 	return 0;
+}
+
+void skinmatchBodyFeather(struct skinmatchbody *body)
+{
+	if (!body->mask) return;
+
+	u32 w = body->width, h = body->height;
+	u8 *src = malloc((size_t)w * h);
+	if (!src) return;
+
+	u32 i, x, y;
+	for (i = 0; i < w * h; i++) src[i] = body->mask[i * 2];
+
+	for (y = 0; y < h; y++) {
+		for (x = 0; x < w; x++) {
+			u32 acc = 0, n = 0;
+			s32 dx, dy;
+			for (dy = -1; dy <= 1; dy++) {
+				for (dx = -1; dx <= 1; dx++) {
+					s32 sx = (s32)x + dx, sy = (s32)y + dy;
+					if (sx < 0 || sy < 0 || sx >= (s32)w || sy >= (s32)h) continue;
+					acc += src[sy * w + sx];
+					n++;
+				}
+			}
+			if (!body->mask[(y * w + x) * 2 + 1]) {
+				body->mask[(y * w + x) * 2] = (u8)(acc / n);
+			}
+		}
+	}
+
+	free(src);
+	body->maskdirty = 1;
 }
 
 s32 skinmatchHeadSave(struct skinmatchhead *head, const char *dir)
@@ -735,6 +791,8 @@ struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
 	b->id = id;
 	b->texnum = texnum;
 	b->ownerMod = sc->ownerMod;
+	b->strength = 1.0f;
+	b->detail = 0.5f;
 
 	if (!loadMaskPng(b, sc->path)) {
 		b->used = 0;
@@ -746,7 +804,7 @@ struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
 	return b;
 }
 
-struct skinmatchbody *skinmatchBodyCreateBlank(u8 type, u16 id, s32 texnum, u16 width, u16 height)
+struct skinmatchbody *skinmatchBodyCreateBlank(u8 type, u16 id, s32 texnum, u16 width, u16 height, u8 maskscale)
 {
 	struct skinmatchbody *b = skinmatchBodyFor(type, id, texnum, false);
 
@@ -764,9 +822,13 @@ struct skinmatchbody *skinmatchBodyCreateBlank(u8 type, u16 id, s32 texnum, u16 
 	b->id = id;
 	b->texnum = texnum;
 	b->ownerMod = -1;
-	b->width = width;
-	b->height = height;
-	b->mask = calloc((size_t)width * height, 2);
+	if (maskscale != 2 && maskscale != 4) maskscale = 1;
+	b->maskscale = maskscale;
+	b->width = width * maskscale;
+	b->height = height * maskscale;
+	b->mask = calloc((size_t)b->width * b->height, 2);
+	b->strength = 1.0f;
+	b->detail = 0.5f;
 	b->pending = 1;
 	return b;
 }
@@ -876,15 +938,19 @@ void skinmatchOnTexturePixels(u8 type, u16 id, s32 texnum, const u8 *rgba, u32 w
 	struct skinmatchbody *b = skinmatchBodyFor(type, id, texnum, false);
 
 	if (b && (b->pending || !b->rgba)) {
-		if (b->width != width || b->height != height) {
+		u32 k = (width && height) ? b->width / width : 0;
+		bool fits = k >= 1 && k <= 4 && b->width == width * k && b->height == height * k && (k == 1 || k == 2 || k == 4);
+
+		if (!fits) {
 			if (!b->denied) {
-				sysLogPrintf(LOG_WARNING, "skinmatch: mask %s is %ux%u, texture is %ux%u - ignoring it",
+				sysLogPrintf(LOG_WARNING, "skinmatch: mask %s is %ux%u, texture is %ux%u - needs 1x, 2x or 4x, ignoring it",
 					b->path, b->width, b->height, width, height);
 			}
 			b->denied = 1;
 			b->pending = 0;
 			b->ready = 0;
 		} else {
+			b->maskscale = (u8)k;
 			free(b->rgba);
 			b->rgba = malloc((size_t)width * height * 4);
 
@@ -943,6 +1009,9 @@ bool skinmatchResolve(const struct skinmatchbody *body, const struct skinmatchhe
 			off[0] = off[1] = off[2] = 0.0f;
 		}
 	}
+
+	out[36] = body->strength;
+	out[37] = body->detail;
 
 	return true;
 }

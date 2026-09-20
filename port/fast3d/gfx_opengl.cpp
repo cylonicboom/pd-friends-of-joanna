@@ -40,6 +40,7 @@ struct ShaderProgram {
     GLint skin_head_location;
     GLint skin_gain_location;
     GLint skin_off_location;
+    GLint skin_params_location;
 };
 
 struct Framebuffer {
@@ -392,6 +393,26 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
         append_line(fs_buf, &fs_len, "uniform vec3 uSkinHead[2];");
         append_line(fs_buf, &fs_len, "uniform vec3 uSkinGain[4];");
         append_line(fs_buf, &fs_len, "uniform vec3 uSkinOff[4];");
+        append_line(fs_buf, &fs_len, "uniform vec2 uSkinParams;"); // x strength, y detail
+        // The mask is stored nearest (G is a layer id and must not blend), so
+        // the skin weight in R is filtered by hand: four fetches at texel
+        // centres, bilinear on .r, .g from the nearest. Edges feather over a
+        // texel instead of stepping; a 2x/4x mask makes that texel smaller.
+        if (gl_glsl_version >= 130) {
+            append_line(fs_buf, &fs_len, "vec4 skinMaskSample(vec2 uv) {");
+            append_line(fs_buf, &fs_len, "    vec2 sz = vec2(textureSize(uSkinMask, 0));");
+            append_line(fs_buf, &fs_len, "    vec2 p = uv * sz - 0.5;");
+            append_line(fs_buf, &fs_len, "    vec2 f = fract(p);");
+            append_line(fs_buf, &fs_len, "    vec2 b = (floor(p) + 0.5) / sz;");
+            append_line(fs_buf, &fs_len, "    vec2 d = 1.0 / sz;");
+            append_line(fs_buf, &fs_len, "    float r00 = texture(uSkinMask, b).r, r10 = texture(uSkinMask, b + vec2(d.x, 0.0)).r;");
+            append_line(fs_buf, &fs_len, "    float r01 = texture(uSkinMask, b + vec2(0.0, d.y)).r, r11 = texture(uSkinMask, b + d).r;");
+            append_line(fs_buf, &fs_len, "    float r = mix(mix(r00, r10, f.x), mix(r01, r11, f.x), f.y);");
+            append_line(fs_buf, &fs_len, "    return vec4(r, texture(uSkinMask, uv).g, 0.0, 1.0);");
+            append_line(fs_buf, &fs_len, "}");
+        } else {
+            append_line(fs_buf, &fs_len, "vec4 skinMaskSample(vec2 uv) { return SAMPLE_TEX(uSkinMask, uv); }");
+        }
         append_line(fs_buf, &fs_len, "vec3 skinSrgbToLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }");
         append_line(fs_buf, &fs_len, "vec3 skinLinToSrgb(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }");
         append_line(fs_buf, &fs_len, "vec3 skinLinToOklab(vec3 c) {");
@@ -420,9 +441,9 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
         append_line(fs_buf, &fs_len, "    float t = clamp((lab.x - uSkinBody[0].x) / span, -0.25, 1.25);");
         append_line(fs_buf, &fs_len, "    vec3 bl = mix(uSkinBody[0], uSkinBody[1], t);");
         append_line(fs_buf, &fs_len, "    vec3 hl = mix(uSkinHead[0], uSkinHead[1], t);");
-        append_line(fs_buf, &fs_len, "    vec3 nl = skinOklabToLin(hl + (lab - bl) * 0.5);"); // keep half the residual detail
+        append_line(fs_buf, &fs_len, "    vec3 nl = skinOklabToLin(hl + (lab - bl) * uSkinParams.y);"); // detail: how much of the texel's own deviation survives
         append_line(fs_buf, &fs_len, "    if (layer > 0) nl = nl * gain + off;"); // re-garment over the new skin
-        append_line(fs_buf, &fs_len, "    return mix(srgb, skinLinToSrgb(nl), w);");
+        append_line(fs_buf, &fs_len, "    return mix(srgb, skinLinToSrgb(nl), w * uSkinParams.x);");
         append_line(fs_buf, &fs_len, "}");
     }
 
@@ -499,7 +520,7 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
     }
 
     if (skinmatch) {
-        append_line(fs_buf, &fs_len, "    texVal0.rgb = skinMatch(texVal0.rgb, SAMPLE_TEX(uSkinMask, vTexCoord0));");
+        append_line(fs_buf, &fs_len, "    texVal0.rgb = skinMatch(texVal0.rgb, skinMaskSample(vTexCoord0));");
     }
 
     append_line(fs_buf, &fs_len, cc_features.opt_alpha ? "    vec4 texel;" : "    vec3 texel;");
@@ -677,6 +698,7 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
     prg->skin_head_location = -1;
     prg->skin_gain_location = -1;
     prg->skin_off_location = -1;
+    prg->skin_params_location = -1;
     if (skinmatch) {
         GLint sampler_location = glGetUniformLocation(shader_program, "uSkinMask");
         glUniform1i(sampler_location, 2);
@@ -684,6 +706,7 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
         prg->skin_head_location = glGetUniformLocation(shader_program, "uSkinHead");
         prg->skin_gain_location = glGetUniformLocation(shader_program, "uSkinGain");
         prg->skin_off_location = glGetUniformLocation(shader_program, "uSkinOff");
+        prg->skin_params_location = glGetUniformLocation(shader_program, "uSkinParams");
     }
 
     gfx_opengl_load_shader(prg);
@@ -765,6 +788,7 @@ static void gfx_opengl_set_skinmatch(const struct SkinMatchUniforms* u) {
     glUniform3fv(prg->skin_head_location, 2, u->head);
     glUniform3fv(prg->skin_gain_location, 4, u->gain);
     glUniform3fv(prg->skin_off_location, 4, u->off);
+    glUniform2fv(prg->skin_params_location, 1, u->params);
 }
 
 static uint32_t gfx_cm_to_opengl(uint32_t val) {
