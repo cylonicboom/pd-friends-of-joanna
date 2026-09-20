@@ -22,6 +22,7 @@ bool extTexModelHasEntryForTexid(s16 fileNum, s32 texNum);
 s32 extTexModelGetTextureCount(s16 fileNum);
 s32 extTexModelGetTextureInfo(s16 fileNum, s32 index, s32 *texNum, s8 *ownerMod, u16 *width, u16 *height);
 const u8 *extTexModelLoadPixels(s16 fileNum, s32 texNum, u32 *width, u32 *height);
+s32 extTexModelDir(s16 fileNum, char *dst, u32 len);
 u8 extTexFontID(struct font *font);
 
 // Lua API image loading (pd.load_image / pd.tex_override / pd.list_images).

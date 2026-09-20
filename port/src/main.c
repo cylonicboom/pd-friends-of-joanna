@@ -27,6 +27,7 @@
 #include "utils.h"
 #include "game/mplayer/setup.h"
 #include "ext_tex.h"
+#include "skinmatch.h"
 #include "game/luaai.h"
 
 u32 g_OsMemSize = 0;
@@ -153,6 +154,7 @@ int main(int argc, const char **argv)
 	videoInit();
 	inputInit();
 	audioInit();
+	skinmatchInit();
 	if (extTexInit() > 0) {
 		extern bool gfx_external_textures_enabled;
 		gfx_external_textures_enabled = true;

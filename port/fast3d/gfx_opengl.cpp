@@ -35,6 +35,11 @@ struct ShaderProgram {
     GLint noise_scale_location;
     GLint three_point_filter_locations[2];
     GLint wireframe_color_location; // pd.* fx flat fill / wire colour (rgb, a > 0.5 = on)
+    // skin match (SHADER_OPT_SKINMATCH), -1 when the program has no such uniform
+    GLint skin_body_location;
+    GLint skin_head_location;
+    GLint skin_gain_location;
+    GLint skin_off_location;
 };
 
 struct Framebuffer {
@@ -375,6 +380,52 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
     // pd.* fx flat colour: rgb = colour, a > 0.5 enables the override.
     append_line(fs_buf, &fs_len, "uniform vec4 wireframe_color;");
 
+    const bool skinmatch = cc_features.opt_skinmatch && cc_features.used_textures[0];
+    if (skinmatch) {
+        // Skin match: texel0 is remapped before the combiner sees it, so N64
+        // lighting, vertex colours and fog still apply on top. uSkinMask is the
+        // companion texture (R = skin weight, G = garment layer id / 255),
+        // sampled at texel0's own coordinates. Body/head are Oklab dark,light
+        // pairs; gain/off are the per-layer sheer-garment affine in linear RGB.
+        append_line(fs_buf, &fs_len, "uniform sampler2D uSkinMask;");
+        append_line(fs_buf, &fs_len, "uniform vec3 uSkinBody[2];");
+        append_line(fs_buf, &fs_len, "uniform vec3 uSkinHead[2];");
+        append_line(fs_buf, &fs_len, "uniform vec3 uSkinGain[4];");
+        append_line(fs_buf, &fs_len, "uniform vec3 uSkinOff[4];");
+        append_line(fs_buf, &fs_len, "vec3 skinSrgbToLin(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }");
+        append_line(fs_buf, &fs_len, "vec3 skinLinToSrgb(vec3 c) { c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }");
+        append_line(fs_buf, &fs_len, "vec3 skinLinToOklab(vec3 c) {");
+        append_line(fs_buf, &fs_len, "    float l = pow(0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b, 1.0 / 3.0);");
+        append_line(fs_buf, &fs_len, "    float m = pow(0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b, 1.0 / 3.0);");
+        append_line(fs_buf, &fs_len, "    float s = pow(0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b, 1.0 / 3.0);");
+        append_line(fs_buf, &fs_len, "    return vec3(0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s);");
+        append_line(fs_buf, &fs_len, "}");
+        append_line(fs_buf, &fs_len, "vec3 skinOklabToLin(vec3 c) {");
+        append_line(fs_buf, &fs_len, "    float l = c.x + 0.3963377774 * c.y + 0.2158037573 * c.z;");
+        append_line(fs_buf, &fs_len, "    float m = c.x - 0.1055613458 * c.y - 0.0638541728 * c.z;");
+        append_line(fs_buf, &fs_len, "    float s = c.x - 0.0894841775 * c.y - 1.2914855480 * c.z;");
+        append_line(fs_buf, &fs_len, "    l = l * l * l; m = m * m * m; s = s * s * s;");
+        append_line(fs_buf, &fs_len, "    return vec3(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s);");
+        append_line(fs_buf, &fs_len, "}");
+        append_line(fs_buf, &fs_len, "vec3 skinMatch(vec3 srgb, vec4 mask) {");
+        append_line(fs_buf, &fs_len, "    int layer = int(mask.g * 255.0 + 0.5);");
+        append_line(fs_buf, &fs_len, "    float w = layer > 0 ? 1.0 : mask.r;");
+        append_line(fs_buf, &fs_len, "    if (w <= 0.0) return srgb;");
+        append_line(fs_buf, &fs_len, "    vec3 gain = vec3(1.0), off = vec3(0.0);");
+        append_line(fs_buf, &fs_len, "    if (layer > 0) { int li = min(layer, 4) - 1; gain = max(uSkinGain[li], vec3(0.02)); off = uSkinOff[li]; }");
+        append_line(fs_buf, &fs_len, "    vec3 lin = skinSrgbToLin(srgb);");
+        append_line(fs_buf, &fs_len, "    if (layer > 0) lin = (lin - off) / gain;"); // undo the garment: bare skin drives t
+        append_line(fs_buf, &fs_len, "    vec3 lab = skinLinToOklab(max(lin, vec3(0.0)));");
+        append_line(fs_buf, &fs_len, "    float span = max(0.02, uSkinBody[1].x - uSkinBody[0].x);");
+        append_line(fs_buf, &fs_len, "    float t = clamp((lab.x - uSkinBody[0].x) / span, -0.25, 1.25);");
+        append_line(fs_buf, &fs_len, "    vec3 bl = mix(uSkinBody[0], uSkinBody[1], t);");
+        append_line(fs_buf, &fs_len, "    vec3 hl = mix(uSkinHead[0], uSkinHead[1], t);");
+        append_line(fs_buf, &fs_len, "    vec3 nl = skinOklabToLin(hl + (lab - bl) * 0.5);"); // keep half the residual detail
+        append_line(fs_buf, &fs_len, "    if (layer > 0) nl = nl * gain + off;"); // re-garment over the new skin
+        append_line(fs_buf, &fs_len, "    return mix(srgb, skinLinToSrgb(nl), w);");
+        append_line(fs_buf, &fs_len, "}");
+    }
+
     append_line(fs_buf, &fs_len, "float random(in vec3 value) {");
     append_line(fs_buf, &fs_len, "    float random = dot(sin(value), vec3(12.9898, 78.233, 37.719));");
     append_line(fs_buf, &fs_len, "    return fract(sin(random) * 143758.5453);");
@@ -445,6 +496,10 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
             else
                 fs_len += sprintf(fs_buf + fs_len, "    vec4 texVal%d = hookTexture2D(uTex%d, vTexCoord%d, texSize%d);\n", i, i, i, i);
         }
+    }
+
+    if (skinmatch) {
+        append_line(fs_buf, &fs_len, "    texVal0.rgb = skinMatch(texVal0.rgb, SAMPLE_TEX(uSkinMask, vTexCoord0));");
     }
 
     append_line(fs_buf, &fs_len, cc_features.opt_alpha ? "    vec4 texel;" : "    vec3 texel;");
@@ -618,6 +673,18 @@ static struct ShaderProgram* gfx_opengl_create_and_load_new_shader(uint64_t shad
     prg->three_point_filter_locations[0] = glGetUniformLocation(shader_program, "three_point_filter0");
     prg->three_point_filter_locations[1] = glGetUniformLocation(shader_program, "three_point_filter1");
     prg->wireframe_color_location = glGetUniformLocation(shader_program, "wireframe_color");
+    prg->skin_body_location = -1;
+    prg->skin_head_location = -1;
+    prg->skin_gain_location = -1;
+    prg->skin_off_location = -1;
+    if (skinmatch) {
+        GLint sampler_location = glGetUniformLocation(shader_program, "uSkinMask");
+        glUniform1i(sampler_location, 2);
+        prg->skin_body_location = glGetUniformLocation(shader_program, "uSkinBody");
+        prg->skin_head_location = glGetUniformLocation(shader_program, "uSkinHead");
+        prg->skin_gain_location = glGetUniformLocation(shader_program, "uSkinGain");
+        prg->skin_off_location = glGetUniformLocation(shader_program, "uSkinOff");
+    }
 
     gfx_opengl_load_shader(prg);
 
@@ -663,6 +730,41 @@ static void gfx_opengl_select_texture(int tile, GLuint texture_id, bool linear_f
 
 static void gfx_opengl_upload_texture(const uint8_t* rgba32_buf, uint32_t width, uint32_t height) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba32_buf);
+}
+
+// Skin match companion mask. Lives on GL_TEXTURE2 so it never disturbs the
+// texel0/texel1 bindings the cache tracks; the active unit is restored to 0
+// because upload_texture and the sampler setters act on whatever is active.
+static uint32_t gfx_opengl_skinmask_upload(uint32_t texture_id, const uint8_t* rgba32_buf, uint32_t width, uint32_t height) {
+    GLuint id = texture_id;
+    if (id == 0) {
+        glGenTextures(1, &id);
+    }
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba32_buf);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glActiveTexture(GL_TEXTURE0);
+    return id;
+}
+
+static uint32_t gfx_cm_to_opengl(uint32_t val);
+
+static void gfx_opengl_set_skinmatch(const struct SkinMatchUniforms* u) {
+    struct ShaderProgram* prg = gfx_current_shader_program;
+    if (!prg || prg->skin_body_location < 0) {
+        return;
+    }
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, u->mask_texture_id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gfx_cm_to_opengl(u->cms));
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gfx_cm_to_opengl(u->cmt));
+    glActiveTexture(GL_TEXTURE0);
+    glUniform3fv(prg->skin_body_location, 2, u->body);
+    glUniform3fv(prg->skin_head_location, 2, u->head);
+    glUniform3fv(prg->skin_gain_location, 4, u->gain);
+    glUniform3fv(prg->skin_off_location, 4, u->off);
 }
 
 static uint32_t gfx_cm_to_opengl(uint32_t val) {
@@ -1300,5 +1402,7 @@ struct GfxRenderingAPI gfx_opengl_api = {
     gfx_opengl_delete_texture,
     gfx_opengl_set_texture_filter,
     gfx_opengl_get_texture_filter,
-    gfx_opengl_retro_filter
+    gfx_opengl_retro_filter,
+    gfx_opengl_skinmask_upload,
+    gfx_opengl_set_skinmatch
 };

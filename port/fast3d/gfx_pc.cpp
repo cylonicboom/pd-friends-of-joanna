@@ -34,6 +34,7 @@
 
 extern "C" {
 #include "ext_tex.h"
+#include "skinmatch.h"
 }
 
 uintptr_t gfxFramebuffer;
@@ -177,6 +178,9 @@ struct LoadedTexture {
 	uint16_t id_mask;
 	uint32_t texnum;
     struct RawTexMetadata raw_tex_metadata;
+    // skin match: this texture's mask entry, resolved once per load rather
+    // than per triangle; nullptr when it has no sidecar
+    struct skinmatchbody* skin_body;
 };
 
 static struct RDP {
@@ -236,7 +240,23 @@ static struct RenderingState {
     struct XYWidthHeight viewport, scissor;
     struct ShaderProgram* shader_program;
     TextureCacheNode* textures[SHADER_MAX_TEXTURES];
+    // skin match: what set_skinmatch was last given, so a batch is only
+    // broken when the body texture, the head or the mask actually changes
+    const struct skinmatchbody* skin_body;
+    const struct skinmatchhead* skin_head;
+    uint32_t skin_mask_id;
 } rendering_state;
+
+// Skin match bracket (G_SKINMATCH_EXT): the head model file whose skin the
+// bracketed body draws take, 0 outside a bracket. Force-cleared each frame so
+// a lost END cannot leak onto the next chr. The identity of the texture being
+// imported rides in gfx_skinmatch_import_* so the decode chokepoint can hand
+// the pixels to port/src/skinmatch.c without knowing which path decoded them.
+static uint16_t gfx_skinmatch_headfile = 0;
+static struct skinmatchhead* gfx_skinmatch_head = nullptr;
+static uint8_t gfx_skinmatch_import_type = 0;
+static uint16_t gfx_skinmatch_import_id = 0;
+static uint32_t gfx_skinmatch_import_texnum = 0;
 
 struct GfxDimensions gfx_current_window_dimensions;
 int32_t gfx_current_window_position_x;
@@ -696,6 +716,16 @@ void gfx_texture_cache_clear() {
     gfx_texture_cache.lru.clear();
     rdp.textures_changed[0] = rdp.textures_changed[1] = true;
     memset(rendering_state.textures, 0, sizeof(rendering_state.textures));
+    for (int i = 0; i < SKINMATCH_MAX_BODIES; i++) {
+        struct skinmatchbody* body = skinmatchBodyAt(i);
+        if (body && body->maskgl) {
+            gfx_rapi->delete_texture(body->maskgl);
+            body->maskgl = 0;
+        }
+    }
+    rendering_state.skin_body = nullptr;
+    rendering_state.skin_head = nullptr;
+    rendering_state.skin_mask_id = 0;
 	extTexFree();
 }
 
@@ -823,6 +853,8 @@ static void gfx_upload_tex_filtered(uint32_t width, uint32_t height) {
         }
     }
     gfx_rapi->upload_texture(tex_upload_buffer, width, height);
+    skinmatchOnTexturePixels(gfx_skinmatch_import_type, gfx_skinmatch_import_id, gfx_skinmatch_import_texnum,
+                             tex_upload_buffer, width, height);
 }
 
 static TexDims import_texture_rgba16(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
@@ -1080,10 +1112,17 @@ static void import_texture(int i, int tile, bool is_rect) {
     const bool cache_hit = gfx_texture_cache_lookup(i, key);
     gfx_record_debug_texture(loaded_texture.type, loaded_texture.id | loaded_texture.id_mask,
         loaded_texture.texnum, rendering_state.textures[i]->second.texture_id);
-    if (cache_hit) {
+    // skin match measures its descriptors against the decoded pixels, and an
+    // entry created after the texture was already cached would otherwise never
+    // see them: decode again onto the same texture id.
+    const bool skin_wants = skinmatchWantsPixels(loaded_texture.type, loaded_texture.id, loaded_texture.texnum);
+    if (cache_hit && !skin_wants) {
         loaded_texture.id_mask = 0;
         return;
     }
+    gfx_skinmatch_import_type = loaded_texture.type;
+    gfx_skinmatch_import_id = loaded_texture.id;
+    gfx_skinmatch_import_texnum = loaded_texture.texnum;
 
 	if (external) {
 		uint8_t type = loaded_texture.type;
@@ -1106,6 +1145,7 @@ static void import_texture(int i, int tile, bool is_rect) {
 		loaded_texture.id_mask = 0;
 
 		gfx_rapi->upload_texture(addr, width, height);
+		skinmatchOnTexturePixels(type, id, texnum, addr, width, height);
 		rendering_state.textures[i]->second.width = width;
 		rendering_state.textures[i]->second.height = height;
 		return;
@@ -1609,6 +1649,20 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
     const bool use_modulate = use_alpha && (rsp.extra_geometry_mode & G_MODULATE_EXT) != 0;
     const bool use_blur = (rdp.other_mode_h & (3U << G_MDSFT_TEXTFILT)) == G_TF_BLUR_EXT;
 
+    // skin match: inside a chrRender bracket, a texel0 with a companion mask
+    // whose descriptors (and the head's) have been measured. Decided here,
+    // before the combiner key, from the texture's identity rather than its
+    // pixels - the pixels arrive through import_texture below.
+    struct skinmatchbody* skin_body = nullptr;
+    struct skinmatchhead* skin_head = nullptr;
+    bool use_skinmatch = false;
+    if (gfx_skinmatch_head != nullptr && g_SkinMatchEnabled) {
+        const uint32_t tile0 = rdp.first_tile_index + gfx_lod_tile_offset(0);
+        skin_body = rdp.loaded_texture[rdp.texture_tile[tile0].tmem].skin_body;
+        skin_head = gfx_skinmatch_head;
+        use_skinmatch = skin_body && skin_body->ready && !skin_body->denied && skin_head->ready;
+    }
+
     if (texture_edge) {
         use_alpha = true;
     }
@@ -1639,6 +1693,9 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
     }
     if (use_blur) {
         cc_options |= (uint64_t)SHADER_OPT_BLUR;
+    }
+    if (use_skinmatch) {
+        cc_options |= (uint64_t)SHADER_OPT_SKINMATCH;
     }
 
     // If we are not using alpha, clear the alpha components of the combiner as they have no effect
@@ -1741,6 +1798,41 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
         gfx_rapi->unload_shader(rendering_state.shader_program);
         gfx_rapi->load_shader(prg);
         rendering_state.shader_program = prg;
+        // uniforms live per program; make the next skin-matched batch reload them
+        rendering_state.skin_body = nullptr;
+    }
+    if (use_skinmatch && comb->used_textures[0] && gfx_rapi->set_skinmatch) {
+        if (skin_body->maskgl == 0 || skin_body->maskdirty) {
+            // expand the R,G mask to RGBA8 for upload; tex_upload_buffer is
+            // sized for the largest texture and the mask matches its texture
+            const uint32_t count = (uint32_t)skin_body->width * skin_body->height;
+            for (uint32_t k = 0; k < count; k++) {
+                tex_upload_buffer[k * 4] = skin_body->mask[k * 2];
+                tex_upload_buffer[k * 4 + 1] = skin_body->mask[k * 2 + 1];
+                tex_upload_buffer[k * 4 + 2] = 0;
+                tex_upload_buffer[k * 4 + 3] = 255;
+            }
+            gfx_flush();
+            skin_body->maskgl = gfx_rapi->skinmask_upload(skin_body->maskgl, tex_upload_buffer,
+                                                          skin_body->width, skin_body->height);
+            skin_body->maskdirty = 0;
+            rendering_state.skin_body = nullptr;
+        }
+        if (rendering_state.skin_body != skin_body || rendering_state.skin_head != skin_head ||
+            rendering_state.skin_mask_id != skin_body->maskgl) {
+            struct SkinMatchUniforms u;
+            const uint32_t tile0 = rdp.first_tile_index + gfx_lod_tile_offset(0);
+            u.mask_texture_id = skin_body->maskgl;
+            u.cms = rdp.texture_tile[tile0].cms;
+            u.cmt = rdp.texture_tile[tile0].cmt;
+            if (skinmatchResolve(skin_body, skin_head, u.body)) {
+                gfx_flush();
+                gfx_rapi->set_skinmatch(&u);
+                rendering_state.skin_body = skin_body;
+                rendering_state.skin_head = skin_head;
+                rendering_state.skin_mask_id = skin_body->maskgl;
+            }
+        }
     }
     if (use_alpha != rendering_state.alpha_blend || use_modulate != rendering_state.modulate) {
         gfx_flush();
@@ -2223,6 +2315,7 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
     loaded_texture.id = id;
     loaded_texture.id_mask = id_mask;
     loaded_texture.texnum = texnum;
+    loaded_texture.skin_body = skinmatchNumSidecars() > 0 ? skinmatchBodyFor(type, id, texnum, true) : nullptr;
 
 	// Log all non-NONE texture info for debugging
 	if (type != 0) {
@@ -2774,6 +2867,13 @@ static void gfx_run_dl(Gfx* cmd) {
                 gfx_flush();
                 gfx_wireframe_scope = cmd->words.w1 != 0;
                 break;
+            case G_SKINMATCH_EXT:
+                // skin match bracket: flush so the head switch lands exactly
+                // between two chrs' draws
+                gfx_flush();
+                gfx_skinmatch_headfile = (cmd->words.w1 != 0) ? (uint16_t)C0(0, 16) : 0;
+                gfx_skinmatch_head = gfx_skinmatch_headfile ? skinmatchHeadFor(gfx_skinmatch_headfile, true) : nullptr;
+                break;
             case G_FLATFILL_EXT:
                 // pd.* fx "iPod Ad" silhouette: set the flat fill colour scope
                 // (a class bracket - no wireframe edges) or reset to the wall
@@ -3042,6 +3142,8 @@ extern "C" void gfx_start_frame(void) {
     // frame; the iPod Ad fill scope resets to the wall colour so unbracketed
     // geometry (walls/sky) draws bright with wireframe edges on.
     gfx_wireframe_scope = false;
+    gfx_skinmatch_headfile = 0;
+    gfx_skinmatch_head = nullptr;
     gfx_silhouette_color[0] = gfx_silhouette_wall_color[0];
     gfx_silhouette_color[1] = gfx_silhouette_wall_color[1];
     gfx_silhouette_color[2] = gfx_silhouette_wall_color[2];
