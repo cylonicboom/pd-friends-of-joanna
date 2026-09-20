@@ -2966,6 +2966,72 @@ static void imguiOverlayDrawTextureUsage(s32 textureMod, s32 modelFileNum, u16 l
 	}
 }
 
+// --- off-screen texture access for the skin match panel -----------------
+// Texture ids a model uses, read from the modeldef rather than from what the
+// renderer happened to draw this frame. Mod-local ids are mapped to their port
+// ids, which is what the draw stamps and what the sidecars key on.
+s32 imguiOverlayModelTextureIds(s32 fileid, u16 *out, s32 max)
+{
+	struct modeldefTextureUsage usages[512];
+	s32 total = 0;
+	const s32 textureMod = MOD_FILEID_MOD(fileid);
+	const s32 count = modeldefInspectTextureUsage(fileid, 0xffff, 0xffff, usages, ARRAYCOUNT(usages), &total, NULL, 0, NULL, NULL);
+	s32 n = 0;
+
+	for (s32 i = 0; i < count && n < max; i++) {
+		u16 id = usages[i].textureid;
+		if (textureMod >= 0) {
+			const u16 port = modTexMapLookup(textureMod, id);
+			if (port != 0xffff && port != 0) id = port;
+		}
+		bool seen = false;
+		for (s32 k = 0; k < n; k++) if (out[k] == id) { seen = true; break; }
+		if (!seen) out[n++] = id;
+	}
+
+	return n;
+}
+
+// Get a GL texture for (model, texture id) whether or not the model is on
+// screen: what the renderer drew this frame if it did, otherwise the private
+// engine probe (texLoad into the probe pool, a one-texture display list the
+// renderer runs next frame). The probe goes through texWriteLoadToTmemAddr
+// with g_TexCurrentModelFileNum set, so it is stamped with the model's file
+// number and skin match measures it exactly as a live draw. One probe lives at
+// a time and the result is a frame late; callers just ask again.
+bool imguiOverlayProbeModelTexture(s32 fileid, u16 texId, struct GfxTextureDebugInfo *out)
+{
+	const s32 raw = MOD_FILEID_RAW(fileid);
+	s32 textureMod = MOD_FILEID_MOD(fileid);
+
+	if (imguiOverlayFindRenderedTexture(raw, texId, texId, out)) {
+		return true;
+	}
+
+	if (g_ImGuiOverlayEngineProbeModelFileNum == raw && g_ImGuiOverlayEngineProbeTexId == texId) {
+		if (g_ImGuiOverlayEngineProbeDecoded && gfx_get_submitted_debug_texture(out)) {
+			return true;
+		}
+		if (g_ImGuiOverlayEngineProbeAttempted) {
+			return false; // in flight, or failed - do not spam the pool
+		}
+	}
+
+	if (textureMod < 0) {
+		textureMod = g_ModNum >= 0 ? g_ModNum : 0;
+	}
+
+	u16 resolvedLocal = texId;
+	char name[128] = { 0 };
+	const s32 textureFileNum = raw > 0 ? modTextureResolveFile(textureMod, raw, texId, &resolvedLocal, name, sizeof(name)) : 0;
+	if (textureFileNum <= 0 && !imguiOverlayHasRomTexture(texId)) {
+		return false;
+	}
+
+	imguiOverlayRequestEngineTexture(textureMod, raw, textureFileNum, texId);
+	return false;
+}
+
 static void imguiOverlayDrawTexturesPanel(void)
 {
 	const s32 currentTextureMod = g_TexModNum;
@@ -5646,6 +5712,26 @@ void imguiOverlayRender(void)
 
 		{
 			const ImGuiIO &io = ImGui::GetIO();
+			if (io.KeyCtrl && imguiOverlayCanAimInspect() && g_ChrSlots) {
+				// show where the picker thinks every chr is while ctrl is held,
+				// so a mis-scaled projection is visible rather than a mystery
+				ImDrawList *fg = ImGui::GetForegroundDrawList();
+				for (s32 i = 0; i < g_NumChrSlots; i++) {
+					struct chrdata *chr = &g_ChrSlots[i];
+					if (chr->chrnum < 0 || !chr->prop || !imguiOverlayChrIsCurrent(chr)) continue;
+					struct coord feet = chr->prop->pos, head = chr->prop->pos;
+					feet.y = chr->ground;
+					head.y = chr->ground + chr->height;
+					ImVec2 a, b;
+					if (imguiOverlayProjectToWindow(&feet, &a) && imguiOverlayProjectToWindow(&head, &b)) {
+						fg->AddLine(a, b, IM_COL32(79, 216, 255, 200), 2.0f);
+						fg->AddCircle(b, 6.0f, IM_COL32(79, 216, 255, 255));
+						char label[32];
+						snprintf(label, sizeof(label), "chr %d", chr->chrnum);
+						fg->AddText(ImVec2(b.x + 8.0f, b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
+					}
+				}
+			}
 			if (!io.WantCaptureMouse && io.KeyCtrl && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 				struct chrdata *picked = imguiOverlayPickChrAtMouse(io.MousePos);
 				if (picked) {

@@ -61,8 +61,8 @@ static int g_SkinNewMaskScale = 1; // 0: 1x, 1: 2x, 2: 4x
 static float g_SkinOverlayAlpha = 0.55f;
 static int g_SkinTagRadius = 1;
 static bool g_SkinShowOverlay = true;
-static s32 g_SkinBodyTexChoice = 0;
-static s32 g_SkinHeadTexChoice = 0;
+static s32 g_SkinBodyTexSel = -1; // texnum, -1 = first available
+static s32 g_SkinHeadTexSel = -1;
 static bool g_SkinPainting = false;
 static char g_SkinStatus[256] = "";
 static std::vector<SkinBrush> g_SkinBrushes;
@@ -76,6 +76,8 @@ struct SkinTexRef {
 	s32 width;
 	s32 height;
 };
+
+static bool skinReadbackPixels(const SkinTexRef &ref, std::vector<u8> &pixels);
 
 static void skinTexDims(GLuint textureId, s32 *width, s32 *height)
 {
@@ -123,6 +125,167 @@ static void skinCollectModelTextures(u16 fileNum, std::vector<SkinTexRef> &out)
 			out.push_back(ref);
 		}
 	}
+}
+
+// One row of the texture table: every id the modeldef uses, whether or not
+// the renderer drew it this frame.
+struct SkinTexRow {
+	u16 texnum;
+	bool onscreen;
+	SkinTexRef ref; // valid when onscreen
+};
+
+static void skinCollectModelRows(s32 fileid, std::vector<SkinTexRow> &rows)
+{
+	rows.clear();
+	std::vector<SkinTexRef> drawn;
+	skinCollectModelTextures((u16)(fileid & 0xffff), drawn);
+
+	u16 ids[128];
+	const s32 n = imguiOverlayModelTextureIds(fileid, ids, 128);
+
+	for (s32 i = 0; i < n; i++) {
+		SkinTexRow row;
+		row.texnum = ids[i];
+		row.onscreen = false;
+		for (const SkinTexRef &d : drawn) {
+			if (d.info.texnum == ids[i]) {
+				row.onscreen = true;
+				row.ref = d;
+				break;
+			}
+		}
+		rows.push_back(row);
+	}
+
+	// anything drawn under this model's id that the modeldef scan missed
+	for (const SkinTexRef &d : drawn) {
+		bool seen = false;
+		for (const SkinTexRow &r : rows) if (r.texnum == d.info.texnum) { seen = true; break; }
+		if (!seen) {
+			SkinTexRow row;
+			row.texnum = (u16)d.info.texnum;
+			row.onscreen = true;
+			row.ref = d;
+			rows.push_back(row);
+		}
+	}
+}
+
+// The GL texture for a row: the live draw when there is one, otherwise the
+// engine probe (a frame late the first time; the panel just shows "probing").
+// Probed textures are copied into panel-owned GL textures the first time they
+// arrive: the engine holds one probe at a time, and a body and a head both
+// off screen would otherwise evict each other's probe every frame.
+struct SkinProbeCopy {
+	s32 fileid;
+	u16 texnum;
+	GLuint gl;
+	s32 width;
+	s32 height;
+};
+
+static std::vector<SkinProbeCopy> g_SkinProbeCopies;
+
+static bool skinResolveRow(s32 fileid, const SkinTexRow &row, SkinTexRef *out)
+{
+	if (row.onscreen) {
+		*out = row.ref;
+		return true;
+	}
+
+	for (const SkinProbeCopy &c : g_SkinProbeCopies) {
+		if (c.fileid == fileid && c.texnum == row.texnum) {
+			out->info.type = G_TEXTYPE_GENERAL;
+			out->info.id = (u16)(fileid & 0xffff);
+			out->info.texnum = row.texnum;
+			out->info.texture_id = c.gl;
+			out->width = c.width;
+			out->height = c.height;
+			return true;
+		}
+	}
+
+	if (!imguiOverlayProbeModelTexture(fileid, row.texnum, &out->info)) {
+		return false;
+	}
+
+	skinTexDims(out->info.texture_id, &out->width, &out->height);
+	if (out->width <= 0 || out->height <= 0 || out->width > 512 || out->height > 512) {
+		return false;
+	}
+
+	std::vector<u8> px;
+	skinReadbackPixels(*out, px);
+	SkinProbeCopy c;
+	c.fileid = fileid;
+	c.texnum = row.texnum;
+	c.width = out->width;
+	c.height = out->height;
+	GLint previous = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
+	glGenTextures(1, &c.gl);
+	glBindTexture(GL_TEXTURE_2D, c.gl);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, c.width, c.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glBindTexture(GL_TEXTURE_2D, previous);
+	g_SkinProbeCopies.push_back(c);
+	out->info.texture_id = c.gl;
+	return true;
+}
+
+// The texture table: click a row to select it. Returns the selected row or
+// NULL when the list is empty.
+static const SkinTexRow *skinDrawTexTable(const char *id, const std::vector<SkinTexRow> &rows, s32 *sel, u16 fileNum, bool isBody)
+{
+	if (rows.empty()) {
+		return NULL;
+	}
+
+	const SkinTexRow *selected = NULL;
+	for (const SkinTexRow &r : rows) if ((s32)r.texnum == *sel) { selected = &r; break; }
+	if (!selected) {
+		selected = &rows[0];
+		*sel = selected->texnum;
+	}
+
+	const float rowH = ImGui::GetTextLineHeightWithSpacing();
+	const float h = ImMin((float)rows.size(), 6.0f) * rowH + rowH + 6.0f;
+	if (ImGui::BeginTable(id, 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_SizingFixedFit, ImVec2(0.0f, h))) {
+		ImGui::TableSetupScrollFreeze(0, 1);
+		ImGui::TableSetupColumn("tex");
+		ImGui::TableSetupColumn("size");
+		ImGui::TableSetupColumn("source");
+		ImGui::TableSetupColumn(isBody ? "mask" : "tags");
+		ImGui::TableHeadersRow();
+		for (const SkinTexRow &r : rows) {
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			char label[16];
+			snprintf(label, sizeof(label), "%04x", r.texnum);
+			if (ImGui::Selectable(label, r.texnum == selected->texnum, ImGuiSelectableFlags_SpanAllColumns)) {
+				*sel = r.texnum;
+				selected = &r;
+			}
+			ImGui::TableSetColumnIndex(1);
+			if (r.onscreen) ImGui::Text("%dx%d", r.ref.width, r.ref.height); else ImGui::TextDisabled("-");
+			ImGui::TableSetColumnIndex(2);
+			ImGui::TextUnformatted(r.onscreen ? "on screen" : "probe");
+			ImGui::TableSetColumnIndex(3);
+			if (isBody) {
+				const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_GENERAL, fileNum, r.texnum, false);
+				if (b) ImGui::Text("%s%s", b->ready ? "measured" : "mask", b->maskscale > 1 ? (b->maskscale == 4 ? " 4x" : " 2x") : "");
+				else ImGui::TextDisabled("-");
+			} else {
+				const struct skinmatchhead *hd = skinmatchHeadForTex(fileNum, r.texnum);
+				if (hd) ImGui::Text("%d", hd->ntags); else ImGui::TextDisabled("-");
+			}
+		}
+		ImGui::EndTable();
+	}
+
+	return selected;
 }
 
 // Read the texture back so the entry can be measured without waiting for the
@@ -525,17 +688,16 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 		return;
 	}
 
-	std::vector<SkinTexRef> bodyTex, headTex;
-	skinCollectModelTextures(bodyFile, bodyTex);
-	skinCollectModelTextures(headFile, headTex);
+	const s32 bodyFileId = bodynum >= 0 ? g_HeadsAndBodies[bodynum].filenum : 0;
+	const s32 headFileId = headnum >= 0 ? g_HeadsAndBodies[headnum].filenum : 0;
+	std::vector<SkinTexRow> bodyRows, headRows;
+	skinCollectModelRows(bodyFileId, bodyRows);
+	skinCollectModelRows(headFileId, headRows);
 
-	if (bodyTex.empty()) {
-		ImGui::TextDisabled("body model 0x%04x drew no textures this frame - it has to be on screen", bodyFile);
+	if (bodyRows.empty()) {
+		ImGui::TextDisabled("body model 0x%04x lists no textures", bodyFile);
 		return;
 	}
-
-	if (g_SkinBodyTexChoice >= (s32)bodyTex.size()) g_SkinBodyTexChoice = 0;
-	if (g_SkinHeadTexChoice >= (s32)headTex.size()) g_SkinHeadTexChoice = 0;
 
 	ImGui::SetNextItemWidth(90.0f);
 	ImGui::SliderInt("zoom", &g_SkinZoom, 1, 16, "%dx");
@@ -557,25 +719,16 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 		ImGui::TableSetColumnIndex(0);
 		ImGui::SeparatorText("body");
 
-		if (bodyTex.size() > 1) {
-			char preview[32];
-			snprintf(preview, sizeof(preview), "tex %04x", bodyTex[g_SkinBodyTexChoice].info.texnum);
-			ImGui::SetNextItemWidth(120.0f);
-			if (ImGui::BeginCombo("##bodytex", preview)) {
-				for (s32 i = 0; i < (s32)bodyTex.size(); i++) {
-					char label[48];
-					const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_GENERAL, bodyFile, bodyTex[i].info.texnum, false);
-					snprintf(label, sizeof(label), "tex %04x  %dx%d%s", bodyTex[i].info.texnum, bodyTex[i].width, bodyTex[i].height, b ? "  masked" : "");
-					if (ImGui::Selectable(label, i == g_SkinBodyTexChoice)) g_SkinBodyTexChoice = i;
-				}
-				ImGui::EndCombo();
-			}
+		const SkinTexRow *bodyRow = skinDrawTexTable("body textures", bodyRows, &g_SkinBodyTexSel, bodyFile, true);
+		SkinTexRef bref;
+		if (!bodyRow || !skinResolveRow(bodyFileId, *bodyRow, &bref)) {
+			ImGui::TextDisabled("tex %04x: probing through the engine...", bodyRow ? bodyRow->texnum : 0);
+			bodyRow = NULL;
 		}
 
-		const SkinTexRef &bref = bodyTex[g_SkinBodyTexChoice];
-		body = skinmatchBodyFor(G_TEXTYPE_GENERAL, bodyFile, bref.info.texnum, true);
+		body = bodyRow ? skinmatchBodyFor(G_TEXTYPE_GENERAL, bodyFile, bodyRow->texnum, true) : NULL;
 
-		if (!body) {
+		if (bodyRow && !body) {
 			ImGui::TextDisabled("tex %04x  %dx%d  no mask yet", bref.info.texnum, bref.width, bref.height);
 			ImGui::SetNextItemWidth(70.0f);
 			const char *scales[] = { "1x", "2x", "4x" };
@@ -752,25 +905,13 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 		ImGui::TableSetColumnIndex(1);
 		ImGui::SeparatorText("head");
 
-		if (headTex.empty()) {
-			ImGui::TextDisabled("head model 0x%04x drew no textures this frame", headFile);
+		const SkinTexRow *headRow = skinDrawTexTable("head textures", headRows, &g_SkinHeadTexSel, headFile, false);
+		SkinTexRef href;
+		if (headRows.empty()) {
+			ImGui::TextDisabled("head model 0x%04x lists no textures", headFile);
+		} else if (!headRow || !skinResolveRow(headFileId, *headRow, &href)) {
+			ImGui::TextDisabled("tex %04x: probing through the engine...", headRow ? headRow->texnum : 0);
 		} else {
-			if (headTex.size() > 1) {
-				char preview[32];
-				snprintf(preview, sizeof(preview), "tex %04x", headTex[g_SkinHeadTexChoice].info.texnum);
-				ImGui::SetNextItemWidth(120.0f);
-				if (ImGui::BeginCombo("##headtex", preview)) {
-					for (s32 i = 0; i < (s32)headTex.size(); i++) {
-						char label[48];
-						snprintf(label, sizeof(label), "tex %04x  %dx%d%s", headTex[i].info.texnum, headTex[i].width, headTex[i].height,
-							skinmatchHeadForTex(headFile, (s32)headTex[i].info.texnum) ? "  tagged" : "");
-						if (ImGui::Selectable(label, i == g_SkinHeadTexChoice)) g_SkinHeadTexChoice = i;
-					}
-					ImGui::EndCombo();
-				}
-			}
-
-			const SkinTexRef &href = headTex[g_SkinHeadTexChoice];
 			head = skinmatchHeadFor(headFile, true);
 			if (head && head->texnum != (s32)href.info.texnum) {
 				ImGui::TextDisabled("tags live on tex %04x of this head; showing %04x", head->texnum, href.info.texnum);
