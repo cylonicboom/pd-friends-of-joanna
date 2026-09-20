@@ -245,6 +245,11 @@ s32 modLookupHeadByName(const char *name);
 // Persisted g_MpHeads / g_MpBodies index allocation, keyed by the head or body
 // name a modconfig declares. See the note above the store in mod.c.
 void modSlotReservationsInit(void);
+// A level name with no stage table row of its own: allocate a free STAGE_EXTRA
+// row for it and persist the choice, so the name keeps that row across boots
+// and roster changes. Returns -1 when the pool is exhausted.
+s32 modStageSlotReserve(const char *name);
+void modStageSlotClaim(const char *name, s32 slot);
 s32 modHeadSlotReserve(const char *name);
 s32 modBodySlotReserve(const char *name);
 void modHeadSlotClaim(const char *name, s32 slot);

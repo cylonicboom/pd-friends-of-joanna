@@ -148,6 +148,7 @@ static s32 g_NumModHandFileNames = 0;
 
 #define MOD_HEADSLOT_SECTION "MpHeadSlots"
 #define MOD_BODYSLOT_SECTION "MpBodySlots"
+#define MOD_STAGESLOT_SECTION "MpStageSlots"
 
 struct modslotreservation {
 	char name[MOD_SLOT_MAX_NAME];
@@ -157,6 +158,12 @@ struct modslotreservation {
 struct modslottable {
 	const char *section;
 	s32 first;      // lowest index this table may hand out
+	// Optional gate on which indices this table may hand out. NULL means every
+	// index from `first` up is fair game, which is true of heads and bodies:
+	// they append rows the mod itself supplies, so any index past the vanilla
+	// count is a legal home. Stage rows are not like that - a stagenum selects
+	// a row that already exists and carries data - so that table sets this.
+	bool (*usable)(s32 slot);
 	s32 count;
 	u8 fullWarned;
 	u8 ceilingWarned;
@@ -165,6 +172,43 @@ struct modslottable {
 
 static struct modslottable g_ModHeadSlots = { MOD_HEADSLOT_SECTION };
 static struct modslottable g_ModBodySlots = { MOD_BODYSLOT_SECTION };
+static bool modStageSlotUsable(s32 stagenum);
+static struct modslottable g_ModStageSlots = { MOD_STAGESLOT_SECTION, 0, modStageSlotUsable };
+
+/*
+ * Which stagenums the allocator may hand out.
+ *
+ * The STAGE_EXTRA rows are the extension space and nothing else is: every
+ * other row is a level the base game ships, and handing one out would silently
+ * replace it. The names carry that intent already - upstream labels
+ * STAGE_EXTRA20..23 Junkyard, Steel Mill, Mall and Tunnels, which are the four
+ * Goldfinger 64 levels by name.
+ *
+ * The digit test is not decoration. STAGE_EXTRACTION shares the first eleven
+ * characters and is a real solo mission; a prefix-only test hands it out.
+ */
+static bool modStageSlotUsable(s32 stagenum)
+{
+	const char *name = stageGetName(stagenum);
+
+	if (!name || strncmp(name, "STAGE_EXTRA", 11) != 0) {
+		return false;
+	}
+
+	if (name[11] < '0' || name[11] > '9') {
+		return false;
+	}
+
+	// Claimed earlier this boot by an explicit block. Allocating over it would
+	// hand two mods the same row and let roster order decide, which is the
+	// thing this table exists to stop.
+	if (stagenum >= 0 && stagenum < (s32)ARRAYCOUNT(g_ModStageNums)
+			&& g_ModStageNums[stagenum] >= 0) {
+		return false;
+	}
+
+	return true;
+}
 static bool g_ModSlotsLoaded = false;
 
 static struct modslotreservation *modSlotFind(struct modslottable *tbl, const char *name)
@@ -265,11 +309,17 @@ void modSlotReservationsInit(void)
 	g_ModHeadSlots.first = (s32)g_NumMpHeads_Original;
 	g_ModBodySlots.first = (s32)g_NumMpBodies_Original;
 
+	// A stagenum is not an append index: the floor is the bottom of the range
+	// modConfigParseStage will accept, and modStageSlotUsable does the rest.
+	g_ModStageSlots.first = 0x02;
+
 	configScanSection(CONFIG_PATH, MOD_HEADSLOT_SECTION, modSlotScanned, &g_ModHeadSlots);
 	configScanSection(CONFIG_PATH, MOD_BODYSLOT_SECTION, modSlotScanned, &g_ModBodySlots);
+	configScanSection(CONFIG_PATH, MOD_STAGESLOT_SECTION, modSlotScanned, &g_ModStageSlots);
 
-	sysLogPrintf(LOG_NOTE, "modconfig: restored %d head and %d body slot reservations from " CONFIG_FNAME,
-			g_ModHeadSlots.count, g_ModBodySlots.count);
+	sysLogPrintf(LOG_NOTE,
+			"modconfig: restored %d head, %d body and %d stage slot reservations from " CONFIG_FNAME,
+			g_ModHeadSlots.count, g_ModBodySlots.count, g_ModStageSlots.count);
 }
 
 static s32 modSlotReserve(struct modslottable *tbl, const char *name)
@@ -289,8 +339,16 @@ static s32 modSlotReserve(struct modslottable *tbl, const char *name)
 	}
 
 	slot = tbl->first;
-	while (modSlotTaken(tbl, slot)) {
+	while (slot <= MOD_MAX_SLOT_INDEX
+			&& (modSlotTaken(tbl, slot) || (tbl->usable && !tbl->usable(slot)))) {
 		slot++;
+	}
+
+	// A gated table can genuinely run out, unlike heads and bodies which just
+	// count upward. Say so instead of handing back MOD_MAX_SLOT_INDEX + 1.
+	if (slot > MOD_MAX_SLOT_INDEX) {
+		sysLogPrintf(LOG_ERROR, "modconfig: [%s] no free index left for '%s'", tbl->section, name);
+		return -1;
 	}
 
 	r = modSlotAdd(tbl, name, slot);
@@ -339,6 +397,8 @@ s32 modHeadSlotReserve(const char *name) { return modSlotReserve(&g_ModHeadSlots
 s32 modBodySlotReserve(const char *name) { return modSlotReserve(&g_ModBodySlots, name); }
 void modHeadSlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModHeadSlots, name, slot); }
 void modBodySlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModBodySlots, name, slot); }
+s32 modStageSlotReserve(const char *name) { return modSlotReserve(&g_ModStageSlots, name); }
+void modStageSlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModStageSlots, name, slot); }
 
 // Per-mod cached config data (parsed once at boot, then just copied on modSwitch)
 struct modelstate g_ModelStates_PerMod[64][NUM_MODELS];
@@ -2407,15 +2467,31 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			sysLogPrintf(LOG_ERROR, "modconfig: invalid stage number: %x", stagenum);
 			return NULL;
 		}
+
+		// A literal is the modconfig's own choice; record it so the allocator
+		// cannot later hand the same row to a name.
+		modStageSlotClaim(spec, stagenum);
 	} else {
 		const s32 named = stageGetIndexByName(spec);
 
 		if (named < 0) {
-			sysLogPrintf(LOG_ERROR,
-					"modconfig: no stage is named '%s'; skipping the block. "
-					"A name with no stage table row is not appended yet - g_StageNames "
-					"(src/game/stagetable.c) is the list of names that exist",
-					spec);
+			// Not a STAGE_* row name, so treat it as the mod's own name for a
+			// level and hand it a free STAGE_EXTRA row. The allocation is
+			// recorded under that name in [MpStageSlots] in pd.ini, so the same
+			// name gets the same row on every later boot even if the roster
+			// changes - which is the whole point, and is how head and body
+			// slots already behave.
+			stagenum = modStageSlotReserve(spec);
+
+			if (stagenum < 0) {
+				sysLogPrintf(LOG_ERROR,
+						"modconfig: '%s' is not a stage table row name and no free "
+						"STAGE_EXTRA row is left to give it; skipping the block",
+						spec);
+			} else {
+				sysLogPrintf(LOG_NOTE, "modconfig: '%s' allocated stage 0x%02x (%s)",
+						spec, stagenum, stageGetName(stagenum));
+			}
 		} else if (g_Stages[named].id <= 0x01
 				|| g_Stages[named].id >= (s32)ARRAYCOUNT(g_ModStageNums)) {
 			// No row is outside that range today - all 87 ids sit in 0x01..0x5b
@@ -2427,6 +2503,9 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 					spec, g_Stages[named].id);
 		} else {
 			stagenum = g_Stages[named].id;
+			// Recorded, not allocated - same reason modSlotClaim exists for
+			// heads: a name allocated later must not be handed this row.
+			modStageSlotClaim(spec, stagenum);
 		}
 	}
 
