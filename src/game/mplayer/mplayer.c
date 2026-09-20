@@ -350,7 +350,10 @@ static inline s32
 getExtendedProfileIndexFromFileGuid(const struct fileguid *fileguid) {
   s32 i;
 
-  if (!fileguid->fileid && !fileguid->fileid)
+  // Was `!fileguid->fileid && !fileguid->fileid` - fileid tested twice and
+  // deviceserial never checked, so a zero fileid on a real device was treated
+  // as "no guid" and a nonzero fileid with no device was accepted.
+  if (!fileguid->fileid && !fileguid->deviceserial)
     return -1;
 
   for (i = 0; i < g_NumProfiles; i++) {
