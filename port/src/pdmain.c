@@ -78,6 +78,7 @@
 #include "lib/vm.h"
 #include "mod.h"
 #include "system.h"
+#include "savequeue.h"
 #include "types.h"
 #include "video.h"
 #include <PR/ultrasched.h>
@@ -573,10 +574,19 @@ void mainLoop(void) {
         mainTick();
         schedEndFrame(&g_Sched);
       }
+
+      // The frame is presented and audio is queued; the loop is about to idle.
+      // If anything is waiting to be written, this is where it goes.
+      saveQueueTick();
+
       if (g_TickExtraSleep) {
         sysSleep(EXTRA_SLEEP_TIME);
       }
     }
+
+    // saveQueueTick stops running for the duration of the teardown and load,
+    // which is far longer than the deadline, so commit before leaving.
+    saveQueueFlush();
 
     lvStop();
     mempDisablePool(MEMPOOL_STAGE);

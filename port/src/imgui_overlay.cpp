@@ -302,6 +302,11 @@ static bool g_ImGuiSavesResultOk = true;
 // and port/src/config.c. Declared by hand for the same reason as everything
 // above: those headers are not extern "C"-wrapped.
 extern "C" struct extplayerprofile g_ExtendedProfiles[];
+extern "C" s32 saveQueueIsDirty(void);
+extern "C" u32 saveQueueFramesPending(void);
+extern "C" u32 saveQueueDeadlineFrames(void);
+extern "C" u32 saveQueueFlushCount(void);
+extern "C" void saveQueueFlush(void);
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -5033,6 +5038,26 @@ static void imguiOverlayDrawSavesPanel(void)
 {
 	s32 i;
 
+	ImGui::SeparatorText("Queue");
+	{
+		u32 pending = saveQueueFramesPending();
+
+		if (saveQueueIsDirty()) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.35f, 1.0f));
+			ImGui::Text("dirty - waiting %u frames (deadline %u)", pending, saveQueueDeadlineFrames());
+			ImGui::PopStyleColor();
+		} else {
+			ImGui::TextDisabled("clean");
+		}
+
+		ImGui::SameLine();
+		ImGui::TextDisabled("| %u flushes this session", saveQueueFlushCount());
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Writes are marked, not performed, and committed on a frame\n"
+				"that had budget to spare - or at the deadline if none does.");
+	}
+
 	ImGui::SeparatorText("Flush");
 
 	if (ImGui::Button("Flush MP profile saves")) {
@@ -5278,6 +5303,10 @@ static void imguiOverlayRunSaveRequests(void)
 	}
 
 	iniProcessPendingProfiles();
+
+	// Commit eeprom too, not just the ini - the pak writes above only marked
+	// it dirty. saveQueueFlush is a no-op when nothing is pending.
+	saveQueueFlush();
 
 	// configSave returns 1 on success and 0 when it cannot open the file.
 	if (configSave(CONFIG_PATH)) {

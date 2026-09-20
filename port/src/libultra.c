@@ -8,6 +8,7 @@
 #include <PR/rcp.h>
 #include "platform.h"
 #include "system.h"
+#include "savequeue.h"
 #include "input.h"
 #include "video.h"
 #include "audio.h"
@@ -30,6 +31,7 @@ s32 osViClock = VI_NTSC_CLOCK;
 static u8 eeprom[EEPROM_SIZE];
 static char eepromPath[FS_MAXPATH + 1];
 static s32 eepromLoaded = 0;
+static s32 eepromDirty = 0;
 
 /* Time */
 
@@ -324,9 +326,28 @@ s32 osEepromLongWrite(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes)
 
 	memcpy(eeprom + address * 8, buffer, nbytes);
 
-	osEeepromSave(eepromPath);
+	// The shadow above is what every reader sees, so the file can lag behind
+	// it. Writing here meant a whole 2048-byte rewrite per 16-byte block -
+	// about seven per MP profile save. See port/include/savequeue.h.
+	eepromDirty = 1;
+	saveQueueMarkEeprom();
 
 	return 0;
+}
+
+void osEepromFlush(void)
+{
+	if (!eepromDirty) {
+		return;
+	}
+
+	eepromDirty = 0;
+
+	if (!eepromPath[0]) {
+		osEepromSetPath();
+	}
+
+	osEeepromSave(eepromPath);
 }
 
 /* Pfs */

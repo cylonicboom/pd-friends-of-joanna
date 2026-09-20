@@ -17,6 +17,7 @@
 #include "fs.h"
 #include "romdata.h"
 #include "config.h"
+#include "savequeue.h"
 #include "game/music.h"
 #include "mod.h"
 #include "game/stancetuning.h"
@@ -114,7 +115,13 @@ static void cleanup(void)
 {
 	sysLogPrintf(LOG_NOTE, "shutdown");
 	inputSaveBinds();
-	configSave(CONFIG_PATH);
+	// inputSaveBinds only refreshes the in-memory bind strings the config
+	// table points at, so nothing has marked pd.ini dirty. Shutdown has
+	// always written it unconditionally; keep that.
+	saveQueueMarkConfig();
+	// Commits pd.ini and eeprom.bin together. eeprom needed nothing here
+	// before, because every block write had already hit the disk.
+	saveQueueFlush();
 	videoShutdown();
 	crashShutdown();
 	// TODO: actually shut down all subsystems

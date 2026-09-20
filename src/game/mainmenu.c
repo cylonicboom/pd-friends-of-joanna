@@ -1,5 +1,6 @@
 #include "game/mainmenu.h"
 #include "bss.h"
+#include "savequeue.h"
 #include "constants.h"
 #include "data.h"
 #include "game/bondgun.h"
@@ -1623,7 +1624,7 @@ menudialogTeamCoopAntiOptions(s32 operation, struct menudialogdef *dialogdef,
       struct menuinputs *inputs = data->dialog2.inputs;
 
       if (inputs->back) {
-        configSave(CONFIG_PATH);
+        saveQueueMarkConfig();
         teamMissionConfigStrUpdateMarquee();
       }
     }
@@ -1674,7 +1675,7 @@ menudialogTeamPlayerProfiles(s32 operation, struct menudialogdef *dialogdef,
     break;
   case MENUOP_CLOSE:
     // Persist pre-reality profile edits immediately when leaving this menu.
-    configSave(CONFIG_PATH);
+    saveQueueMarkConfig();
     fileListFreeAll();
     if (g_MenuData.root == MENUROOT_FILEMGR) {
       filelistCreate(0, FILETYPE_GAME);
@@ -3847,7 +3848,7 @@ MenuDialogHandlerResult menudialog0010559c(s32 operation,
     break;
   case MENUOP_CLOSE:
     if (g_Vars.modifiedfiles & MODFILE_GAME) {
-      configSave(CONFIG_PATH);
+      saveQueueMarkConfig();
 
       if (g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
         if (filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_001, 0) == 0) {
