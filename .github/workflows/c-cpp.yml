@@ -121,6 +121,35 @@ jobs:
           path: bin/
           retention-days: 0
 
+  # The tools that WRITE what the engine reads. Every other job here builds the
+  # engine, so until this one a filetable builder could stop agreeing with the
+  # reader and nothing would say so until a mod failed to load in someone's
+  # game - which is how the v4 bump was found, by a shipped binary refusing a
+  # table it had never heard of.
+  #
+  # It cannot check the mods that actually ship: those live in
+  # pd-fojo-basedir, a separate private repository, and this one has no mod
+  # data in it. So it checks what is hermetic - that the tools build, that the
+  # name rules still reject what they claim to, and that a table written here
+  # can be read back here - and the real roster is checked where the data is.
+  build-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc make zlib1g-dev python3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Build mkfiletable and slugmod
+        run: make -C tools/mkfiletable all
+      - name: Build modsetcheck
+        run: make -C tools/modsetcheck
+      - name: Check the filetable name rules
+        run: make -C tools/mkfiletable pdftrules_test && tools/mkfiletable/pdftrules_test
+      - name: Build a mod and read it back
+        run: sh tools/modsetcheck/selftest.sh
+
   build-x86_64-linux:
     runs-on: ubuntu-latest
     steps:

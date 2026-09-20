@@ -6,7 +6,7 @@
 
 CC      ?= cc
 CFLAGS  ?= -O2 -Wall -Wextra -std=c99
-CFLAGS  += -I../mkfiletable
+CFLAGS  += -I../mkfiletable -I../../port/include
 
 OBJS    = modsetcheck.o pdft_read.o
 

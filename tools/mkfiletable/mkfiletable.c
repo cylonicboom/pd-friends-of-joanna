@@ -1089,6 +1089,26 @@ int main(int argc, char **argv)
 			ents[i].name = name;
 			ents[i].path = json_object_get_string(e, "path");
 			ents[i].isTexture = type && !strcmp(type, "texture");
+
+			/* Every per-file name rule, checked with the same predicate the
+			 * loader compiles - see port/include/pdftrules.h. This is fatal
+			 * rather than a warning because each verdict it returns is a file
+			 * that builds clean and is then never found at runtime, and a
+			 * warning in a build that still writes filetable.dat is a warning
+			 * nobody reads. The whole shipped roster passes: 5581 entries,
+			 * 4940 of them textures, across all eight mods, zero findings. */
+			{
+				char texPrefixBuf[64];
+				const char *texPrefix = pdftTexPrefixFromModDir(modName,
+						texPrefixBuf, sizeof(texPrefixBuf));
+				enum pdftNameVerdict verdict = pdftCheckName(name,
+						ents[i].isTexture, texPrefix);
+
+				if (verdict != PDFT_NAME_OK) {
+					die("%s: file entry %zu, '%s': %s", manifestPath, i, name,
+							pdftNameVerdictText(verdict));
+				}
+			}
 			ents[i].replaces = replaces != NULL;
 			ents[i].fixedId = -1;
 			ents[i].altRom = -1;

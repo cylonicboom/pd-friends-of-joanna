@@ -21,24 +21,13 @@
 #define PDFT_ROMSOURCE_ID   16    /* char id[16] in the reader, terminator included */
 #define PDFT_ROMSOURCE_FILE 64    /* char filename[64], likewise */
 
-/* Per-entry flags, as romdataParseFileTable() reads them. The field is a u32
- * and the reader tests individual bits, so an unknown bit is ignored rather
- * than mis-parsed: a bit added here does not move any byte and does not
- * desync an older reader, which is why SELFSOURCE below needs no new version.
+/* The per-entry flags and the per-file name rules live in the engine, in
+ * port/include/pdftrules.h, and are included rather than restated here. They
+ * were duplicated in this header and as bare literals in romdata.c, which is
+ * how a builder ends up certifying a mod the loader cannot read. See that
+ * file's header for the argument and for what deliberately stays out of it.
  */
-#define PDFT_F_ROMRESIDENT 0x1  /* bind g_RomFile + offset */
-#define PDFT_F_PATH        0x2  /* the path field is present and non-empty */
-#define PDFT_F_ALT         0x4  /* the alt-ROM tail follows the path */
-#define PDFT_F_SELFSOURCE  0x8  /* resolve `path` in the OWNING mod's own
-                                 * directory, and nowhere else. See the note
-                                 * on pdftFile.selfSource. */
-#define PDFT_F_ALIAS       0x10 /* an alias tail follows: u16 len + string.
-                                 * UNLIKE the bits above this one MOVES BYTES,
-                                 * so it needs v4. An older reader refuses v4
-                                 * outright (pdft_read.c bounds the version),
-                                 * which is a clean failure rather than the
-                                 * silent desync a tail behind an ignored bit
-                                 * would have produced. */
+#include "pdftrules.h"
 
 enum pdftFallback {
 	PDFT_FALLBACK_SKIP = 0,

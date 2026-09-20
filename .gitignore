@@ -28,6 +28,7 @@ tools/mkrom/mkrom
 tools/mkfiletable/mkfiletable
 tools/mkfiletable/slugmod
 tools/mkfiletable/pdft_reencode
+tools/mkfiletable/pdftrules_test
 tools/modsetcheck/modsetcheck
 release-*/*
 /.vs

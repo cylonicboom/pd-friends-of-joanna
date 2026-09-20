@@ -9,6 +9,10 @@
 #include "gbiex.h"
 #include "lib/rzip.h"
 #include "romdata.h"
+// The flag bits below, and the per-file name rules, shared verbatim with
+// tools/mkfiletable so the builder cannot certify a table this reader
+// mis-parses. Freestanding on purpose; see the header.
+#include "pdftrules.h"
 #include "fs.h"
 #include "system.h"
 #include "preprocess.h"
@@ -188,7 +192,9 @@ struct romsource {
 	u8  *data;
 	u32  size;
 	u32  expectedSize;
-	u8   flags;       // bit0=required, bit1=strict
+	u8   flags;       // bit0=required, bit1=strict. NOT the PDFT_F_* bits:
+	                  // this is a romSource's own field and shares nothing
+	                  // with a file entry's flags but the word.
 	u8   fallback;    // 0=skip, 1=vanilla, 2=error
 	u8   mounted;
 };
@@ -791,6 +797,36 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			char *name = (char*)p;
 			p += nameLen;
 
+			// The load-time half of the name rules in pdftrules.h. Only the
+			// two that the WIRE can support: nameLen counts the terminator, so
+			// a name of 127 characters arrives as 128 and is the longest that
+			// survives the resolver's candidate[128] intact.
+			//
+			// The texture-shape rule cannot be checked here and deliberately
+			// is not faked. It turns on the manifest's `type: texture`, and the
+			// wire format carries no type - an entry is a texture only in the
+			// sense that something will one day compose its name from an id.
+			// Making that rule transferable needs a flag bit saying so, which
+			// by the note in pdftrules.h costs no bytes and no version, and is
+			// the obvious next step if this is to move to load time properly.
+			//
+			// Reported, not refused: by the time this reads the row the table
+			// is already mounted and the alternative is dropping a file the
+			// player has. A warning naming the cause is worth a great deal
+			// anyway, because the symptom is otherwise an unexplained missing
+			// file a long way from here.
+			if (nameLen <= 1) {
+				sysLogPrintf(LOG_WARNING,
+					"PDFT: id %u (mod=%d) has an empty name, and an entry is "
+					"reachable only by name", id, ownerModIdx);
+			} else if (nameLen > PDFT_NAME_MAX) {
+				sysLogPrintf(LOG_WARNING,
+					"PDFT: id %u (mod=%d) has a %u-byte name, over the %d-byte "
+					"buffer modTextureResolveFileDetailed() composes into, so "
+					"any lookup of it will be truncated and miss: %.*s",
+					id, ownerModIdx, nameLen, PDFT_NAME_MAX, (int)nameLen - 1, name);
+			}
+
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
 			char *path = (char*)p;
 			p += pathLen;
@@ -799,7 +835,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			u32 altOffset = 0;
 			u32 altSize = 0;
 			u8  altCompression = 0;
-			if (flags & 4) {
+			if (flags & PDFT_F_ALT) {
 				if (p + 1 + 4 + 4 + 1 > dataEnd) {
 					sysLogPrintf(LOG_ERROR, "PDFT v2 source tail truncated for id %u (mod=%d)",
 					             id, ownerModIdx);
@@ -827,7 +863,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			// rather than walking off the end of this entry.
 			u16 aliasLen = 0;
 			const char *aliasName = NULL;
-			if (flags & 0x10) {
+			if (flags & PDFT_F_ALIAS) {
 				if (p + 2 > dataEnd) {
 					sysLogPrintf(LOG_ERROR, "PDFT alias tail truncated for id %u (mod=%d)", id, ownerModIdx);
 					return 0;
@@ -848,7 +884,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			// owning mod's directory" means nothing for a table that has no
 			// owning mod, so a global table's self flag is dropped rather than
 			// given mod 0's directory by accident.
-			if ((flags & 8) && id < ROMDATA_MAX_FILES) {
+			if ((flags & PDFT_F_SELFSOURCE) && id < ROMDATA_MAX_FILES) {
 				if (isGlobal) {
 					sysLogPrintf(LOG_WARNING,
 						"PDFT: id %u is self-sourced in the global table, which has no "
@@ -888,7 +924,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			const char *pathAfterDoubleColon = NULL;
 			const char *modConstraint = NULL;
 
-			if (isGlobal && (flags & 2) && pathLen > 1) {
+			if (isGlobal && (flags & PDFT_F_PATH) && pathLen > 1) {
 				if (strstr(path, "export")) hasExport = true;
 				const char *modPrefix = strstr(path, "mod:");
 				if (modPrefix) modConstraint = modPrefix + 4;
@@ -904,13 +940,13 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			s32 modEnd = isGlobal ? (s32)g_NumModDirs : ownerModIdx + 1;
 
 			for (s32 mod = modLo; mod < modEnd; ++mod) {
-				if (flags & 1) {
+				if (flags & PDFT_F_ROMRESIDENT) {
 					fileSlots[mod][id].data = g_RomFile + offset;
 					fileSlots[mod][id].size = fileSize;
 					fileSlots[mod][id].source = SRC_UNLOADED;
 				}
 
-				if ((flags & 2) && pathLen > 1) {
+				if ((flags & PDFT_F_PATH) && pathLen > 1) {
 					if (isGlobal && hasExport && modConstraint && pathAfterDoubleColon) {
 						// `mod` is a fileSlots[] row, and a row is read back
 						// as fileSlots[g_ModNum] - the same 0-based number the
@@ -977,7 +1013,7 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			// owning mod's directory" means nothing for a table that has no
 			// owning mod, so a global table's self flag is dropped rather than
 			// given mod 0's directory by accident.
-			if ((flags & 8) && id < ROMDATA_MAX_FILES) {
+			if ((flags & PDFT_F_SELFSOURCE) && id < ROMDATA_MAX_FILES) {
 				if (isGlobal) {
 					sysLogPrintf(LOG_WARNING,
 						"PDFT: id %u is self-sourced in the global table, which has no "
@@ -1014,12 +1050,12 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			// Exclusive end, as in the v2/v3 path above.
 			s32 modEnd = isGlobal ? (s32)g_NumModDirs : ownerModIdx + 1;
 			for (s32 mod = modLo; mod < modEnd; ++mod) {
-				if (flags & 1) {
+				if (flags & PDFT_F_ROMRESIDENT) {
 					fileSlots[mod][id].data = g_RomFile + offset;
 					fileSlots[mod][id].size = fileSize;
 					fileSlots[mod][id].source = SRC_UNLOADED;
 				}
-				if ((flags & 2) && pathLen > 1) {
+				if ((flags & PDFT_F_PATH) && pathLen > 1) {
 					fileSlots[mod][id].name = path;
 				} else if (nameLen > 1) {
 					fileSlots[mod][id].name = name;
@@ -1296,7 +1332,7 @@ static inline void romdataResetFile(s32 modNum, s32 fileNum)
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2 + pathLen;
 
 			if (id == fileNum) {
-				if (flags & 1) {
+				if (flags & PDFT_F_ROMRESIDENT) {
 					fileSlots[modNum][fileNum].data = g_RomFile + offset;
 					fileSlots[modNum][fileNum].size = fileSize;
 					fileSlots[modNum][fileNum].source = SRC_UNLOADED;
@@ -3036,7 +3072,7 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 			u16 pathLen = PD_BE16(*(u16*)p); p += 2;
 			p += pathLen;
 
-			if (flags & 4) {
+			if (flags & PDFT_F_ALT) {
 				if (p + 10 > dataEnd) break;
 				p += 10; // altRomIdx(1) + altOffset(4) + altSize(4) + altCompression(1)
 			}
@@ -3044,7 +3080,7 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 			// v4 alias tail. This scanner only needs to STEP OVER it - the hash
 			// pass carries the alias as its own entry, and this walk is the
 			// fallback for when that missed.
-			if (flags & 0x10) {
+			if (flags & PDFT_F_ALIAS) {
 				if (p + 2 > dataEnd) break;
 				u16 aliasSkip = PD_BE16(*(u16*)p); p += 2;
 				if (p + aliasSkip > dataEnd) break;
