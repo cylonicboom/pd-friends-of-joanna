@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "data.h"
 #include "fs.h"
+#include "utils.h"
 #include "game/body.h"
 #include "game/camdraw.h"
 #include "game/challenge.h"
@@ -111,6 +112,44 @@ u32 var8005dd4c = 0x00000000;
 u32 var8005dd50 = 0x00000000;
 s32 g_MainChangeToStageNum = -1;
 bool g_MainIsDebugMenuOpen = false;
+
+/*
+ * Per-stagenum allocation overrides, from a modconfig's `allocation` key. The
+ * string is duplicated once per stagenum and replaced, not leaked, on a
+ * re-parse. See the lookup below for how it is consulted.
+ */
+static char *g_ModStageAllocation[NUM_STAGENUMS];
+
+void stageSetModAllocation(s32 stagenum, const char *string)
+{
+	char *dup;
+
+	if (stagenum < 0 || stagenum >= NUM_STAGENUMS || !string) {
+		return;
+	}
+
+	if (g_ModStageAllocation[stagenum] && strcmp(g_ModStageAllocation[stagenum], string) == 0) {
+		return;
+	}
+
+	dup = strDuplicate(string);
+
+	if (!dup) {
+		return;
+	}
+
+	free(g_ModStageAllocation[stagenum]);
+	g_ModStageAllocation[stagenum] = dup;
+}
+
+const char *stageGetModAllocation(s32 stagenum)
+{
+	if (stagenum < 0 || stagenum >= NUM_STAGENUMS) {
+		return NULL;
+	}
+
+	return g_ModStageAllocation[stagenum];
+}
 
 struct stageallocation g_StageAllocations8Mb[] = {
     {STAGE_CITRAINING, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
@@ -489,7 +528,19 @@ void mainLoop(void) {
           }
         }
 
-        argSetString(g_StageAllocations8Mb[index].string);
+        // A modconfig's `allocation` for this stage wins over the table. The
+        // table has rows for STAGE_EXTRA1..26 only; a level row past that used
+        // to run on the terminator's string (-ma300), and the key was refused
+        // for it. Now the key stores here, and a level row with no entry and
+        // no key gets the MP string every authored MP row carries.
+        if (stageGetModAllocation(g_StageNum)) {
+          sysLogPrintf(LOG_NOTE, "stage 0x%02x allocation from its modconfig: %s", g_StageNum, stageGetModAllocation(g_StageNum));
+          argSetString((char *)stageGetModAllocation(g_StageNum));
+        } else if (g_StageAllocations8Mb[index].stagenum == 0 && g_StageNum < STAGE_TITLE) {
+          argSetString(STAGE_ALLOCATION_MP_DEFAULT);
+        } else {
+          argSetString(g_StageAllocations8Mb[index].string);
+        }
       }
     }
 

@@ -14,6 +14,9 @@
 #include "game/body.h"
 #include "game/training.h"
 #include "game/stagetable.h"
+#include "game/env.h"
+#include "game/lang.h"
+#include "game/stagemusic.h"
 
 #define DEBUG_MODELS(fmt, ...) \
 	do { if (g_DebugModels) sysLogPrintf(LOG_NOTE, fmt, ##__VA_ARGS__); } while (0)
@@ -916,17 +919,25 @@ static inline char *modConfigParseFloatValue(char *p, char *token, f32 *out)
 
 static char *modConfigParseStageMusic(char *p, char *token, s32 stagenum)
 {
-	struct stagemusic *smus = NULL;
-	for (struct stagemusic *p = g_StageTracks; p->stagenum; ++p) {
-		if (p->stagenum == stagenum) {
-			smus = p;
-			break;
-		}
-	}
+	/*
+	 * Used to find the stage's g_StageTracks row and write into it, refusing a
+	 * stage without one - which was every STAGE_EXTRA row, so `music` could
+	 * not be set on any level the loader placed. The tracks now go into a
+	 * per-stagenum override that the getters consult first. A key the block
+	 * omits keeps what the table row had, or -1 where there is no row
+	 * (primary -1 = mpChooseTrack, as in the table).
+	 */
+	s32 primary = -1, ambient = -1, xtrack = -1;
 
-	if (!smus) {
-		sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: music can't be changed for this stage", stagenum);
-		return NULL;
+	if (!stageGetModTracks(stagenum, &primary, &ambient, &xtrack)) {
+		for (struct stagemusic *row = g_StageTracks; row->stagenum; ++row) {
+			if (row->stagenum == stagenum) {
+				primary = row->primarytrack;
+				ambient = row->ambienttrack;
+				xtrack = row->xtrack;
+				break;
+			}
+		}
 	}
 
 	// eat opening bracket
@@ -940,14 +951,14 @@ static char *modConfigParseStageMusic(char *p, char *token, s32 stagenum)
 	p = strParseToken(p, token, NULL);
 	while (p && token[0] && strcmp(token, "}") != 0) {
 		if (!strcmp(token, "primarytrack")) {
-			PARSE_STAGE_INT("music:", "primarytrack", tmp, 0, 128);
-			smus->primarytrack = tmp;
+			PARSE_STAGE_INT("music:", "primarytrack", tmp, -1, 128);
+			primary = tmp;
 		} else if (!strcmp(token, "ambienttrack")) {
-			PARSE_STAGE_INT("music:", "ambienttrack", tmp, 0, 128);
-			smus->ambienttrack = tmp;
+			PARSE_STAGE_INT("music:", "ambienttrack", tmp, -1, 128);
+			ambient = tmp;
 		} else if (!strcmp(token, "xtrack")) {
-			PARSE_STAGE_INT("music:", "xtrack", tmp, 0, 128);
-			smus->xtrack = tmp;
+			PARSE_STAGE_INT("music:", "xtrack", tmp, -1, 128);
+			xtrack = tmp;
 		} else {
 			char where[40];
 			snprintf(where, sizeof(where), "stage 0x%02x: music", stagenum);
@@ -960,6 +971,8 @@ static char *modConfigParseStageMusic(char *p, char *token, s32 stagenum)
 		sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: unterminated music block", stagenum);
 		return NULL;
 	}
+
+	stageSetModTracks(stagenum, primary, ambient, xtrack);
 
 	return p;
 }
@@ -1009,6 +1022,109 @@ static char *modConfigParseStageWeatherRooms(char *p, char *token, s32 stagenum,
 		return NULL;
 	}
 
+	return p;
+}
+
+/*
+ * env { KEYVALUES } - the stage's sky, fog, clouds and water: one row of
+ * env.c's tables, carried by the level instead of by the row it sits on.
+ * Every key is optional; absent keys take the values of the "Default" no-fog
+ * row. `fog FOGMIN FOGMAX` present makes it a fog-table row, absent a no-fog
+ * one.
+ *   near N · far N · distfade OPA XLU REF · sky 0xRRGGBB · suns NAME
+ *   clouds ENABLED SCALE TYPE 0xRRGGBB · water ENABLED SCALE TYPE 0xRRGGBB
+ *   cloudsheight N · transparency 0|1
+ */
+static char *modConfigParseStageEnv(char *p, char *token, s32 stagenum)
+{
+	struct modstageenv env;
+	s32 tmp = 0;
+	s32 rgb = 0;
+	char *name = NULL;
+
+	envModStageEnvDefaults(&env);
+
+	p = strParseToken(p, token, NULL);
+	if (token[0] != '{' || token[1] != '\0') {
+		sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: env: expected '{'", stagenum);
+		return NULL;
+	}
+
+	p = strParseToken(p, token, NULL);
+	while (p && token[0] && strcmp(token, "}") != 0) {
+		if (!strcmp(token, "fog")) {
+			PARSE_STAGE_INT("env:", "fog min", tmp, 0, 32767);
+			env.fogmin = (s16)tmp;
+			PARSE_STAGE_INT("env:", "fog max", tmp, 0, 32767);
+			env.fogmax = (s16)tmp;
+			env.fog = 1;
+		} else if (!strcmp(token, "near")) {
+			PARSE_STAGE_INT("env:", "near", tmp, 1, 32767);
+			env.near = (s16)tmp;
+		} else if (!strcmp(token, "far")) {
+			PARSE_STAGE_INT("env:", "far", tmp, 1, 32767);
+			env.far = (s16)tmp;
+		} else if (!strcmp(token, "distfade")) {
+			PARSE_STAGE_INT("env:", "distfade opaperc", tmp, 0, 32767);
+			env.opaperc = (s16)tmp;
+			PARSE_STAGE_INT("env:", "distfade xluperc", tmp, 0, 32767);
+			env.xluperc = (s16)tmp;
+			PARSE_STAGE_INT("env:", "distfade refdist", tmp, 0, 32767);
+			env.refdist = (s16)tmp;
+		} else if (!strcmp(token, "sky")) {
+			PARSE_STAGE_INT("env:", "sky", rgb, 0, 0xffffff);
+			env.sky_r = (rgb >> 16) & 0xff;
+			env.sky_g = (rgb >> 8) & 0xff;
+			env.sky_b = rgb & 0xff;
+		} else if (!strcmp(token, "suns")) {
+			PARSE_STAGE_STRING("env:", "suns", name);
+			if (!envLookupSuns(name, &env.numsuns, &env.suns)) {
+				sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: env: unknown suns '%s' "
+						"(none default area51 villa ci skedar crashsite airbase)", stagenum, name);
+				return NULL;
+			}
+		} else if (!strcmp(token, "clouds")) {
+			PARSE_STAGE_INT("env:", "clouds enabled", tmp, 0, 1);
+			env.clouds_enabled = (u8)tmp;
+			PARSE_STAGE_INT("env:", "clouds scale", tmp, -32768, 32767);
+			env.clouds_scale = (s16)tmp;
+			PARSE_STAGE_INT("env:", "clouds type", tmp, 0, 255);
+			env.clouds_type = (u8)tmp;
+			PARSE_STAGE_INT("env:", "clouds rgb", rgb, 0, 0xffffff);
+			env.clouds_r = (rgb >> 16) & 0xff;
+			env.clouds_g = (rgb >> 8) & 0xff;
+			env.clouds_b = rgb & 0xff;
+		} else if (!strcmp(token, "water")) {
+			PARSE_STAGE_INT("env:", "water enabled", tmp, 0, 1);
+			env.water_enabled = (u8)tmp;
+			PARSE_STAGE_INT("env:", "water scale", tmp, -32768, 32767);
+			env.water_scale = (s16)tmp;
+			PARSE_STAGE_INT("env:", "water type", tmp, 0, 255);
+			env.water_type = (u8)tmp;
+			PARSE_STAGE_INT("env:", "water rgb", rgb, 0, 0xffffff);
+			env.water_r = (rgb >> 16) & 0xff;
+			env.water_g = (rgb >> 8) & 0xff;
+			env.water_b = rgb & 0xff;
+		} else if (!strcmp(token, "cloudsheight")) {
+			PARSE_STAGE_INT("env:", "cloudsheight", tmp, 0, 255);
+			env.clouds_height = (u8)tmp;
+		} else if (!strcmp(token, "transparency")) {
+			PARSE_STAGE_INT("env:", "transparency", tmp, 0, 1);
+			env.transparency = (u8)tmp;
+		} else {
+			char where[40];
+			snprintf(where, sizeof(where), "stage 0x%02x: env", stagenum);
+			p = modConfigSkipUnknownKey(p, where, token);
+		}
+		p = strParseToken(p, token, NULL);
+	}
+
+	if (token[0] != '}') {
+		sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: unterminated env block", stagenum);
+		return NULL;
+	}
+
+	envSetStageEnv(stagenum, &env);
 	return p;
 }
 
@@ -2341,7 +2457,7 @@ _Static_assert(ARRAYCOUNT(g_StageBindings) == ARRAYCOUNT(g_ModStageNums),
 
 static const char *const g_ModStageFieldNames[MODSTAGE_FIELD_COUNT] = {
 	"bgfile", "tilesfile", "padsfile", "setupfile", "mpsetupfile",
-	"allocation", "music", "weather"
+	"allocation", "music", "weather", "langbank", "env"
 };
 
 const char *modStageFieldName(enum modStageField field)
@@ -2652,7 +2768,6 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 
 	// find the stage table pointers this corresponds to
 	struct stagetableentry *stab = NULL;
-	struct stageallocation *salloc = NULL;
 	const s32 sidx = stageGetIndex(stagenum);
 	if (sidx >= 0) {
 		stab = &g_Stages[sidx];
@@ -2661,13 +2776,6 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		// Skip this block instead of failing completely
 		return modConfigSkipBlock(blockStart, token);
 	}
-	for (struct stageallocation *p = g_StageAllocations8Mb; p->stagenum; ++p) {
-		if (p->stagenum == stagenum) {
-			salloc = p;
-			break;
-		}
-	}
-
 	// parse keyvalues until } is reached
 	s32 tmp = 0;
 	f32 tmpf = 0;
@@ -2676,6 +2784,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	// arm below returns straight out of the function; strUnquote points into
 	// `token`, which the next strParseToken overwrites.
 	s32 kind = MODSTAGE_KIND_NONE;
+	bool gaveallocation = false;
 	char arenaname[64];
 	arenaname[0] = '\0';
 	p = strParseToken(p, token, NULL);
@@ -2764,28 +2873,33 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			PARSE_STAGE_FLOAT("", "gfxscale", tmpf, 0.01f, 4.0f);
 			stab->unk18 = tmpf;
 		}  else if (!strcmp(token, "allocation")) {
-			// allocation "ALLOCSTRING"
+			// allocation "ALLOCSTRING" - any row. Stored per stagenum in
+			// pdmain.c and consulted before g_StageAllocations8Mb, which has
+			// rows for STAGE_EXTRA1..26 only; a level past those used to be
+			// refused here and ran on the terminator's string.
 			PARSE_STAGE_STRING("", "allocation", tmps);
-
-			// g_StageAllocations8Mb has no row for every stage, and the search
-			// above leaves salloc NULL when there is none - so this wrote
-			// through a null pointer for any such stage. The table is a
-			// {stagenum, string} list terminated by a zero stagenum; a stage
-			// missing from it falls off the end and takes the terminator's
-			// string, which is why an added stage runs with the wrong pool.
-			// That is its own thread; here, say so and do not crash.
-			if (!salloc) {
-				sysLogPrintf(LOG_ERROR,
-						"modconfig: stage 0x%02x: allocation given, but that stage has no row "
-						"in g_StageAllocations8Mb - ignored",
-						stagenum);
-			} else {
-				// FIXME: this leaks
-				tmps = strDuplicate(tmps);
-				if (tmps) {
-					salloc->string = tmps;
-					modStageBindingRecord(stagenum, modnum, MODSTAGE_ALLOC, -1);
-				}
+			stageSetModAllocation(stagenum, tmps);
+			modStageBindingRecord(stagenum, modnum, MODSTAGE_ALLOC, -1);
+			gaveallocation = true;
+		} else if (!strcmp(token, "langbank")) {
+			// langbank NAME - the text bank this level loads, by its LANGBANK_
+			// suffix. Without it the level reads the bank of whatever stock
+			// geometry its row was parked on.
+			PARSE_STAGE_STRING("", "langbank", tmps);
+			tmp = langGetBankByName(tmps);
+			if (tmp < 0) {
+				sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x: unknown langbank '%s'", stagenum, tmps);
+				return NULL;
+			}
+			langSetStageBank(stagenum, tmp);
+			modStageBindingRecord(stagenum, modnum, MODSTAGE_LANGBANK, -1);
+		} else if (!strcmp(token, "env")) {
+			// env { KEYVALUES... } - see modConfigParseStageEnv
+			p = modConfigParseStageEnv(p, token, stagenum);
+			modStageBindingRecord(stagenum, modnum, MODSTAGE_ENV, -1);
+			if (!p) {
+				sysLogPrintf(LOG_NOTE, "modConfigParseStage: returning NULL (env parse failed for stage 0x%02x)", stagenum);
+				return NULL;
 			}
 		}	else if (!strcmp(token, "music")) {
 			// music { KEYVALUES... }
@@ -2840,6 +2954,23 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	if (token[0] != '}') {
 		sysLogPrintf(LOG_ERROR, "modconfig: unterminated stage 0x%02x block", stagenum);
 		return NULL;
+	}
+
+	// A solo-sized level on a row with no allocation entry and no key of its
+	// own would run on the MP default (-ma400); every campaign row carries the
+	// solo string, so give it that. MP levels take the table's default.
+	if (!gaveallocation && !stageGetModAllocation(stagenum)
+			&& (kind == MODSTAGE_KIND_SOLO || kind == MODSTAGE_KIND_BOTH)) {
+		bool hasrow = false;
+		for (struct stageallocation *row = g_StageAllocations8Mb; row->stagenum; ++row) {
+			if (row->stagenum == stagenum) {
+				hasrow = true;
+				break;
+			}
+		}
+		if (!hasrow) {
+			stageSetModAllocation(stagenum, STAGE_ALLOCATION_SOLO_DEFAULT);
+		}
 	}
 
 	// Recorded only once the block has parsed cleanly, so a malformed block

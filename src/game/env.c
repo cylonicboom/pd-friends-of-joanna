@@ -1,9 +1,16 @@
 #include <ultra64.h>
+#ifndef PLATFORM_N64
+#include <string.h>
+#include <strings.h>
+#endif
 #include "constants.h"
 #include "game/tex.h"
 #include "game/camera.h"
 #include "game/bg.h"
 #include "game/env.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 #include "bss.h"
 #include "lib/vi.h"
 #include "data.h"
@@ -361,6 +368,162 @@ void envSetStageNum(s32 stagenum)
 	// empty
 }
 
+#ifndef PLATFORM_N64
+/*
+ * Per-stagenum environment overrides, declared by a modconfig `env { }` block.
+ *
+ * The two static tables below are keyed by stagenum and were authored one row
+ * per LEVEL - GoldenEye:X's Complex has red fog on STAGE_EXTRA2 because that
+ * is the row its pack parked Complex on. The loader now hands a named stage
+ * whatever STAGE_EXTRA row is free, so the level and the row it was tuned for
+ * come apart, and a level draws under whatever sky its new row happened to
+ * carry. This table is how the sky follows the level: the modconfig carries
+ * the row's values as keys, the parser stores them here against the stagenum
+ * the level actually got, and both lookups check here first.
+ *
+ * Sized by NUM_STAGENUMS, the 7-bit save field, like g_ModStageNums. Written
+ * absolutely because a modconfig is parsed several times per boot.
+ */
+static struct fogenvironment g_ModFogEnvs[NUM_STAGENUMS];
+static struct nofogenvironment g_ModNoFogEnvs[NUM_STAGENUMS];
+static u8 g_ModEnvKind[NUM_STAGENUMS]; // 0 none, 1 fog table, 2 nofog table
+
+/* The values of g_NoFogEnvironments[0], the row a stage with no entry gets. */
+void envModStageEnvDefaults(struct modstageenv *e)
+{
+	memset(e, 0, sizeof(*e));
+	e->near = 15;
+	e->far = 10000;
+	e->clouds_scale = 5000;
+	e->water_scale = -5000;
+}
+
+/* The sun arrays a modconfig may name. Inline sun definitions are not a thing
+ * yet; every row shipped so far uses one of these or none. */
+bool envLookupSuns(const char *name, u8 *numsuns, struct sun **suns)
+{
+	static const struct {
+		const char *name;
+		struct sun *arr;
+		u8 count;
+	} table[] = {
+		{ "none",      NULL,           0 },
+		{ "default",   suns_00,        ARRAYCOUNT(suns_00) },
+		{ "area51",    suns_area51,    ARRAYCOUNT(suns_area51) },
+		{ "villa",     suns_villa,     ARRAYCOUNT(suns_villa) },
+		{ "ci",        suns_ci,        ARRAYCOUNT(suns_ci) },
+		{ "skedar",    suns_skedar,    ARRAYCOUNT(suns_skedar) },
+		{ "crashsite", suns_crashsite, ARRAYCOUNT(suns_crashsite) },
+		{ "airbase",   suns_airbase,   ARRAYCOUNT(suns_airbase) },
+	};
+
+	for (u32 i = 0; i < ARRAYCOUNT(table); i++) {
+		if (strcasecmp(table[i].name, name) == 0) {
+			*numsuns = table[i].count;
+			*suns = table[i].arr;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void envSetStageEnv(s32 stagenum, const struct modstageenv *e)
+{
+	if (stagenum < 0 || stagenum >= NUM_STAGENUMS) {
+		return;
+	}
+
+	if (e->fog) {
+		struct fogenvironment *f = &g_ModFogEnvs[stagenum];
+
+		memset(f, 0, sizeof(*f));
+		f->stage = (s16)stagenum;
+		f->near = e->near;
+		f->far = e->far;
+		f->opaperc = e->opaperc;
+		f->xluperc = e->xluperc;
+		f->refdist = e->refdist;
+		f->fogmin = e->fogmin;
+		f->fogmax = e->fogmax;
+		f->sky_r = e->sky_r;
+		f->sky_g = e->sky_g;
+		f->sky_b = e->sky_b;
+		f->numsuns = e->numsuns;
+		f->suns = e->suns;
+		f->clouds_enabled = e->clouds_enabled;
+		f->clouds_scale = e->clouds_scale;
+		f->clouds_type = e->clouds_type;
+		f->clouds_r = e->clouds_r;
+		f->clouds_g = e->clouds_g;
+		f->clouds_b = e->clouds_b;
+		f->water_enabled = e->water_enabled;
+		f->water_scale = e->water_scale;
+		f->water_type = e->water_type;
+		f->water_r = e->water_r;
+		f->water_g = e->water_g;
+		f->water_b = e->water_b;
+		f->clouds_height = e->clouds_height;
+		g_ModEnvKind[stagenum] = 1;
+	} else {
+		struct nofogenvironment *n = &g_ModNoFogEnvs[stagenum];
+
+		memset(n, 0, sizeof(*n));
+		n->stage = stagenum;
+		n->near = e->near;
+		n->far = e->far;
+		n->opaperc = e->opaperc;
+		n->xluperc = e->xluperc;
+		n->refdist = e->refdist;
+		n->sky_r = e->sky_r;
+		n->sky_g = e->sky_g;
+		n->sky_b = e->sky_b;
+		n->numsuns = e->numsuns;
+		n->suns = e->suns;
+		n->clouds_enabled = e->clouds_enabled;
+		n->clouds_r = e->clouds_r;
+		n->clouds_g = e->clouds_g;
+		n->clouds_b = e->clouds_b;
+		n->clouds_scale = e->clouds_scale;
+		n->clouds_type = e->clouds_type;
+		n->water_enabled = e->water_enabled;
+		n->water_r = e->water_r;
+		n->water_g = e->water_g;
+		n->water_b = e->water_b;
+		n->water_scale = e->water_scale;
+		n->water_type = e->water_type;
+		n->clouds_height = e->clouds_height;
+		n->transparency = e->transparency;
+		g_ModEnvKind[stagenum] = 2;
+	}
+}
+
+void envClearStageEnv(s32 stagenum)
+{
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS) {
+		g_ModEnvKind[stagenum] = 0;
+	}
+}
+
+static struct fogenvironment *envModFogEnv(s32 stagenum)
+{
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS && g_ModEnvKind[stagenum] == 1) {
+		return &g_ModFogEnvs[stagenum];
+	}
+
+	return NULL;
+}
+
+static struct nofogenvironment *envModNoFogEnv(s32 stagenum)
+{
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS && g_ModEnvKind[stagenum] == 2) {
+		return &g_ModNoFogEnvs[stagenum];
+	}
+
+	return NULL;
+}
+#endif
+
 void envChooseAndApply(s32 stagenum, bool allowoverride)
 {
 	struct nofogenvironment *finalenv = NULL;
@@ -385,6 +548,29 @@ void envChooseAndApply(s32 stagenum, bool allowoverride)
 			}
 		}
 	}
+
+#ifndef PLATFORM_N64
+	// A modconfig's own row for this stage beats both tables. A fog override
+	// has no positional neighbour to transition to, so it transitions to
+	// itself; the gas overlay in propobj builds its own target anyway.
+	if ((env1 = envModFogEnv(stagenum)) != NULL) {
+		sysLogPrintf(LOG_NOTE, "env: stage 0x%02x uses its modconfig env (fog %d..%d, sky %02x%02x%02x)",
+				stagenum, env1->fogmin, env1->fogmax, env1->sky_r, env1->sky_g, env1->sky_b);
+		g_EnvOrigFogEnvironment = env1;
+		g_EnvTransitionFrom = env1;
+		g_EnvTransitionTo = env1;
+		envApplyFogEnvironment(env1);
+		return;
+	}
+
+	if ((finalenv = envModNoFogEnv(stagenum)) != NULL) {
+		sysLogPrintf(LOG_NOTE, "env: stage 0x%02x uses its modconfig env (no fog, sky %02x%02x%02x)",
+				stagenum, finalenv->sky_r, finalenv->sky_g, finalenv->sky_b);
+		envApplyNoFogEnvironment(finalenv);
+		g_EnvOrigFogEnvironment = NULL;
+		return;
+	}
+#endif
 
 	// Try to find an env1
 	for (env1 = &g_FogEnvironments[0]; env1->stage != 0; env1++) {
@@ -430,14 +616,18 @@ void envChaosFog(s32 stagenum, s32 fogmin, s32 fogmax, u8 r, u8 g, u8 b)
 	struct fogenvironment *e;
 	struct nofogenvironment *e2;
 
-	for (e = &g_FogEnvironments[0]; e->stage != 0; e++) {
+	// Same precedence as envChooseAndApply: the modconfig's row first.
+	env1 = envModFogEnv(stagenum);
+	env2 = envModNoFogEnv(stagenum);
+
+	for (e = &g_FogEnvironments[0]; env1 == NULL && env2 == NULL && e->stage != 0; e++) {
 		if (e->stage == stagenum) {
 			env1 = e;
 			break;
 		}
 	}
 
-	if (env1 == NULL) {
+	if (env1 == NULL && env2 == NULL) {
 		for (e2 = &g_NoFogEnvironments[0]; e2->stage != 0; e2++) {
 			if (e2->stage == stagenum) {
 				env2 = e2;

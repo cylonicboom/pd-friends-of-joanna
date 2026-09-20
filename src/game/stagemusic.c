@@ -39,13 +39,61 @@ struct stagemusic g_StageTracks[] = {
 	{ 0,                   0,                    0,                       0  },
 };
 
+#ifndef PLATFORM_N64
+static struct stagemusic g_ModStageTracks[NUM_STAGENUMS];
+static u8 g_ModStageTracksSet[NUM_STAGENUMS];
+
+void stageSetModTracks(s32 stagenum, s32 primary, s32 ambient, s32 x)
+{
+	if (stagenum < 0 || stagenum >= NUM_STAGENUMS) {
+		return;
+	}
+
+	g_ModStageTracks[stagenum].stagenum = (s16)stagenum;
+	g_ModStageTracks[stagenum].primarytrack = (s16)primary;
+	g_ModStageTracks[stagenum].ambienttrack = (s16)ambient;
+	g_ModStageTracks[stagenum].xtrack = (s16)x;
+	g_ModStageTracksSet[stagenum] = 1;
+}
+
+bool stageGetModTracks(s32 stagenum, s32 *primary, s32 *ambient, s32 *x)
+{
+	if (stagenum < 0 || stagenum >= NUM_STAGENUMS || !g_ModStageTracksSet[stagenum]) {
+		return false;
+	}
+
+	*primary = g_ModStageTracks[stagenum].primarytrack;
+	*ambient = g_ModStageTracks[stagenum].ambienttrack;
+	*x = g_ModStageTracks[stagenum].xtrack;
+	return true;
+}
+
+static struct stagemusic *stageModTracks(s32 stagenum)
+{
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS && g_ModStageTracksSet[stagenum]) {
+		return &g_ModStageTracks[stagenum];
+	}
+
+	return NULL;
+}
+#endif
+
 s32 stageGetPrimaryTrack(s32 stagenum)
 {
 	s32 i;
+#ifndef PLATFORM_N64
+	struct stagemusic *mod;
+#endif
 
 	if (g_Vars.normmplayerisrunning) {
 		return mpChooseTrack();
 	}
+
+#ifndef PLATFORM_N64
+	if ((mod = stageModTracks(stagenum)) != NULL) {
+		return mod->primarytrack == -1 ? mpChooseTrack() : mod->primarytrack;
+	}
+#endif
 
 	i = 0;
 
@@ -67,6 +115,13 @@ s32 stageGetPrimaryTrack(s32 stagenum)
 s32 stageGetAmbientTrack(s32 stagenum)
 {
 	s32 i = 0;
+#ifndef PLATFORM_N64
+	struct stagemusic *mod = stageModTracks(stagenum);
+
+	if (mod) {
+		return mod->ambienttrack;
+	}
+#endif
 
 	while (g_StageTracks[i].stagenum) {
 		if (g_StageTracks[i].stagenum == stagenum) {
@@ -82,6 +137,13 @@ s32 stageGetAmbientTrack(s32 stagenum)
 s32 stageGetNrgTrack(s32 stagenum)
 {
 	s32 i = 0;
+#ifndef PLATFORM_N64
+	struct stagemusic *mod = stageModTracks(stagenum);
+
+	if (mod) {
+		return mod->xtrack;
+	}
+#endif
 
 	while (g_StageTracks[i].stagenum) {
 		if (g_StageTracks[i].stagenum == stagenum) {

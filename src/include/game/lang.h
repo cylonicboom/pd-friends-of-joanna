@@ -27,6 +27,17 @@ void langSetJpnEnabled(bool enable);
  * flow through langGet at render time (hudmsgs, Lua overlays). Returns src
  * unchanged when the mode is off. */
 char *langChaosTransform(char *src);
+
+/*
+ * A modconfig's `langbank <NAME>` for a stage: the bank that stage loads
+ * instead of whatever langGetLangBankIndexFromStagenum's switch says for its
+ * row. NAME is the LANGBANK_ suffix (AREC, MP13, REF ...). Only existing banks:
+ * g_LangBanks has 69 slots and text ids bake the bank index in, so a new bank
+ * is a table change, not a config one.
+ */
+s32 langGetBankByName(const char *name);
+void langSetStageBank(s32 stagenum, s32 bank);
+void langClearStageBank(s32 stagenum);
 #endif
 
 #endif

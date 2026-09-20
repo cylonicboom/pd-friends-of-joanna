@@ -1,4 +1,7 @@
 #include <ultra64.h>
+#ifndef PLATFORM_N64
+#include <strings.h>
+#endif
 #include "constants.h"
 #include "game/chaosstate.h"
 #include "game/file.h"
@@ -145,9 +148,135 @@ u16 g_LangFiles[] = {
 	/*68*/ FILE_LMP20E,
 };
 
+#ifndef PLATFORM_N64
+/*
+ * Per-stagenum bank overrides from modconfigs. The switch below maps a ROW to
+ * a bank, and every STAGE_EXTRA row maps to the bank of the stock geometry it
+ * was parked on - so a level the loader placed on a free extra row reads some
+ * other level's text bank, silently. A `langbank` key on the stage block puts
+ * the level's own bank here, and this table is checked before the switch.
+ * 0 means no override; bank 0 is unused (g_LangFiles[0] is 0).
+ */
+static u8 g_ModStageLangBank[NUM_STAGENUMS];
+
+static const struct {
+	const char *name;
+	u8 bank;
+} g_LangBankNames[] = {
+	{ "AME", LANGBANK_AME },
+	{ "ARCH", LANGBANK_ARCH },
+	{ "ARK", LANGBANK_ARK },
+	{ "ASH", LANGBANK_ASH },
+	{ "AZT", LANGBANK_AZT },
+	{ "CAT", LANGBANK_CAT },
+	{ "CAVE", LANGBANK_CAVE },
+	{ "AREC", LANGBANK_AREC },
+	{ "CRAD", LANGBANK_CRAD },
+	{ "CRYP", LANGBANK_CRYP },
+	{ "DAM", LANGBANK_DAM },
+	{ "DEPO", LANGBANK_DEPO },
+	{ "DEST", LANGBANK_DEST },
+	{ "DISH", LANGBANK_DISH },
+	{ "EAR", LANGBANK_EAR },
+	{ "ELD", LANGBANK_ELD },
+	{ "IMP", LANGBANK_IMP },
+	{ "JUN", LANGBANK_JUN },
+	{ "LEE", LANGBANK_LEE },
+	{ "LEN", LANGBANK_LEN },
+	{ "LIP", LANGBANK_LIP },
+	{ "LUE", LANGBANK_LUE },
+	{ "OAT", LANGBANK_OAT },
+	{ "PAM", LANGBANK_PAM },
+	{ "PETE", LANGBANK_PETE },
+	{ "REF", LANGBANK_REF },
+	{ "RIT", LANGBANK_RIT },
+	{ "RUN", LANGBANK_RUN },
+	{ "SEVB", LANGBANK_SEVB },
+	{ "SEV", LANGBANK_SEV },
+	{ "SEVX", LANGBANK_SEVX },
+	{ "SEVXB", LANGBANK_SEVXB },
+	{ "SHO", LANGBANK_SHO },
+	{ "SILO", LANGBANK_SILO },
+	{ "STAT", LANGBANK_STAT },
+	{ "TRA", LANGBANK_TRA },
+	{ "WAX", LANGBANK_WAX },
+	{ "GUN", LANGBANK_GUN },
+	{ "TITLE", LANGBANK_TITLE },
+	{ "MPMENU", LANGBANK_MPMENU },
+	{ "PROPOBJ", LANGBANK_PROPOBJ },
+	{ "MPWEAPONS", LANGBANK_MPWEAPONS },
+	{ "OPTIONS", LANGBANK_OPTIONS },
+	{ "MISC", LANGBANK_MISC },
+	{ "UFF", LANGBANK_UFF },
+	{ "OLD", LANGBANK_OLD },
+	{ "ATE", LANGBANK_ATE },
+	{ "LAM", LANGBANK_LAM },
+	{ "MP1", LANGBANK_MP1 },
+	{ "MP2", LANGBANK_MP2 },
+	{ "MP3", LANGBANK_MP3 },
+	{ "MP4", LANGBANK_MP4 },
+	{ "MP5", LANGBANK_MP5 },
+	{ "MP6", LANGBANK_MP6 },
+	{ "MP7", LANGBANK_MP7 },
+	{ "MP8", LANGBANK_MP8 },
+	{ "MP9", LANGBANK_MP9 },
+	{ "MP10", LANGBANK_MP10 },
+	{ "MP11", LANGBANK_MP11 },
+	{ "MP12", LANGBANK_MP12 },
+	{ "MP13", LANGBANK_MP13 },
+	{ "MP14", LANGBANK_MP14 },
+	{ "MP15", LANGBANK_MP15 },
+	{ "MP16", LANGBANK_MP16 },
+	{ "MP17", LANGBANK_MP17 },
+	{ "MP18", LANGBANK_MP18 },
+	{ "MP19", LANGBANK_MP19 },
+	{ "MP20", LANGBANK_MP20 },
+};
+
+s32 langGetBankByName(const char *name)
+{
+	if (!name || !name[0]) {
+		return -1;
+	}
+
+	if (strncasecmp(name, "LANGBANK_", 9) == 0) {
+		name += 9;
+	}
+
+	for (u32 i = 0; i < ARRAYCOUNT(g_LangBankNames); i++) {
+		if (strcasecmp(g_LangBankNames[i].name, name) == 0) {
+			return g_LangBankNames[i].bank;
+		}
+	}
+
+	return -1;
+}
+
+void langSetStageBank(s32 stagenum, s32 bank)
+{
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS && bank > 0 && bank < (s32)ARRAYCOUNT(g_LangBanks)) {
+		g_ModStageLangBank[stagenum] = (u8)bank;
+	}
+}
+
+void langClearStageBank(s32 stagenum)
+{
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS) {
+		g_ModStageLangBank[stagenum] = 0;
+	}
+}
+#endif
+
 u32 langGetLangBankIndexFromStagenum(s32 stagenum)
 {
 	u32 bank;
+
+#ifndef PLATFORM_N64
+	if (stagenum >= 0 && stagenum < NUM_STAGENUMS && g_ModStageLangBank[stagenum]) {
+		sysLogPrintf(LOG_NOTE, "lang: stage 0x%02x loads bank %d from its modconfig", stagenum, g_ModStageLangBank[stagenum]);
+		return g_ModStageLangBank[stagenum];
+	}
+#endif
 
 	switch (stagenum) {
 	case STAGE_PELAGIC:       bank = LANGBANK_DAM; break;

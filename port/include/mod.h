@@ -199,6 +199,8 @@ enum modStageField {
 	MODSTAGE_ALLOC,
 	MODSTAGE_MUSIC,
 	MODSTAGE_WEATHER,
+	MODSTAGE_LANGBANK,
+	MODSTAGE_ENV,
 	MODSTAGE_FIELD_COUNT
 };
 
@@ -250,6 +252,18 @@ void modSlotReservationsInit(void);
 // and roster changes. Returns -1 when the pool is exhausted.
 s32 modStageSlotReserve(const char *name);
 void modStageSlotClaim(const char *name, s32 slot);
+
+/*
+ * Per-stagenum memory allocation strings, from a modconfig's `allocation`
+ * key. Lives in pdmain.c beside g_StageAllocations8Mb, which it is consulted
+ * before. STAGE_ALLOCATION_MP_DEFAULT is the string every authored MP row in
+ * that table carries, and what a level row with no entry and no key now gets
+ * instead of the terminator's.
+ */
+#define STAGE_ALLOCATION_MP_DEFAULT "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
+#define STAGE_ALLOCATION_SOLO_DEFAULT "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700"
+void stageSetModAllocation(s32 stagenum, const char *string);
+const char *stageGetModAllocation(s32 stagenum);
 // A saved profile records a head/body by the hash of its reservation name, not
 // by its index - the index is an allocation detail and the 7-bit save field
 // cannot hold it once mod heads push past 127. See mplayer.c.
