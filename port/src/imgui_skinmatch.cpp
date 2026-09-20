@@ -291,7 +291,9 @@ static void skinBrush(struct skinmatchbody *body, s32 cx, s32 cy, bool on)
 		for (s32 x = 0; x < sw; x++) {
 			const s32 mx = cx - sw / 2 + x, my = cy - sh / 2 + y;
 			if (mx < 0 || my < 0 || mx >= body->width || my >= body->height) continue;
-			const s32 bx = x * b.width / sw, by = y * b.height / sh;
+			// sample the centre of each scaled cell: at size 1 the old corner
+			// sample landed on the disc's empty corner and stamped nothing
+			const s32 bx = ((2 * x + 1) * b.width) / (2 * sw), by = ((2 * y + 1) * b.height) / (2 * sh);
 			const float w = b.weight[by * b.width + bx] * g_SkinBrushStrength;
 			if (w <= 0.0f) continue;
 			skinStampTexel(body, (u32)my * body->width + mx, w, on);
