@@ -45,6 +45,7 @@ static bool g_ImGuiOverlayShowStance = false;
 static bool g_ImGuiOverlayShowPauseBlur = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
+static bool g_ImGuiOverlayShowSaves = false;
 static struct chrdata *g_ImGuiPropChr = NULL;
 static s32 g_ImGuiPropChrnum = -1;
 static bool g_ImGuiPropApply = true;
@@ -290,6 +291,34 @@ static char g_ImGuiLuaInput[256];
 static char g_ImGuiLuaResult[512];
 static bool g_ImGuiLuaResultOk = true;
 
+// The flush is asked for while the panel draws and done once the overlay has
+// rendered, between two game frames - a pak write has no business running
+// half way through a draw list.
+static bool g_ImGuiSavesFlushPending = false;
+static char g_ImGuiSavesResult[512];
+static bool g_ImGuiSavesResultOk = true;
+
+// Save and profile state, defined in src/game/mplayer/mplayer.c, src/game/pak.c
+// and port/src/config.c. Declared by hand for the same reason as everything
+// above: those headers are not extern "C"-wrapped.
+extern "C" struct extplayerprofile g_ExtendedProfiles[];
+extern "C" s32 mpProfileDebugPropCount(void);
+extern "C" const char *mpProfileDebugPropName(s32 propindex);
+extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
+extern "C" void mpProfileDebugSlug(s32 profileindex, char *out, s32 outlen);
+extern "C" void mpProfileFlushSlotHashes(s32 playernum);
+extern "C" s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial);
+extern "C" void iniProcessPendingProfiles(void);
+extern "C" s8 pakFindBySerial(s32 deviceserial);
+
+// Mirrors MOD_MAX_PERSISTABLE_SLOT, which is private to port/src/mod.c. Kept
+// in step by hand, like kFojoMaxJointOverrides below.
+static const s32 kFojoMaxPersistableSlot = 127;
+
+// A synthetic guid: iniBindProfileProperties hands one of these to a player
+// with no controller pak file, so its settings still get an ini section.
+static const u16 kFojoLocalDeviceSerial = 0xFFFF;
+
 // Proportion editor overrides, defined in src/game/chr.c. Declared by hand
 // rather than included, for the same reason as everything above: the game
 // headers are not extern "C"-wrapped.
@@ -332,6 +361,7 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 	if (sscanf(line, "Audio=%d", &value) == 1) { g_ImGuiOverlayShowAudio = value != 0; return; }
 	if (sscanf(line, "PauseBlur=%d", &value) == 1) { g_ImGuiOverlayShowPauseBlur = value != 0; return; }
 	if (sscanf(line, "Lua=%d", &value) == 1) { g_ImGuiOverlayShowLua = value != 0; return; }
+	if (sscanf(line, "Saves=%d", &value) == 1) { g_ImGuiOverlayShowSaves = value != 0; return; }
 
 	{
 		float fvalue;
@@ -358,6 +388,7 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	buffer->appendf("Audio=%d\n", g_ImGuiOverlayShowAudio);
 	buffer->appendf("PauseBlur=%d\n", g_ImGuiOverlayShowPauseBlur);
 	buffer->appendf("Lua=%d\n", g_ImGuiOverlayShowLua);
+	buffer->appendf("Saves=%d\n", g_ImGuiOverlayShowSaves);
 	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
 }
 
@@ -375,7 +406,8 @@ static u32 imguiOverlayGetWindowState(void)
 		| (g_ImGuiOverlayShowStance ? 1u << 9 : 0)
 		| (g_ImGuiOverlayShowAudio ? 1u << 10 : 0)
 		| (g_ImGuiOverlayShowPauseBlur ? 1u << 11 : 0)
-		| (g_ImGuiOverlayShowLua ? 1u << 12 : 0);
+		| (g_ImGuiOverlayShowLua ? 1u << 12 : 0)
+		| (g_ImGuiOverlayShowSaves ? 1u << 13 : 0);
 }
 
 static void imguiOverlaySaveWindowState(void)
@@ -4982,6 +5014,255 @@ static void imguiOverlayRunLuaRequests(void)
 	}
 }
 
+static void imguiOverlaySlotCell(s32 slot, const char *name)
+{
+	if (slot > kFojoMaxPersistableSlot) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.35f, 1.0f));
+		ImGui::Text("%d %s", slot, name ? name : "?");
+		ImGui::PopStyleColor();
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Past the 7-bit save field. Only the name hash brings this back.");
+		}
+	} else {
+		ImGui::Text("%d %s", slot, name ? name : "-");
+	}
+}
+
+static void imguiOverlayDrawSavesPanel(void)
+{
+	s32 i;
+
+	ImGui::SeparatorText("Flush");
+
+	if (ImGui::Button("Flush MP profile saves")) {
+		g_ImGuiSavesFlushPending = true;
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Capture every player's current head and body as name hashes,\n"
+				"write each pak-bound profile back to its slot, then write pd.ini.\n"
+				"What a clean exit would do, without the exit.");
+	}
+
+	if (g_ImGuiSavesResult[0] != '\0') {
+		if (g_ImGuiSavesResultOk) {
+			ImGui::TextWrapped("%s", g_ImGuiSavesResult);
+		} else {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+			ImGui::TextWrapped("%s", g_ImGuiSavesResult);
+			ImGui::PopStyleColor();
+		}
+	}
+
+	ImGui::SeparatorText("Loaded saves");
+
+	if (ImGui::BeginTable("FojoSaveSlots", 6,
+			ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("P");
+		ImGui::TableSetupColumn("Name");
+		ImGui::TableSetupColumn("Guid");
+		ImGui::TableSetupColumn("Pak");
+		ImGui::TableSetupColumn("Head");
+		ImGui::TableSetupColumn("Body");
+		ImGui::TableHeadersRow();
+
+		for (i = 0; i < MAX_PLAYERS; i++) {
+			const struct mpplayerconfig *cfg = &g_PlayerConfigsArray[i];
+			const struct fileguid *guid = &cfg->fileguid;
+			bool bound = guid->fileid != 0 || guid->deviceserial != 0;
+			bool local = guid->deviceserial == kFojoLocalDeviceSerial;
+			s32 device = (bound && !local) ? pakFindBySerial(guid->deviceserial) : -1;
+			char name[sizeof(cfg->base.name) + 1];
+
+			// base.name is a fixed field and is not guaranteed terminated.
+			memcpy(name, cfg->base.name, sizeof(cfg->base.name));
+			name[sizeof(cfg->base.name)] = '\0';
+
+			ImGui::TableNextRow();
+
+			ImGui::TableNextColumn();
+			ImGui::Text("%d", i + 1);
+
+			ImGui::TableNextColumn();
+			if (name[0] != '\0') {
+				ImGui::TextUnformatted(name);
+			} else {
+				ImGui::TextDisabled("-");
+			}
+
+			ImGui::TableNextColumn();
+			if (!bound) {
+				ImGui::TextDisabled("none");
+			} else {
+				ImGui::Text("%x-%x", guid->deviceserial, guid->fileid);
+			}
+
+			ImGui::TableNextColumn();
+			if (device >= 0) {
+				ImGui::Text("device %d", device);
+			} else if (local) {
+				ImGui::TextDisabled("ini only");
+			} else if (bound) {
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+				ImGui::TextUnformatted("no device");
+				ImGui::PopStyleColor();
+			} else {
+				ImGui::TextDisabled("-");
+			}
+
+			ImGui::TableNextColumn();
+			imguiOverlaySlotCell(cfg->base.mpheadnum, modHeadSlotName(cfg->base.mpheadnum));
+
+			ImGui::TableNextColumn();
+			imguiOverlaySlotCell(cfg->base.mpbodynum, modBodySlotName(cfg->base.mpbodynum));
+		}
+
+		ImGui::EndTable();
+	}
+
+	ImGui::SeparatorText("Extended ini data");
+	ImGui::Text("Profiles registered: %d of %d", g_NumProfiles, CONFIG_MAX_PROFILES);
+
+	for (i = 0; i < g_NumProfiles && i < CONFIG_MAX_PROFILES; i++) {
+		char slug[128];
+		char label[160];
+		s32 k;
+
+		mpProfileDebugSlug(i, slug, sizeof(slug));
+		snprintf(label, sizeof(label), "[%s]###FojoProfile%d", slug[0] != '\0' ? slug : "unnamed", i);
+
+		if (!ImGui::CollapsingHeader(label, ImGuiTreeNodeFlags_DefaultOpen)) {
+			continue;
+		}
+
+		ImGui::PushID(i);
+
+		if (ImGui::BeginTable("FojoProfileProps", 2,
+				ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+			for (k = 0; k < mpProfileDebugPropCount(); k++) {
+				const char *propname = mpProfileDebugPropName(k);
+
+				if (!propname) {
+					continue;
+				}
+
+				// ptr[0] is the fileguid, so the properties start at 1 - the
+				// same offset iniBindProfileProperties registers them at.
+				const extplayerprop *prop = &g_ExtendedProfiles[i].ptr[k + 1];
+
+				ImGui::TableNextRow();
+				ImGui::TableNextColumn();
+				ImGui::TextUnformatted(propname);
+				ImGui::TableNextColumn();
+
+				if (!mpProfileDebugPropIsS32(k)) {
+					ImGui::Text("%u", prop->u8);
+					continue;
+				}
+
+				ImGui::Text("%d", prop->s32);
+
+				// The two hash rows are the reason this panel exists: the
+				// number alone says nothing about whether the head comes back.
+				bool ishead = strcmp(propname, "HeadNameHash") == 0;
+				bool isbody = strcmp(propname, "BodyNameHash") == 0;
+
+				if ((!ishead && !isbody) || prop->s32 == 0) {
+					continue;
+				}
+
+				s32 slot = ishead ? modHeadSlotForHash((u32) prop->s32)
+						: modBodySlotForHash((u32) prop->s32);
+
+				ImGui::SameLine();
+
+				if (slot >= 0) {
+					const char *slotname = ishead ? modHeadSlotName(slot) : modBodySlotName(slot);
+					ImGui::TextDisabled("-> %s (%d)", slotname ? slotname : "?", slot);
+				} else {
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+					ImGui::TextUnformatted("-> unresolved");
+					ImGui::PopStyleColor();
+
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("No loaded mod reserves that name, so the saved\n"
+								"index is left as it is rather than guessed at.");
+					}
+				}
+			}
+
+			ImGui::EndTable();
+		}
+
+		ImGui::PopID();
+	}
+
+	ImGui::PushTextWrapPos(0.0f);
+	ImGui::TextDisabled("Sections and keys are named exactly as they appear in pd.ini.");
+	ImGui::PopTextWrapPos();
+}
+
+// Runs after the overlay has rendered, for the same reason as the Lua requests:
+// the game frame is finished and the next has not started.
+static void imguiOverlayRunSaveRequests(void)
+{
+	s32 saved = 0;
+	s32 inionly = 0;
+	s32 failed = 0;
+	s32 i;
+
+	if (!g_ImGuiSavesFlushPending) {
+		return;
+	}
+
+	g_ImGuiSavesFlushPending = false;
+
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		const struct fileguid *guid = &g_PlayerConfigsArray[i].fileguid;
+		s32 device;
+
+		if (!guid->fileid && !guid->deviceserial) {
+			continue;
+		}
+
+		// mpplayerfileSave does this itself, but a player with no pak file
+		// never reaches it, and its ini section still wants the current head.
+		mpProfileFlushSlotHashes(i);
+
+		if (guid->deviceserial == kFojoLocalDeviceSerial) {
+			inionly++;
+			continue;
+		}
+
+		device = pakFindBySerial(guid->deviceserial);
+
+		if (device < 0) {
+			failed++;
+			continue;
+		}
+
+		if (mpplayerfileSave(i, device, guid->fileid, guid->deviceserial) == 0) {
+			saved++;
+		} else {
+			failed++;
+		}
+	}
+
+	iniProcessPendingProfiles();
+
+	// configSave returns 1 on success and 0 when it cannot open the file.
+	if (configSave(CONFIG_PATH)) {
+		snprintf(g_ImGuiSavesResult, sizeof(g_ImGuiSavesResult),
+				"%d to pak, %d ini-only, %d failed; wrote pd.ini", saved, inionly, failed);
+		g_ImGuiSavesResultOk = failed == 0;
+	} else {
+		snprintf(g_ImGuiSavesResult, sizeof(g_ImGuiSavesResult),
+				"%d to pak, %d ini-only, %d failed; pd.ini could not be written",
+				saved, inionly, failed);
+		g_ImGuiSavesResultOk = false;
+	}
+}
+
 static void imguiOverlayDrawWindowMenu(bool canOpenLookingAt)
 {
 	if (!ImGui::BeginPopupContextVoid("FojoWindowMenu", ImGuiPopupFlags_MouseButtonRight)) {
@@ -5002,6 +5283,7 @@ static void imguiOverlayDrawWindowMenu(bool canOpenLookingAt)
 	ImGui::MenuItem("Stance", NULL, &g_ImGuiOverlayShowStance);
 	ImGui::MenuItem("Pause Blur", NULL, &g_ImGuiOverlayShowPauseBlur);
 	ImGui::MenuItem("Lua", NULL, &g_ImGuiOverlayShowLua);
+	ImGui::MenuItem("Saves", NULL, &g_ImGuiOverlayShowSaves);
 	ImGui::EndPopup();
 }
 
@@ -5206,6 +5488,14 @@ void imguiOverlayRender(void)
 			ImGui::End();
 		}
 
+		if (g_ImGuiOverlayShowSaves) {
+			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 420.0f), 0.5f, 0.5f);
+			if (ImGui::Begin("Fojo Saves", &g_ImGuiOverlayShowSaves)) {
+				imguiOverlayDrawSavesPanel();
+			}
+			ImGui::End();
+		}
+
 		if (imguiOverlayGetWindowState() != previousWindowState) {
 			imguiOverlaySaveWindowState();
 		}
@@ -5215,6 +5505,7 @@ void imguiOverlayRender(void)
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	imguiOverlayRunLuaRequests();
+	imguiOverlayRunSaveRequests();
 }
 
 bool imguiOverlayCapturesKeyboard(void)

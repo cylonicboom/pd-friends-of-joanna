@@ -4423,6 +4423,75 @@ static void mpProfileApplySlotHashes(s32 playernum) {
   }
 }
 
+/*
+ * Read-only accessors for the overlay's Saves panel, plus one action.
+ *
+ * struct extprofileproperty stays private to this file - the panel wants
+ * property names and values, not the table's layout, and the layout has
+ * already caused one bug (the positional CFG_S32 rows). g_ExtendedProfiles
+ * itself is plain enough to read directly through its extplayerprop union,
+ * so only the property metadata needs accessors.
+ */
+s32 mpProfileDebugPropCount(void) {
+  return (s32)ARRAYCOUNT(g_ExtendedProfileProperties);
+}
+
+const char *mpProfileDebugPropName(s32 propindex) {
+  if (propindex < 0 || propindex >= (s32)ARRAYCOUNT(g_ExtendedProfileProperties)) {
+    return NULL;
+  }
+
+  return g_ExtendedProfileProperties[propindex].name;
+}
+
+bool mpProfileDebugPropIsS32(s32 propindex) {
+  if (propindex < 0 || propindex >= (s32)ARRAYCOUNT(g_ExtendedProfileProperties)) {
+    return false;
+  }
+
+  return g_ExtendedProfileProperties[propindex].type == CFG_S32;
+}
+
+/*
+ * The ini section this profile's keys are registered under. Built by the same
+ * rule iniBindProfileProperties uses, so what the panel prints is the section
+ * a person will actually find in pd.ini - the whole point of the readout.
+ */
+void mpProfileDebugSlug(s32 profileindex, char *out, s32 outlen) {
+  struct fileguid *guid;
+  s32 playernum;
+
+  if (!out || outlen <= 0) {
+    return;
+  }
+
+  out[0] = '\0';
+
+  if (profileindex < 0 || profileindex >= g_NumProfiles ||
+      profileindex >= CONFIG_MAX_PROFILES) {
+    return;
+  }
+
+  guid = &g_ExtendedProfiles[profileindex].fileguid;
+  playernum = mpPlayerGetIndexFromFileGuid(guid);
+
+  if (playernum >= 0 && guid->deviceserial == 0xFFFF) {
+    snprintf(out, outlen, "MpPlayer.Player%x", playernum);
+  } else {
+    snprintf(out, outlen, "MpPlayer.%x-%x", guid->deviceserial, guid->fileid);
+  }
+}
+
+/*
+ * Capture this player's current head and body as name hashes without going
+ * through a pak save. A profile with no pak binding never reaches
+ * mpplayerfileSave, so without this its hashes only ever hold whatever the
+ * last real save left there.
+ */
+void mpProfileFlushSlotHashes(s32 playernum) {
+  mpProfileStoreSlotHashes(playernum);
+}
+
 s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
   s32 ret;
   s32 newfileid;

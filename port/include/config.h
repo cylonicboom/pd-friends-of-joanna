@@ -2,6 +2,14 @@
 
 #include <PR/ultratypes.h>
 
+// Same guard mod.h carries. Without it every declaration below gets C++
+// linkage when a .cpp includes this, while config.c compiles as C - so any
+// C++ caller fails to link. Nothing called it from C++ until the overlay's
+// Saves panel did.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define CONFIG_FNAME "pd.ini"
 #define CONFIG_PATH "$S/" CONFIG_FNAME
 
@@ -74,3 +82,7 @@ void configRegisterU8Int(const char *key, u8 *var, u32 min, u32 max);
 struct configentry *configFindEntryByPtr(void *ptr);
 
 s32 getConfigIndexFromDB(u16 deviceserial, s32 fileid);
+
+#ifdef __cplusplus
+}
+#endif

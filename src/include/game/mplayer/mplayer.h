@@ -136,4 +136,11 @@ void func0f18e558(void);
 struct modeldef *func0f18e57c(s32 index, s32 *headnum);
 void iniProcessPendingProfiles(void);
 
+// Saves panel readout (port/src/imgui_overlay.cpp). See mplayer.c.
+s32 mpProfileDebugPropCount(void);
+const char *mpProfileDebugPropName(s32 propindex);
+bool mpProfileDebugPropIsS32(s32 propindex);
+void mpProfileDebugSlug(s32 profileindex, char *out, s32 outlen);
+void mpProfileFlushSlotHashes(s32 playernum);
+
 #endif
