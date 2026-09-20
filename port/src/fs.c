@@ -320,14 +320,25 @@ s32 fsInit(void)
 	// so no stage is contested and each one's level data is reachable only on
 	// the stages it claims. The rest of their level data is inert until
 	// someone decides the claim question; see the AIO stage-claims decision.
+	//
+	// mod_darknoon_stages and mod_goldfinger_stages were added 2026-09-20 from
+	// the two mods in PD_AIO_March_2026 that had never been imported. They sit
+	// last, and that costs nothing: both were run through slugmod, so every
+	// file they carry has a name and a path no other mod can claim and every
+	// manifest row says `source: self`. They contest no bytes with anything
+	// above them, so their position is not load-bearing the way kakariko's is.
+	// They declare their stages BY NAME and take whatever free STAGE_EXTRA row
+	// the allocator gives them, so they contest no rows either.
 	if (numModDirs == 0) {
-		numModDirs = 6;
+		numModDirs = 8;
 		strcpy(modDirs[0], "$B/mods/mod_fojo");
 		strcpy(modDirs[1], "$B/mods/mod_gex_characters");
 		strcpy(modDirs[2], "$B/mods/mod_aio_characters");
 		strcpy(modDirs[3], "$B/mods/mod_gex_stages");
 		strcpy(modDirs[4], "$B/mods/mod_aio_stages");
 		strcpy(modDirs[5], "$B/mods/mod_kakariko_stages");
+		strcpy(modDirs[6], "$B/mods/mod_darknoon_stages");
+		strcpy(modDirs[7], "$B/mods/mod_goldfinger_stages");
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
