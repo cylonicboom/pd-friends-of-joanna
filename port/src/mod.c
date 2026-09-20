@@ -405,7 +405,7 @@ struct modelstate g_ModelStates_PerMod[64][NUM_MODELS];
 s8 g_ExplosionTypes_PerMod[64][NUM_MODELS];
 static bool g_ModConfigsCached = false;
 
-s32 g_ModStageNums[STAGE_4MBMENU];
+s32 g_ModStageNums[NUM_STAGENUMS];
 
 static bool g_DebugModStage = false;
 #define MODSTAGE(...) if (g_DebugModStage) { sysLogPrintf(LOG_NOTE, "MODSTAGE " __VA_ARGS__); }
@@ -2224,7 +2224,19 @@ static char *modConfigParseMpArena(char *p, char *token)
 	return p;
 }
 
-struct modStageBinding g_StageBindings[STAGE_4MBMENU];
+struct modStageBinding g_StageBindings[NUM_STAGENUMS];
+
+/*
+ * The stage number space is the multiplayer save's 7-bit field and nothing
+ * else. Held here rather than in a comment, because the failure mode is
+ * silent: savebufferOr has no bounds check and the layout is positional, so a
+ * stagenum past the field truncates into whatever is written next.
+ */
+_Static_assert(NUM_STAGENUMS == (1 << 7),
+		"g_MpSetup.stagenum is saved in 7 bits (mplayer.c:4692); the space is 0..127");
+_Static_assert(STAGE_CREDITS < NUM_STAGENUMS && STAGE_4MBMENU < NUM_STAGENUMS
+		&& STAGE_TITLE < NUM_STAGENUMS,
+		"the menu pseudo-stages must stay inside the saved field");
 
 _Static_assert(ARRAYCOUNT(g_StageBindings) == ARRAYCOUNT(g_ModStageNums),
 		"the binding record and the stage->mod map must cover the same stage numbers");
@@ -2434,11 +2446,11 @@ void modStageBindingReport(void)
  * declaration naming STAGE_TEST_MP8 touches exactly the row it names.
  *
  * A name this build has no row for is NOT appended yet, and the block is
- * skipped with that said out loud. Appending needs a stagenum with a g_Stages
- * row behind it and there is no spare one: the 87 rows carry 87 distinct ids
- * inside 0x01..0x5b, 0x02..0x04 are the MP_RANDOM pseudo-stages, 0x5c..0x5e are
- * title/bootpak/credits, and 0x5f up is past ARRAYCOUNT(g_ModStageNums).
- * Allocation is a separate change that grows g_Stages first.
+ * skipped with that said out loud. That used to be forced: the menu ids sat at
+ * 0x5c..0x5e directly above the last level and g_ModStageNums was sized off
+ * one of them, so there was nowhere to put a new row. The menus have since
+ * moved to the top of the 7-bit save field and the levels have 0x02..0x7b, so
+ * appending is now a matter of adding rows.
  *
  * The number keeps working, unchanged and unwarned. Nine modconfigs in the tree
  * declare stages by number, and it is the same resolution with the answer
@@ -2461,9 +2473,12 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 
 	if (spec[0] >= '0' && spec[0] <= '9') {
 		stagenum = strtol(spec, NULL, 0);
-		// g_ModStageNums is STAGE_4MBMENU entries; the old bound was 0xff, so a
-		// stage number past the end wrote into whatever followed it in bss.
-		if (stagenum <= 0x01 || stagenum >= (s32)ARRAYCOUNT(g_ModStageNums)) {
+		// Bounded by STAGE_TITLE, not by ARRAYCOUNT(g_ModStageNums). The array
+		// is the whole 7-bit space now, and the menu ids live at the top of it,
+		// so an ARRAYCOUNT bound would let a modconfig claim the title screen
+		// and own every menu model - which the old 0x5d bound also allowed,
+		// since it admitted 0x5c exactly.
+		if (stagenum <= 0x01 || stagenum >= STAGE_TITLE) {
 			sysLogPrintf(LOG_ERROR, "modconfig: invalid stage number: %x", stagenum);
 			return NULL;
 		}
@@ -2493,7 +2508,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 						spec, stagenum, stageGetName(stagenum));
 			}
 		} else if (g_Stages[named].id <= 0x01
-				|| g_Stages[named].id >= (s32)ARRAYCOUNT(g_ModStageNums)) {
+				|| g_Stages[named].id >= STAGE_TITLE) {
 			// No row is outside that range today - all 87 ids sit in 0x01..0x5b
 			// and g_ModStageNums covers 0x00..0x5c - but g_ModStageNums is the
 			// smaller table, and growing g_Stages past it must fail here rather

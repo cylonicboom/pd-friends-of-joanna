@@ -451,8 +451,8 @@ extern struct drawslot *g_BgSpecialDrawSlot;
 extern u16 g_BgFrameCount;
 extern s32 g_BgNumPortalCameraCacheItems;
 extern f32 var8007fcb4;
-extern struct stagetableentry g_Stages[87];
-extern const char *const g_StageNames[87];
+extern struct stagetableentry g_Stages[95];
+extern const char *const g_StageNames[95];
 extern s32 g_RoomMtxNumSlots;
 extern u32 g_GfxNumSwaps;
 extern s32 g_NumReasonsToEndMpMatch;
@@ -604,7 +604,7 @@ extern s16 g_MpCurrentSetup;
 // 2: Kakariko Village Mod
 extern s32 g_ModNum;
 
-extern s32 g_ModStageNums[STAGE_4MBMENU];
+extern s32 g_ModStageNums[NUM_STAGENUMS];
 
 extern char modDirs[64][FS_MAXPATH + 1];        // mod directories
 

@@ -4382,10 +4382,32 @@
 #define STAGE_TEST_OLD      0x4e
 #define STAGE_DUEL          0x4f
 #define STAGE_TEST_LAM      0x50
-#define STAGE_TITLE         0x5c
-#define STAGE_BOOTPAKMENU   0x5d
-#define STAGE_CREDITS       0x5e
-#define STAGE_4MBMENU       0x5d
+/*
+ * THE STAGE NUMBER SPACE, and where its one real limit comes from.
+ *
+ * A stagenum escapes into exactly one persisted place: the multiplayer setup
+ * save, written `savebufferOr(buffer, g_MpSetup.stagenum, 7)`
+ * (mplayer/mplayer.c:4692) and read back at :4615. Seven bits, so 0..127, and
+ * that layout is positional and unversioned - widening the field shifts every
+ * value written after it. That cap is real and is not worth breaking saves for.
+ *
+ * Nothing else pins the space. Solo progress stores `autostageindex` in 5 bits
+ * (gamefile.c), which indexes g_SoloStages and is a different namespace with
+ * its own ceiling. The four ids below are NEVER persisted - every reference in
+ * the tree is a runtime comparison - so where they sit is free choice.
+ *
+ * They used to sit at 0x5c..0x5e, immediately above the last level, because
+ * that is where the table happened to end. g_ModStageNums was then sized
+ * `[STAGE_4MBMENU]`, which turned "where the menus were parked" into a hard cap
+ * on what a mod could claim. Moving them to the top of the 7-bit space costs
+ * nothing, changes no stored value, and hands the levels everything below.
+ */
+#define NUM_STAGENUMS       128 // the 7-bit save field, and the only real limit
+
+#define STAGE_TITLE         0x7c
+#define STAGE_BOOTPAKMENU   0x7d
+#define STAGE_CREDITS       0x7e
+#define STAGE_4MBMENU       0x7d
 
 #define STAGE_MP_RANDOM_MULTI 0x02
 #define STAGE_MP_RANDOM_SOLO  0x03
@@ -4417,6 +4439,14 @@
 #define STAGE_EXTRA24 0x59 // Paradox
 #define STAGE_EXTRA25 0x5a // Rogue
 #define STAGE_EXTRA26 0x5b // War Colors
+#define STAGE_EXTRA27 0x5c
+#define STAGE_EXTRA28 0x5d
+#define STAGE_EXTRA29 0x5e
+#define STAGE_EXTRA30 0x5f
+#define STAGE_EXTRA31 0x60
+#define STAGE_EXTRA32 0x61
+#define STAGE_EXTRA33 0x62
+#define STAGE_EXTRA34 0x63  // extension space, freed by moving the menu ids to the top of the 7-bit field
 
 #define STAGEFLAG_CI_IN_TRAINING            0x00000001
 #define STAGEFLAG_CI_HOLO_FAILED            0x00000002

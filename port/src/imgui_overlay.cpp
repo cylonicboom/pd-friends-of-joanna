@@ -161,7 +161,10 @@ extern s32 g_StageNum;
 extern s32 g_ModNum;
 extern u32 g_OsMemSize;
 extern s32 g_StageIndex;
-extern struct stagetableentry g_Stages[87];
+// Size deliberately unspecified: data.h is the one declaration that carries
+// the row count, and a second copy of the number here went stale the first
+// time the table grew.
+extern struct stagetableentry g_Stages[];
 extern "C" u32 mempGetStageFree(void);
 extern "C" bool bgTestHitInRoom(struct coord *frompos, struct coord *topos, s32 roomnum, struct hitthing *hitthing);
 extern "C" struct prop *propFindAimingAt(s32 handnum, bool isshooting, u32 context);
