@@ -143,4 +143,8 @@ bool mpProfileDebugPropIsS32(s32 propindex);
 void mpProfileDebugSlug(s32 profileindex, char *out, s32 outlen);
 void mpProfileFlushSlotHashes(s32 playernum);
 
+// Profile state changed; the save queue commits it. See mplayer.c.
+void mpProfileMarkDirty(s32 playernum);
+void mpProfileFlushDirty(void);
+
 #endif

@@ -2444,6 +2444,7 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation,
           .teamagentindex_prop.s32 = selectedindex;
     }
     data->carousel.value = selectedindex;
+    mpProfileMarkDirty(g_MpPlayerNum);
     // sysLogPrintf(LOG_NOTE, "FoJo carousel SET: player %d -> index %d
     // (mpheadnum=%d)", g_MpPlayerNum, selectedindex,
     // g_FojoHeadOptions[selectedindex]); Fall through to MENUOP_FOCUS

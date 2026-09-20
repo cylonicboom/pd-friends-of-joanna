@@ -21,6 +21,7 @@
 #include "game/mplayer/mplayer.h"
 #include "game/pak.h"
 #include "bss.h"
+#include "savequeue.h"
 #include "lib/args.h"
 #include "lib/vi.h"
 #include "lib/main.h"
@@ -4504,6 +4505,69 @@ void mpProfileDebugSlug(s32 profileindex, char *out, s32 outlen) {
  * mpplayerfileSave, so without this its hashes only ever hold whatever the
  * last real save left there.
  */
+/*
+ * Per-player "this profile has changed" bits.
+ *
+ * Changing your head in character select writes base.mpheadnum and nothing
+ * else - no hash stored, no pak write, no ini write. It only ever reached the
+ * disk if you went and saved the profile by hand in the file manager, or
+ * finished a match and let filemgrSaveMpPlayers do it. That is what made
+ * changing a character feel like it did not save: it did not.
+ *
+ * Marking is what turns a change into something the save queue can commit.
+ */
+static u8 g_MpProfileDirty[MAX_PLAYERS];
+
+void mpProfileMarkDirty(s32 playernum) {
+  if (playernum < 0 || playernum >= MAX_PLAYERS) {
+    return;
+  }
+
+  g_MpProfileDirty[playernum] = 1;
+
+  // Wake the queue. It decides when; this only says that there is something.
+  saveQueueMarkConfig();
+}
+
+/*
+ * Called by the save queue when it has decided to commit. Stores each changed
+ * player's head and body as name hashes, and writes the profile back to its
+ * pak file if it has one. A player with no pak file still gets its hashes
+ * updated, which is the half of the state that lives in the ini.
+ */
+void mpProfileFlushDirty(void) {
+  s32 i;
+
+  for (i = 0; i < MAX_PLAYERS; i++) {
+    struct fileguid *guid;
+    s32 device;
+
+    if (!g_MpProfileDirty[i]) {
+      continue;
+    }
+
+    g_MpProfileDirty[i] = 0;
+
+    guid = &g_PlayerConfigsArray[i].fileguid;
+
+    if (!guid->fileid && !guid->deviceserial) {
+      continue;
+    }
+
+    mpProfileFlushSlotHashes(i);
+
+    if (guid->deviceserial == 0xFFFF) {
+      continue;
+    }
+
+    device = pakFindBySerial(guid->deviceserial);
+
+    if (device >= 0) {
+      mpplayerfileSave(i, device, guid->fileid, guid->deviceserial);
+    }
+  }
+}
+
 void mpProfileFlushSlotHashes(s32 playernum) {
   const struct fileguid *guid;
   s32 idx;

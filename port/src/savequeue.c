@@ -11,6 +11,11 @@
 // Writes the shadow out if it has been marked; a no-op otherwise.
 void osEepromFlush(void);
 
+// Defined in src/game/mplayer/mplayer.c. Turns each changed profile into the
+// writes that record it - slot name hashes, and a pak save for players that
+// have a file. A no-op when nothing changed.
+void mpProfileFlushDirty(void);
+
 /*
  * The backstop. An idle frame almost always comes along sooner than this -
  * the flush usually lands on the frame after the write - so this only matters
@@ -94,7 +99,12 @@ void saveQueueFlush(void)
 	g_SaveQueueConfigDirty = 0;
 	g_SaveQueueFlushCount++;
 
-	if (eeprom) {
+	// Profiles first: this is what produces the hashes the ini is about to be
+	// written with, and the pak writes that mark the EEPROM below.
+	mpProfileFlushDirty();
+
+	if (eeprom || g_SaveQueueEepromDirty) {
+		g_SaveQueueEepromDirty = 0;
 		osEepromFlush();
 	}
 

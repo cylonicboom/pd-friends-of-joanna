@@ -1276,6 +1276,7 @@ MenuItemHandlerResult menuhandlerMpCharacterBody(s32 operation,
       }
     }
     g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum = data->carousel.value;
+    mpProfileMarkDirty(g_MpPlayerNum);
     func0f17b8f0();
     break;
   case MENUOP_CHECKPREFOCUSED:
@@ -2817,6 +2818,7 @@ MenuItemHandlerResult menuhandlerMpCharacterHead(s32 operation,
                                                  union handlerdata *data) {
   if (operation == MENUOP_SET) {
     g_PlayerConfigsArray[g_MpPlayerNum].base.mpheadnum = data->carousel.value;
+    mpProfileMarkDirty(g_MpPlayerNum);
   }
 
   return mpCharacterHeadMenuHandler(
