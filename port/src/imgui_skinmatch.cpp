@@ -180,7 +180,7 @@ static void skinBrush(struct skinmatchbody *body, s32 tx, s32 ty, bool on)
 	for (s32 y = ty - r; y <= ty + r; y++) {
 		for (s32 x = tx - r; x <= tx + r; x++) {
 			if (x < 0 || y < 0 || x >= body->width || y >= body->height) continue;
-			if ((x - tx) * (x - tx) + (y - ty) * (y - ty) > r * r + 0) continue;
+			if ((x - tx) * (x - tx) + (y - ty) * (y - ty) > r * r + r) continue;
 			skinSetTexel(body, (u32)y * body->width + x, on);
 		}
 	}
@@ -261,24 +261,44 @@ static bool skinModelDir(u16 fileNum, char *dst, u32 len)
 	return true;
 }
 
+// The texture is drawn under an InvisibleButton rather than as an Image: an
+// Image is not an interactive item, so click-dragging over it dragged the
+// window instead of painting (the stamps in the first Mac pass were one per
+// click and never joined). The button owns the mouse for the whole stroke,
+// so IsItemActive() stays true even when the cursor runs off the texture.
+// Displayed upright: GL row 0 is the bottom of the picture, so screen rows
+// count down from height - 1 (same convention as the textures panel's flip).
+static s32 g_SkinLastX = -1, g_SkinLastY = -1;
+
 static void skinDrawTexture(const char *id, const SkinTexRef &ref, s32 *hoverX, s32 *hoverY, bool *hovered, bool *clicked, bool *held)
 {
 	const ImVec2 size((float)ref.width * g_SkinZoom, (float)ref.height * g_SkinZoom);
-	ImGui::Image(ImTextureRef((ImTextureID)ref.info.texture_id), size, ImVec2(0, 0), ImVec2(1, 1));
+	const ImVec2 minp = ImGui::GetCursorScreenPos();
+	ImGui::InvisibleButton(id, size, ImGuiButtonFlags_MouseButtonLeft);
+	ImGui::GetWindowDrawList()->AddImage(ImTextureRef((ImTextureID)ref.info.texture_id), minp,
+		ImVec2(minp.x + size.x, minp.y + size.y), ImVec2(0, 1), ImVec2(1, 0));
 	*hovered = ImGui::IsItemHovered();
-	*clicked = *hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left);
-	*held = *hovered && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+	*clicked = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+	*held = ImGui::IsItemActive() && ImGui::IsMouseDown(ImGuiMouseButton_Left);
 
-	if (*hovered) {
-		const ImVec2 minp = ImGui::GetItemRectMin();
+	if (*hovered || *held) {
 		const ImVec2 mouse = ImGui::GetIO().MousePos;
-		*hoverX = (s32)((mouse.x - minp.x) / g_SkinZoom);
-		*hoverY = (s32)((mouse.y - minp.y) / g_SkinZoom);
-		if (*hoverX < 0) *hoverX = 0;
-		if (*hoverY < 0) *hoverY = 0;
-		if (*hoverX >= ref.width) *hoverX = ref.width - 1;
-		if (*hoverY >= ref.height) *hoverY = ref.height - 1;
+		s32 col = (s32)floorf((mouse.x - minp.x) / g_SkinZoom);
+		s32 row = (s32)floorf((mouse.y - minp.y) / g_SkinZoom);
+		if (col < 0) col = 0;
+		if (row < 0) row = 0;
+		if (col >= ref.width) col = ref.width - 1;
+		if (row >= ref.height) row = ref.height - 1;
+		*hoverX = col;
+		*hoverY = ref.height - 1 - row;
 	}
+}
+
+static ImVec2 skinTexelScreenMin(u32 x, u32 y, u32 height)
+{
+	const ImVec2 minp = ImGui::GetItemRectMin();
+	const float z = (float)g_SkinZoom;
+	return ImVec2(minp.x + x * z, minp.y + (height - 1 - y) * z);
 }
 
 static void skinDrawMaskOverlay(const struct skinmatchbody *body)
@@ -286,7 +306,6 @@ static void skinDrawMaskOverlay(const struct skinmatchbody *body)
 	if (!g_SkinShowOverlay || !body || !body->mask) return;
 
 	ImDrawList *dl = ImGui::GetWindowDrawList();
-	const ImVec2 minp = ImGui::GetItemRectMin();
 	const float z = (float)g_SkinZoom;
 
 	for (u32 y = 0; y < body->height; y++) {
@@ -296,7 +315,8 @@ static void skinDrawMaskOverlay(const struct skinmatchbody *body)
 			if (!r && !g) continue;
 			const ImU32 col = g ? skinLayerColour(g, g_SkinOverlayAlpha)
 				: skinLayerColour(0, g_SkinOverlayAlpha * r / 255.0f);
-			dl->AddRectFilled(ImVec2(minp.x + x * z, minp.y + y * z), ImVec2(minp.x + (x + 1) * z, minp.y + (y + 1) * z), col);
+			const ImVec2 a = skinTexelScreenMin(x, y, body->height);
+			dl->AddRectFilled(a, ImVec2(a.x + z, a.y + z), col);
 		}
 	}
 }
@@ -306,12 +326,12 @@ static void skinDrawTagOverlay(const struct skinmatchhead *head)
 	if (!head) return;
 
 	ImDrawList *dl = ImGui::GetWindowDrawList();
-	const ImVec2 minp = ImGui::GetItemRectMin();
 	const float z = (float)g_SkinZoom;
 
 	for (s32 i = 0; i < head->ntags; i++) {
 		const struct skinmatchtag *t = &head->tags[i];
-		const ImVec2 c(minp.x + (t->x + 0.5f) * z, minp.y + (t->y + 0.5f) * z);
+		const ImVec2 a = skinTexelScreenMin(t->x, t->y, head->height ? head->height : 1);
+		const ImVec2 c(a.x + 0.5f * z, a.y + 0.5f * z);
 		dl->AddCircle(c, (t->r + 0.5f) * z, IM_COL32(255, 255, 255, 255), 0, 1.5f);
 		char label[8];
 		snprintf(label, sizeof(label), "%d", i + 1);
@@ -438,17 +458,28 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 				skinDrawTexture("body", bref, &hx, &hy, &hovered, &clicked, &held);
 				skinDrawMaskOverlay(body);
 
-				if (hovered) {
+				if (hovered || held) {
 					const u32 i = (u32)hy * body->width + hx;
 					const bool on = g_SkinTool == TOOL_PAINT || g_SkinTool == TOOL_FILL;
 					if ((g_SkinTool == TOOL_FILL || g_SkinTool == TOOL_UNFILL) && clicked) {
 						skinFill(body, hx, hy, on);
 						skinmatchBodyRemeasure(body);
 					} else if ((g_SkinTool == TOOL_PAINT || g_SkinTool == TOOL_ERASE) && held) {
-						skinBrush(body, hx, hy, on);
+						// stamp every texel between the last stamp and this one
+						if (g_SkinLastX < 0) {
+							g_SkinLastX = hx;
+							g_SkinLastY = hy;
+						}
+						const s32 dx = hx - g_SkinLastX, dy = hy - g_SkinLastY;
+						const s32 steps = ImMax(1, ImMax(dx < 0 ? -dx : dx, dy < 0 ? -dy : dy));
+						for (s32 k = 1; k <= steps; k++) {
+							skinBrush(body, g_SkinLastX + dx * k / steps, g_SkinLastY + dy * k / steps, on);
+						}
+						g_SkinLastX = hx;
+						g_SkinLastY = hy;
 						g_SkinPainting = true;
 					}
-					if (body->rgba) {
+					if (hovered && body->rgba) {
 						f32 lab[3];
 						skinmatchSrgbToOklab(body->rgba[i * 4], body->rgba[i * 4 + 1], body->rgba[i * 4 + 2], lab);
 						ImGui::SetTooltip("(%d,%d) #%02x%02x%02x  L %.3f  R %d G %d", hx, hy,
@@ -459,10 +490,13 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 			}
 			ImGui::EndChild();
 
-			if (g_SkinPainting && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-				// remeasure once per stroke, not per texel
-				g_SkinPainting = false;
-				skinmatchBodyRemeasure(body);
+			if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+				g_SkinLastX = g_SkinLastY = -1;
+				if (g_SkinPainting) {
+					// remeasure once per stroke, not per texel
+					g_SkinPainting = false;
+					skinmatchBodyRemeasure(body);
+				}
 			}
 
 			u32 garmentCount = 0;
