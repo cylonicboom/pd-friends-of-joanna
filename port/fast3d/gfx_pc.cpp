@@ -240,6 +240,11 @@ static struct RenderingState {
     struct XYWidthHeight viewport, scissor;
     struct ShaderProgram* shader_program;
     TextureCacheNode* textures[SHADER_MAX_TEXTURES];
+    // Whether this unit currently holds a FRAMEBUFFER texture (G_SETTIMG_FB_EXT)
+    // rather than one imported through the texture cache. When it does,
+    // textures[i] still points at whatever ordinary texture was bound last, so
+    // nothing on that cache entry describes what is actually sampled.
+    bool textures_are_fb[SHADER_MAX_TEXTURES];
     // skin match: what set_skinmatch was last given, so a batch is only
     // broken when the body texture, the head or the mask actually changes
     const struct skinmatchbody* skin_body;
@@ -736,6 +741,7 @@ static bool gfx_texture_cache_lookup(int i, const TextureCacheKey& key) {
     if (it != gfx_texture_cache.map.end()) {
         gfx_rapi->select_texture(i, it->second.texture_id, it->second.linear_filter);
         *n = &*it;
+        rendering_state.textures_are_fb[i] = false;
         gfx_texture_cache.lru.splice(gfx_texture_cache.lru.end(), gfx_texture_cache.lru,
                                      it->second.lru_location); // move to back
         return true;
@@ -765,6 +771,7 @@ static bool gfx_texture_cache_lookup(int i, const TextureCacheKey& key) {
     gfx_rapi->select_texture(i, texture_id, false);
     gfx_rapi->set_sampler_parameters(i, false, 0, 0);
     *n = node;
+    rendering_state.textures_are_fb[i] = false;
     return false;
 }
 
@@ -1755,7 +1762,15 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
             // gets uploaded (tile rect vs TMEM line, ext_tex, CI4 glyph fallback),
             // and if this divisor disagrees with the real upload size the texture
             // scales/slides across the surface instead of just misaligning.
-            if (rendering_state.textures[i] && rendering_state.textures[i]->second.width &&
+            // NOT for a framebuffer texture: nothing was uploaded for it, the
+            // cache entry belongs to some earlier unrelated texture, and
+            // gfx_dp_image_rectangle has already put the real image size on the
+            // tile. Taking the stale entry's size here divides the uvs by a
+            // wrong (usually much smaller) number, and since image rectangles
+            // draw with wrap the framebuffer tiles across the screen instead of
+            // covering it once -- the recursive grid the drug blur showed.
+            if (!rendering_state.textures_are_fb[i] &&
+                rendering_state.textures[i] && rendering_state.textures[i]->second.width &&
                 rendering_state.textures[i]->second.height) {
                 tex_width[i] = rendering_state.textures[i]->second.width;
                 tex_height[i] = rendering_state.textures[i]->second.height;
@@ -2851,6 +2866,12 @@ static void gfx_run_dl(Gfx* cmd) {
 				gfx_rapi->select_texture_fb(cmd->words.w1);
 				rdp.textures_changed[0] = false;
 				rdp.textures_changed[1] = false;
+
+				// select_texture_fb binds unit 0 and import_texture never runs,
+				// so rendering_state.textures[0] is left pointing at the last
+				// ordinary texture. Say so, or its uploaded size gets used as
+				// the uv divisor for the framebuffer blit.
+				rendering_state.textures_are_fb[0] = true;
 
 				// clear the external tex key
 				const uint32_t tile = gfx_lod_tile_offset(0);
