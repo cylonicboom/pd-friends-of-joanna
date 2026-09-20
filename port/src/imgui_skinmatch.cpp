@@ -503,7 +503,7 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 	ImGui::TextDisabled("sidecars registered: %d", skinmatchNumSidecars());
 
 	if (!chr || chr->chrnum < 0) {
-		ImGui::TextDisabled("Focus a chr in Entities (or Looking At) to edit its body and head.");
+		ImGui::TextDisabled("right-click a chr in Entities -> \"Skin match this chr\" to edit its body and head");
 		return;
 	}
 
