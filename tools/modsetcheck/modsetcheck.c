@@ -336,15 +336,35 @@ static void readFileTable(struct mod *m)
 
 /**
  * Every texmap slot index a mod uses, checked the way the reader treats them.
- * Two entries on one slot alias: two local ids answer to the same slot, so one
- * texture draws for both. A hole reserves a slot nobody uses, because the
- * reader advances the next mod's base by maxSlot + 1 and not by the entry
- * count (romdata.c:909).
+ *
+ * Two entries on one slot are two different things and this used to call them
+ * both aliasing. If the local ids DIFFER, two textures answer to one slot and
+ * one draws for both - a real fault in the mod. If the local id is the SAME,
+ * the row is simply written twice: modTexMapLookup() finds the same answer
+ * either way and nothing draws wrong. Only the first is an error.
+ *
+ * The distinction is not academic. mod_gex_characters carries 184 repeated
+ * rows over 92 slots, every one of them the same id twice and not one a real
+ * collision, and calling that an ERROR meant the shipped roster failed its own
+ * whole-set check for a non-reason - which is the fastest way to teach
+ * everyone to ignore the tool.
+ *
+ * Repeated rows are still worth saying, because pdftWrite() refuses any slot
+ * used twice whatever the ids are, so a table carrying them cannot be rebuilt
+ * by mkfiletable without collapsing them first.
+ *
+ * A hole reserves a slot nobody uses, because the reader advances the next
+ * mod's base by maxSlot + 1 and not by the entry count (romdata.c:909).
  */
 static void checkTexMap(struct mod *m)
 {
-	uint32_t i, maxSlot = 0, dupes = 0, dupSlots = 0, distinct = 0;
+	uint32_t i, maxSlot = 0, distinct = 0;
+	uint32_t repeatRows = 0, repeatSlots = 0;
+	uint32_t aliasRows = 0, aliasSlots = 0;
+	uint32_t firstAliasSlot = 0;
+	bool haveAliasSlot = false;
 	uint8_t *seen;
+	uint16_t *firstId;
 
 	if (!m->haveFt || !m->ft.numTexMap) {
 		return;
@@ -357,24 +377,36 @@ static void checkTexMap(struct mod *m)
 	}
 
 	seen = calloc((size_t)maxSlot + 1, 1);
+	firstId = calloc((size_t)maxSlot + 1, sizeof(*firstId));
 
-	if (!seen) {
+	if (!seen || !firstId) {
 		die("out of memory checking %s", m->label);
 	}
 
 	for (i = 0; i < m->ft.numTexMap; ++i) {
 		uint32_t s = m->ft.texmap[i].slotIdx;
-
-		if (seen[s] == 1) {
-			++dupSlots;
-		}
-
-		if (seen[s]) {
-			++dupes;
-		}
+		uint16_t id = m->ft.texmap[i].localTexId;
 
 		if (!seen[s]) {
 			++distinct;
+			firstId[s] = id;
+		} else if (id == firstId[s]) {
+			++repeatRows;
+
+			if (seen[s] == 1) {
+				++repeatSlots;
+			}
+		} else {
+			++aliasRows;
+
+			if (seen[s] == 1) {
+				++aliasSlots;
+			}
+
+			if (!haveAliasSlot) {
+				firstAliasSlot = s;
+				haveAliasSlot = true;
+			}
 		}
 
 		if (seen[s] < 255) {
@@ -385,12 +417,21 @@ static void checkTexMap(struct mod *m)
 	m->slotMax = maxSlot;
 	m->hasSlots = true;
 
-	if (dupes) {
-		finding(LVL_ERROR, "%s: %u texmap entries share %u slot(s) with another entry - "
-				"%u distinct slots for %u entries. Two local ids on one slot means one "
-				"texture draws for both, and the encoder refuses to write this, so the "
-				"table was not built by mkfiletable",
-				m->label, dupes, dupSlots, distinct, m->ft.numTexMap);
+	if (aliasRows) {
+		finding(LVL_ERROR, "%s: %u texmap entr%s put a DIFFERENT local id on a slot "
+				"another already uses, over %u slot(s), first at slot %u. One texture "
+				"draws for both and the mod is wrong, not just redundant",
+				m->label, aliasRows, aliasRows == 1 ? "y" : "ies", aliasSlots,
+				firstAliasSlot);
+	}
+
+	if (repeatRows) {
+		finding(LVL_WARN, "%s: %u texmap row(s) repeat a mapping already made, over %u "
+				"slot(s) - %u distinct slots for %u rows. Harmless to draw, because the "
+				"id maps to the same slot either way, but pdftWrite() refuses any slot "
+				"used twice, so this table cannot be rebuilt by mkfiletable until they "
+				"are collapsed",
+				m->label, repeatRows, repeatSlots, distinct, m->ft.numTexMap);
 	}
 
 	if (maxSlot + 1 > m->ft.numTexMap) {
@@ -401,6 +442,7 @@ static void checkTexMap(struct mod *m)
 	}
 
 	free(seen);
+	free(firstId);
 }
 
 /**
