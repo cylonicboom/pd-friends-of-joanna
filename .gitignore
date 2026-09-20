@@ -30,6 +30,7 @@ tools/mkfiletable/slugmod
 tools/mkfiletable/pdft_reencode
 tools/mkfiletable/pdftrules_test
 tools/modsetcheck/modsetcheck
+tools/modsetcheck/stagenames.h
 release-*/*
 /.vs
 CppProperties.json
