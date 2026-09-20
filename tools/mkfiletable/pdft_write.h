@@ -32,6 +32,13 @@
 #define PDFT_F_SELFSOURCE  0x8  /* resolve `path` in the OWNING mod's own
                                  * directory, and nowhere else. See the note
                                  * on pdftFile.selfSource. */
+#define PDFT_F_ALIAS       0x10 /* an alias tail follows: u16 len + string.
+                                 * UNLIKE the bits above this one MOVES BYTES,
+                                 * so it needs v4. An older reader refuses v4
+                                 * outright (pdft_read.c bounds the version),
+                                 * which is a clean failure rather than the
+                                 * silent desync a tail behind an ignored bit
+                                 * would have produced. */
 
 enum pdftFallback {
 	PDFT_FALLBACK_SKIP = 0,
@@ -56,6 +63,12 @@ struct pdftAlt {
 };
 
 struct pdftFile {
+	/* A second name for this same file id, inserted into the runtime name
+	 * table alongside `name`. It is the vanilla name the file replaces, so a
+	 * modconfig can say bgfile "bg_old.seg" and get the mod's slugged copy.
+	 * NULL for most entries. Setting it forces the table to v4. */
+	const char *alias;
+
 	uint32_t id;
 	const char *name;     /* required, non-empty */
 	const char *path;     /* NULL or "" for none */

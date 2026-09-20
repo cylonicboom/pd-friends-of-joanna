@@ -98,7 +98,7 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 	out->version = rd32(&r);
 	out->numFiles = rd32(&r);
 
-	if (out->version < 1 || out->version > 3) {
+	if (out->version < 1 || out->version > 4) {
 		snprintf(err, errLen, "version %u is not one of 1, 2, 3", out->version);
 		return false;
 	}
@@ -156,6 +156,10 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 			f->alt.offset = rd32(&r);
 			f->alt.size = rd32(&r);
 			f->alt.compression = rd8(&r);
+		}
+
+		if (flags & PDFT_F_ALIAS) {
+			f->alias = rdStr(&r, rd16(&r));
 		}
 
 		if (r.bad) {

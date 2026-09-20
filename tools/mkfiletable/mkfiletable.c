@@ -1066,6 +1066,7 @@ int main(int argc, char **argv)
 			long fixedId;      /* from the vanilla map, for a replacer */
 			int altRom;        /* index into roms[], or -1 */
 			bool selfSrc;      /* source: { self: true } */
+			const char *alias;  /* second name for this id; forces table v4 */
 			uint32_t altOfs, altSize;
 			bool drop;         /* an orphan, kept out of the output */
 		};
@@ -1164,6 +1165,11 @@ int main(int argc, char **argv)
 					die("%s: '%s' aliases '%s' but replaces '%s'; a file has one name "
 							"outside the mod", manifestPath, name, alias, replaces);
 				}
+
+				/* It is no longer authoring-only. It goes on the wire as a
+				 * second name for this id, so a modconfig can reference the
+				 * file by the vanilla name it replaces. */
+				ents[i].alias = alias;
 
 				if (!selfSourceFile(output, ents[i].path, resolved, sizeof(resolved))) {
 					die("%s: '%s' is self-sourced at '%s', which is not a readable file "
@@ -1278,6 +1284,7 @@ int main(int argc, char **argv)
 			out[numOut].name = ents[i].name;
 			out[numOut].path = ents[i].path;
 			out[numOut].selfSource = ents[i].selfSrc;
+			out[numOut].alias = ents[i].alias;
 			out[numOut].alt.romIdx = ents[i].altRom;
 			out[numOut].alt.offset = ents[i].altOfs;
 			out[numOut].alt.size = ents[i].altSize;
