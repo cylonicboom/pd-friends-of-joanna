@@ -2,6 +2,8 @@
 #include <math.h>
 #include <string.h>
 #include <vector>
+#include <map>
+#include <string>
 #include <zlib.h>
 
 #include <SDL.h>
@@ -4514,6 +4516,86 @@ static void imguiOverlaySetNextWindowDefaults(const ImVec2 &size, float xAnchor,
 	ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
 }
 
+// Minimised windows. Collapsing a Fojo window (the title-bar arrow, or a
+// double-click on the title) is the minimise: the window shrinks to its title
+// and stacks in the lower-left corner in the order it was collapsed. Expanding
+// it puts it back where it was, at the size it had. Windows the ini restores
+// collapsed join the stack on the first frame with their ini geometry saved.
+struct imguiOverlayWindowState {
+	bool minimised;
+	ImVec2 restorePos;
+	ImVec2 restoreSize;
+};
+
+static std::map<std::string, imguiOverlayWindowState> g_ImGuiOverlayWindows;
+static std::vector<std::string> g_ImGuiOverlayMinimisedOrder;
+
+static float imguiOverlayCollapsedTitleWidth(const char *name)
+{
+	const ImGuiStyle &style = ImGui::GetStyle();
+	// title text, the collapse arrow and the close button, each a frame high
+	return ImGui::CalcTextSize(name).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight() * 2.0f + style.ItemInnerSpacing.x * 2.0f;
+}
+
+static ImVec2 imguiOverlayMinimisedSlotPos(s32 slot)
+{
+	const ImGuiViewport *viewport = ImGui::GetMainViewport();
+	const float titleH = ImGui::GetFrameHeight();
+	const float gap = 4.0f;
+	return ImVec2(viewport->WorkPos.x + 8.0f,
+		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (slot + 1) * (titleH + gap) + gap);
+}
+
+static s32 imguiOverlayMinimisedSlot(const std::string &name)
+{
+	for (size_t i = 0; i < g_ImGuiOverlayMinimisedOrder.size(); ++i) {
+		if (g_ImGuiOverlayMinimisedOrder[i] == name) {
+			return (s32)i;
+		}
+	}
+	return -1;
+}
+
+/**
+ * Begin a Fojo window: default placement on first use, then the minimise
+ * behaviour above. Returns what ImGui::Begin returned; the caller still owns
+ * the matching ImGui::End.
+ */
+static bool imguiOverlayBeginWindow(const char *name, bool *open, const ImVec2 &defaultSize, float xAnchor, float yAnchor)
+{
+	imguiOverlayWindowState &st = g_ImGuiOverlayWindows[name];
+	imguiOverlaySetNextWindowDefaults(defaultSize, xAnchor, yAnchor);
+
+	if (st.minimised) {
+		const s32 slot = imguiOverlayMinimisedSlot(name);
+		ImGui::SetNextWindowPos(imguiOverlayMinimisedSlotPos(slot < 0 ? 0 : slot), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(imguiOverlayCollapsedTitleWidth(name), st.restoreSize.y), ImGuiCond_Always);
+	}
+
+	const bool visible = ImGui::Begin(name, open);
+	const bool collapsed = ImGui::IsWindowCollapsed();
+
+	if (collapsed && !st.minimised) {
+		st.restorePos = ImGui::GetWindowPos();
+		st.restoreSize = ImGui::GetWindowSize();
+		if (st.restoreSize.y < 40.0f) {
+			st.restoreSize.y = defaultSize.y;
+		}
+		st.minimised = true;
+		g_ImGuiOverlayMinimisedOrder.push_back(name);
+	} else if (!collapsed && st.minimised) {
+		st.minimised = false;
+		const s32 slot = imguiOverlayMinimisedSlot(name);
+		if (slot >= 0) {
+			g_ImGuiOverlayMinimisedOrder.erase(g_ImGuiOverlayMinimisedOrder.begin() + slot);
+		}
+		ImGui::SetWindowPos(st.restorePos, ImGuiCond_Always);
+		ImGui::SetWindowSize(st.restoreSize, ImGuiCond_Always);
+	}
+
+	return visible;
+}
+
 static const char *imguiOverlayTrackTypeName(s32 tracktype)
 {
 	switch (tracktype) {
@@ -5442,32 +5524,28 @@ void imguiOverlayRender(void)
 		imguiOverlayDrawWindowMenu(canOpenLookingAt);
 
 		if (g_ImGuiOverlayShowRuntime) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(360.0f, 300.0f), 0.0f, 0.0f);
-			if (ImGui::Begin("Fojo Runtime", &g_ImGuiOverlayShowRuntime)) {
+						if (imguiOverlayBeginWindow("Fojo Runtime", &g_ImGuiOverlayShowRuntime, ImVec2(360.0f, 300.0f), 0.0f, 0.0f)) {
 				imguiOverlayDrawRuntimePanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowMemory) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(360.0f, 300.0f), 0.0f, 1.0f);
-			if (ImGui::Begin("Fojo Memory", &g_ImGuiOverlayShowMemory)) {
+						if (imguiOverlayBeginWindow("Fojo Memory", &g_ImGuiOverlayShowMemory, ImVec2(360.0f, 300.0f), 0.0f, 1.0f)) {
 				imguiOverlayDrawMemoryPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowProfiler) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(620.0f, 360.0f), 0.5f, 1.0f);
-			if (ImGui::Begin("Fojo Profiler", &g_ImGuiOverlayShowProfiler)) {
+						if (imguiOverlayBeginWindow("Fojo Profiler", &g_ImGuiOverlayShowProfiler, ImVec2(620.0f, 360.0f), 0.5f, 1.0f)) {
 				imguiOverlayDrawProfilerPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowStage) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(480.0f, 560.0f), 1.0f, 0.0f);
-			if (ImGui::Begin("Fojo Stage", &g_ImGuiOverlayShowStage)) {
+						if (imguiOverlayBeginWindow("Fojo Stage", &g_ImGuiOverlayShowStage, ImVec2(480.0f, 560.0f), 1.0f, 0.0f)) {
 				imguiOverlayDrawStagePanel();
 			}
 			ImGui::End();
@@ -5477,33 +5555,28 @@ void imguiOverlayRender(void)
 			g_ImGuiOverlayShowEntities = true;
 		}
 		if (g_ImGuiOverlayShowEntities) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 620.0f), 1.0f, 0.0f);
-			if (ImGui::Begin("Fojo Entities", &g_ImGuiOverlayShowEntities)) {
+						if (imguiOverlayBeginWindow("Fojo Entities", &g_ImGuiOverlayShowEntities, ImVec2(520.0f, 620.0f), 1.0f, 0.0f)) {
 				imguiOverlayDrawEntitiesPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowAssets) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(620.0f, 560.0f), 0.5f, 0.2f);
-			if (ImGui::Begin("Fojo Assets", &g_ImGuiOverlayShowAssets)) {
+						if (imguiOverlayBeginWindow("Fojo Assets", &g_ImGuiOverlayShowAssets, ImVec2(620.0f, 560.0f), 0.5f, 0.2f)) {
 				imguiOverlayDrawAssetsPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowLookingAt) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(430.0f, 340.0f), 1.0f, 0.0f);
-			if (ImGui::Begin("Fojo Looking At", &g_ImGuiOverlayShowLookingAt)) {
+						if (imguiOverlayBeginWindow("Fojo Looking At", &g_ImGuiOverlayShowLookingAt, ImVec2(430.0f, 340.0f), 1.0f, 0.0f)) {
 				imguiOverlayDrawLookingAtPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowStance) {
-			ImGui::SetNextWindowSize(ImVec2(420, 560), ImGuiCond_FirstUseEver);
-
-			if (ImGui::Begin("Fojo Stance", &g_ImGuiOverlayShowStance)) {
+			if (imguiOverlayBeginWindow("Fojo Stance", &g_ImGuiOverlayShowStance, ImVec2(420.0f, 560.0f), 0.5f, 0.5f)) {
 				imguiOverlayDrawStancePanel();
 			}
 
@@ -5511,9 +5584,7 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowPauseBlur) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(400.0f, 300.0f), 0.5f, 0.5f);
-
-			if (ImGui::Begin("Fojo Pause Blur", &g_ImGuiOverlayShowPauseBlur)) {
+						if (imguiOverlayBeginWindow("Fojo Pause Blur", &g_ImGuiOverlayShowPauseBlur, ImVec2(400.0f, 300.0f), 0.5f, 0.5f)) {
 				imguiOverlayDrawPauseBlurPanel();
 			}
 
@@ -5521,48 +5592,42 @@ void imguiOverlayRender(void)
 		}
 
 		if (g_ImGuiOverlayShowAudio) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(440.0f, 560.0f), 0.5f, 0.5f);
-			if (ImGui::Begin("Fojo Audio", &g_ImGuiOverlayShowAudio)) {
+						if (imguiOverlayBeginWindow("Fojo Audio", &g_ImGuiOverlayShowAudio, ImVec2(440.0f, 560.0f), 0.5f, 0.5f)) {
 				imguiOverlayDrawAudioPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowProportions) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(460.0f, 620.0f), 0.0f, 0.5f);
-			if (ImGui::Begin("Fojo Proportions", &g_ImGuiOverlayShowProportions)) {
+						if (imguiOverlayBeginWindow("Fojo Proportions", &g_ImGuiOverlayShowProportions, ImVec2(460.0f, 620.0f), 0.0f, 0.5f)) {
 				imguiOverlayDrawProportionsPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowTextures) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 620.0f), 1.0f, 0.25f);
-			if (ImGui::Begin("Fojo Textures", &g_ImGuiOverlayShowTextures)) {
+						if (imguiOverlayBeginWindow("Fojo Textures", &g_ImGuiOverlayShowTextures, ImVec2(520.0f, 620.0f), 1.0f, 0.25f)) {
 				imguiOverlayDrawTexturesPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowSkinMatch) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(760.0f, 640.0f), 1.0f, 0.5f);
-			if (ImGui::Begin("Fojo Skin Match", &g_ImGuiOverlayShowSkinMatch)) {
+						if (imguiOverlayBeginWindow("Fojo Skin Match", &g_ImGuiOverlayShowSkinMatch, ImVec2(760.0f, 640.0f), 1.0f, 0.5f)) {
 				imguiSkinMatchDrawPanel(g_ImGuiOverlayFocusChr);
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowLua) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(420.0f, 300.0f), 0.0f, 0.75f);
-			if (ImGui::Begin("Fojo Lua", &g_ImGuiOverlayShowLua)) {
+						if (imguiOverlayBeginWindow("Fojo Lua", &g_ImGuiOverlayShowLua, ImVec2(420.0f, 300.0f), 0.0f, 0.75f)) {
 				imguiOverlayDrawLuaPanel();
 			}
 			ImGui::End();
 		}
 
 		if (g_ImGuiOverlayShowSaves) {
-			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 420.0f), 0.5f, 0.5f);
-			if (ImGui::Begin("Fojo Saves", &g_ImGuiOverlayShowSaves)) {
+						if (imguiOverlayBeginWindow("Fojo Saves", &g_ImGuiOverlayShowSaves, ImVec2(520.0f, 420.0f), 0.5f, 0.5f)) {
 				imguiOverlayDrawSavesPanel();
 			}
 			ImGui::End();

@@ -140,7 +140,7 @@ void skinmatchRegisterSidecar(u8 type, u16 id, s32 texnum, s8 ownerMod, const ch
 	for (i = 0; i < g_NumSkinSidecars; i++) {
 		struct skinmatchsidecar *sc = &g_SkinSidecars[i];
 
-		if (sc->type == type && sc->id == id && sc->texnum == texnum && sc->kind == kind) {
+		if (sc->id == id && sc->texnum == texnum && sc->kind == kind) {
 			// first writer wins, the same policy readModelTextures applies to
 			// the textures themselves
 			return;
@@ -167,19 +167,35 @@ s32 skinmatchNumSidecars(void)
 	return g_NumSkinSidecars;
 }
 
-static struct skinmatchsidecar *findSidecar(u8 type, u16 id, s32 texnum, s32 kind)
+/**
+ * Identity is (model file, texture number), never the type: tex.c stamps every
+ * model texture load as G_TEXTYPE_GENERAL with the model's raw fileNum in id
+ * and the global texture number in texnum (texWriteLoadToTmemAddr), while the
+ * scan registers a model directory's sidecars as G_TEXTYPE_MODEL. A sidecar
+ * from the top-level ext_tex directory has id 0 and answers for any model.
+ */
+static struct skinmatchsidecar *findSidecar(u16 id, s32 texnum, s32 kind)
 {
+	struct skinmatchsidecar *global = NULL;
 	s32 i;
 
 	for (i = 0; i < g_NumSkinSidecars; i++) {
 		struct skinmatchsidecar *sc = &g_SkinSidecars[i];
 
-		if (sc->type == type && sc->id == id && sc->texnum == texnum && sc->kind == kind) {
+		if (sc->texnum != texnum || sc->kind != kind) {
+			continue;
+		}
+
+		if (sc->id == id) {
 			return sc;
+		}
+
+		if (sc->id == 0 && !global) {
+			global = sc;
 		}
 	}
 
-	return NULL;
+	return global;
 }
 
 // ---------------------------------------------------------------- measuring
@@ -650,7 +666,7 @@ s32 skinmatchHeadSave(struct skinmatchhead *head, const char *dir)
 
 	strncpy(head->path, path, FS_MAXPATH);
 	head->path[FS_MAXPATH] = '\0';
-	skinmatchRegisterSidecar(G_TEXTYPE_MODEL, head->id, head->texnum, head->ownerMod, path, SKINMATCH_SIDECAR_TAGS);
+	skinmatchRegisterSidecar(G_TEXTYPE_GENERAL, head->id, head->texnum, head->ownerMod, path, SKINMATCH_SIDECAR_TAGS);
 	sysLogPrintf(LOG_NOTE, "skinmatch: wrote %s", path);
 	return 0;
 }
@@ -694,7 +710,7 @@ struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
 	for (i = 0; i < SKINMATCH_MAX_BODIES; i++) {
 		struct skinmatchbody *b = &g_SkinBodies[i];
 
-		if (b->used && b->type == type && b->id == id && b->texnum == texnum) {
+		if (b->used && b->id == id && b->texnum == texnum) {
 			return b;
 		}
 	}
@@ -703,7 +719,7 @@ struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
 		return NULL;
 	}
 
-	struct skinmatchsidecar *sc = findSidecar(type, id, texnum, SKINMATCH_SIDECAR_MASK);
+	struct skinmatchsidecar *sc = findSidecar(id, texnum, SKINMATCH_SIDECAR_MASK);
 
 	if (!sc) {
 		return NULL;
@@ -789,7 +805,7 @@ struct skinmatchhead *skinmatchHeadFor(u16 fileid, bool create)
 	for (i = 0; i < g_NumSkinSidecars; i++) {
 		struct skinmatchsidecar *sc = &g_SkinSidecars[i];
 
-		if (sc->type != G_TEXTYPE_MODEL || sc->id != fileid || sc->kind != SKINMATCH_SIDECAR_TAGS) {
+		if (sc->id != fileid || sc->kind != SKINMATCH_SIDECAR_TAGS) {
 			continue;
 		}
 
@@ -844,7 +860,7 @@ bool skinmatchWantsPixels(u8 type, u16 id, s32 texnum)
 		return true;
 	}
 
-	if (type == G_TEXTYPE_MODEL) {
+	if (id != 0) {
 		struct skinmatchhead *h = skinmatchHeadForTex(id, texnum);
 
 		if (h && h->pending) {
@@ -881,7 +897,7 @@ void skinmatchOnTexturePixels(u8 type, u16 id, s32 texnum, const u8 *rgba, u32 w
 		}
 	}
 
-	if (type == G_TEXTYPE_MODEL) {
+	if (id != 0) {
 		struct skinmatchhead *h = skinmatchHeadForTex(id, texnum);
 
 		if (h && (h->pending || !h->rgba)) {
