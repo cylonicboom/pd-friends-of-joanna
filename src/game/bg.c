@@ -144,6 +144,20 @@ u32 var800a4bf4;
 RoomNum g_GlareRooms[100];
 uintptr_t *g_BgPrimaryData2;
 struct bgroom *g_BgRooms;
+
+#ifndef PLATFORM_N64
+/*
+ * Room load accounting.
+ *
+ * bgLoadRoom has three paths that refuse a room and return WITHOUT A WORD - no
+ * allocation, the compressed data not fitting the allocation, and no inflate
+ * headroom. A level whose rooms are refused draws as a void, which by eye is
+ * indistinguishable from geometry that never loaded, from a bad spawn, and
+ * from a render bug. Each one warns now, and the totals sit on the Stage panel.
+ */
+s32 g_BgRoomsLoaded = 0;
+s32 g_BgRoomsRefused = 0;
+#endif
 struct bgportal *g_BgPortals;
 struct portalmetric *g_PortalMetrics;
 u8 *g_BgPortalAlphas;
@@ -1680,6 +1694,12 @@ void bgReset(s32 stagenum)
 			g_Vars.roomcount++;
 		}
 
+#ifndef PLATFORM_N64
+		g_BgRoomsLoaded = 0;
+		g_BgRoomsRefused = 0;
+		sysLogPrintf(LOG_NOTE, "bgLoad: %d rooms", g_Vars.roomcount);
+#endif
+
 		g_BgPortals = (struct bgportal *)(g_BgPrimaryData2[2] + g_BgPrimaryData - 0x0f000000);
 
 		if (g_BgPrimaryData2[3] == 0) {
@@ -2925,6 +2945,12 @@ void bgLoadRoom(s32 roomnum)
 		fileoffset -= var8007fc54;
 
 		if (readlen > alloclen) {
+#ifndef PLATFORM_N64
+			g_BgRoomsRefused++;
+			sysLogPrintf(LOG_WARNING,
+					"bgLoadRoom: room %d refused - compressed %d does not fit allocation %d",
+					roomnum, readlen, alloclen);
+#endif
 			dyntexSetCurrentRoom(-1);
 			return;
 		}
@@ -2935,6 +2961,12 @@ void bgLoadRoom(s32 roomnum)
 		bgLoadFile(memaddr, fileoffset, readlen);
 
 		if (rzipIs1173(memaddr) && readlen + 0x20 > alloclen) {
+#ifndef PLATFORM_N64
+			g_BgRoomsRefused++;
+			sysLogPrintf(LOG_WARNING,
+					"bgLoadRoom: room %d refused - no inflate headroom, %d + 0x20 over allocation %d",
+					roomnum, readlen, alloclen);
+#endif
 			dyntexSetCurrentRoom(-1);
 			return;
 		}
@@ -3106,6 +3138,10 @@ void bgLoadRoom(s32 roomnum)
 		}
 
 		g_Rooms[roomnum].loaded240 = 1;
+
+#ifndef PLATFORM_N64
+		g_BgRoomsLoaded++;
+#endif
 
 #ifdef PLATFORM_N64
 		if (g_Rooms[roomnum].gfxdatalen != alloclen) {

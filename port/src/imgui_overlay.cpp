@@ -174,6 +174,14 @@ extern s32 g_StageIndex;
 // the row count, and a second copy of the number here went stale the first
 // time the table grew.
 extern struct stagetableentry g_Stages[];
+extern "C" s32 g_BgRoomsLoaded;
+extern "C" s32 g_BgRoomsRefused;
+
+// Mirrors the g_Stages length in src/include/data.h. Kept in step by hand,
+// like kFojoMaxJointOverrides. The literal here was 87 and went stale the day
+// the table grew to 119, which silently hid the Setup line for every stage on
+// a new row.
+static const s32 kFojoStageTableLen = 119;
 extern "C" u32 mempGetStageFree(void);
 extern "C" bool bgTestHitInRoom(struct coord *frompos, struct coord *topos, s32 roomnum, struct hitthing *hitthing);
 extern "C" struct prop *propFindAimingAt(s32 handnum, bool isshooting, u32 context);
@@ -1269,7 +1277,7 @@ static void imguiOverlayDrawStagePanel(void)
 {
 	ImGui::Text("Stage: 0x%02x, table index: 0x%02x",
 			(unsigned int)g_Vars.stagenum, (unsigned int)g_StageIndex);
-	if (g_StageIndex >= 0 && g_StageIndex < 87) {
+	if (g_StageIndex >= 0 && g_StageIndex < kFojoStageTableLen) {
 		// romdataFileGetName reads fileSlots[g_ModNum] and rejects anything at
 		// or past ROMDATA_MAX_FILES, so a stage setup id now that it carries an
 		// owner tag (bit 24) failed its range check and the panel read
@@ -1281,6 +1289,39 @@ static void imguiOverlayDrawStagePanel(void)
 		ImGui::Text("Setup: %s", setupName ? setupName : "unregistered");
 	}
 	ImGui::Text("Rooms: %d", g_Vars.roomcount);
+
+	// What actually made it into memory, and where the player is standing. A
+	// level that draws as a void is one of these three numbers being wrong,
+	// and they are not otherwise visible from inside the game.
+	if (g_BgRoomsRefused > 0) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.4f, 0.4f, 1.0f));
+		ImGui::Text("Loaded: %d   refused: %d", g_BgRoomsLoaded, g_BgRoomsRefused);
+		ImGui::PopStyleColor();
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("bgLoadRoom turned rooms away. The log says which and why.");
+		}
+	} else {
+		ImGui::Text("Loaded: %d   refused: 0", g_BgRoomsLoaded);
+	}
+
+	{
+		struct prop *pprop = g_Vars.currentplayer ? g_Vars.currentplayer->prop : NULL;
+		s32 room = pprop ? pprop->rooms[0] : -1;
+
+		if (room > 0 && room < g_Vars.roomcount) {
+			ImGui::Text("Player room: %d", room);
+		} else {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.35f, 1.0f));
+			ImGui::Text("Player room: %d", room);
+			ImGui::PopStyleColor();
+
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("Room 0 is outside the geometry, and -1 is no player.\n"
+						"Nothing draws from there, however well the rooms loaded.");
+			}
+		}
+	}
 
 	if (g_Rooms && ImGui::TreeNode("Rooms")) {
 		if (ImGui::BeginChild("Stage rooms", ImVec2(0.0f, 320.0f), ImGuiChildFlags_Borders)) {
