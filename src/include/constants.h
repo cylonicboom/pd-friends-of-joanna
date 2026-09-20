@@ -4436,8 +4436,8 @@
 #define STAGE_EXTRA21 0x56 // Steel Mill
 #define STAGE_EXTRA22 0x57 // Mall
 #define STAGE_EXTRA23 0x58 // Tunnels
-#define STAGE_EXTRA24 0x59 // Paradox
-#define STAGE_EXTRA25 0x5a // Rogue
+#define STAGE_EXTRA24 0x59 // Rogue (Rogue Control Center; AIO's LmpmenuE L_MPMENU_335 on this row)
+#define STAGE_EXTRA25 0x5a // Paradox (L_MPMENU_336)
 #define STAGE_EXTRA26 0x5b // War Colors
 #define STAGE_EXTRA27 0x5c
 #define STAGE_EXTRA28 0x5d
