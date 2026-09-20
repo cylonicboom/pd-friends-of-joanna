@@ -51,6 +51,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "skinmatch.h"
 #endif
 
 void rng2SetSeed(u32 seed);
@@ -3907,8 +3908,31 @@ Gfx *chrRender(struct prop *prop, Gfx *gdl, bool xlupass)
 			var8005efc4 = chr0f024b18;
 		}
 
+#ifndef PLATFORM_N64
+		// Skin match: the body's masked texels take this head's skin tone.
+		// Three layers of eligibility - the setting, the vanilla non-human
+		// denylist on both sides (bodyGetRace calls Maians human, so the
+		// switch is its own), then whether a sidecar exists, which the
+		// renderer settles. The bracket closes before the attached props so a
+		// held gun never inherits the head.
+		bool skinmatch = g_SkinMatchEnabled
+			&& chr->headnum >= 0 && chr->bodynum >= 0
+			&& skinmatchBodyEligible(chr->bodynum)
+			&& skinmatchHeadEligible(chr->headnum);
+
+		if (skinmatch) {
+			gDPSkinMatchEXT(renderdata.gdl++, g_HeadsAndBodies[chr->headnum].filenum & 0xffff, 1);
+		}
+#endif
+
 		// Render the chr's model
 		modelRender(&renderdata, model);
+
+#ifndef PLATFORM_N64
+		if (skinmatch) {
+			gDPSkinMatchEXT(renderdata.gdl++, 0, 0);
+		}
+#endif
 
 		// Render attached props (eg. held guns and attached mines/knives/bolts)
 		child = prop->child;
