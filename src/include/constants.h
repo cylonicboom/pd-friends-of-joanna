@@ -572,6 +572,15 @@
 #define BLUR_DOSE_FULL_SECS 20.0f
 #define BLUR_DOSE_K         3.0f
 
+// Whether menu time is charged at all. Off leaves the drug blur exactly as the
+// drugs themselves drive it: the pause menu costs nothing and blurdrugamount is
+// never raised from playerTickBlurDose. It does not touch lv.c's rendering, the
+// decay, or any of the gameplay thresholds -- it only stops the menu from being
+// a dose. Pause blur is the one fojo effect that puts a still, high-contrast
+// menu inside bondview's framebuffer feedback loop, so this is also the switch
+// for the recursion artifact that produces; see no-pause-drug-blur-notes.md.
+#define BLUR_DOSE_ENABLED   1
+
 #define THIRDPERSON_BODYFADE_START 130.0f
 #define THIRDPERSON_BODYFADE_MAX   127
 // How much of her alpha the fade takes at its deepest. 1 would remove her.

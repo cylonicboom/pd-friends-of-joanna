@@ -285,6 +285,7 @@ extern "C" f32 g_ReloadSpeed;
 extern "C" s32 g_ReloadAnimEnabled;
 extern "C" f32 g_ReloadAnimSpeed;
 extern "C" f32 g_RollImpulse;
+extern "C" s32 g_BlurDoseEnabled;
 extern "C" f32 g_BlurDoseFullSecs;
 extern "C" f32 g_BlurDoseK;
 extern "C" s32 g_BuildSpeedEnabled;
@@ -5074,6 +5075,24 @@ static void imguiOverlayDrawPauseBlurPanel(void)
 	ImGui::TextDisabled("Menu time is a dose. pd.ini [Blur] sets where these start.");
 	ImGui::Separator();
 
+	{
+		bool on = g_BlurDoseEnabled != 0;
+
+		if (ImGui::Checkbox("Charge menu time", &on)) {
+			g_BlurDoseEnabled = on ? 1 : 0;
+		}
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+					"Blur.DoseEnabled. Off means the pause menu is free and the\n"
+					"drug blur only comes from drugs. Nothing else changes - a\n"
+					"blur already standing keeps decaying, and every gameplay\n"
+					"threshold keeps its timing.");
+		}
+	}
+
+	ImGui::BeginDisabled(!g_BlurDoseEnabled);
+
 	imguiOverlayStanceKnob("Seconds to the cap", &g_BlurDoseFullSecs, 1.0f, 120.0f, "%.0f s",
 			"How long in the pause menu takes the blur to its ceiling.\n"
 			"The world keeps running behind the menu, so menu time is a\n"
@@ -5111,6 +5130,8 @@ static void imguiOverlayDrawPauseBlurPanel(void)
 			ImGui::TextDisabled("head sway is unreachable on this curve");
 		}
 	}
+
+	ImGui::EndDisabled();
 
 	if (imguiOverlayCanAimInspect() && g_Vars.currentplayer->prop
 			&& g_Vars.currentplayer->prop->chr) {

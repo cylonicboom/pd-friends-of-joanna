@@ -38,6 +38,7 @@ f32 g_ReloadAnimSpeed = RELOAD_ANIMSPEED;
 
 f32 g_RollImpulse = ROLL_IMPULSE;
 
+s32 g_BlurDoseEnabled = BLUR_DOSE_ENABLED;
 f32 g_BlurDoseFullSecs = BLUR_DOSE_FULL_SECS;
 f32 g_BlurDoseK = BLUR_DOSE_K;
 
@@ -96,6 +97,7 @@ void stanceTuningReset(void)
 	g_ReloadAnimSpeed = RELOAD_ANIMSPEED;
 	g_RollImpulse = ROLL_IMPULSE;
 
+	g_BlurDoseEnabled = BLUR_DOSE_ENABLED;
 	g_BlurDoseFullSecs = BLUR_DOSE_FULL_SECS;
 	g_BlurDoseK = BLUR_DOSE_K;
 

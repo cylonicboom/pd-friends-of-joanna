@@ -2645,6 +2645,14 @@ static void playerTickBlurDose(void)
 	s32 target;
 	f32 secs;
 
+	// Blur.DoseEnabled / the overlay checkbox. Gating the charge and nothing
+	// else is deliberate: blurdose and blurdrugamount are left where they are,
+	// so a blur already standing decays on lv.c's normal schedule rather than
+	// snapping off, and turning it back on resumes the same per-life budget.
+	if (!g_BlurDoseEnabled) {
+		return;
+	}
+
 	if (!g_Vars.currentplayer->prop || !g_Vars.currentplayer->prop->chr) {
 		return;
 	}

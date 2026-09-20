@@ -348,6 +348,7 @@ PD_CONSTRUCTOR static void gameConfigInit(void)
 	configRegisterInt("Stance.ReloadAnim", &g_ReloadAnimEnabled, 0, 1);
 	configRegisterFloat("Stance.ReloadAnimSpeed", &g_ReloadAnimSpeed, 0.1f, 4.f);
 	configRegisterFloat("Stance.RollImpulse", &g_RollImpulse, 0.f, 200.f);
+	configRegisterInt("Blur.DoseEnabled", &g_BlurDoseEnabled, 0, 1);
 	configRegisterFloat("Blur.DoseFullSeconds", &g_BlurDoseFullSecs, 1.f, 600.f);
 	configRegisterFloat("Blur.DoseCurve", &g_BlurDoseK, 0.5f, 8.f);
 	configRegisterInt("Stance.BuildSpeed", &g_BuildSpeedEnabled, 0, 1);

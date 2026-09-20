@@ -82,6 +82,7 @@ extern f32 g_RollImpulse;
 
 // Menu time as a dose: how long in the pause menu takes the drug blur to its
 // cap, and the exponent of the curve on the way there. See constants.h.
+extern s32 g_BlurDoseEnabled;
 extern f32 g_BlurDoseFullSecs;
 extern f32 g_BlurDoseK;
 
