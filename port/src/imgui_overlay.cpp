@@ -5056,12 +5056,13 @@ static void imguiOverlayDrawSavesPanel(void)
 
 	ImGui::SeparatorText("Loaded saves");
 
-	if (ImGui::BeginTable("FojoSaveSlots", 6,
+	if (ImGui::BeginTable("FojoSaveSlots", 7,
 			ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("P");
 		ImGui::TableSetupColumn("Name");
 		ImGui::TableSetupColumn("Guid");
 		ImGui::TableSetupColumn("Pak");
+		ImGui::TableSetupColumn("Profile");
 		ImGui::TableSetupColumn("Head");
 		ImGui::TableSetupColumn("Body");
 		ImGui::TableHeadersRow();
@@ -5108,6 +5109,34 @@ static void imguiOverlayDrawSavesPanel(void)
 				ImGui::PopStyleColor();
 			} else {
 				ImGui::TextDisabled("-");
+			}
+
+			// Which extended profile this player writes to, and whether that
+			// profile is really its own. configindex starts at zero and is only
+			// set by a profile file load or save, so a player that has done
+			// neither points at profile 0 - someone else's row.
+			ImGui::TableNextColumn();
+			{
+				s32 idx = cfg->configindex;
+				bool owns = idx >= 0 && idx < g_NumProfiles && idx < CONFIG_MAX_PROFILES
+						&& g_ExtendedProfiles[idx].fileguid.fileid == guid->fileid
+						&& g_ExtendedProfiles[idx].fileguid.deviceserial == guid->deviceserial;
+
+				if (owns) {
+					char slug[128];
+					mpProfileDebugSlug(idx, slug, sizeof(slug));
+					ImGui::Text("%d %s", idx, slug[0] != '\0' ? slug : "");
+				} else {
+					ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+					ImGui::Text("%d unbound", idx);
+					ImGui::PopStyleColor();
+
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("This player has never loaded or saved a profile file,\n"
+								"so its index still names another player's profile.\n"
+								"A flush skips it rather than writing there.");
+					}
+				}
 			}
 
 			ImGui::TableNextColumn();

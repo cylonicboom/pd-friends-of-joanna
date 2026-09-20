@@ -4489,6 +4489,32 @@ void mpProfileDebugSlug(s32 profileindex, char *out, s32 outlen) {
  * last real save left there.
  */
 void mpProfileFlushSlotHashes(s32 playernum) {
+  const struct fileguid *guid;
+  s32 idx;
+
+  if (playernum < 0 || playernum >= MAX_PLAYERS) {
+    return;
+  }
+
+  idx = g_PlayerConfigsArray[playernum].configindex;
+  guid = &g_PlayerConfigsArray[playernum].fileguid;
+
+  // configindex is only ever assigned by mpplayerBindExtendedProfile, which
+  // runs on a profile file load or save. A player that has never loaded one
+  // still holds the zero it was born with, which names profile 0 - somebody
+  // else's. Storing this player's head there overwrites that profile's
+  // hashes, and because a vanilla head has no reservation name the value it
+  // writes is 0, so the other profile's head silently stops coming back.
+  // Only store when the profile this index names really is this player's.
+  if (idx < 0 || idx >= g_NumProfiles || idx >= CONFIG_MAX_PROFILES) {
+    return;
+  }
+
+  if (g_ExtendedProfiles[idx].fileguid.fileid != guid->fileid ||
+      g_ExtendedProfiles[idx].fileguid.deviceserial != guid->deviceserial) {
+    return;
+  }
+
   mpProfileStoreSlotHashes(playernum);
 }
 
