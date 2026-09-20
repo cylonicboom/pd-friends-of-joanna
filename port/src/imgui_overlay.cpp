@@ -182,6 +182,10 @@ extern "C" void texInitPool(struct texpool *pool, u8 *start, s32 len);
 extern "C" void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg);
 extern "C" struct tex *texFindInPool(s32 texturenum, struct texpool *pool);
 extern "C" Gfx *texBuildDebugLoadGdl(Gfx *gdl, struct tex *tex);
+extern "C" void cam0f0b4eb8(struct coord *arg0, f32 arg1[2], f32 zoom, f32 aspect);
+extern "C" void mtx4TransformVecInPlace(Mtxf *mtx, struct coord *vec);
+extern "C" s16 viGetWidth(void);
+extern "C" s16 viGetHeight(void);
 extern "C" s32 texGetSizeInBytes(struct tex *tex, s32 lod);
 
 // fojo audio panel. every naudio reach lives behind snddebug* in src/lib/snd.c
@@ -5388,6 +5392,114 @@ static void imguiOverlayRunSaveRequests(void)
 	}
 }
 
+/**
+ * Ctrl+click on a chr in the world: latch it everywhere at once - Characters
+ * scrolls to it, Skin Match takes it, Textures probes its body's first
+ * texture. Picking is by projection, the same recipe chraction.c uses for the
+ * debug name labels: prop pos through worldtoscreenmtx and cam0f0b4eb8 into
+ * the game's screen space, then scaled from viGetWidth/Height to the window.
+ * Each chr is a vertical segment from the ground to the top of the head; the
+ * nearest segment within a radius scaled by distance wins. Ctrl is there so
+ * a plain click still fires the gun.
+ */
+static bool imguiOverlayProjectToWindow(const struct coord *world, ImVec2 *out)
+{
+	struct player *player = g_Vars.currentplayer;
+	struct coord p = *world;
+
+	if (!player || !player->worldtoscreenmtx) {
+		return false;
+	}
+
+	mtx4TransformVecInPlace(player->worldtoscreenmtx, &p);
+
+	if (p.z > -1.0f) {
+		return false; // behind the camera
+	}
+
+	f32 screen[2];
+	cam0f0b4eb8(&p, screen, player->c_perspfovy, player->c_perspaspect);
+
+	const f32 sw = viGetWidth() > 0 ? (f32)viGetWidth() : 1.0f;
+	const f32 sh = viGetHeight() > 0 ? (f32)viGetHeight() : 1.0f;
+	const ImVec2 disp = ImGui::GetIO().DisplaySize;
+	out->x = screen[0] * disp.x / sw;
+	out->y = screen[1] * disp.y / sh;
+	return true;
+}
+
+static struct chrdata *imguiOverlayPickChrAtMouse(const ImVec2 &mouse)
+{
+	if (!imguiOverlayCanAimInspect() || !g_ChrSlots) {
+		return NULL;
+	}
+
+	struct chrdata *best = NULL;
+	f32 bestdist = 1e9f;
+
+	for (s32 i = 0; i < g_NumChrSlots; i++) {
+		struct chrdata *chr = &g_ChrSlots[i];
+
+		if (chr->chrnum < 0 || !chr->prop || !imguiOverlayChrIsCurrent(chr)) {
+			continue;
+		}
+
+		struct coord feet = chr->prop->pos;
+		struct coord head = chr->prop->pos;
+		struct coord side = chr->prop->pos;
+		feet.y = chr->ground;
+		head.y = chr->ground + chr->height;
+		side.x += 30.0f; // roughly a shoulder, for the pick radius
+
+		ImVec2 a, b, c;
+		if (!imguiOverlayProjectToWindow(&feet, &a) || !imguiOverlayProjectToWindow(&head, &b)
+				|| !imguiOverlayProjectToWindow(&side, &c)) {
+			continue;
+		}
+
+		// distance from the mouse to the feet-head segment
+		const f32 vx = b.x - a.x, vy = b.y - a.y;
+		const f32 len2 = vx * vx + vy * vy;
+		f32 t = len2 > 0.0f ? ((mouse.x - a.x) * vx + (mouse.y - a.y) * vy) / len2 : 0.0f;
+		t = t < 0.0f ? 0.0f : t > 1.0f ? 1.0f : t;
+		const f32 dx = mouse.x - (a.x + vx * t), dy = mouse.y - (a.y + vy * t);
+		const f32 dist = sqrtf(dx * dx + dy * dy);
+		f32 radius = fabsf(c.x - a.x) * 1.5f;
+		if (radius < 24.0f) radius = 24.0f;
+
+		if (dist <= radius && dist < bestdist) {
+			bestdist = dist;
+			best = chr;
+		}
+	}
+
+	return best;
+}
+
+static void imguiOverlayLatchChrEverywhere(struct chrdata *chr)
+{
+	g_ImGuiOverlaySkinChr = chr;
+	g_ImGuiOverlayShowSkinMatch = true;
+	imguiOverlayFocusChr(chr);
+
+	if (chr->prop) {
+		g_ImGuiOverlayFocusProp = chr->prop;
+	}
+
+	// probe the body's first texture drawn this frame
+	if (chr->bodynum >= 0) {
+		const u16 bodyFile = (u16)(g_HeadsAndBodies[chr->bodynum].filenum & 0xffff);
+		const u32 count = gfx_get_debug_texture_count();
+		for (u32 i = 0; i < count; i++) {
+			GfxTextureDebugInfo info;
+			if (gfx_get_debug_texture(i, &info) && info.type != G_TEXTYPE_NONE && info.id == bodyFile) {
+				imguiOverlayFocusTextureId((s32)info.texnum);
+				break;
+			}
+		}
+	}
+}
+
 static void imguiOverlayDrawWindowMenu(bool canOpenLookingAt)
 {
 	if (!ImGui::BeginPopupContextVoid("FojoWindowMenu", ImGuiPopupFlags_MouseButtonRight)) {
@@ -5502,6 +5614,16 @@ void imguiOverlayRender(void)
 			g_ImGuiOverlayShowLookingAt = false;
 		}
 		imguiOverlayDrawWindowMenu(canOpenLookingAt);
+
+		{
+			const ImGuiIO &io = ImGui::GetIO();
+			if (!io.WantCaptureMouse && io.KeyCtrl && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+				struct chrdata *picked = imguiOverlayPickChrAtMouse(io.MousePos);
+				if (picked) {
+					imguiOverlayLatchChrEverywhere(picked);
+				}
+			}
+		}
 
 		if (g_ImGuiOverlayShowRuntime) {
 						if (imguiOverlayBeginWindow("Fojo Runtime", &g_ImGuiOverlayShowRuntime, ImVec2(360.0f, 300.0f), 0.0f, 0.0f)) {
