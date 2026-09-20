@@ -2478,6 +2478,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 
 	// parse keyvalues until } is reached
 	s32 tmp = 0;
+	f32 tmpf = 0;
 	char *tmps = NULL;
 	// Held in a fixed buffer rather than a strDuplicate because every failure
 	// arm below returns straight out of the function; strUnquote points into
@@ -2518,6 +2519,58 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		} else if (!strcmp(token, "extragunmem")) {
 			PARSE_STAGE_INT("", "extragunmem", tmp, 0, 0xFFFF);
 			stab->extragunmem = tmp;
+		} else if (!strcmp(token, "gfxscale")) {
+			// The row's world-to-graphics scale: g_Stages[].unk18. bg.c:1771
+			// copies it into every player's scale_bg2gfx at stage load and
+			// bgSetScaleBg2Gfx (bg.c:2150) re-derives from it on every zoom
+			// step. mtx00016748 turns it into var8005ef10[0] = 65536 * scale,
+			// the s15.16 factor mtxF2L applies to the whole world pass - rooms,
+			// props and chrs - and playerAllocateMatrices (player.c:6008)
+			// scales the camera by the same number, so the level's own
+			// proportions do not change. What changes is the world's size
+			// against everything drawn at a fixed scale, and how far the fixed
+			// graphics-space frustum reaches in world units.
+			//
+			// Named gfxscale, not scale, because it is a rendering unit and
+			// nothing in the simulation moves with it: collision, pads, AI and
+			// weapon ranges are all world units. `scale` would read as "make
+			// this level bigger", which this does not do - and the struct
+			// region already holds two other per-stage floats that could be
+			// called a scale (unk14, unk1c).
+			//
+			// A level is authored for one of these. Four vanilla rows carry
+			// 0.5 - CRASHSITE, AIRBASE, VILLA, TEST_MP20 - and the other 83
+			// carry 1, so a mod that moves one of those levels onto a free
+			// STAGE_EXTRA* row silently inherits 1 and the world draws at
+			// twice the graphics extent it was built for. The first-person
+			// weapon, which bondgun.c:11710-11846 brackets with
+			// mtx00016760/mtx00016784 to force scale 1, then reads half-size
+			// against it, and the far plane and fog band reach half as far in
+			// world terms because bg.c:6059 and env.c:231-232 divide by this
+			// value to convert back. This key lets such a block state the
+			// scale its level was authored for instead of taking the row's.
+			//
+			// Absolute, never accumulated: a modconfig is parsed several times
+			// per boot and g_Stages is mutated in place with no vanilla
+			// snapshot and no restore, so the write has to be idempotent. Same
+			// shape as `alarm` above.
+			//
+			// Bounds. Those same three divisions are why zero is refused: it
+			// is a float divide, so it yields inf/NaN for the far plane and
+			// the fog band rather than trapping, and 0 in var8005ef10[0] also
+			// collapses every converted matrix to zeros. A negative value
+			// mirrors the world and inverts the far-plane test. The ceiling is
+			// the fixed point itself - mtxF2L computes
+			// (s32)(coord * 65536 * scale), so a coordinate is representable
+			// only up to +-32768/scale; 4 leaves +-8192, and higher trades
+			// away the headroom the 0.5 rows exist to buy. The floor is 50x
+			// below the smallest value any vanilla row carries.
+			//
+			// A value outside the bounds is refused with a LOG_ERROR and
+			// aborts this modconfig, exactly as `alarm` and `kind` do. It
+			// never reaches the field.
+			PARSE_STAGE_FLOAT("", "gfxscale", tmpf, 0.01f, 4.0f);
+			stab->unk18 = tmpf;
 		}  else if (!strcmp(token, "allocation")) {
 			// allocation "ALLOCSTRING"
 			PARSE_STAGE_STRING("", "allocation", tmps);
