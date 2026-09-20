@@ -848,7 +848,38 @@ static inline char *modConfigParseFileValue(char *p, char *token, s32 *filenum, 
 		*filenum = MOD_FILEID_MAKE(modNum, num);
 		return p;
 	}
-	sysLogPrintf(LOG_ERROR, "modConfigParseFileValue: failed to find '%s' in mod %d", unquoted, modNum);
+	/*
+	 * Not ours. Until now that was the end of it: a modconfig could only name
+	 * files its own mod shipped. That is the wrong shape for a pack whose
+	 * ROSTER and whose ART live in different mods, which is how the AIO layout
+	 * is built - and it is why mod_gex_characters' sixty handfilenum
+	 * declarations for hands that live in mod_aio_characters all failed, and
+	 * took eight bodies out of the character roster with them.
+	 *
+	 * romdataFileGetNumForNameAnyMod scans every mounted mod and WARNS when
+	 * more than one claims the name, so a cross-mod hit is a reported
+	 * resolution rather than a silent one - which matters, because names are
+	 * the collision class this loader does not otherwise solve.
+	 *
+	 * Own-mod first is kept deliberately: a mod that ships a file always gets
+	 * its own, and this only runs once that has missed. So no existing
+	 * resolution changes - this can only turn a hard failure into a hit.
+	 *
+	 * NOTE THE ID: AnyMod returns a value that ALREADY carries its owner tag.
+	 * Do not run MOD_FILEID_MAKE over it again. That tag is what keeps this
+	 * honest - the file resolves across mods but still belongs to the mod that
+	 * shipped it, and modeldef's texture remap follows it there.
+	 */
+	num = romdataFileGetNumForNameAnyMod(unquoted);
+	if (num >= 0) {
+		sysLogPrintf(LOG_NOTE,
+				"modConfigParseFileValue: '%s' is not in mod %d; resolved to mod %d",
+				unquoted, modNum, MOD_FILEID_MOD(num));
+		*filenum = num;
+		return p;
+	}
+
+	sysLogPrintf(LOG_ERROR, "modConfigParseFileValue: failed to find '%s' in mod %d or any mounted mod", unquoted, modNum);
 	// the filename was invalid
 	return NULL;
 }
