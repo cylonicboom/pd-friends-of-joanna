@@ -164,14 +164,21 @@ struct modslottable {
 	// count is a legal home. Stage rows are not like that - a stagenum selects
 	// a row that already exists and carries data - so that table sets this.
 	bool (*usable)(s32 slot);
+	// Set when a name hash stored in the extended profile can restore this
+	// table's slot after the 7-bit save field truncates it - see
+	// mpProfileApplySlotHashes(). Such a table has no effective ceiling, so the
+	// warning in modSlotAdd() does not apply to it. Stage rows have no
+	// equivalent yet: g_MpSetup.stagenum is still 7 bits with nothing to
+	// recover from, so that table leaves this false.
+	bool hashrecovered;
 	s32 count;
 	u8 fullWarned;
 	u8 ceilingWarned;
 	struct modslotreservation entries[MOD_MAX_SLOT_RESERVATIONS];
 };
 
-static struct modslottable g_ModHeadSlots = { MOD_HEADSLOT_SECTION };
-static struct modslottable g_ModBodySlots = { MOD_BODYSLOT_SECTION };
+static struct modslottable g_ModHeadSlots = { .section = MOD_HEADSLOT_SECTION, .hashrecovered = true };
+static struct modslottable g_ModBodySlots = { .section = MOD_BODYSLOT_SECTION, .hashrecovered = true };
 static bool modStageSlotUsable(s32 stagenum);
 static void modStageSlotsPrescan(void);
 static struct modslottable g_ModStageSlots = { MOD_STAGESLOT_SECTION, 0, modStageSlotUsable };
@@ -255,7 +262,7 @@ static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const cha
 	snprintf(key, sizeof(key), "%s.%s", tbl->section, r->name);
 	configRegisterInt(key, &r->slot, 0, 0);
 
-	if (slot > MOD_MAX_PERSISTABLE_SLOT && !tbl->ceilingWarned) {
+	if (slot > MOD_MAX_PERSISTABLE_SLOT && !tbl->hashrecovered && !tbl->ceilingWarned) {
 		tbl->ceilingWarned = 1;
 		sysLogPrintf(LOG_WARNING,
 				"modconfig: [%s] '%s' got index %d; a save file holds 7 bits, so anything above %d cannot be stored",
