@@ -173,6 +173,7 @@ struct modslottable {
 static struct modslottable g_ModHeadSlots = { MOD_HEADSLOT_SECTION };
 static struct modslottable g_ModBodySlots = { MOD_BODYSLOT_SECTION };
 static bool modStageSlotUsable(s32 stagenum);
+static void modStageSlotsPrescan(void);
 static struct modslottable g_ModStageSlots = { MOD_STAGESLOT_SECTION, 0, modStageSlotUsable };
 
 /*
@@ -397,7 +398,17 @@ s32 modHeadSlotReserve(const char *name) { return modSlotReserve(&g_ModHeadSlots
 s32 modBodySlotReserve(const char *name) { return modSlotReserve(&g_ModBodySlots, name); }
 void modHeadSlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModHeadSlots, name, slot); }
 void modBodySlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModBodySlots, name, slot); }
-s32 modStageSlotReserve(const char *name) { return modSlotReserve(&g_ModStageSlots, name); }
+s32 modStageSlotReserve(const char *name)
+{
+	// Explicit claims must ALL be known before the first allocation, and the
+	// first modconfig parse of a boot happens before modCacheAllConfigs runs -
+	// which is why wiring the prescan only into that function left the
+	// allocator still taking rows aio declares by name. Guaranteeing it here
+	// means no allocation can precede it, whoever parses first.
+	modStageSlotsPrescan();
+
+	return modSlotReserve(&g_ModStageSlots, name);
+}
 void modStageSlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModStageSlots, name, slot); }
 
 // Per-mod cached config data (parsed once at boot, then just copied on modSwitch)
@@ -2933,6 +2944,102 @@ void modInit(void)
 }
 
 // Cache all mod configs at boot (parse once, then just copy on modSwitch)
+/*
+ * Register every EXPLICIT stage claim in every mounted modconfig, before any
+ * name is allocated a row.
+ *
+ * Without this the allocator is roster-order dependent, which is the one thing
+ * it exists to remove. Measured, and it is not theoretical: mod_gex_stages is
+ * roster index 3 and mod_aio_stages is 4, so gex's named blocks were handed
+ * STAGE_EXTRA1, 4, 5, 7, 8, 9, 10 and 13 before aio's own explicit blocks for
+ * those exact rows had been read. Eight rows claimed twice and the boot
+ * reported `modstage: 8 contested by more than one mod`.
+ *
+ * This is a token scan, not a parse. It reads each modconfig looking only for
+ * `stage <spec>` at brace depth zero and records the row that names; every
+ * other key is stepped over. The real parse runs afterwards, unchanged, and by
+ * then modSlotTaken knows about every explicitly named row.
+ *
+ * A numeric spec is recorded under its literal spelling and a named one under
+ * its name, which is what modConfigParseStage passes too, so the two agree.
+ */
+static void modStageSlotsPrescan(void)
+{
+	static bool done = false;
+
+	if (done) {
+		return;
+	}
+
+	done = true;
+	modSlotReservationsInit();
+
+	for (u32 i = 0; i < g_NumModDirs; i++) {
+		char path[FS_MAXPATH];
+		u32 dataLen = 0;
+		char *data;
+		char token[UTIL_MAX_TOKEN + 1] = { 0 };
+		char *p;
+		s32 depth = 0;
+
+		if (!modDirs[i][0]) {
+			continue;
+		}
+
+		snprintf(path, sizeof(path), "%s/%s", modDirs[i], MOD_CONFIG_FNAME);
+		data = fsFileLoad(path, &dataLen);
+
+		if (!data) {
+			continue;
+		}
+
+		p = strParseToken(data, token, NULL);
+
+		while (p && token[0]) {
+			if (depth == 0 && !strcmp(token, "stage")) {
+				char *spec;
+				s32 stagenum = -1;
+
+				p = strParseToken(p, token, NULL);
+
+				if (!p || !token[0]) {
+					break;
+				}
+
+				spec = (token[0] == '"') ? strUnquote(token) : token;
+
+				if (spec[0] >= '0' && spec[0] <= '9') {
+					stagenum = strtol(spec, NULL, 0);
+				} else {
+					const s32 named = stageGetIndexByName(spec);
+
+					if (named >= 0) {
+						stagenum = g_Stages[named].id;
+					}
+				}
+
+				// A name with no row is the allocator's business, not ours.
+				if (stagenum > 0x01 && stagenum < STAGE_TITLE) {
+					modStageSlotClaim(spec, stagenum);
+				}
+			} else if (token[0] == '{' && token[1] == '\0') {
+				depth++;
+			} else if (token[0] == '}' && token[1] == '\0') {
+				if (depth > 0) {
+					depth--;
+				}
+			}
+
+			p = strParseToken(p, token, NULL);
+		}
+
+		sysMemFree(data);
+	}
+
+	sysLogPrintf(LOG_NOTE, "modconfig: prescan recorded %d explicit stage claims",
+			g_ModStageSlots.count);
+}
+
 void modCacheAllConfigs(void)
 {
 	if (g_ModConfigsCached) {
@@ -2940,6 +3047,9 @@ void modCacheAllConfigs(void)
 	}
 
 	sysLogPrintf(LOG_NOTE, "modCacheAllConfigs: Caching configs for %d mods", g_NumModDirs);
+
+	// Explicit claims first, or allocation order decides who gets a row.
+	modStageSlotsPrescan();
 
 	// First, backup the original vanilla states
 	memcpy(g_ModelStatesOriginal, g_ModelStates, sizeof(g_ModelStates));
