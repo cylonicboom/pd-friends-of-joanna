@@ -120,6 +120,12 @@ uint32_t pdftVersionFor(const struct pdftInput *in)
 {
 	uint32_t i;
 
+	for (i = 0; i < in->numFiles; ++i) {
+		if (in->files[i].alias && in->files[i].alias[0]) {
+			return 4;
+		}
+	}
+
 	if (in->numTexMap) {
 		return 3;
 	}
@@ -332,6 +338,12 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 			flags |= PDFT_F_SELFSOURCE;
 		}
 
+		/* Unlike every flag above, this one has a tail, so it is the one that
+		 * costs a version. */
+		if (f->alias && f->alias[0]) {
+			flags |= PDFT_F_ALIAS;
+		}
+
 		put32(&b, f->id);
 		put32(&b, flags);
 		put32(&b, f->romResident ? f->offset : 0);
@@ -344,6 +356,12 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 			put32(&b, f->alt.offset);
 			put32(&b, f->alt.size);
 			put8(&b, f->alt.compression);
+		}
+
+		/* After the alt tail, so a reader that knows alt but not alias still
+		 * walks the alt tail correctly before it gives up on the version. */
+		if (f->alias && f->alias[0]) {
+			putStr16(&b, f->alias);
 		}
 	}
 

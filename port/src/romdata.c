@@ -821,6 +821,26 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				}
 			}
 
+			// flag 0x10: a second name for this same id - the vanilla name
+			// this file replaces. Unlike every flag above it has a TAIL, so it
+			// only appears in a v4 table; an older reader refuses v4 outright
+			// rather than walking off the end of this entry.
+			u16 aliasLen = 0;
+			const char *aliasName = NULL;
+			if (flags & 0x10) {
+				if (p + 2 > dataEnd) {
+					sysLogPrintf(LOG_ERROR, "PDFT alias tail truncated for id %u (mod=%d)", id, ownerModIdx);
+					return 0;
+				}
+				aliasLen = PD_BE16(*(u16*)p); p += 2;
+				if (p + aliasLen > dataEnd) {
+					sysLogPrintf(LOG_ERROR, "PDFT alias string truncated for id %u (mod=%d)", id, ownerModIdx);
+					return 0;
+				}
+				aliasName = (const char *)p;
+				p += aliasLen;
+			}
+
 			// flag 0x8: the bytes are the loose file at `path`, inside the
 			// directory of the mod that owns this entry, and nowhere else.
 			// Recorded against the OWNER's row only. Row 0 is doubly booked as
@@ -924,6 +944,14 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 
 			if (nameLen > 0) {
 				ftInsert(name, nameLen, (u16)id, isGlobal ? -1 : (s8)ownerModIdx);
+			}
+
+			// The alias is a SECOND hash entry pointing at the same file id and
+			// the same owner, which is why nothing downstream has to learn
+			// about aliases: all three lookup passes go through this table, so
+			// they all get it for free.
+			if (aliasLen > 1 && aliasName) {
+				ftInsert(aliasName, aliasLen, (u16)id, isGlobal ? -1 : (s8)ownerModIdx);
 			}
 		}
 
@@ -3011,6 +3039,16 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 			if (flags & 4) {
 				if (p + 10 > dataEnd) break;
 				p += 10; // altRomIdx(1) + altOffset(4) + altSize(4) + altCompression(1)
+			}
+
+			// v4 alias tail. This scanner only needs to STEP OVER it - the hash
+			// pass carries the alias as its own entry, and this walk is the
+			// fallback for when that missed.
+			if (flags & 0x10) {
+				if (p + 2 > dataEnd) break;
+				u16 aliasSkip = PD_BE16(*(u16*)p); p += 2;
+				if (p + aliasSkip > dataEnd) break;
+				p += aliasSkip;
 			}
 
 			// nameLen on the wire includes the trailing null terminator;
