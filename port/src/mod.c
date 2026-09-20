@@ -2303,11 +2303,6 @@ static char *modConfigParseMpArena(char *p, char *token)
 			if (!p) return NULL;
 			strncpy(name, strUnquote(token), sizeof(name) - 1);
 			name[sizeof(name) - 1] = '\0';
-		} else if (!strcmp(token, "group")) {
-			// Retired with MpArenaGroup; see modConfigLoad. Still parsed so an
-			// older config does not hard-fail on an unknown key.
-			p = strParseToken(p, token, NULL);
-			if (!p) return NULL;
 		} else {
 			p = modConfigSkipUnknownKey(p, "MpArena", token);
 		}
@@ -2834,18 +2829,6 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			PARSE_STAGE_STRING("", "arenaname", tmps);
 			strncpy(arenaname, tmps, sizeof(arenaname) - 1);
 			arenaname[sizeof(arenaname) - 1] = '\0';
-		} else if (!strcmp(token, "use_mod_files")) {
-			// Retired. Both this and force_vanilla were per-stage overrides of
-			// g_NotLoadMod, the All-Solos-in-Multi switch fojo never sets. The
-			// value is still parsed and validated, then discarded, so an older
-			// modconfig does not hard-fail on an unknown key. Delete this arm
-			// next release.
-			PARSE_STAGE_INT("", "use_mod_files", tmp, 0, 1);
-			sysLogPrintf(LOG_WARNING, "modconfig: stage 0x%02x: 'use_mod_files' is retired and ignored", stagenum);
-		} else if (!strcmp(token, "force_vanilla")) {
-			// Retired; see use_mod_files above.
-			PARSE_STAGE_INT("", "force_vanilla", tmp, 0, 1);
-			sysLogPrintf(LOG_WARNING, "modconfig: stage 0x%02x: 'force_vanilla' is retired and ignored", stagenum);
 		} else {
 			char where[32];
 			snprintf(where, sizeof(where), "stage 0x%02x", stagenum);
@@ -2980,7 +2963,10 @@ s32 modLoadAIO(void)
 				}
 				continue;
 			} else if (!strcmp(token, "MpArenaGroup")) {
-				// Retired; see modConfigLoad.
+				// Removed as a key in 0.4.0. Still skipped as a block here
+				// because this scan has no unknown-key fallback - it advances
+				// one token at a time, so an unskipped block's contents would
+				// be read as top-level keys.
 				p = modConfigSkipBlock(p, token);
 				continue;
 			} else if (!strcmp(token, "MpHeads")) {
@@ -3346,18 +3332,6 @@ s32 modConfigLoad(const char *fname)
 			p = modConfigParseMpArena(p, token);
 			if (!p) {
 				sysLogPrintf(LOG_ERROR, "modconfig: malformed MpArena block");
-				success = false;
-				break;
-			}
-		} else if (!strcmp(token, "MpArenaGroup")) {
-			// Retired. Its parser was defined and called from nowhere, so no
-			// config could ever have used it, and the arena groups are now
-			// derived from the merged list in mpArenasRebuild. Skipped rather
-			// than rejected so a config carrying one does not hard-fail.
-			sysLogPrintf(LOG_WARNING, "modconfig: 'MpArenaGroup' is retired and ignored");
-			p = modConfigSkipBlock(p, token);
-			if (!p) {
-				sysLogPrintf(LOG_ERROR, "modconfig: malformed MpArenaGroup block");
 				success = false;
 				break;
 			}
