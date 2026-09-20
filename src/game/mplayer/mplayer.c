@@ -502,10 +502,26 @@ static inline s32 iniBindProfileProperties(struct fileguid *fileguid, s32 arg0,
       }
       break;
     }
-    if (playerslug)
-      configLoadKey(CONFIG_PATH, key);
-    if (playernum >= 0 && g_ExtendedProfileProperties[i].initfunc) {
-      g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+  }
+
+  /*
+   * One parse for the whole section, after every key is registered.
+   *
+   * This used to be configLoadKey(CONFIG_PATH, key) inside the loop above,
+   * and configLoadKey re-opens and re-parses the entire ini each call - so
+   * binding one profile cost (number of properties) full passes over a file
+   * that grows with the number of profiles. The initfuncs had to move out
+   * too, because each one reads the value its key has just been given.
+   */
+  if (playerslug) {
+    configLoadSection(CONFIG_PATH, playerslug);
+  }
+
+  if (playernum >= 0) {
+    for (i = 0; i < ARRAYCOUNT(g_ExtendedProfileProperties); i++) {
+      if (g_ExtendedProfileProperties[i].initfunc) {
+        g_ExtendedProfileProperties[i].initfunc(configindex, playernum);
+      }
     }
   }
 

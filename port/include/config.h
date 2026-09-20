@@ -48,6 +48,9 @@ void configInit(void);
 // loads config from file (path extensions such as ! apply)
 s32 configLoad(const char *fname);
 s32 configLoadKey(const char *fname, char *key);
+// Applies every key of one section in a single pass. Prefer this to calling
+// configLoadKey in a loop - that re-parses the whole file per key.
+s32 configLoadSection(const char *fname, const char *section);
 
 // Reads one section out of the file without applying anything, calling fn for
 // each key in it with the key name and the raw value. For sections whose key

@@ -312,7 +312,17 @@ static inline s32 configLoadFileIdFromSection(const char *sec, u16 *deviceserial
  * key nobody registered sits in the table with a NULL ptr, and both configSet
  * and configSaveEntry skip a NULL ptr, so it is silently dropped on save.
  */
-static s32 configParseFile(const char *fname, char *key, const struct configsectionscan *scan)
+/*
+ * One pass over the ini. `key` applies exactly that key, `scan` hands every
+ * key of one section to a callback, `loadsection` applies every key of one
+ * section, and all three NULL loads the lot.
+ *
+ * loadsection exists because binding a profile used to call configLoadKey
+ * once per property, and configLoadKey re-opens and re-parses the WHOLE file
+ * every time - O(properties x filesize) per profile bind, on a file that
+ * grows with the number of profiles.
+ */
+static s32 configParseFile(const char *fname, char *key, const struct configsectionscan *scan, const char *loadsection)
 {
 	FILE *f = fsFileOpenRead(fname);
 	if (!f) {
@@ -344,7 +354,7 @@ static s32 configParseFile(const char *fname, char *key, const struct configsect
 			u16 deviceserial = 0;
 			s32 fileid = 0;
 			s32 configindex = -1;
-			if (!key && !scan && configLoadFileIdFromSection(curSec, &deviceserial, &fileid)) {
+			if (!key && !scan && !loadsection && configLoadFileIdFromSection(curSec, &deviceserial, &fileid)) {
 				if (g_NumGuidsToProcess < ARRAYCOUNT(g_GuidsToProcess)) {
 					g_GuidsToProcess[g_NumGuidsToProcess++] = (struct fileguid) { fileid, deviceserial };
 				} else if (!configGuidQueueWarningLogged) {
@@ -377,6 +387,10 @@ static s32 configParseFile(const char *fname, char *key, const struct configsect
 				if (!strcasecmp(curSec, scan->section)) {
 					scan->fn(nameBuf, line, scan->ctx);
 				}
+			} else if (loadsection) {
+				if (!strcasecmp(curSec, loadsection)) {
+					configSetFromString(keyBuf, line);
+				}
 			} else if (!key || strcmp(keyBuf, key) == 0) {
 				configSetFromString(keyBuf, line);
 			}
@@ -391,12 +405,17 @@ static s32 configParseFile(const char *fname, char *key, const struct configsect
 
 s32 configLoadKey(const char *fname, char *key)
 {
-	return configParseFile(fname, key, NULL);
+	return configParseFile(fname, key, NULL, NULL);
+}
+
+s32 configLoadSection(const char *fname, const char *section)
+{
+	return configParseFile(fname, NULL, NULL, section);
 }
 
 s32 configLoad(const char *fname)
 {
-	return configParseFile(fname, 0, NULL);
+	return configParseFile(fname, 0, NULL, NULL);
 }
 
 s32 configScanSection(const char *fname, const char *section, configsectionfunc fn, void *ctx)
@@ -407,7 +426,7 @@ s32 configScanSection(const char *fname, const char *section, configsectionfunc 
 		return 0;
 	}
 
-	return configParseFile(fname, 0, &scan);
+	return configParseFile(fname, 0, &scan, NULL);
 }
 
 void configInit(void)
