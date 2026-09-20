@@ -43,6 +43,10 @@ static bool g_ImGuiOverlayShowMemory = false;
 static bool g_ImGuiOverlayShowProfiler = false;
 static bool g_ImGuiOverlayShowTextures = false;
 static bool g_ImGuiOverlayShowSkinMatch = false;
+// The chr the skin match panel edits. Separate from g_ImGuiOverlayFocusChr,
+// which is a one-shot scroll target the Characters list clears as soon as it
+// has scrolled to it - a panel reading it saw NULL on the very next frame.
+static struct chrdata *g_ImGuiOverlaySkinChr = NULL;
 static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowProportions = false;
 static bool g_ImGuiOverlayShowStance = false;
@@ -940,6 +944,11 @@ static void imguiOverlayDrawEntityContextMenu(struct prop *prop, struct chrdata 
 
 		if (ImGui::MenuItem("Show in Characters")) {
 			imguiOverlayFocusChr(chr);
+		}
+
+		if (ImGui::MenuItem("Skin match this chr")) {
+			g_ImGuiOverlaySkinChr = chr;
+			g_ImGuiOverlayShowSkinMatch = true;
 		}
 
 		if (chr->prop && imguiOverlayPropIsCurrent(chr->prop)
@@ -5585,7 +5594,14 @@ void imguiOverlayRender(void)
 
 		if (g_ImGuiOverlayShowSkinMatch) {
 						if (imguiOverlayBeginWindow("Fojo Skin Match", &g_ImGuiOverlayShowSkinMatch, ImVec2(760.0f, 640.0f), 1.0f, 0.5f)) {
-				imguiSkinMatchDrawPanel(g_ImGuiOverlayFocusChr);
+				if (g_ImGuiOverlaySkinChr && !imguiOverlayChrIsCurrent(g_ImGuiOverlaySkinChr)) {
+					g_ImGuiOverlaySkinChr = NULL;
+				}
+				// a fresh focus (Show in Characters) also latches, so either menu item works
+				if (g_ImGuiOverlayFocusChr && imguiOverlayChrIsCurrent(g_ImGuiOverlayFocusChr)) {
+					g_ImGuiOverlaySkinChr = g_ImGuiOverlayFocusChr;
+				}
+				imguiSkinMatchDrawPanel(g_ImGuiOverlaySkinChr);
 			}
 			ImGui::End();
 		}
