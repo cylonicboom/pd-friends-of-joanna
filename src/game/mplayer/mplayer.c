@@ -336,13 +336,26 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
     {CFG_U8, "Handicap", 0x80, 0, 255, &mpExtendedProfileInitHandicap},
     {CFG_U8, "ClassicSight", 0, 0, 1, &mpExtendedProfileInitClassicSight},
     {CFG_U8, "ShowLives", 0, 0, 1, &mpExtendedProfileInitShowLives},
-    {CFG_S32, "TeamAgentIndex", -1, -1, 10,
+    {CFG_S32, "TeamAgentIndex",
+     {.min_s32 = -1, .initialvalue_s32 = -1, .max_s32 = 10},
      &mpExtendedProfileInitTeamAgentIndex},
     {CFG_U8, "InGameSubtitles", 1, 0, 1, &mpExtendedProfileInitInGameSubtitles},
     {CFG_U8, "CutsceneSubtitles", 0, 0, 1,
      &mpExtendedProfileInitCutsceneSubtitles},
     {CFG_U8, "ShowMissionTime", 0, 0, 1, &mpExtendedProfileInitShowMissionTime},
     {CFG_U8, "ShowPlayerName", 1, 0, 1, &mpExtendedProfileInitShowPlayerName},
+    // No initfunc: nothing in g_PlayerConfigsArray points at these. They are
+    // read and written directly at file load and save, which is the only time
+    // they mean anything.
+    // Designated, and it has to be. The union's FIRST arm is the u8 one, so a
+    // positional row like {CFG_S32, "X", a, b, c} writes a/b/c into
+    // initialvalue_u8 / min_u8 / max_u8 and the CFG_S32 branch then reads
+    // min_s32 / initialvalue_s32 / max_s32 out of bytes nobody set. The one
+    // pre-existing CFG_S32 row, TeamAgentIndex, is positional and has that bug.
+    {CFG_S32, "HeadNameHash",
+     {.min_s32 = INT32_MIN, .initialvalue_s32 = 0, .max_s32 = INT32_MAX}, NULL},
+    {CFG_S32, "BodyNameHash",
+     {.min_s32 = INT32_MIN, .initialvalue_s32 = 0, .max_s32 = INT32_MAX}, NULL},
 }; // these must be in the same order as the extendedprofile struct, ignoring
    // the fileguid
 
@@ -4350,6 +4363,66 @@ void onUpdateExtendedMpProfileFileOperation(s32 playernum) {
   mpplayerBindExtendedProfile(playernum);
 }
 
+/*
+ * Record which head and body a profile is wearing, by NAME rather than by index.
+ *
+ * mpheadnum and mpbodynum are saved in 7 bits each (mpplayerfileSaveWad), so a
+ * slot above 127 cannot survive the round trip - it truncates, silently, into
+ * whatever head happens to sit at the low bits. Mod heads are allocated from
+ * g_NumMpHeads_Original upward, which is 75 in a vanilla roster, leaving about
+ * 53 storable slots; three character mods already spend more than that. 25 of
+ * the 78 head reservations in the shipped basedir are past the field.
+ *
+ * The index is an allocation detail anyway - it moves when the roster changes -
+ * so the durable identity is the reservation name, and its hash is what gets
+ * written. The extended profile is keyed by the player file's own fileguid, so
+ * this rides with the profile rather than being global.
+ *
+ * The 7-bit field is still written, unchanged, and is still correct for every
+ * slot at or below 127. This only overrides it when a hash is present.
+ */
+static void mpProfileStoreSlotHashes(s32 playernum) {
+  const s32 idx = g_PlayerConfigsArray[playernum].configindex;
+  const char *name;
+
+  if (idx < 0 || idx >= CONFIG_MAX_PROFILES) {
+    return;
+  }
+
+  name = modHeadSlotName(g_PlayerConfigsArray[playernum].base.mpheadnum);
+  g_ExtendedProfiles[idx].headnamehash_prop.s32 = (s32)modSlotNameHash(name);
+
+  name = modBodySlotName(g_PlayerConfigsArray[playernum].base.mpbodynum);
+  g_ExtendedProfiles[idx].bodynamehash_prop.s32 = (s32)modSlotNameHash(name);
+}
+
+/*
+ * The other half: if the profile recorded a name hash, it outranks the 7-bit
+ * field. A hash that resolves to nothing means the mod that supplied that head
+ * is not loaded this session - leave the truncated value alone rather than
+ * inventing one, so the existing "head does not exist" handling deals with it.
+ */
+static void mpProfileApplySlotHashes(s32 playernum) {
+  const s32 idx = g_PlayerConfigsArray[playernum].configindex;
+  s32 slot;
+
+  if (idx < 0 || idx >= CONFIG_MAX_PROFILES) {
+    return;
+  }
+
+  slot = modHeadSlotForHash((u32)g_ExtendedProfiles[idx].headnamehash_prop.s32);
+
+  if (slot >= 0) {
+    g_PlayerConfigsArray[playernum].base.mpheadnum = slot;
+  }
+
+  slot = modBodySlotForHash((u32)g_ExtendedProfiles[idx].bodynamehash_prop.s32);
+
+  if (slot >= 0) {
+    g_PlayerConfigsArray[playernum].base.mpbodynum = slot;
+  }
+}
+
 s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
   s32 ret;
   s32 newfileid;
@@ -4367,6 +4440,8 @@ s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
       g_PlayerConfigsArray[playernum].fileguid.fileid = newfileid;
       g_PlayerConfigsArray[playernum].fileguid.deviceserial = deviceserial;
       onUpdateExtendedMpProfileFileOperation(playernum);
+      // After the bind, so configindex names this player's profile.
+      mpProfileStoreSlotHashes(playernum);
       iniFlushRegistrationQueue();
       return 0;
     }
@@ -4398,6 +4473,10 @@ s32 mpplayerfileLoad(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
       mpplayerfileLoadWad(playernum, &buffer, 1);
 
       onUpdateExtendedMpProfileFileOperation(playernum);
+
+      // The wad has put a possibly-truncated index in mpheadnum; the profile
+      // knows the name. Name wins.
+      mpProfileApplySlotHashes(playernum);
 
       return 0;
     }

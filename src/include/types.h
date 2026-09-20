@@ -6543,8 +6543,13 @@ struct extplayerprofile {
       extplayerprop cutscenesubtitles_prop;
       extplayerprop showmissiontime_prop;
       extplayerprop showplayername_prop;
+      // A head or body whose slot index cannot survive the 7-bit save field is
+      // recorded here by the hash of its reservation name instead. See
+      // mpProfileStoreSlotHashes in mplayer.c.
+      extplayerprop headnamehash_prop;
+      extplayerprop bodynamehash_prop;
     };
-    extplayerprop ptr[9];
+    extplayerprop ptr[11];
   };
 };
 

@@ -394,6 +394,60 @@ static void modSlotClaim(struct modslottable *tbl, const char *name, s32 slot)
 	modSlotAdd(tbl, name, slot);
 }
 
+/*
+ * A stable 32-bit hash of a reservation name. FNV-1a, chosen because it is
+ * four lines and deterministic across builds and platforms - this value is
+ * written into a player's saved profile, so it must mean the same thing on
+ * every machine and every future build. Do not "improve" it.
+ */
+u32 modSlotNameHash(const char *name)
+{
+	u32 h = 2166136261u;
+
+	if (!name) {
+		return 0;
+	}
+
+	while (*name) {
+		h ^= (u8)*name++;
+		h *= 16777619u;
+	}
+
+	// 0 means "no hash recorded", so never hand it out as a real one.
+	return h ? h : 1u;
+}
+
+static const char *modSlotNameForIndex(struct modslottable *tbl, s32 slot)
+{
+	for (s32 i = 0; i < tbl->count; ++i) {
+		if (tbl->entries[i].slot == slot) {
+			return tbl->entries[i].name;
+		}
+	}
+
+	return NULL;
+}
+
+static s32 modSlotIndexForHash(struct modslottable *tbl, u32 hash)
+{
+	if (!hash) {
+		return -1;
+	}
+
+	for (s32 i = 0; i < tbl->count; ++i) {
+		if (modSlotNameHash(tbl->entries[i].name) == hash) {
+			return tbl->entries[i].slot;
+		}
+	}
+
+	return -1;
+}
+
+const char *modHeadSlotName(s32 slot) { return modSlotNameForIndex(&g_ModHeadSlots, slot); }
+const char *modBodySlotName(s32 slot) { return modSlotNameForIndex(&g_ModBodySlots, slot); }
+s32 modHeadSlotForHash(u32 hash) { return modSlotIndexForHash(&g_ModHeadSlots, hash); }
+s32 modBodySlotForHash(u32 hash) { return modSlotIndexForHash(&g_ModBodySlots, hash); }
+
 s32 modHeadSlotReserve(const char *name) { return modSlotReserve(&g_ModHeadSlots, name); }
 s32 modBodySlotReserve(const char *name) { return modSlotReserve(&g_ModBodySlots, name); }
 void modHeadSlotClaim(const char *name, s32 slot) { modSlotClaim(&g_ModHeadSlots, name, slot); }

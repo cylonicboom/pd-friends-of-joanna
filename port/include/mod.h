@@ -250,6 +250,14 @@ void modSlotReservationsInit(void);
 // and roster changes. Returns -1 when the pool is exhausted.
 s32 modStageSlotReserve(const char *name);
 void modStageSlotClaim(const char *name, s32 slot);
+// A saved profile records a head/body by the hash of its reservation name, not
+// by its index - the index is an allocation detail and the 7-bit save field
+// cannot hold it once mod heads push past 127. See mplayer.c.
+u32 modSlotNameHash(const char *name);
+const char *modHeadSlotName(s32 slot);
+const char *modBodySlotName(s32 slot);
+s32 modHeadSlotForHash(u32 hash);
+s32 modBodySlotForHash(u32 hash);
 s32 modHeadSlotReserve(const char *name);
 s32 modBodySlotReserve(const char *name);
 void modHeadSlotClaim(const char *name, s32 slot);
