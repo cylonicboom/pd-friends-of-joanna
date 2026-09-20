@@ -79,13 +79,27 @@ static void skinCollectModelTextures(u16 fileNum, std::vector<SkinTexRef> &out)
 			continue;
 		}
 
-		if (ref.info.type != G_TEXTYPE_MODEL || ref.info.id != fileNum) {
+		// tex.c stamps model texture loads as G_TEXTYPE_GENERAL with the
+		// model's raw fileNum in id; match on the id, whatever the type
+		if (ref.info.type == G_TEXTYPE_NONE || ref.info.id != fileNum) {
 			continue;
 		}
 
 		skinTexDims(ref.info.texture_id, &ref.width, &ref.height);
 
-		if (ref.width > 0 && ref.height > 0 && ref.width <= 512 && ref.height <= 512) {
+		if (ref.width <= 0 || ref.height <= 0 || ref.width > 512 || ref.height > 512) {
+			continue;
+		}
+
+		bool seen = false;
+		for (const SkinTexRef &have : out) {
+			if (have.info.texnum == ref.info.texnum) {
+				seen = true;
+				break;
+			}
+		}
+
+		if (!seen) {
 			out.push_back(ref);
 		}
 	}
@@ -126,7 +140,7 @@ static void skinEnsureHeadPixels(struct skinmatchhead *head, const SkinTexRef &r
 
 	std::vector<u8> px;
 	skinReadbackPixels(ref, px);
-	skinmatchOnTexturePixels(G_TEXTYPE_MODEL, head->id, head->texnum, px.data(), ref.width, ref.height);
+	skinmatchOnTexturePixels(G_TEXTYPE_GENERAL, head->id, head->texnum, px.data(), ref.width, ref.height);
 }
 
 static ImU32 skinLayerColour(s32 layer, float alpha)
@@ -373,7 +387,7 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 			if (ImGui::BeginCombo("##bodytex", preview)) {
 				for (s32 i = 0; i < (s32)bodyTex.size(); i++) {
 					char label[48];
-					const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_MODEL, bodyFile, bodyTex[i].info.texnum, false);
+					const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_GENERAL, bodyFile, bodyTex[i].info.texnum, false);
 					snprintf(label, sizeof(label), "tex %04x  %dx%d%s", bodyTex[i].info.texnum, bodyTex[i].width, bodyTex[i].height, b ? "  masked" : "");
 					if (ImGui::Selectable(label, i == g_SkinBodyTexChoice)) g_SkinBodyTexChoice = i;
 				}
@@ -382,12 +396,12 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 		}
 
 		const SkinTexRef &bref = bodyTex[g_SkinBodyTexChoice];
-		struct skinmatchbody *body = skinmatchBodyFor(G_TEXTYPE_MODEL, bodyFile, bref.info.texnum, true);
+		struct skinmatchbody *body = skinmatchBodyFor(G_TEXTYPE_GENERAL, bodyFile, bref.info.texnum, true);
 
 		if (!body) {
 			ImGui::TextDisabled("tex %04x  %dx%d  no mask yet", bref.info.texnum, bref.width, bref.height);
 			if (ImGui::Button("start a mask for this texture")) {
-				body = skinmatchBodyCreateBlank(G_TEXTYPE_MODEL, bodyFile, bref.info.texnum, (u16)bref.width, (u16)bref.height);
+				body = skinmatchBodyCreateBlank(G_TEXTYPE_GENERAL, bodyFile, bref.info.texnum, (u16)bref.width, (u16)bref.height);
 			}
 		}
 
