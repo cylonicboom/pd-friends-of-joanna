@@ -616,7 +616,7 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 			ImGui::SliderInt("size", &g_SkinBrushSize, 1, 64, "%d");
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(100.0f);
-			ImGui::SliderFloat("strength", &g_SkinBrushStrength, 0.05f, 1.0f, "%.2f");
+			ImGui::SliderFloat("strength##brush", &g_SkinBrushStrength, 0.05f, 1.0f, "%.2f");
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(100.0f);
 			ImGui::SliderInt("fill tol", &g_SkinFillTol, 1, 40);
@@ -699,7 +699,7 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 
 			// the two knobs on the effect itself; a change re-sends the uniforms
 			ImGui::SetNextItemWidth(140.0f);
-			if (ImGui::SliderFloat("strength", &body->strength, 0.0f, 1.0f, "%.2f")) body->maskdirty = 1;
+			if (ImGui::SliderFloat("strength##effect", &body->strength, 0.0f, 1.0f, "%.2f")) body->maskdirty = 1;
 			if (ImGui::IsItemHovered()) ImGui::SetTooltip("how far masked texels move toward the head tone");
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(140.0f);
