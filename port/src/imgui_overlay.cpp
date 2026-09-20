@@ -365,86 +365,6 @@ static bool imguiOverlayChrIsCurrent(struct chrdata *chr);
 static void imguiOverlayFocusChr(struct chrdata *chr);
 static void imguiOverlayFocusProp(struct prop *prop);
 
-static void *imguiOverlaySettingsReadOpen(ImGuiContext *, ImGuiSettingsHandler *handler, const char *name)
-{
-	return strcmp(name, "Windows") == 0 ? handler : NULL;
-}
-
-static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line)
-{
-	int value;
-
-	if (sscanf(line, "Runtime=%d", &value) == 1) { g_ImGuiOverlayShowRuntime = value != 0; return; }
-	if (sscanf(line, "Stage=%d", &value) == 1) { g_ImGuiOverlayShowStage = value != 0; return; }
-	if (sscanf(line, "Entities=%d", &value) == 1) { g_ImGuiOverlayShowEntities = value != 0; return; }
-	if (sscanf(line, "Assets=%d", &value) == 1) { g_ImGuiOverlayShowAssets = value != 0; return; }
-	if (sscanf(line, "Textures=%d", &value) == 1) { g_ImGuiOverlayShowTextures = value != 0; return; }
-	if (sscanf(line, "SkinMatch=%d", &value) == 1) { g_ImGuiOverlayShowSkinMatch = value != 0; return; }
-	if (sscanf(line, "Memory=%d", &value) == 1) { g_ImGuiOverlayShowMemory = value != 0; return; }
-	if (sscanf(line, "Profiler=%d", &value) == 1) { g_ImGuiOverlayShowProfiler = value != 0; return; }
-	if (sscanf(line, "LookingAt=%d", &value) == 1) { g_ImGuiOverlayShowLookingAt = value != 0; return; }
-	if (sscanf(line, "Proportions=%d", &value) == 1) { g_ImGuiOverlayShowProportions = value != 0; return; }
-	if (sscanf(line, "Stance=%d", &value) == 1) { g_ImGuiOverlayShowStance = value != 0; return; }
-	if (sscanf(line, "Audio=%d", &value) == 1) { g_ImGuiOverlayShowAudio = value != 0; return; }
-	if (sscanf(line, "PauseBlur=%d", &value) == 1) { g_ImGuiOverlayShowPauseBlur = value != 0; return; }
-	if (sscanf(line, "Lua=%d", &value) == 1) { g_ImGuiOverlayShowLua = value != 0; return; }
-	if (sscanf(line, "Saves=%d", &value) == 1) { g_ImGuiOverlayShowSaves = value != 0; return; }
-
-	{
-		float fvalue;
-
-		if (sscanf(line, "LoreScale=%f", &fvalue) == 1 && fvalue > 0.05f && fvalue < 20.0f) {
-			g_ImGuiPropLoreScale = fvalue;
-		}
-	}
-}
-
-static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer)
-{
-	buffer->appendf("[%s][Windows]\n", handler->TypeName);
-	buffer->appendf("Runtime=%d\n", g_ImGuiOverlayShowRuntime);
-	buffer->appendf("Stage=%d\n", g_ImGuiOverlayShowStage);
-	buffer->appendf("Entities=%d\n", g_ImGuiOverlayShowEntities);
-	buffer->appendf("Assets=%d\n", g_ImGuiOverlayShowAssets);
-	buffer->appendf("Textures=%d\n", g_ImGuiOverlayShowTextures);
-	buffer->appendf("SkinMatch=%d\n", g_ImGuiOverlayShowSkinMatch);
-	buffer->appendf("Memory=%d\n", g_ImGuiOverlayShowMemory);
-	buffer->appendf("Profiler=%d\n", g_ImGuiOverlayShowProfiler);
-	buffer->appendf("LookingAt=%d\n", g_ImGuiOverlayShowLookingAt);
-	buffer->appendf("Proportions=%d\n", g_ImGuiOverlayShowProportions);
-	buffer->appendf("Stance=%d\n", g_ImGuiOverlayShowStance);
-	buffer->appendf("Audio=%d\n", g_ImGuiOverlayShowAudio);
-	buffer->appendf("PauseBlur=%d\n", g_ImGuiOverlayShowPauseBlur);
-	buffer->appendf("Lua=%d\n", g_ImGuiOverlayShowLua);
-	buffer->appendf("Saves=%d\n", g_ImGuiOverlayShowSaves);
-	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
-}
-
-static u32 imguiOverlayGetWindowState(void)
-{
-	return (g_ImGuiOverlayShowRuntime ? 1u << 0 : 0)
-		| (g_ImGuiOverlayShowStage ? 1u << 1 : 0)
-		| (g_ImGuiOverlayShowEntities ? 1u << 2 : 0)
-		| (g_ImGuiOverlayShowAssets ? 1u << 3 : 0)
-		| (g_ImGuiOverlayShowTextures ? 1u << 4 : 0)
-		| (g_ImGuiOverlayShowMemory ? 1u << 5 : 0)
-		| (g_ImGuiOverlayShowProfiler ? 1u << 6 : 0)
-		| (g_ImGuiOverlayShowLookingAt ? 1u << 7 : 0)
-		| (g_ImGuiOverlayShowProportions ? 1u << 8 : 0)
-		| (g_ImGuiOverlayShowStance ? 1u << 9 : 0)
-		| (g_ImGuiOverlayShowAudio ? 1u << 10 : 0)
-		| (g_ImGuiOverlayShowPauseBlur ? 1u << 11 : 0)
-		| (g_ImGuiOverlayShowLua ? 1u << 12 : 0)
-		| (g_ImGuiOverlayShowSaves ? 1u << 13 : 0)
-		| (g_ImGuiOverlayShowSkinMatch ? 1u << 14 : 0);
-}
-
-static void imguiOverlaySaveWindowState(void)
-{
-	ImGui::MarkIniSettingsDirty();
-	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
-}
-
 #define CASE_NAME(x) case x: return #x;
 
 static const char *imguiOverlayActionName(s8 action)
@@ -5706,28 +5626,168 @@ static void imguiOverlayLatchPropEverywhere(struct prop *prop)
 	}
 }
 
-static void imguiOverlayDrawWindowMenu(bool canOpenLookingAt)
+// ---------------------------------------------------------------------------
+// The window table.
+//
+// Every fojo window is one row: its ini key, its title, the flag that opens it,
+// the body that draws it, where it lands the first time it is seen, and an
+// optional gate -- "can this window be open at all right now". The settings
+// handler, the change mask, the panel menu and the render loop below are all
+// loops over this table, so adding a window means adding a row and nothing
+// else. It used to mean touching five separate lists and a render block.
+//
+// Row order is menu order. Two orderings in it are load-bearing: Entities
+// before Skin Match, because the Entities panel clears g_ImGuiOverlayFocusChr
+// once it has scrolled to it and Skin Match reads it; and Textures before
+// Skin Match, which share the debug texture probe.
+// ---------------------------------------------------------------------------
+
+struct imguiOverlayWindowDef {
+	const char *key;        // fojo-imgui.ini key under [Fojo][Windows]
+	const char *title;      // ImGui window name, always "Fojo <menu label>"
+	bool *open;
+	void (*draw)(void);
+	f32 defaultW;
+	f32 defaultH;
+	f32 xAnchor;
+	f32 yAnchor;
+	bool (*gate)(void);     // NULL when the window is always available
+};
+
+// The skin match panel takes its chr as an argument and re-latches it from the
+// focus chr first, so it gets a wrapper rather than a special case in the loop.
+static void imguiOverlayDrawSkinMatchPanel(void)
+{
+	if (g_ImGuiOverlaySkinChr && !imguiOverlayChrIsCurrent(g_ImGuiOverlaySkinChr)) {
+		g_ImGuiOverlaySkinChr = NULL;
+	}
+	// a fresh focus (Show in Characters) also latches, so either menu item works
+	if (g_ImGuiOverlayFocusChr && imguiOverlayChrIsCurrent(g_ImGuiOverlayFocusChr)) {
+		g_ImGuiOverlaySkinChr = g_ImGuiOverlayFocusChr;
+	}
+
+	imguiSkinMatchDrawPanel(g_ImGuiOverlaySkinChr);
+}
+
+static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
+	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL },
+	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL },
+	{ "Entities",    "Fojo Entities",    &g_ImGuiOverlayShowEntities,    imguiOverlayDrawEntitiesPanel,    520.0f, 620.0f, 1.0f, 0.00f, NULL },
+	{ "Assets",      "Fojo Assets",      &g_ImGuiOverlayShowAssets,      imguiOverlayDrawAssetsPanel,      620.0f, 560.0f, 0.5f, 0.20f, NULL },
+	{ "Textures",    "Fojo Textures",    &g_ImGuiOverlayShowTextures,    imguiOverlayDrawTexturesPanel,    520.0f, 620.0f, 1.0f, 0.25f, NULL },
+	{ "SkinMatch",   "Fojo Skin Match",  &g_ImGuiOverlayShowSkinMatch,   imguiOverlayDrawSkinMatchPanel,   760.0f, 640.0f, 1.0f, 0.50f, NULL },
+	{ "Memory",      "Fojo Memory",      &g_ImGuiOverlayShowMemory,      imguiOverlayDrawMemoryPanel,      360.0f, 300.0f, 0.0f, 1.00f, NULL },
+	{ "Profiler",    "Fojo Profiler",    &g_ImGuiOverlayShowProfiler,    imguiOverlayDrawProfilerPanel,    620.0f, 360.0f, 0.5f, 1.00f, NULL },
+	{ "LookingAt",   "Fojo Looking At",  &g_ImGuiOverlayShowLookingAt,   imguiOverlayDrawLookingAtPanel,   430.0f, 340.0f, 1.0f, 0.00f, imguiOverlayCanAimInspect },
+	{ "Audio",       "Fojo Audio",       &g_ImGuiOverlayShowAudio,       imguiOverlayDrawAudioPanel,       440.0f, 560.0f, 0.5f, 0.50f, NULL },
+	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL },
+	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL },
+	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL },
+	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
+	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
+};
+
+// The change mask below is one bit per row, so the table has a ceiling of 32.
+static const s32 kFojoWindowCount =
+	(s32)(sizeof(g_ImGuiOverlayWindowDefs) / sizeof(g_ImGuiOverlayWindowDefs[0]));
+
+// Menu label. Every title is "Fojo <label>"; fall back to the whole title if a
+// row ever breaks that rule rather than chopping five characters off blindly.
+static const char *imguiOverlayWindowLabel(const struct imguiOverlayWindowDef *def)
+{
+	return strncmp(def->title, "Fojo ", 5) == 0 ? def->title + 5 : def->title;
+}
+
+// Close any window whose gate has stopped holding. Runs before the menu draws
+// so a gated-shut window does not show a stale tick for a frame.
+static void imguiOverlayApplyWindowGates(void)
+{
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+		if (def->gate && !def->gate()) {
+			*def->open = false;
+		}
+	}
+}
+
+static void *imguiOverlaySettingsReadOpen(ImGuiContext *, ImGuiSettingsHandler *handler, const char *name)
+{
+	return strcmp(name, "Windows") == 0 ? handler : NULL;
+}
+
+static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *, void *, const char *line)
+{
+	int value;
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+		const size_t keyLen = strlen(def->key);
+		if (strncmp(line, def->key, keyLen) == 0 && line[keyLen] == '='
+				&& sscanf(line + keyLen + 1, "%d", &value) == 1) {
+			*def->open = value != 0;
+			return;
+		}
+	}
+
+	{
+		float fvalue;
+
+		if (sscanf(line, "LoreScale=%f", &fvalue) == 1 && fvalue > 0.05f && fvalue < 20.0f) {
+			g_ImGuiPropLoreScale = fvalue;
+		}
+	}
+}
+
+static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer)
+{
+	buffer->appendf("[%s][Windows]\n", handler->TypeName);
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+		buffer->appendf("%s=%d\n", def->key, *def->open);
+	}
+
+	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
+}
+
+/**
+ * A bit per open window, compared against itself frame to frame to notice a
+ * window opening or closing. Never persisted, so the bit assignment is free to
+ * follow the table.
+ */
+static u32 imguiOverlayGetWindowState(void)
+{
+	u32 state = 0;
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		if (*g_ImGuiOverlayWindowDefs[i].open) {
+			state |= 1u << i;
+		}
+	}
+
+	return state;
+}
+
+static void imguiOverlaySaveWindowState(void)
+{
+	ImGui::MarkIniSettingsDirty();
+	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
+}
+
+static void imguiOverlayDrawWindowMenu(void)
 {
 	if (!ImGui::BeginPopupContextVoid("FojoWindowMenu", ImGuiPopupFlags_MouseButtonRight)) {
 		return;
 	}
 
 	ImGui::SeparatorText("Fojo Windows");
-	ImGui::MenuItem("Runtime", NULL, &g_ImGuiOverlayShowRuntime);
-	ImGui::MenuItem("Stage", NULL, &g_ImGuiOverlayShowStage);
-	ImGui::MenuItem("Entities", NULL, &g_ImGuiOverlayShowEntities);
-	ImGui::MenuItem("Assets", NULL, &g_ImGuiOverlayShowAssets);
-	ImGui::MenuItem("Textures", NULL, &g_ImGuiOverlayShowTextures);
-	ImGui::MenuItem("Skin Match", NULL, &g_ImGuiOverlayShowSkinMatch);
-	ImGui::MenuItem("Memory", NULL, &g_ImGuiOverlayShowMemory);
-	ImGui::MenuItem("Profiler", NULL, &g_ImGuiOverlayShowProfiler);
-	ImGui::MenuItem("Looking At", NULL, &g_ImGuiOverlayShowLookingAt, canOpenLookingAt);
-	ImGui::MenuItem("Audio", NULL, &g_ImGuiOverlayShowAudio);
-	ImGui::MenuItem("Proportions", NULL, &g_ImGuiOverlayShowProportions);
-	ImGui::MenuItem("Stance", NULL, &g_ImGuiOverlayShowStance);
-	ImGui::MenuItem("Pause Blur", NULL, &g_ImGuiOverlayShowPauseBlur);
-	ImGui::MenuItem("Lua", NULL, &g_ImGuiOverlayShowLua);
-	ImGui::MenuItem("Saves", NULL, &g_ImGuiOverlayShowSaves);
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+		ImGui::MenuItem(imguiOverlayWindowLabel(def), NULL, def->open,
+				def->gate == NULL || def->gate());
+	}
+
 	ImGui::EndPopup();
 }
 
@@ -5815,11 +5875,8 @@ void imguiOverlayRender(void)
 		if (!imguiOverlayPropIsCurrent(g_ImGuiOverlayFocusProp)) {
 			g_ImGuiOverlayFocusProp = NULL;
 		}
-		const bool canOpenLookingAt = imguiOverlayCanAimInspect();
-		if (!canOpenLookingAt) {
-			g_ImGuiOverlayShowLookingAt = false;
-		}
-		imguiOverlayDrawWindowMenu(canOpenLookingAt);
+		imguiOverlayApplyWindowGates();
+		imguiOverlayDrawWindowMenu();
 
 		{
 			const ImGuiIO &io = ImGui::GetIO();
@@ -5852,120 +5909,22 @@ void imguiOverlayRender(void)
 			}
 		}
 
-		if (g_ImGuiOverlayShowRuntime) {
-						if (imguiOverlayBeginWindow("Fojo Runtime", &g_ImGuiOverlayShowRuntime, ImVec2(360.0f, 300.0f), 0.0f, 0.0f)) {
-				imguiOverlayDrawRuntimePanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowMemory) {
-						if (imguiOverlayBeginWindow("Fojo Memory", &g_ImGuiOverlayShowMemory, ImVec2(360.0f, 300.0f), 0.0f, 1.0f)) {
-				imguiOverlayDrawMemoryPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowProfiler) {
-						if (imguiOverlayBeginWindow("Fojo Profiler", &g_ImGuiOverlayShowProfiler, ImVec2(620.0f, 360.0f), 0.5f, 1.0f)) {
-				imguiOverlayDrawProfilerPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowStage) {
-						if (imguiOverlayBeginWindow("Fojo Stage", &g_ImGuiOverlayShowStage, ImVec2(480.0f, 560.0f), 1.0f, 0.0f)) {
-				imguiOverlayDrawStagePanel();
-			}
-			ImGui::End();
-		}
-
+		// a latched prop always pulls Entities up, whatever the menu says
 		if (g_ImGuiOverlayFocusProp) {
 			g_ImGuiOverlayShowEntities = true;
 		}
-		if (g_ImGuiOverlayShowEntities) {
-						if (imguiOverlayBeginWindow("Fojo Entities", &g_ImGuiOverlayShowEntities, ImVec2(520.0f, 620.0f), 1.0f, 0.0f)) {
-				imguiOverlayDrawEntitiesPanel();
-			}
-			ImGui::End();
-		}
 
-		if (g_ImGuiOverlayShowAssets) {
-						if (imguiOverlayBeginWindow("Fojo Assets", &g_ImGuiOverlayShowAssets, ImVec2(620.0f, 560.0f), 0.5f, 0.2f)) {
-				imguiOverlayDrawAssetsPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowLookingAt) {
-						if (imguiOverlayBeginWindow("Fojo Looking At", &g_ImGuiOverlayShowLookingAt, ImVec2(430.0f, 340.0f), 1.0f, 0.0f)) {
-				imguiOverlayDrawLookingAtPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowStance) {
-			if (imguiOverlayBeginWindow("Fojo Stance", &g_ImGuiOverlayShowStance, ImVec2(420.0f, 560.0f), 0.5f, 0.5f)) {
-				imguiOverlayDrawStancePanel();
+		for (s32 i = 0; i < kFojoWindowCount; ++i) {
+			const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+			if (!*def->open) {
+				continue;
 			}
 
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowPauseBlur) {
-						if (imguiOverlayBeginWindow("Fojo Pause Blur", &g_ImGuiOverlayShowPauseBlur, ImVec2(400.0f, 300.0f), 0.5f, 0.5f)) {
-				imguiOverlayDrawPauseBlurPanel();
+			if (imguiOverlayBeginWindow(def->title, def->open,
+					ImVec2(def->defaultW, def->defaultH), def->xAnchor, def->yAnchor)) {
+				def->draw();
 			}
 
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowAudio) {
-						if (imguiOverlayBeginWindow("Fojo Audio", &g_ImGuiOverlayShowAudio, ImVec2(440.0f, 560.0f), 0.5f, 0.5f)) {
-				imguiOverlayDrawAudioPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowProportions) {
-						if (imguiOverlayBeginWindow("Fojo Proportions", &g_ImGuiOverlayShowProportions, ImVec2(460.0f, 620.0f), 0.0f, 0.5f)) {
-				imguiOverlayDrawProportionsPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowTextures) {
-						if (imguiOverlayBeginWindow("Fojo Textures", &g_ImGuiOverlayShowTextures, ImVec2(520.0f, 620.0f), 1.0f, 0.25f)) {
-				imguiOverlayDrawTexturesPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowSkinMatch) {
-						if (imguiOverlayBeginWindow("Fojo Skin Match", &g_ImGuiOverlayShowSkinMatch, ImVec2(760.0f, 640.0f), 1.0f, 0.5f)) {
-				if (g_ImGuiOverlaySkinChr && !imguiOverlayChrIsCurrent(g_ImGuiOverlaySkinChr)) {
-					g_ImGuiOverlaySkinChr = NULL;
-				}
-				// a fresh focus (Show in Characters) also latches, so either menu item works
-				if (g_ImGuiOverlayFocusChr && imguiOverlayChrIsCurrent(g_ImGuiOverlayFocusChr)) {
-					g_ImGuiOverlaySkinChr = g_ImGuiOverlayFocusChr;
-				}
-				imguiSkinMatchDrawPanel(g_ImGuiOverlaySkinChr);
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowLua) {
-						if (imguiOverlayBeginWindow("Fojo Lua", &g_ImGuiOverlayShowLua, ImVec2(420.0f, 300.0f), 0.0f, 0.75f)) {
-				imguiOverlayDrawLuaPanel();
-			}
-			ImGui::End();
-		}
-
-		if (g_ImGuiOverlayShowSaves) {
-						if (imguiOverlayBeginWindow("Fojo Saves", &g_ImGuiOverlayShowSaves, ImVec2(520.0f, 420.0f), 0.5f, 0.5f)) {
-				imguiOverlayDrawSavesPanel();
-			}
 			ImGui::End();
 		}
 
