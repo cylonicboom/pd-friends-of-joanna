@@ -18,6 +18,7 @@
 #include "fs.h"
 #include "game/modeldef.h"
 #include "imgui_overlay.h"
+#include "imgui_skinmatch.h"
 #include "input.h"
 #include "mod.h"
 #include "romdata.h"
@@ -39,6 +40,7 @@ static bool g_ImGuiOverlayShowAssets = false;
 static bool g_ImGuiOverlayShowMemory = false;
 static bool g_ImGuiOverlayShowProfiler = false;
 static bool g_ImGuiOverlayShowTextures = false;
+static bool g_ImGuiOverlayShowSkinMatch = false;
 static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowProportions = false;
 static bool g_ImGuiOverlayShowStance = false;
@@ -353,6 +355,7 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 	if (sscanf(line, "Entities=%d", &value) == 1) { g_ImGuiOverlayShowEntities = value != 0; return; }
 	if (sscanf(line, "Assets=%d", &value) == 1) { g_ImGuiOverlayShowAssets = value != 0; return; }
 	if (sscanf(line, "Textures=%d", &value) == 1) { g_ImGuiOverlayShowTextures = value != 0; return; }
+	if (sscanf(line, "SkinMatch=%d", &value) == 1) { g_ImGuiOverlayShowSkinMatch = value != 0; return; }
 	if (sscanf(line, "Memory=%d", &value) == 1) { g_ImGuiOverlayShowMemory = value != 0; return; }
 	if (sscanf(line, "Profiler=%d", &value) == 1) { g_ImGuiOverlayShowProfiler = value != 0; return; }
 	if (sscanf(line, "LookingAt=%d", &value) == 1) { g_ImGuiOverlayShowLookingAt = value != 0; return; }
@@ -380,6 +383,7 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	buffer->appendf("Entities=%d\n", g_ImGuiOverlayShowEntities);
 	buffer->appendf("Assets=%d\n", g_ImGuiOverlayShowAssets);
 	buffer->appendf("Textures=%d\n", g_ImGuiOverlayShowTextures);
+	buffer->appendf("SkinMatch=%d\n", g_ImGuiOverlayShowSkinMatch);
 	buffer->appendf("Memory=%d\n", g_ImGuiOverlayShowMemory);
 	buffer->appendf("Profiler=%d\n", g_ImGuiOverlayShowProfiler);
 	buffer->appendf("LookingAt=%d\n", g_ImGuiOverlayShowLookingAt);
@@ -407,7 +411,8 @@ static u32 imguiOverlayGetWindowState(void)
 		| (g_ImGuiOverlayShowAudio ? 1u << 10 : 0)
 		| (g_ImGuiOverlayShowPauseBlur ? 1u << 11 : 0)
 		| (g_ImGuiOverlayShowLua ? 1u << 12 : 0)
-		| (g_ImGuiOverlayShowSaves ? 1u << 13 : 0);
+		| (g_ImGuiOverlayShowSaves ? 1u << 13 : 0)
+		| (g_ImGuiOverlayShowSkinMatch ? 1u << 14 : 0);
 }
 
 static void imguiOverlaySaveWindowState(void)
@@ -5304,6 +5309,7 @@ static void imguiOverlayDrawWindowMenu(bool canOpenLookingAt)
 	ImGui::MenuItem("Entities", NULL, &g_ImGuiOverlayShowEntities);
 	ImGui::MenuItem("Assets", NULL, &g_ImGuiOverlayShowAssets);
 	ImGui::MenuItem("Textures", NULL, &g_ImGuiOverlayShowTextures);
+	ImGui::MenuItem("Skin Match", NULL, &g_ImGuiOverlayShowSkinMatch);
 	ImGui::MenuItem("Memory", NULL, &g_ImGuiOverlayShowMemory);
 	ImGui::MenuItem("Profiler", NULL, &g_ImGuiOverlayShowProfiler);
 	ImGui::MenuItem("Looking At", NULL, &g_ImGuiOverlayShowLookingAt, canOpenLookingAt);
@@ -5505,6 +5511,14 @@ void imguiOverlayRender(void)
 			imguiOverlaySetNextWindowDefaults(ImVec2(520.0f, 620.0f), 1.0f, 0.25f);
 			if (ImGui::Begin("Fojo Textures", &g_ImGuiOverlayShowTextures)) {
 				imguiOverlayDrawTexturesPanel();
+			}
+			ImGui::End();
+		}
+
+		if (g_ImGuiOverlayShowSkinMatch) {
+			imguiOverlaySetNextWindowDefaults(ImVec2(760.0f, 640.0f), 1.0f, 0.5f);
+			if (ImGui::Begin("Fojo Skin Match", &g_ImGuiOverlayShowSkinMatch)) {
+				imguiSkinMatchDrawPanel(g_ImGuiOverlayFocusChr);
 			}
 			ImGui::End();
 		}
