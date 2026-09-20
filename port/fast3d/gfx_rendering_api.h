@@ -14,6 +14,19 @@ struct GfxClipParameters {
 
 enum FilteringMode { FILTER_NONE, FILTER_LINEAR, FILTER_THREE_POINT };
 
+// Skin match (SHADER_OPT_SKINMATCH): everything the fragment shader needs for
+// one bracket of body draws. Filled by gfx_pc from port/src/skinmatch.c, in
+// Oklab (body/head: dark xyz then light xyz) and linear RGB (gain/off, four
+// garment layers). mask_texture_id is the companion R=skin G=layer texture.
+struct SkinMatchUniforms {
+    uint32_t mask_texture_id;
+    uint32_t cms, cmt;
+    float body[6];
+    float head[6];
+    float gain[12];
+    float off[12];
+};
+
 struct GfxRenderingAPI {
     const char* (*get_name)(void);
     int (*get_max_texture_size)(void);
@@ -55,6 +68,12 @@ struct GfxRenderingAPI {
     // pd.* fx post filter (pixelate / colour modes / CRT / lens / rotate):
     // filter the finished frame in place. Runs from gfx_run's tail. Nullable.
     void (*retro_filter)(int pixw, int pixh, int cmode, int clevels, int fx, float warp);
+    // Skin match: (re)upload a companion mask as an RGBA8 texture, returning
+    // its id (pass 0 to create). Bound on the third unit, never on 0/1.
+    uint32_t (*skinmask_upload)(uint32_t texture_id, const uint8_t* rgba32_buf, uint32_t width, uint32_t height);
+    // Skin match: bind the mask on the third unit and load the uniforms into
+    // the currently loaded shader program. Nullable.
+    void (*set_skinmatch)(const struct SkinMatchUniforms* u);
 };
 
 #endif

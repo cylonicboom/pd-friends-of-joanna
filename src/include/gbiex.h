@@ -227,6 +227,14 @@
 // or reset to the standing wall default (bit 0). Emitted around each prop
 // class in propRender and around the viewmodel.
 #define G_FLATFILL_EXT               0x4a
+// Skin match: bracket a chr's body draws with the head whose skin the body
+// texture's masked texels should take. w0 low 16 = head model file number
+// (untagged), w1 = 1 begin / 0 end. Emitted by chrRender around modelRender
+// only when the setting is on and both body and head pass the eligibility
+// switches in port/src/skinmatch.c; the renderer flushes on toggle and
+// force-clears the scope each gfx_start_frame. Allocated unilaterally in the
+// band both forks are stamping (board #162) - one define and one case to move.
+#define G_SKINMATCH_EXT              0x4b
 
 /* G_EXTRAGEOMETRYMODE flags */
 
@@ -317,6 +325,15 @@
     _g->words.w0 = _SHIFTL(G_FLATFILL_EXT, 24, 8) | 1;                  \
     _g->words.w1 = (((u32)(r) & 0xff) << 16) | (((u32)(g) & 0xff) << 8) \
             | ((u32)(b) & 0xff);                                        \
+}
+
+// Skin match bracket: headfile is the head model's untagged file number.
+#define gDPSkinMatchEXT(pkt, headfile, state)                                  \
+{                                                                              \
+    Gfx* _g = (Gfx*)(pkt);                                                     \
+                                                                               \
+    _g->words.w0 = _SHIFTL(G_SKINMATCH_EXT, 24, 8) | _SHIFTL((headfile), 0, 16); \
+    _g->words.w1 = (state);                                                    \
 }
 
 #define gDPFlatFillResetEXT(pkt)                       \

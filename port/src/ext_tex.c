@@ -12,6 +12,7 @@
 #include "data.h"
 #include "romdata.h"
 #include "ext_tex.h"
+#include "skinmatch.h"
 
 #define EXT_TEX_DIRNAME "ext_tex"
 #define FONT_OUTLINES_DIR "outlines"
@@ -99,6 +100,31 @@ static struct ExtTexture fontOutlineExtTextures[NUM_FONTS][NCHARS];
 #define FONT_HANDELGOTHICXS 2
 #define FONT_HANDELGOTHICLG 3
 #define FONT_NUMERIC 4
+
+/**
+ * <hex>.skin.png and <hex>.skin.json ride beside the overrides and belong to
+ * skin match, not to the texture table: fileInfo would read "0012.skin.png"
+ * as texture 0x12 and register a mask as an override. Claims the name (true)
+ * whether or not it was well-formed, so the caller skips it either way.
+ */
+static bool extTexSidecar(const char *name, const char *fullpath, u8 type, u16 id, s8 ownerMod)
+{
+	const char *p = strstr(name, ".skin.");
+
+	if (!p) {
+		return false;
+	}
+
+	s32 kind = strcmp(p, ".skin.png") == 0 ? SKINMATCH_SIDECAR_MASK
+		: strcmp(p, ".skin.json") == 0 ? SKINMATCH_SIDECAR_TAGS : -1;
+
+	if (kind >= 0) {
+		s32 texNum = (s32)strtol(name, NULL, 16);
+		skinmatchRegisterSidecar(type, id, texNum, ownerMod, fullpath, kind);
+	}
+
+	return true;
+}
 
 s32 fileInfo(const char *filename, s32 *texNum, char extension[5])
 {
@@ -368,6 +394,22 @@ const u8 *extTexModelLoadPixels(s16 fileNum, s32 texNum, u32 *width, u32 *height
 	if (width) *width = tex->width;
 	if (height) *height = tex->height;
 	return tex->texdata;
+}
+
+/**
+ * Directory a model's overrides and sidecars live in (<basePath>/<modelName>),
+ * for the skin match panel to save beside them. 1 when the model has no entry.
+ */
+s32 extTexModelDir(s16 fileNum, char *dst, u32 len)
+{
+	struct ModelTextures *m = findModelEntry((u16)fileNum);
+
+	if (!m || !m->modelName[0]) {
+		return 1;
+	}
+
+	snprintf(dst, len, "%s/%s", m->basePath, m->modelName);
+	return 0;
 }
 
 u8 extTexGetDimensions(u8 type, u16 id, s32 texnum, u16 *width, u16 *height)
@@ -857,6 +899,12 @@ void readModelTextures(const char *path, s16 fileNum, s8 ownerMod, s32 *modelOff
 		const char *name = de->d_name;
 		// Skip . / .. and hidden files (macOS .DS_Store, AppleDouble ._*, etc.).
 		if (name[0] == '.') continue;
+		if (strstr(name, ".skin.")) {
+			char sidecarPath[FS_MAXPATH + 1];
+			snprintf(sidecarPath, sizeof(sidecarPath), "%s/%s", path, name);
+			extTexSidecar(name, sidecarPath, G_TEXTYPE_MODEL, (u16)fileNum, ownerMod);
+			continue;
+		}
 
 		s32 texNum;
 		s32 err = fileInfo(name, &texNum, extension);
@@ -1095,6 +1143,7 @@ static void extTexScanDir(const char *dirPath, s32 *maxModels)
 		} else {
 			s32 texNum = 0;
 			char extension[5] = { 0 };
+			if (extTexSidecar(name, filepath, G_TEXTYPE_GENERAL, 0, (s8)g_ExtTexCurrentModIndex)) continue;
 			s32 err = fileInfo(name, &texNum, extension);
 			if (err) continue;
 			if (texNum < 0 || texNum >= MAX_EXT_TEX) {
