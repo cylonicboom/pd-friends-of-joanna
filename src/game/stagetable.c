@@ -8,7 +8,7 @@
 // When adding or removing items from this table you must also update the
 // STAGEINDEX constants in constants.h.
 // NOTE: extra fields have been appended to stagetableentry in the PC port
-struct stagetableentry g_Stages[95] = {
+struct stagetableentry g_Stages[119] = {
 	//       id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem
 	/*0x00*/ STAGE_MAIANSOS,      2, 255, 100, 100, 0, FILE_BG_LUE_SEG,  FILE_BG_LUE_TILES,  FILE_BG_SEV_PADS,  FILE_USETUPSEV,  FILE_UMP_SETUPSEV,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
 	/*0x01*/ STAGE_TEST_SILO,     2, 255, 100, 100, 0, FILE_BG_OAT_SEG,  FILE_BG_OAT_TILES,  FILE_BG_OAT_PADS,  FILE_USETUPSILO, FILE_UMP_SETUPSILO, 1,                1,   100,             0, 0, -1, 255, 0x3e19999a, 700, 800, 400, 1, SFX_ALARM_DEFAULT,      0,
@@ -114,6 +114,30 @@ struct stagetableentry g_Stages[95] = {
 	/*0x5c*/ STAGE_EXTRA32,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
 	/*0x5d*/ STAGE_EXTRA33,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
 	/*0x5e*/ STAGE_EXTRA34,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x5f*/ STAGE_EXTRA35,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x60*/ STAGE_EXTRA36,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x61*/ STAGE_EXTRA37,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x62*/ STAGE_EXTRA38,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x63*/ STAGE_EXTRA39,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x64*/ STAGE_EXTRA40,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x65*/ STAGE_EXTRA41,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x66*/ STAGE_EXTRA42,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x67*/ STAGE_EXTRA43,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x68*/ STAGE_EXTRA44,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x69*/ STAGE_EXTRA45,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x6a*/ STAGE_EXTRA46,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x6b*/ STAGE_EXTRA47,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x6c*/ STAGE_EXTRA48,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x6d*/ STAGE_EXTRA49,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x6e*/ STAGE_EXTRA50,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x6f*/ STAGE_EXTRA51,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x70*/ STAGE_EXTRA52,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x71*/ STAGE_EXTRA53,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x72*/ STAGE_EXTRA54,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x73*/ STAGE_EXTRA55,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x74*/ STAGE_EXTRA56,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x75*/ STAGE_EXTRA57,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
+	/*0x76*/ STAGE_EXTRA58,       2, 255, 100, 100, 0, FILE_BG_REF_SEG,  FILE_BG_REF_TILES,  FILE_BG_REF_PADS,  FILE_USETUPREF,  FILE_UMP_SETUPREF,  1,                1,   100,             0, 0, -1, 255, 0x3e19999a, -1,  400, 0,   1, SFX_ALARM_DEFAULT,      0,
 #endif
 };
 
@@ -171,7 +195,7 @@ s32 stageGetIndex(s32 stagenum)
  * Kept positional and next to the table it names, under the same guard, so the
  * two move together. The assert below is what actually holds them in step.
  */
-const char *const g_StageNames[95] = {
+const char *const g_StageNames[119] = {
 	/*0x00*/ "STAGE_MAIANSOS",
 	/*0x01*/ "STAGE_TEST_SILO",
 	/*0x02*/ "STAGE_WAR",
@@ -268,6 +292,30 @@ const char *const g_StageNames[95] = {
 	/*0x5c*/ "STAGE_EXTRA32",
 	/*0x5d*/ "STAGE_EXTRA33",
 	/*0x5e*/ "STAGE_EXTRA34",
+	/*0x5f*/ "STAGE_EXTRA35",
+	/*0x60*/ "STAGE_EXTRA36",
+	/*0x61*/ "STAGE_EXTRA37",
+	/*0x62*/ "STAGE_EXTRA38",
+	/*0x63*/ "STAGE_EXTRA39",
+	/*0x64*/ "STAGE_EXTRA40",
+	/*0x65*/ "STAGE_EXTRA41",
+	/*0x66*/ "STAGE_EXTRA42",
+	/*0x67*/ "STAGE_EXTRA43",
+	/*0x68*/ "STAGE_EXTRA44",
+	/*0x69*/ "STAGE_EXTRA45",
+	/*0x6a*/ "STAGE_EXTRA46",
+	/*0x6b*/ "STAGE_EXTRA47",
+	/*0x6c*/ "STAGE_EXTRA48",
+	/*0x6d*/ "STAGE_EXTRA49",
+	/*0x6e*/ "STAGE_EXTRA50",
+	/*0x6f*/ "STAGE_EXTRA51",
+	/*0x70*/ "STAGE_EXTRA52",
+	/*0x71*/ "STAGE_EXTRA53",
+	/*0x72*/ "STAGE_EXTRA54",
+	/*0x73*/ "STAGE_EXTRA55",
+	/*0x74*/ "STAGE_EXTRA56",
+	/*0x75*/ "STAGE_EXTRA57",
+	/*0x76*/ "STAGE_EXTRA58",
 #endif
 };
 

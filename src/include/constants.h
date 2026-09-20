@@ -4447,6 +4447,30 @@
 #define STAGE_EXTRA32 0x61
 #define STAGE_EXTRA33 0x62
 #define STAGE_EXTRA34 0x63  // extension space, freed by moving the menu ids to the top of the 7-bit field
+#define STAGE_EXTRA35 0x64
+#define STAGE_EXTRA36 0x65
+#define STAGE_EXTRA37 0x66
+#define STAGE_EXTRA38 0x67
+#define STAGE_EXTRA39 0x68
+#define STAGE_EXTRA40 0x69
+#define STAGE_EXTRA41 0x6a
+#define STAGE_EXTRA42 0x6b
+#define STAGE_EXTRA43 0x6c
+#define STAGE_EXTRA44 0x6d
+#define STAGE_EXTRA45 0x6e
+#define STAGE_EXTRA46 0x6f
+#define STAGE_EXTRA47 0x70
+#define STAGE_EXTRA48 0x71
+#define STAGE_EXTRA49 0x72
+#define STAGE_EXTRA50 0x73
+#define STAGE_EXTRA51 0x74
+#define STAGE_EXTRA52 0x75
+#define STAGE_EXTRA53 0x76
+#define STAGE_EXTRA54 0x77
+#define STAGE_EXTRA55 0x78
+#define STAGE_EXTRA56 0x79
+#define STAGE_EXTRA57 0x7a
+#define STAGE_EXTRA58 0x7b  // 0x7b is the last id below STAGE_TITLE: the level space is now fully rowed
 
 #define STAGEFLAG_CI_IN_TRAINING            0x00000001
 #define STAGEFLAG_CI_HOLO_FAILED            0x00000002
