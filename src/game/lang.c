@@ -5,6 +5,8 @@
 #include "game/lang.h"
 #include "game/mplayer/mplayer.h"
 #include "game/utils.h"
+#include "game/stagetable.h"
+#include "system.h"
 #include "bss.h"
 #include "lib/dma.h"
 #include "lib/main.h"
@@ -240,11 +242,56 @@ u32 langGetLangBankIndexFromStagenum(s32 stagenum)
 	case STAGE_EXTRA24:       bank = LANGBANK_MP13; break;
 	case STAGE_EXTRA25:       bank = LANGBANK_STAT; break;
 	case STAGE_EXTRA26:       bank = LANGBANK_MP13; break;
+	// The extension rows. They carry placeholder bg_ref geometry, so that is
+	// the bank they imply; a modconfig that puts a real level on one of these
+	// overrides the geometry but has no way to say which bank goes with it,
+	// which is its own gap and not this function's to close.
+	case STAGE_EXTRA27:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA28:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA29:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA30:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA31:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA32:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA33:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA34:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA35:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA36:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA37:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA38:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA39:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA40:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA41:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA42:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA43:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA44:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA45:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA46:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA47:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA48:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA49:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA50:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA51:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA52:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA53:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA54:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA55:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA56:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA57:  bank = LANGBANK_REF; break;
+	case STAGE_EXTRA58:  bank = LANGBANK_REF; break;
 #endif
 	default:
-		while (true) {
-			// empty
-		}
+		// Was `while (true) { }` - an artifact of this switch once being
+		// exhaustive over every stagenum that existed. It stopped being
+		// exhaustive the moment the stage table grew, and a row with no case
+		// here HANGS THE GAME on stage load, inside setupLoadFiles, with no
+		// error and no crash. Caught in a debugger spinning on stagenum 0x62.
+		//
+		// A wrong lang bank costs one level's text. A hang costs the session.
+		sysLogPrintf(LOG_WARNING,
+				"lang: no lang bank for stage 0x%02x (%s); using LANGBANK_REF",
+				stagenum, stageGetName(stagenum) ? stageGetName(stagenum) : "no stage table row");
+		bank = LANGBANK_REF;
+		break;
 	}
 
 	return bank;
