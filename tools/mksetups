@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+"""Build Perfect Dark stage setup files with clang + lld instead of a MIPS gcc.
+
+A setup file (src/setups/<name>.c) is pure data: the props/intro/paths/ailists
+tables and nothing else. The Makefile turns it into a file with
+
+    $(CC) -c  ->  tools/mksimpleelf (ld -T ld/zero.ld)  ->  objcopy -O binary  ->  tools/rarezip
+
+which needs a mips-elf gcc toolchain and the patched gzip in tools/gzip. clang
+carries a MIPS backend, lld links elf32-bigmips, and llvm-objcopy strips it, so
+the whole thing runs on a stock `brew install llvm` with no docker and no
+cross-gcc. This script is that pipeline, plus the enum headers under
+src/generated/<romid> that the setups include (generated straight from the
+asset json, skipping the assetmgr object/zip steps).
+
+Verified 2026-09-21 against ntsc-final with clang 18 / lld 18: every setup the
+fork has not modified is byte-identical to the file in the ROM, and every
+fojo-modified setup is byte-identical to the gcc build it replaces. Three
+things make that true and are easy to break:
+
+  1. gcc on mips/o32 raises the alignment of arrays whose natural alignment is
+     below 4 (u8/s8/u16/s16 tables, ie every ailist) to 4 bytes. clang packs
+     them. shim() adds aligned(4) to those definitions before compiling.
+  2. clang emits string literals into .rodata.str1.1 regardless of
+     -fno-merge-constants; ld/zero-lld.ld widens the input rule to .rodata.*.
+  3. lld synthesises a MIPS .got; zero-lld.ld discards it.
+
+Usage, from the pd-fojo-n64 root:
+
+    tools/mksetups                          # every setup, ROMID from env or ntsc-final
+    tools/mksetups setupame mp_setupame     # just these
+    tools/mksetups --out ../pd-fojo-basedir/data/mods/mod_fojo/files setupame
+
+Outputs land like the Makefile's: build/<romid>/files/setup/<name>.bin (raw)
+and build/<romid>/assets/files/U<name>Z (1173-compressed). --out copies the
+compressed files somewhere else as well, eg a moddir's files/.
+
+Compression is python zlib raw deflate, not tools/gzip. The bytes differ from
+Rare's gzip but inflate to the same file; the port's romdata.c and the N64's
+rzip only care about the 1173 header and the payload. If you need a matching
+ROM, use the Makefile.
+
+LLVM lookup: $LLVM_BIN, else /opt/homebrew/opt/llvm/bin, else PATH.
+"""
+
+import argparse
+import glob
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import zlib
+
+VERSIONS = {
+    'ntsc-beta': 0, 'ntsc-1.0': 1, 'ntsc-final': 2,
+    'pal-beta': 3, 'pal-final': 4, 'jpn-final': 5,
+}
+
+CFLAGS = [
+    '--target=mips-unknown-elf', '-mcpu=mips3', '-mabi=32', '-EB',
+    '-mno-abicalls', '-G0',
+    '-ffreestanding', '-fno-builtin', '-fno-common', '-fno-merge-constants',
+    '-fno-zero-initialized-in-bss', '-funsigned-char', '-fwrapv',
+    '-Os', '-w',
+    # mips-gcc predefines these; ultratypes.h hides u8/s32/... without them
+    '-D_LANGUAGE_C', '-D_MIPS_SZLONG=32', '-D_MIPS_SZINT=32',
+]
+
+# gcc raises arrays with natural alignment < 4 to 4. Only top-level
+# definitions of byte/halfword arrays; struct arrays and s32/u32 are already
+# word aligned and gcc leaves them alone (aligned(8) everywhere was tried and
+# is wrong).
+SHIM_RE = re.compile(r'^((?:u8|s8|u16|s16|char) [A-Za-z0-9_]+\[[^\]]*\]) = \{', re.M)
+
+
+def find_llvm():
+    for cand in [os.environ.get('LLVM_BIN'), '/opt/homebrew/opt/llvm/bin', '/usr/local/opt/llvm/bin']:
+        if cand and os.path.exists(os.path.join(cand, 'clang')):
+            return cand
+    if shutil.which('clang') and shutil.which('ld.lld') and shutil.which('llvm-objcopy'):
+        return os.path.dirname(shutil.which('clang'))
+    sys.exit('mksetups: no clang/ld.lld/llvm-objcopy found. brew install llvm, or set LLVM_BIN')
+
+
+def write_enums(romid, typename, names, filename, terminator, start=0):
+    # same output as tools/assetmgr/assetmgr.py write_enums, without importing
+    # it (assetmgr.zip wants tools/gzip built)
+    path = os.path.join('src/generated', romid, filename)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as fd:
+        fd.write('/**\n * This file was generated automatically. Changes may be overwritten.\n */\n\n')
+        fd.write('enum %s {\n' % typename)
+        for index, name in enumerate(names):
+            if index == 0 and start != 0:
+                fd.write('\t%s = %d,\n' % (name, start))
+            else:
+                fd.write('\t%s,\n' % name)
+        fd.write('\t%s,\n' % terminator)
+        fd.write('};\n')
+
+
+def gen_headers(romid):
+    A = 'src/assets/%s/' % romid
+    W = lambda *a, **k: write_enums(romid, *a, **k)
+    W('animnum', [r['id'] for r in json.load(open(A + 'animations.json'))], 'animations.h', 'ANIM_END')
+    W('music', [r['id'] for r in json.load(open(A + 'sequences.json'))], 'sequences.h', 'MUSIC_END')
+    W('texturenum', [r['id'] for r in json.load(open(A + 'textures.json'))], 'textures.h', 'TEXTURE_END')
+    for j in sorted(glob.glob(A + 'pads/*.json')):
+        s = os.path.basename(j)[:-5]
+        W('pad_%s' % s, [r['id'] for r in json.load(open(j))['pads']], 'pads/%s.h' % s, 'PAD_%s_END' % s.upper())
+    for j in sorted(glob.glob(A + 'tiles/*.json')):
+        s = os.path.basename(j)[:-5]
+        W('room_%s' % s, list(json.load(open(j))['rooms'].keys()), 'tiles/%s.h' % s, 'ROOM_%s_END' % s.upper())
+    banks = eval(re.search(r'banks\s*=\s*(\[[^\]]*\])', open('tools/assetmgr/mklang').read(), re.S).group(1))
+    for j in sorted(glob.glob(A + 'lang/*.json')):
+        s = re.match(r'^[a-z0-9]+', os.path.basename(j))[0]
+        if s in banks:
+            W('l_%s' % s, [r['id'] for r in json.load(open(j))], 'lang/%s.h' % s,
+              'L_%s_END' % s.upper(), start=banks.index(s) * 512)
+
+
+def rarezip(data):
+    # tools/rarezip: "1173" + 24-bit size + raw deflate. Same container, our
+    # own deflate stream.
+    if not data:
+        return b''
+    c = zlib.compressobj(9, zlib.DEFLATED, -15)
+    return b'\x11\x73' + len(data).to_bytes(3, 'big') + c.compress(data) + c.flush()
+
+
+def build_one(llvm, romid, name, verbose):
+    version = VERSIONS[romid]
+    pal = 1 if romid.startswith('pal') else 0
+    B = 'build/%s' % romid
+    objdir = os.path.join(B, 'assets/files/setup')
+    bindir = os.path.join(B, 'files/setup')
+    os.makedirs(objdir, exist_ok=True)
+    os.makedirs(bindir, exist_ok=True)
+
+    src = 'src/setups/%s.c' % name
+    shimmed = os.path.join(objdir, name + '.c')
+    obj = os.path.join(objdir, name + '.o')
+    ld = os.path.join(objdir, name + '.ld')
+    elf = os.path.join(objdir, name + '.elf')
+    binp = os.path.join(bindir, name + '.bin')
+    zipp = os.path.join(B, 'assets/files', 'U%sZ' % name)
+
+    with open(src) as fd:
+        text = fd.read()
+    with open(shimmed, 'w') as fd:
+        fd.write(SHIM_RE.sub(r'\1 __attribute__((aligned(4))) = {', text))
+
+    defines = ['-DVERSION=%d' % version, '-DMATCHING=1', '-DPAL=%d' % pal,
+               '-DPIRACYCHECKS=1', '-DROM_SIZE=32', '-DAVOID_UB']
+    includes = ['-Iinclude', '-Iinclude/PR', '-Isrc/include',
+                '-Isrc/generated/%s' % romid, '-Isrc/lib/ultra/audio']
+    cmd = [os.path.join(llvm, 'clang')] + CFLAGS + defines + includes + ['-c', shimmed, '-o', obj]
+    if verbose:
+        print(' '.join(cmd))
+    subprocess.check_call(cmd)
+
+    with open('ld/zero-lld.ld') as fd:
+        script = fd.read().replace('__FILE__', obj)
+    with open(ld, 'w') as fd:
+        fd.write(script)
+    subprocess.check_call([os.path.join(llvm, 'ld.lld'), '-T', ld, '-o', elf, obj],
+                          stderr=subprocess.DEVNULL if not verbose else None)
+    subprocess.check_call([os.path.join(llvm, 'llvm-objcopy'), '-O', 'binary', elf, binp])
+
+    with open(binp, 'rb') as fd:
+        raw = fd.read()
+    with open(zipp, 'wb') as fd:
+        fd.write(rarezip(raw))
+    return binp, zipp, len(raw)
+
+
+def main():
+    ap = argparse.ArgumentParser(description='build stage setup files with clang/lld')
+    ap.add_argument('names', nargs='*', help='setup names (src/setups/<name>.c); default all')
+    ap.add_argument('--romid', default=os.environ.get('ROMID', 'ntsc-final'), choices=sorted(VERSIONS))
+    ap.add_argument('--out', help='also copy the compressed U<name>Z files into this dir (eg a moddir files/)')
+    ap.add_argument('--no-headers', action='store_true', help='skip regenerating src/generated/<romid>')
+    ap.add_argument('-v', '--verbose', action='store_true')
+    args = ap.parse_args()
+
+    if not os.path.isdir('src/setups'):
+        sys.exit('mksetups: run from the pd-fojo-n64 root (no src/setups here)')
+    llvm = find_llvm()
+    if not args.no_headers:
+        gen_headers(args.romid)
+
+    names = args.names or sorted(os.path.basename(p)[:-2] for p in glob.glob('src/setups/*.c'))
+    if args.out:
+        os.makedirs(args.out, exist_ok=True)
+    failed = 0
+    for name in names:
+        try:
+            binp, zipp, size = build_one(llvm, args.romid, name, args.verbose)
+        except subprocess.CalledProcessError as e:
+            print('FAIL %s: %s' % (name, e))
+            failed += 1
+            continue
+        line = '%s %d' % (binp, size)
+        if args.out:
+            dst = os.path.join(args.out, os.path.basename(zipp))
+            shutil.copyfile(zipp, dst)
+            line += ' -> ' + dst
+        print(line)
+    sys.exit(1 if failed else 0)
+
+
+if __name__ == '__main__':
+    main()
