@@ -6113,13 +6113,15 @@ enum {
 	kFojoBarEntity,
 	kFojoBarCommand,
 	kFojoBarFileSlot,
+	kFojoBarStage,
+	kFojoBarTexture,
 };
 
 struct imguiOverlayBarHit {
 	s32 kind;
 	s32 index;              // window row, or command row
 	struct prop *prop;      // entity
-	struct assetref ref;    // file slot
+	struct assetref ref;    // file slot, stage, texture
 	s32 score;
 	char label[80];
 	char detail[32];
@@ -6292,19 +6294,30 @@ static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 scor
 	snprintf(hit.detail, sizeof(hit.detail), "%s", detail ? detail : "");
 }
 
-struct imguiOverlayBarFileCtx {
+struct imguiOverlayBarAssetCtx {
 	const char *q;
-	s32 wanted;     // literal fileNum from a "#3412" query, else -1
+	s32 kind;       // kFojoBarFileSlot / kFojoBarStage / kFojoBarTexture
+	s32 wanted;     // literal number from a "#3412" style query, else -1
 };
 
-static s32 imguiOverlayBarFileVisit(const struct assetref *ref, const char *name, void *vctx)
+static const char *imguiOverlayBarOwnerLabel(s8 owner)
 {
-	const struct imguiOverlayBarFileCtx *ctx = (const struct imguiOverlayBarFileCtx *)vctx;
+	return owner == ASSET_OWNER_VANILLA ? "vanilla" : (owner >= 0 && owner < 64 && g_ModNames[owner][0]) ? g_ModNames[owner] : "?";
+}
+
+// One visitor for the three asset corpora. The bar's sigils map onto drives
+// (# file:, / stage:, % tex:) before this is ever called; the drive layer
+// never sees a sigil.
+static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *name, void *vctx)
+{
+	const struct imguiOverlayBarAssetCtx *ctx = (const struct imguiOverlayBarAssetCtx *)vctx;
 	char detail[32];
 	s32 score;
 
 	if (ctx->wanted >= 0) {
-		if (ref->id != ctx->wanted) {
+		const s32 number = ctx->kind == kFojoBarTexture ? ref->sub : ref->id;
+
+		if (number != ctx->wanted) {
 			return 1;
 		}
 
@@ -6313,9 +6326,46 @@ static s32 imguiOverlayBarFileVisit(const struct assetref *ref, const char *name
 		return 1;
 	}
 
-	snprintf(detail, sizeof(detail), "file %d  mod %d", ref->id, ref->owner);
-	imguiOverlayBarPush(kFojoBarFileSlot, -1, NULL, score, name, detail, ref);
+	switch (ctx->kind) {
+	case kFojoBarFileSlot:
+		snprintf(detail, sizeof(detail), "file %d  %s", ref->id, imguiOverlayBarOwnerLabel(ref->owner));
+		break;
+	case kFojoBarStage:
+		snprintf(detail, sizeof(detail), "stage 0x%02x  %s", ref->id, imguiOverlayBarOwnerLabel(ref->owner));
+		break;
+	case kFojoBarTexture:
+		if (ref->owner == ASSET_OWNER_VANILLA) {
+			snprintf(detail, sizeof(detail), "tex %d  vanilla", ref->id);
+		} else {
+			snprintf(detail, sizeof(detail), "port %d  %s", ref->sub, imguiOverlayBarOwnerLabel(ref->owner));
+		}
+		break;
+	default:
+		detail[0] = '\0';
+		break;
+	}
+
+	imguiOverlayBarPush(ctx->kind, -1, NULL, score, name, detail, ref);
 	return 1;
+}
+
+static void imguiOverlayBarSearchAssets(const char *q, s32 kind, const char *drivePath)
+{
+	// "#3412" / "%3412" / "/32" mean that number, not a name containing it
+	bool numeric = q[0] != '\0';
+
+	for (const char *c = q; *c; ++c) {
+		if (*c < '0' || *c > '9') {
+			numeric = false;
+			break;
+		}
+	}
+
+	struct imguiOverlayBarAssetCtx ctx;
+	ctx.q = q;
+	ctx.kind = kind;
+	ctx.wanted = numeric ? atoi(q) : -1;
+	assetEnumerate(drivePath, imguiOverlayBarAssetVisit, &ctx);
 }
 
 static void imguiOverlayBarSearch(void)
@@ -6325,6 +6375,8 @@ static void imguiOverlayBarSearch(void)
 	bool wantEntities = true;
 	bool wantCommands = true;
 	bool wantFiles = false;   // opt-in: thousands of rows would swamp a bare query
+	bool wantStages = false;
+	bool wantTextures = false;
 	s32 score;
 
 	g_ImGuiOverlayBarHitCount = 0;
@@ -6334,6 +6386,8 @@ static void imguiOverlayBarSearch(void)
 	else if (q[0] == '@') { wantWindows = wantCommands = false;  q++; }
 	else if (q[0] == '>') { wantWindows = wantEntities = false;  q++; }
 	else if (q[0] == '#') { wantWindows = wantEntities = wantCommands = false; wantFiles = true; q++; }
+	else if (q[0] == '/') { wantWindows = wantEntities = wantCommands = false; wantStages = true; q++; }
+	else if (q[0] == '%') { wantWindows = wantEntities = wantCommands = false; wantTextures = true; q++; }
 	else if (q[0] == '\\') { q++; }
 
 	while (*q == ' ') {
@@ -6421,20 +6475,15 @@ static void imguiOverlayBarSearch(void)
 	}
 
 	if (wantFiles) {
-		// "#3412" means that fileNum, not a name containing those digits
-		bool numeric = q[0] != '\0';
+		imguiOverlayBarSearchAssets(q, kFojoBarFileSlot, "file:/");
+	}
 
-		for (const char *c = q; *c; ++c) {
-			if (*c < '0' || *c > '9') {
-				numeric = false;
-				break;
-			}
-		}
+	if (wantStages) {
+		imguiOverlayBarSearchAssets(q, kFojoBarStage, "stage:/");
+	}
 
-		struct imguiOverlayBarFileCtx ctx;
-		ctx.q = q;
-		ctx.wanted = numeric ? atoi(q) : -1;
-		assetEnumerate("file:/", imguiOverlayBarFileVisit, &ctx);
+	if (wantTextures) {
+		imguiOverlayBarSearchAssets(q, kFojoBarTexture, "tex:/");
 	}
 
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
@@ -6481,11 +6530,33 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 	case kFojoBarCommand:
 		g_ImGuiOverlayCommandDefs[hit->index].run();
 		break;
+	case kFojoBarStage:
+		// the Stage panel shows the running stage; there is no row to scroll
+		// to yet, so this opens the panel and leaves the path in the log
+		if (hit->ref.drive == ASSET_DRIVE_STAGE) {
+			char path[64];
+			assetFormat(&hit->ref, path, sizeof(path));
+			sysLogPrintf(LOG_NOTE, "IMGUI: bar -> %s", path);
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+		}
+		break;
+	case kFojoBarTexture:
+		// the probe wants the engine-side number: the texnum for vanilla, the
+		// assigned port id for a mod texture - which is what ref.sub carries
+		if (hit->ref.drive == ASSET_DRIVE_TEX) {
+			imguiOverlayFocusTextureId(hit->ref.sub);
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowTextures);
+		}
+		break;
 	case kFojoBarFileSlot:
 		// open Assets on the right mod with the slot table already filtered to
-		// the name, which is where you were going to end up anyway
-		if (hit->ref.drive == ASSET_DRIVE_FILE && hit->ref.owner >= 0) {
-			g_ImGuiOverlaySlotMod = hit->ref.owner;
+		// the name, which is where you were going to end up anyway. A vanilla
+		// file is in every mod's row, so the selected mod is left alone.
+		if (hit->ref.drive == ASSET_DRIVE_FILE) {
+			if (hit->ref.owner >= 0) {
+				g_ImGuiOverlaySlotMod = hit->ref.owner;
+			}
 			snprintf(g_ImGuiOverlaySlotFilter.InputBuf,
 					sizeof(g_ImGuiOverlaySlotFilter.InputBuf), "%s", hit->label);
 			g_ImGuiOverlaySlotFilter.Build();
