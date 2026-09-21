@@ -33,6 +33,17 @@ extern "C" {
  *
  * Read-only by decision: declarations stay in modconfig and PDFT.
  *
+ * Where the shape comes from, so it is not mistaken for invention: the
+ * drive/provider split, the opt-in verb set and the canonical path back out
+ * are PowerShell's provider model (Snover's Monad design). The union-mount
+ * reading of romdataFileLoad that motivated the ambiguity rule is Plan 9's.
+ * The owner-in-the-id decode is this tree's MOD_FILEID tagging; name-keyed
+ * head/body slots are this tree's mplayer.c/mod.c slot tables; a texture
+ * chosen by (supplier, number) rather than number alone is DabDavis's rule
+ * from Dab's Mod, carried over via the texture-provenance spike. The index
+ * cache and its two invalidation events were designed in the debugger bar
+ * and moved here unchanged.
+ *
  * Drives:
  *   file:   fileSlots rows. owner = mod or vanilla, id = raw fileNum
  *   tex:    texture numbers. tex:/vanilla/<n> is a ROM texnum,
