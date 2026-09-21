@@ -2021,15 +2021,15 @@ u8 func100e_check_ecm_mines[] = {
 
 	beginloop(0x00)
 		if_stage_flag_eq(STAGEFLAG_SECURITYHUB_COMPLETE, TRUE, /*goto*/ 0x06)
-		if_stage_flag_eq(STAGEFLAG_SECURITYHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
 		if_weapon_thrown_on_object(WEAPON_ECMMINE, OBJ_SECURITYHUB, /*goto*/ 0x08)
 		label(0x06)
 		if_stage_flag_eq(STAGEFLAG_EXTCOMMSHUB_COMPLETE, TRUE, /*goto*/ 0x06)
-		if_stage_flag_eq(STAGEFLAG_EXTCOMMSHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
 		if_weapon_thrown_on_object(WEAPON_ECMMINE, OBJ_EXTCOMMSHUB, /*goto*/ 0x0a)
 		label(0x06)
 		if_timer_gt(0, /*goto*/ 0x06)
 		if_weapon_thrown(WEAPON_ECMMINE, /*goto*/ 0x0b)
+		if_stage_flag_eq(STAGEFLAG_SECURITYHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
+		if_stage_flag_eq(STAGEFLAG_EXTCOMMSHUB_MINES_WASTED, TRUE, /*goto*/ 0x2c)
 		label(0x2c)
 		reloop(0x00)
 
@@ -2046,6 +2046,7 @@ u8 func100e_check_ecm_mines[] = {
 		set_object_sound_playing(CHANNEL_0, OBJ_SECURITYHUB, TRUE)
 		show_hudmsg(CHR_BOND, L_AME_076) // "Internal security system temporarily disabled."
 		set_stage_flag(STAGEFLAG_SECURITYHUB_COMPLETE)
+		unset_stage_flag(STAGEFLAG_SECURITYHUB_MINES_WASTED)
 		reloop(0x00)
 
 		label(0x0a)
@@ -2057,6 +2058,7 @@ u8 func100e_check_ecm_mines[] = {
 		set_object_sound_playing(CHANNEL_1, OBJ_EXTCOMMSHUB, TRUE)
 		show_hudmsg(CHR_BOND, L_AME_077) // "External communications hub disabled."
 		set_stage_flag(STAGEFLAG_EXTCOMMSHUB_COMPLETE)
+		unset_stage_flag(STAGEFLAG_EXTCOMMSHUB_MINES_WASTED)
 		reloop(0x00)
 
 		label(0x0b)
@@ -2073,13 +2075,18 @@ u8 func100e_check_ecm_mines[] = {
 		if_ammo_quantity_lt(CHR_BOND, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xbf)
 		reloop(0x00)
 
+		yield
 		label(0xbe)
-		if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0xc0)
+		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xc0)
+		label(0xc0)
+		yield
+		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xc0)
+		label(0xc0)
+		yield
 		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 2, /*goto*/ 0xc0)
 		reloop(0x00)
 
 		label(0xbf)
-		if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0xc0)
 		if_ammo_quantity_lt(CHR_COOP, AMMOTYPE_ECM_MINE, 1, /*goto*/ 0xc0)
 		reloop(0x00)
 
@@ -2139,8 +2146,6 @@ u8 func100e_check_ecm_mines[] = {
 		label(0x8a)
 	endloop(0x00)
 
-	beginloop(0x06)
-	endloop(0x06)
 
 	endlist
 };
@@ -3375,9 +3380,9 @@ u8 func1011_check_hubs_activated[] = {
 u8 func1012_trigger_x_music[] = {
 	// Wait until arriving at bottom floor
 	beginloop(0x04)
+		chr_toggle_p1p2(CHR_SELF)
 		if_camera_animating(/*goto*/ 0x2c)
-		if_chr_y(CHR_BOND, -8000, OPERATOR_LESS_THAN, /*goto*/ 0x06)
-		if_chr_y(CHR_COOP, -8000, OPERATOR_LESS_THAN, /*goto*/ 0x06)
+		if_chr_y(CHR_P1P2, -8000, OPERATOR_LESS_THAN, /*goto*/ 0x06)
 		label(0x2c)
 	endloop(0x04)
 
@@ -3441,15 +3446,16 @@ u8 func1013_msg_commshubnearby[] = {
 	if_difficulty_lt(DIFF_SA, /*goto*/ 0x0d)
 
 	beginloop(0x04)
-		if_chr_y(CHR_BOND, -770, OPERATOR_LESS_THAN, /*goto*/ 0x2c)
+		chr_toggle_p1p2(CHR_SELF)
+		if_chr_y(CHR_P1P2, -770, OPERATOR_LESS_THAN, /*goto*/ 0x2c)
 		reloop(0x04)
 
 		label(0x2c)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0039, /*goto*/ 0x2c)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0039, /*goto*/ 0x2c)
 	endloop(0x04)
 
 	label(0x2c)
-	speak(CHR_BOND, L_AME_093, SFX_8170, CHANNEL_6, COLOR_09_BLUE) // "We're getting a positive reading - the internal co..."
+	speak(CHR_P1P2, L_AME_093, SFX_8170, CHANNEL_6, COLOR_09_BLUE) // "We're getting a positive reading - the internal co..."
 	label(0x0d)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
@@ -3459,8 +3465,9 @@ u8 func1014_msg_officefloor[] = {
 	if_difficulty_lt(DIFF_SA, /*goto*/ 0x0d)
 
 	beginloop(0x04)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0054, /*goto*/ 0x2c)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0064, /*goto*/ 0x0d)
+		chr_toggle_p1p2(CHR_SELF)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0054, /*goto*/ 0x2c)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0064, /*goto*/ 0x0d)
 	endloop(0x04)
 
 	label(0x2c)

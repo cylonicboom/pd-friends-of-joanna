@@ -1078,6 +1078,7 @@ u8 func1400_give_bugs[] = {
  \
 	label(0x0a) \
 	set_stage_flag(STAGEFLAG_COMMSBUG_PLACED) \
+	unset_stage_flag(STAGEFLAG_COMMSBUG_MISPLACED) \
 	show_hudmsg(chr, 0x2c1a) /* "Communications bug placed correctly." */ \
 	set_ailist(CHR_SELF, GAILIST_IDLE) \
  \
@@ -1088,8 +1089,10 @@ u8 func1400_give_bugs[] = {
  \
 	label(0x2e) \
 	set_stage_flag(STAGEFLAG_COMMSBUG_MISPLACED) \
+	if_stage_flag_eq(STAGEFLAG_COMMSBUG_MISPLACED, TRUE, 0x00) \
 	show_hudmsg(chr, 0x2c1b) /* "Communications bug placed incorrectly." */ \
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x00) \
+	reloop(0x00)
 
 /**
  * @unused
@@ -1106,13 +1109,16 @@ u8 func1003_check_bug_wasted_bond[] = {
 };
 
 u8 func1023_check_bug_wasted_coop[] = {
+	label(0x06)
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
 	set_target_chr(CHR_COOP)
 	goto_next(0x06)
 
 	label(0x2e)
-	set_stage_flag(STAGEFLAG_ONE_BUG_WASTED)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	yield
+	goto_first(0x06)
+	// set_stage_flag(STAGEFLAG_ONE_BUG_WASTED)
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x06)
 	check_bug_wasted(CHR_COOP)
@@ -1250,7 +1256,7 @@ u8 func1006_lift_switches[] = {
 #if VERSION >= VERSION_PAL_BETA
 		if_chr_has_object(CHR_P1P2, OBJ_KEYCARD, /*goto*/ 0x2e)
 #else
-		if_chr_has_object(CHR_BOND, OBJ_KEYCARD, /*goto*/ 0x2e)
+		if_chr_has_object(CHR_P1P2, OBJ_KEYCARD, /*goto*/ 0x2e)
 #endif
 		show_hudmsg(CHR_P1P2, L_LUE_036) // "Lift access denied - key card needed."
 		goto_next(0x0b)
@@ -2896,12 +2902,15 @@ u8 func101a_check_mechanic_dead[] = {
 u8 func101b_msg_airinterceptradar[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
-		if_chr_in_room(CHR_P1P2, 0x00, 0x0001, /*goto*/ 0x2e)
+		if_objective_complete(0, /*goto*/ 0x2f)
+		if_chr_has_object(CHR_P1P2, OBJ_ROCKETLAUNCHER, 0x2e)
+		if_door_state(OBJ_MAINGATE1, (DOORSTATE_OPEN | DOORSTATE_OPENING), /*goto*/ 0x2e)
 	endloop(0x04)
 
 	label(0x2e)
 	speak(CHR_P1P2, L_LUE_053, SFX_817D, CHANNEL_6, COLOR_09_BLUE) // "The air intercept radar is controlled from that bu..."
 	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x2f)
 	endlist
 };
 
@@ -2921,18 +2930,16 @@ u8 func101c_msg_cantthrow[] = {
 	endlist
 };
 
-/**
- * This message is also unplayable.
- */
 u8 func101d_msg_hangarlift[] = {
 	// Wait for radar shut down and player in room 0x0001 (which is impossible)
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		if_objective_complete(0, /*goto*/ 0x2e)
+		if_chr_has_object(CHR_P1P2, OBJ_KEYCARD, /*goto*/ 0x2e)
 		reloop(0x04)
 
 		label(0x2e)
-		if_chr_in_room(CHR_P1P2, 0x00, 0x0001, /*goto*/ 0x2e)
+		goto_next(0x2e)
 	endloop(0x04)
 
 	label(0x2e)

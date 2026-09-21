@@ -897,6 +897,12 @@ u8 unregistered_function1[] = {
 	endlist
 };
 
+/* chr1 / chr2 refer to the same logical underlying logical character but
+ * chr1 - set target chr to this
+ * chr2 - used for ammo check
+ * myflag - stageflag for this player role
+ * buddyflag - stageflag for the other player role
+ * */
 #define check_mine_wasted(chr1, chr2, myflag, buddyflag) \
 	set_object_flag(OBJ_COMMSHUB1, OBJFLAG_AIUNDROPPABLE) \
 	set_object_flag(OBJ_COMMSHUB2, OBJFLAG_AIUNDROPPABLE) \
@@ -934,9 +940,15 @@ u8 unregistered_function1[] = {
 	unset_object_flag(OBJ_COMMSHUB3, OBJFLAG_INVINCIBLE) \
 	unset_object_flag(OBJ_COMMSHUB4, OBJFLAG_INVINCIBLE) \
 	unset_object_flag(OBJ_COMMSHUB5, OBJFLAG_INVINCIBLE) \
-	restart_timer \
  \
 	/* Wait 8.3 seconds or until commshub destroyed */ \
+	beginloop(0x02) \
+	unset_object_flag(OBJ_COMMSHUB1, OBJFLAG_INVINCIBLE) \
+	unset_object_flag(OBJ_COMMSHUB2, OBJFLAG_INVINCIBLE) \
+	unset_object_flag(OBJ_COMMSHUB3, OBJFLAG_INVINCIBLE) \
+	unset_object_flag(OBJ_COMMSHUB4, OBJFLAG_INVINCIBLE) \
+	unset_object_flag(OBJ_COMMSHUB5, OBJFLAG_INVINCIBLE) \
+	restart_timer \
 	beginloop(0x04) \
 		if_timer_gt(500, /*goto*/ 0x0a) \
 		if_object_in_good_condition(OBJ_COMMSHUB1, /*goto*/ 0x2d) \
@@ -971,13 +983,17 @@ u8 unregistered_function1[] = {
 	/* Mine wasted */ \
 	label(0x0a) \
 	set_stage_flag(myflag) \
+	if_stage_flag_eq(STAGEFLAG_BOTH_MINES_WASTED, TRUE, /*goto*/ 0x2e) \
 	if_stage_flag_eq(buddyflag, TRUE, /*goto*/ 0x2d) \
-	set_ailist(CHR_SELF, GAILIST_IDLE) \
+\
+	reloop(0x02) \
  \
 	label(0x2d) \
 	show_hudmsg(CHR_BOND, 0x3645) /* "Timed mine has been wasted." */ \
 	set_stage_flag(STAGEFLAG_BOTH_MINES_WASTED) \
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x2e) \
+\
+	reloop(0x02)
 
 u8 func1008_check_mine_wasted_bond[] = {
 	check_mine_wasted(CHR_BOND, CHR_TARGET, STAGEFLAG_BOND_MINE_WASTED, STAGEFLAG_COOP_MINE_WASTED)
@@ -985,13 +1001,17 @@ u8 func1008_check_mine_wasted_bond[] = {
 };
 
 u8 func1021_check_mine_wasted_coop[] = {
+	beginloop(0x01)
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2d)
 	goto_next(0x06)
 	label(0x2d)
+
 	set_stage_flag(STAGEFLAG_COOP_MINE_WASTED)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	endloop(0x01)
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x06)
+
 	check_mine_wasted(CHR_COOP, CHR_COOP, STAGEFLAG_COOP_MINE_WASTED, STAGEFLAG_BOND_MINE_WASTED)
 	endlist
 };
@@ -1116,24 +1136,7 @@ u8 func1009_check_end_level[] = {
 
 	// Both players dead
 	label(0x2d)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
-
-	// Redundant check
-	label(0x06)
-	if_chr_death_animation_finished(CHR_BOND, /*goto*/ 0x2d)
-	if_chr_dead(CHR_BOND, /*goto*/ 0x2d)
-	if_chr_knockedout(CHR_BOND, /*goto*/ 0x2d)
-	goto_next(0x06)
-
-	label(0x2d)
-	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2d)
-	if_chr_dead(CHR_COOP, /*goto*/ 0x2d)
-	if_chr_knockedout(CHR_COOP, /*goto*/ 0x2d)
-	goto_next(0x06)
-
-	label(0x2d)
-	end_level
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	reloop(0x04)
 
 	// Mission complete
 	label(0x06)

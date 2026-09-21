@@ -141,7 +141,6 @@ u32 props[] = {
 
 	beginobjective(4, L_PETE_014, (DIFFBIT_A | DIFFBIT_SA | DIFFBIT_PA | DIFFBIT_PD)) // "Gain entry to G5 building"
 		complete_flags(STAGEFLAG_IN_ELEVATOR)
-		fail_flags(STAGEFLAG_CIVILIAN_DEAD)
 		fail_flags(STAGEFLAG_ELEVATOR_SEALED)
 	endobjective
 
@@ -711,10 +710,13 @@ u8 func100f_check_mine[] = {
 	yield
 	beginloop(0x08)
 		chr_toggle_p1p2(CHR_SELF)
+		set_chrnum_match_level(CHRNUM_MATCHLEVEL_ONLY)
 		if_chr_has_object(CHR_P1P2, OBJ_BRIEFCASE1, /*goto*/ 0x03)
+		set_chrnum_match_level(CHRNUM_MATCHLEVEL_DEFAULT)
 		reloop(0x08)
 
 		label(0x03)
+		set_chrnum_match_level(CHRNUM_MATCHLEVEL_DEFAULT)
 		set_target_chr(CHR_P1P2)
 
 		beginloop(0x11)
@@ -790,8 +792,12 @@ u8 func100f_check_mine[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x07)
+	if_stage_flag_eq(STAGEFLAG_MINE_WASTED, TRUE, 0x07)
 	set_stage_flag(STAGEFLAG_MINE_WASTED)
 	show_hudmsg(CHR_P1P2, L_PETE_016) // "Mine placed incorrectly."
+
+	label(0x07)
+	goto_first(0x08)
 
 	label(0x0a)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
@@ -1062,9 +1068,13 @@ u8 func040c_taxi[] = {
  \
 	label(0x03) \
 	dprint 'W','R','O','N','G','3','\n',0, \
+	if_stage_flag_eq(STAGEFLAG_TRACERBUG_WASTED, FALSE, 0x03) \
+	goto_next(0x04) \
+	label(0x03) \
 	set_stage_flag(STAGEFLAG_TRACERBUG_WASTED) \
 	show_hudmsg(chr, 0x3218) /* "Tracer Bug placed incorrectly." */ \
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	label(0x04) \
+	goto_first(0x04)
 
 u8 func1004_tracerbug_bond[] = {
 	tracerbug_logic(CHR_BOND, CHR_BOND)
@@ -1904,8 +1914,8 @@ u8 func041d_fbi[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE) \
  \
 	label(0x05) \
-	set_stage_flag(STAGEFLAG_CIVILIAN_DEAD) \
-	show_hudmsg(CHR_BOND, 0x321d) /* "Mission failed - unacceptable civilian casualties." */ \
+	// set_stage_flag(STAGEFLAG_CIVILIAN_DEAD) \
+	// show_hudmsg(CHR_BOND, 0x321d) /* "Mission failed - unacceptable civilian casualties." */ \
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 u8 func1009_check_cia1_dead[] = {
@@ -1927,8 +1937,8 @@ u8 func100a_check_cia2_dead[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x05)
-	set_stage_flag(STAGEFLAG_CIVILIAN_DEAD)
-	show_hudmsg(CHR_BOND, L_PETE_029) // "Mission failed - unacceptable civilian casualties."
+	// set_stage_flag(STAGEFLAG_CIVILIAN_DEAD)
+	// show_hudmsg(CHR_BOND, L_PETE_029) // "Mission failed - unacceptable civilian casualties."
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };

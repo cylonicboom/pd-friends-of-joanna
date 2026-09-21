@@ -291,7 +291,59 @@ s32 intro[] = {
 	ammo(AMMOTYPE_PISTOL, 300)
 	ammo(AMMOTYPE_ROCKET, 3)
 	ammo(AMMOTYPE_SMG, 100)
+
+	// spawn(PAD_STAT_0000)
+
+	// around the corner near Skedar Ruins Spawn
+	// spawn(PAD_STAT_00A0)
+
+	// where two skedar w/ reapers are
+	// spawn(PAD_STAT_00B0)
+
+	// where the shield is on agent
+	// on Skedar Ruins near the crack in the wall
+	spawn(PAD_STAT_00BA)
+
+	// where the baby skedar spawn in front of the rotating rods
+	// spawn(PAD_STAT_00C0)
+
+	// room with last skedar king
+	// spawn(PAD_STAT_00D0)
+
+	// weapon sacrafice platform
+	// spawn(PAD_STAT_00D6)
+
+	// vanilla war spawn
 	spawn(PAD_STAT_00D7)
+
+	// near skedar ruins start area
+	// spawn(PAD_STAT_00D8)
+	//
+
+	// pillar near skedar ruins start area
+	// spawn(PAD_STAT_00D9)
+
+	// round path where skedar uncloak
+	// spawn(PAD_STAT_00DA)
+
+	// end of that round path
+	// spawn(PAD_STAT_00DB)
+
+	// at T-junction near double pheonix
+	// spawn(PAD_STAT_00DC)
+
+	// the out-of-way pillar with the cloaked skedar. it's bombed immedately at the start of the level
+	// spawn(PAD_STAT_00DD)
+
+	//the pillars in the room behind the two skedar w/ reapers. it's also bombed at the start of the level
+	// spawn(PAD_STAT_00DE)
+
+	// area just outside the "door" that Jo is supposed to create with her devastator. In Skedar Ruins this is where a cloaked skedar hangs out.
+	// spawn(PAD_STAT_00DF)
+
+	// just inside the door that Jo creates with her devastator.
+	// spawn(PAD_STAT_00E0)
+
 	endintro
 };
 
@@ -1032,16 +1084,17 @@ u8 func040c_hide[] = {
 
 u8 func100d_king1_invincible[] = {
 	beginloop(0x03)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0070, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0071, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0072, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0073, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0074, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0075, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0076, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0077, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0078, /*goto*/ 0x2d)
-		if_chr_in_room(CHR_BOND, 0x00, 0x0079, /*goto*/ 0x2d)
+		chr_toggle_p1p2(CHR_SELF)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0070, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0071, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0072, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0073, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0074, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0075, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0076, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0077, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0078, /*goto*/ 0x2d)
+		if_chr_in_room(CHR_P1P2, 0x00, 0x0079, /*goto*/ 0x2d)
 		set_chr_chrflag(CHR_KING1, CHRCFLAG_INVINCIBLE)
 		reloop(0x03)
 

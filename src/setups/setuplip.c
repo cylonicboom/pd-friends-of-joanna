@@ -3085,7 +3085,7 @@ u8 func0420_labtech_doors[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		set_target_chr(CHR_P1P2)
-		set_target_chr(CHR_BOND)
+		// set_target_chr(CHR_BOND)
 		if_chr_has_hiddenflag(CHR_TARGET, CHRHFLAG_DISGUISE_UNCOVERED, /*goto*/ 0x06)
 		if_chr_has_hiddenflag(CHR_TARGET, CHRHFLAG_DISGUISED, /*goto*/ LABEL_2D)
 		label(0x06)

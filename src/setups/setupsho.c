@@ -1307,12 +1307,18 @@ u8 func1007_bug_throws_bond[] = {
 	label(0x06)
 	set_stage_flag(STAGEFLAG_BOND_BUGS_WASTED)
 	if_stage_flag_eq(STAGEFLAG_COOP_BUGS_WASTED, FALSE, /*goto*/ 0x0f)
-	set_stage_flag(STAGEFLAG_BUG_WASTED)
-	show_hudmsg(CHR_BOND, L_SHO_026) // "Target Amplifier placed incorrectly."
+	if_stage_flag_eq(STAGEFLAG_BUG_WASTED, FALSE, /*goto*/ 0x0e)
+
+
 	label(0x2d)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x0f)
+	goto_first(0x03)
+
+	label(0x0e)
+	show_hudmsg(CHR_BOND, L_SHO_026) // "Target Amplifier placed incorrectly."
+	set_stage_flag(STAGEFLAG_BUG_WASTED)
 	goto_first(0x03)
 
 	endlist
@@ -3182,6 +3188,9 @@ u8 func1019_blow_pillars[] = {
 	yield
 	yield
 	yield
+	unset_stage_flag(STAGEFLAG_BOND_BUGS_WASTED)
+	unset_stage_flag(STAGEFLAG_COOP_BUGS_WASTED)
+	unset_stage_flag(STAGEFLAG_BUG_WASTED)
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };
@@ -3718,9 +3727,11 @@ u8 func1024_check_grenades_wasted[] = {
 	endloop(0x08)
 
 	beginloop(0x09)
+		if_stage_flag_eq(STAGEFLAG_BRIDGE_EXTENDED, TRUE, /*goto*/ 0x2e)
 		if_object_in_good_condition(0x4d, /*goto*/ 0x2d)
 
 		// Blown up using other means (eg. Phoenix or all guns cheat)
+		label(0x2e)
 		unset_stage_flag(STAGEFLAG_GRENADES_WASTED)
 		show_hudmsg(CHR_BOND, L_SHO_053) // "Alternative entrance to Shrine created."
 		set_ailist(CHR_SELF, GAILIST_IDLE)

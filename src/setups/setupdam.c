@@ -1242,8 +1242,8 @@ u8 func100c_check_end_level[] = {
 
 	// Both players dead
 	label(0x07)
-	end_level
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	// end_level
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	// Mission complete
 	label(0x04)

@@ -1393,8 +1393,8 @@ u8 func1009_check_for_exit[] = {
 
 	// Both players dead
 	label(0x2c)
-	end_level
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	// end_level
+	// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	// At least one player survived
 	label(0x06)

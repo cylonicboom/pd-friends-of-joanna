@@ -1906,8 +1906,8 @@ u8 func100a_check_for_completion[] = {
 
 		// Both players dead
 		label(0x2c)
-		end_level
-		set_ailist(CHR_SELF, GAILIST_IDLE)
+		// end_level
+		// set_ailist(CHR_SELF, GAILIST_IDLE)
 
 		// At least one player is alive
 		label(0x06)

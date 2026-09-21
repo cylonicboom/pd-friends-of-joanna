@@ -2713,7 +2713,9 @@ u8 func0416_teleport_bond_to_a_pa_drcaroll[] = {
  *   - calls 0418 teleport_coop_to_drcaroll
  * - calls 0418 teleport_coop_to_drcaroll
  */
-u8 func100b_coop_teleports[] = {
+u8 func0434_coop_teleports[] = {
+	label(0x2e)
+	dprint 'c','o','o','p',' ','t','e','l','e','p','o','r','t',' ','1','0','0','b','\n',0,
 	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
 	goto_next(0x1f)
 
@@ -2866,9 +2868,76 @@ u8 func100b_coop_teleports[] = {
 	label(0x2e)
 	grant_control(CHR_COOP)
 	teleport_to_pad(PAD_PAM_0000, CHR_COOP)
-	set_ailist(CHR_SELF, GAILIST_IDLE)
+	goto_first(0x2e)
 	endlist
 };
+
+u8 func1035_coop2_teleports[] = {
+	if_playernum_is_coop(1, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	set_coop_playernum(1)
+	set_ailist(CHR_SELF, 0x0434)
+	goto_next(0x2f)
+
+	label(0x2e)
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
+u8 func1036_coop3_teleports[] = {
+	if_playernum_is_coop(2, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	dprint 'p','l','a','y','e','r','3',' ','i','s',' ','c','o','o','p','\n',0,
+	set_coop_playernum(2)
+	set_ailist(CHR_SELF, 0x0434)
+	goto_next(0x2f)
+
+	label(0x2e)
+	dprint 'p','l','a','y','e','r','3',' ','t','e','l','e','p','o','r','t',' ','i','d','l','e','\n',0,
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
+u8 func1037_coop4_teleports[] = {
+	if_playernum_is_coop(3, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	set_coop_playernum(3)
+	set_ailist(CHR_SELF, 0x0434)
+	goto_next(0x2f)
+
+	label(0x2e)
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
+u8 func1038_coop1_teleports[] = {
+	if_playernum_is_coop(1, 0x2a)
+	goto_next(0x2e)
+
+	label(0x2a)
+	set_coop_playernum(1)
+	set_ailist(CHR_SELF, 0x0434)
+	goto_next(0x2f)
+
+	label(0x2e)
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+
+	label(0x2f)
+	endlist
+};
+
 
 u8 func0417_teleport_coop_to_sapa[] = {
 	if_stage_flag_eq(STAGEFLAG_ELVIS_FOLLOWING_COOP, TRUE, /*goto*/ 0x61)
@@ -3257,6 +3326,16 @@ u8 func040c_blonde[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		if_chr_in_room(CHR_P1P2, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_BOND, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x06)
 	endloop(0x04)
 
 	label(0x06)
@@ -3267,6 +3346,8 @@ u8 func040c_blonde[] = {
 	set_shotlist(GAILIST_ALERTED)
 
 	beginloop(0x08)
+		chr_toggle_p1p2(CHR_SELF)
+		set_target_chr(CHR_P1P2)
 		if_saw_injury(0x00, /*goto*/ 0x06)
 		if_saw_death(0x00, /*goto*/ 0x06)
 		if_los_to_target(/*goto*/ 0x06)
@@ -3312,15 +3393,15 @@ u8 func100c_countdown_timer[] = {
 	label(0x09)
 	yield
 	label(0x2e)
-	if_chr_death_animation_finished(CHR_BOND, /*goto*/ 0x2e)
-	if_chr_dead(CHR_BOND, /*goto*/ 0x2e)
-	if_chr_knockedout(CHR_BOND, /*goto*/ 0x2e)
+	// if_chr_death_animation_finished(CHR_BOND, /*goto*/ 0x2e)
+	// if_chr_dead(CHR_BOND, /*goto*/ 0x2e)
+	// if_chr_knockedout(CHR_BOND, /*goto*/ 0x2e)
 	goto_next(0x06)
 
 	label(0x2e)
-	if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
-	if_chr_dead(CHR_COOP, /*goto*/ 0x2e)
-	if_chr_knockedout(CHR_COOP, /*goto*/ 0x2e)
+	// if_chr_death_animation_finished(CHR_COOP, /*goto*/ 0x2e)
+	// if_chr_dead(CHR_COOP, /*goto*/ 0x2e)
+	// if_chr_knockedout(CHR_COOP, /*goto*/ 0x2e)
 	goto_next(0x06)
 
 	// Both players dead
@@ -4782,6 +4863,16 @@ u8 func1034_enable_blondes[] = {
 	beginloop(0x04)
 		chr_toggle_p1p2(CHR_SELF)
 		if_chr_in_room(CHR_P1P2, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_BOND, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
+		yield
+		if_chr_in_room(CHR_COOP, 0x00, 0x004c, /*goto*/ 0x2e)
 	endloop(0x04)
 
 	label(0x2e)
@@ -4846,7 +4937,6 @@ struct ailist ailists[] = {
 	{ func1008_msg_theresdrcaroll,                    0x1008 },
 	{ func1009_msg_getoutofhere,                      0x1009 },
 	{ func100a_bond_teleports,                        0x100a },
-	{ func100b_coop_teleports,                        0x100b },
 	{ func100c_countdown_timer,                       0x100c },
 	{ func100e_check_elvis_dead,                      0x100e },
 	{ func100f_check_drcaroll_dead,                   0x100f },
@@ -4885,6 +4975,10 @@ struct ailist ailists[] = {
 	{ func1032_setup_rtracker,                        0x1032 },
 	{ func1433_setup_environment,                     0x1433 },
 	{ func1034_enable_blondes,                        0x1034 },
+	{ func1035_coop2_teleports,                       0x1035 },
+	{ func1036_coop3_teleports,                       0x1036 },
+	{ func1037_coop4_teleports,                       0x1037 },
+	{ func1038_coop1_teleports,                       0x1038 },
 	{ func1002_intro,                                 0x0c00 },
 	{ func0c01_midcutscene,                           0x0c01 },
 	{ func0c02_outro,                                 0x0c02 },
@@ -4938,6 +5032,7 @@ struct ailist ailists[] = {
 	{ func0432_dead_skedar,                           0x0432 },
 	{ func0433_unused,                                0x0433 },
 	{ func042c_elvis_stop,                            0x042c },
+	{ func0434_coop_teleports,                        0x0434 },
 	{ NULL, 0 },
 };
 
