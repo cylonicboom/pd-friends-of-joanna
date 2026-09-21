@@ -64,6 +64,7 @@ s32 modTexMapGetEntry(s32 modIdx, s32 index, u16 *localTexId, u16 *portTexId);
 // the ROM's own file names, untouched by mod overlays - what "vanilla" means
 s32 romdataRomFileCount(void);
 const char *romdataRomFileName(s32 fileNum);
+u8 *romdataRomFileData(s32 fileNum, u32 *outSize);
 
 u8 *romdataSegGetData(const char *segName);
 u8 *romdataSegGetDataEnd(const char *segName);

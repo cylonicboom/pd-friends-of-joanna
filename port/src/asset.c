@@ -59,25 +59,6 @@ static void assetRefClear(struct assetref *ref)
  * own only where it differs from the ROM's entry for the same id.
  * ---------------------------------------------------------------------- */
 
-/* Same rule romdataFileGetNumForNameAnyMod's warning uses: the modconfig
- * name if the mod declared one, else its dir. */
-static const char *assetModLabel(s32 mod)
-{
-	if (mod == ASSET_OWNER_VANILLA) {
-		return "vanilla";
-	}
-
-	if (mod >= 0 && mod < 64 && g_ModNames[mod][0]) {
-		return g_ModNames[mod];
-	}
-
-	if (mod >= 0 && mod < (s32)g_NumModDirs && modDirs[mod][0]) {
-		return modDirs[mod];
-	}
-
-	return "(unnamed)";
-}
-
 static const char *assetBasename(const char *path)
 {
 	const char *slash = strrchr(path, '/');
@@ -89,6 +70,28 @@ static const char *assetBasename(const char *path)
 	}
 #endif
 	return slash ? slash + 1 : path;
+}
+
+/* The owner segment a formatted path carries. The mod DIR's basename, not
+ * the modconfig display name: measured, mod_gex_characters declares
+ * "GoldenEye:X Characters", which has a space and a colon in it, and a
+ * path that does not survive its own parser is not a path. The display
+ * name is still accepted on the way in, as an alias. */
+static const char *assetModLabel(s32 mod)
+{
+	if (mod == ASSET_OWNER_VANILLA) {
+		return "vanilla";
+	}
+
+	if (mod >= 0 && mod < (s32)g_NumModDirs && modDirs[mod][0]) {
+		return assetBasename(modDirs[mod]);
+	}
+
+	if (mod >= 0 && mod < 64 && g_ModNames[mod][0]) {
+		return g_ModNames[mod];
+	}
+
+	return "(unnamed)";
 }
 
 static s32 assetSegEquals(const char *seg, u32 len, const char *s)
@@ -1205,6 +1208,155 @@ s32 assetLink(const struct assetref *ref, struct assetref *out)
 		return assetHeadBodyHandLink(ref, out);
 	default:
 		return ASSET_NOTFOUND;
+	}
+}
+
+/* ------------------------------------------------------------------------
+ * load and exists
+ * ---------------------------------------------------------------------- */
+
+#define ASSET_SLOT_UNLOADED 0   /* enum loadsource SRC_UNLOADED, romdata.c */
+
+static void *assetFileLoad(const struct assetref *ref, u32 *outSize)
+{
+	if (ref->owner == ASSET_OWNER_VANILLA) {
+		return romdataRomFileData(ref->id, outSize);
+	}
+
+	if (ref->owner < 0 || ref->id < 1) {
+		return NULL;
+	}
+
+	return romdataFileLoad(MOD_FILEID_MAKE(ref->owner, ref->id), outSize);
+}
+
+static void *assetTexLoad(const struct assetref *ref, u32 *outSize)
+{
+	if (ref->owner != ASSET_OWNER_VANILLA) {
+		/* a mod texture's bytes are resolved against g_TexModNum and a
+		 * per-model dir (modTextureLoad) - that is the two-globals problem
+		 * c-texture-provenance names, and not something to paper over here */
+		return NULL;
+	}
+
+	if (!g_Textures || ref->id < 0 || ref->id + 1 >= NUM_TEXTURES) {
+		return NULL;
+	}
+
+	u8 *seg = romdataSegGetData("texturesdata");
+	u32 segSize = romdataSegGetSize("texturesdata");
+	u32 ofs = g_Textures[ref->id].dataoffset & 0xfffffff8u;
+	u32 next = g_Textures[ref->id + 1].dataoffset & 0xfffffff8u;
+
+	if (!seg || next <= ofs || next > segSize) {
+		return NULL;
+	}
+
+	if (outSize) *outSize = next - ofs;
+	return seg + ofs;
+}
+
+void *assetLoad(const struct assetref *ref, u32 *outSize)
+{
+	struct assetref target;
+	u32 size = 0;
+	void *data = NULL;
+
+	if (outSize) *outSize = 0;
+
+	if (!ref) {
+		return NULL;
+	}
+
+	switch (ref->drive) {
+	case ASSET_DRIVE_FILE:
+		data = assetFileLoad(ref, &size);
+		break;
+	case ASSET_DRIVE_TEX:
+		data = assetTexLoad(ref, &size);
+		break;
+	case ASSET_DRIVE_SEG:
+		data = romdataSegGetData(romdataSegName(ref->id) ? romdataSegName(ref->id) : "");
+		size = data ? romdataSegGetSize(romdataSegName(ref->id)) : 0;
+		break;
+	case ASSET_DRIVE_STAGE:
+	case ASSET_DRIVE_HEAD:
+	case ASSET_DRIVE_BODY:
+	case ASSET_DRIVE_HAND:
+		if (assetLink(ref, &target) == ASSET_OK) {
+			data = assetFileLoad(&target, &size);
+		}
+		break;
+	default:
+		break;
+	}
+
+	if (data && outSize) *outSize = size;
+	return data;
+}
+
+s32 assetExists(const struct assetref *ref)
+{
+	struct assetref target;
+	struct romdatafileslotinfo info;
+	s32 wasLoaded;
+
+	if (!ref) {
+		return 0;
+	}
+
+	switch (ref->drive) {
+	case ASSET_DRIVE_STAGE:
+		if (ref->sub < 0) {
+			/* a stage row is not bytes; it exists if the table has it */
+			return stageGetIndex(ref->id) >= 0;
+		}
+		/* fallthrough */
+	case ASSET_DRIVE_HEAD:
+	case ASSET_DRIVE_BODY:
+	case ASSET_DRIVE_HAND:
+		return assetLink(ref, &target) == ASSET_OK && assetExists(&target);
+	case ASSET_DRIVE_FILE:
+		if (ref->owner == ASSET_OWNER_VANILLA) {
+			return romdataRomFileData(ref->id, NULL) != NULL;
+		}
+
+		/* probe through the real loader, then put the slot back the way it
+		 * was: romdataFileFree frees an external load and just marks a ROM
+		 * or alt-rom slot unloaded, so a probe leaves nothing resident that
+		 * was not resident before */
+		wasLoaded = romdataGetFileSlotInfo(ref->owner, ref->id, &info)
+			&& info.source != ASSET_SLOT_UNLOADED;
+
+		if (!assetFileLoad(ref, NULL)) {
+			return 0;
+		}
+
+		if (!wasLoaded) {
+			romdataFileFree(MOD_FILEID_MAKE(ref->owner, ref->id));
+		}
+
+		return 1;
+	case ASSET_DRIVE_TEX:
+		if (ref->owner != ASSET_OWNER_VANILLA) {
+			/* the texmap knows the number exists; whether its bytes can be
+			 * produced depends on which model asks (per-model dir, see
+			 * modTextureResolveFile), and a ref does not carry a model. Say
+			 * so rather than answer no. */
+			return ASSET_UNSUPPORTED;
+		}
+
+		return assetLoad(ref, NULL) != NULL;
+	case ASSET_DRIVE_SEG:
+		return assetLoad(ref, NULL) != NULL;
+	case ASSET_DRIVE_ROM: {
+		u8 mounted = 0;
+		return romsourceInfo(ref->id, NULL, NULL, &mounted) && mounted;
+	}
+	case ASSET_DRIVE_MOD:
+		return ref->id >= 0 && ref->id < (s32)g_NumModDirs;
+	default:
+		return ASSET_UNSUPPORTED;
 	}
 }
 

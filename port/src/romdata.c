@@ -245,8 +245,9 @@ static u32 g_NumRomSources;
 // whatever a mod later overlays on that id in its own row.
 static const u32 *g_RomNameTable = NULL;
 static s32 g_RomNameCount = 0;
-// The ROM's file offset table length, so a slot the ROM does not have is
-// never read out of the bytes that follow the table.
+// The ROM's file offset table, for the same reason: the ROM's own bytes for
+// a slot, whatever the active mod's row now points at.
+static const u32 *g_RomFileOffsets = NULL;
 static s32 g_RomFileOffsetCount = 0;
 // Per-mod altSource: [modIdx][localFileId], modIdx 0-based as above. Row 0
 // carries both mod 0's fragment entries and the global table's, so the two
@@ -357,6 +358,25 @@ const char *romdataRomFileName(s32 fileNum)
 {
 	if (!g_RomNameTable || fileNum < 1 || fileNum >= g_RomNameCount) return NULL;
 	return (const char *)g_RomNameTable + PD_BE32(g_RomNameTable[fileNum]);
+}
+
+// The ROM's own bytes for a slot, or NULL. Reads the offset table, not
+// fileSlots, so it is the base game's answer whatever a mod overlays.
+u8 *romdataRomFileData(s32 fileNum, u32 *outSize)
+{
+	if (!g_RomFile || !g_RomFileOffsets || fileNum < 1 || fileNum + 1 >= g_RomFileOffsetCount) {
+		return NULL;
+	}
+
+	const u32 ofs = PD_BE32(g_RomFileOffsets[fileNum]);
+	const u32 next = PD_BE32(g_RomFileOffsets[fileNum + 1]);
+
+	if (!ofs || next < ofs || next > g_RomFileSize) {
+		return NULL;
+	}
+
+	if (outSize) *outSize = next - ofs;
+	return g_RomFile + ofs;
 }
 
 s32 romsourceCount(void)
@@ -1313,6 +1333,7 @@ static inline void romdataInitFiles(void)
 		// copy of this table. See romdataRomFileName.
 		g_RomNameTable = nameOffsets;
 		g_RomNameCount = (s32)i;
+		g_RomFileOffsets = offsets;
 
 		for (i = 1; i < (u32)(sizeof(fileSlots[0]) / sizeof(fileSlots[0][0])); ++i) {
 			// `mod < g_NumModDirs - 1` skipped the last mod row, so the

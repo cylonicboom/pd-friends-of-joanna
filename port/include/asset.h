@@ -33,6 +33,15 @@ extern "C" {
  *
  * Read-only by decision: declarations stay in modconfig and PDFT.
  *
+ * Reads are real. assetExists is Test-Path and assetLoad is Get-Content,
+ * and both go through the engine's own load path rather than the tables:
+ * a mod head whose bytes live in a mounted rom source exists if that rom
+ * is there and does not if it is not, whether or not anything has loaded
+ * it yet. Resolving a name in a table is not the same as having the
+ * bytes, and a modder asking "is it there" has to get the answer the game
+ * would get. Enumerate and resolve stay table-only, so listing is cheap
+ * and existence is exact.
+ *
  * Where the shape comes from, so it is not mistaken for invention: the
  * drive/provider split, the opt-in verb set and the canonical path back out
  * are PowerShell's provider model (Snover's Monad design). The union-mount
@@ -117,6 +126,26 @@ const char *assetName(const struct assetref *ref);
 /* Follow a cross-drive link: stage field -> file, head/body/hand -> file.
  * ASSET_NOTFOUND when the ref has no link or the field is empty. */
 s32 assetLink(const struct assetref *ref, struct assetref *out);
+
+/* Get-Content. The bytes, from the engine's own loader: romdataFileLoad for
+ * a mod's file (declared self/rom source, then the mod-dir walk, then the
+ * base dir, then ROM), the ROM's own table for a vanilla file, the ROM
+ * texture bank for a vanilla texture, romdataSegGetData for a segment.
+ * Drives with a link (stage fields, heads, bodies, hands) load what they
+ * link to. The memory is the engine's cache, not the caller's: do not free
+ * it, and a mod file stays loaded exactly as if the game had loaded it.
+ * NULL when nothing can produce the bytes; ASSET_UNSUPPORTED drives (rom:,
+ * mod:, a stage with no field, a mod texture) return NULL and set *outSize
+ * to 0. */
+void *assetLoad(const struct assetref *ref, u32 *outSize);
+
+/* Test-Path. 1 if assetLoad would return bytes right now, 0 if it would
+ * not, and ASSET_UNSUPPORTED when the question cannot be answered from the
+ * ref alone (a mod texture: its bytes depend on which model asks). Never a
+ * false no. For a mod file that is not yet loaded this loads it and
+ * releases it again, so asking does not change what is resident. rom: is
+ * "mounted", mod: is "in the roster". */
+s32 assetExists(const struct assetref *ref);
 
 /* Get-ChildItem. "drive:" or "drive:/" walks everything the drive has;
  * "drive:/<owner>" one owner where the drive has owners. Returns the number of
