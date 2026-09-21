@@ -239,6 +239,12 @@ struct romaltsource {
 
 static struct romsource g_RomSources[ROMSOURCES_MAX];
 static u32 g_NumRomSources;
+
+// The ROM's own name table and its length, or NULL/0 when booted from a
+// filenames.lst instead of a ROM. Slot i < g_RomNameCount is a vanilla file
+// whatever a mod later overlays on that id in its own row.
+static const u32 *g_RomNameTable = NULL;
+static s32 g_RomNameCount = 0;
 // Per-mod altSource: [modIdx][localFileId], modIdx 0-based as above. Row 0
 // carries both mod 0's fragment entries and the global table's, so the two
 // overwrite each other for any file id they share.
@@ -323,6 +329,45 @@ s32 modTexMapGetCount(s32 modIdx)
 {
 	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0;
 	return (s32)g_ModTexMap[modIdx].count;
+}
+
+// Entry i of a mod's texmap as (localTexId, portTexId). 0 when out of range.
+s32 modTexMapGetEntry(s32 modIdx, s32 index, u16 *localTexId, u16 *portTexId)
+{
+	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0;
+	const struct modTexMap *m = &g_ModTexMap[modIdx];
+	if (!m->entries || index < 0 || index >= (s32)m->count) return 0;
+	if (localTexId) *localTexId = m->entries[index].localTexId;
+	if (portTexId) *portTexId = m->entries[index].portTexId;
+	return 1;
+}
+
+s32 romdataRomFileCount(void)
+{
+	return g_RomNameCount;
+}
+
+// The ROM's name for a slot, or NULL if the slot is not the ROM's. Reads the
+// name table, not fileSlots, so a mod overlaying that id in its row does not
+// change the answer.
+const char *romdataRomFileName(s32 fileNum)
+{
+	if (!g_RomNameTable || fileNum < 1 || fileNum >= g_RomNameCount) return NULL;
+	return (const char *)g_RomNameTable + PD_BE32(g_RomNameTable[fileNum]);
+}
+
+s32 romsourceCount(void)
+{
+	return (s32)g_NumRomSources;
+}
+
+s32 romsourceInfo(s32 index, const char **id, const char **filename, u8 *mounted)
+{
+	if (index < 0 || index >= (s32)g_NumRomSources) return 0;
+	if (id) *id = g_RomSources[index].id;
+	if (filename) *filename = g_RomSources[index].filename;
+	if (mounted) *mounted = g_RomSources[index].mounted;
+	return 1;
 }
 
 static void romSourcesInit(void)
@@ -1258,6 +1303,12 @@ static inline void romdataInitFiles(void)
 				fileSlots[mod][i].name = (const char *)nameOffsets + ofs; // ofs is relative to the start of the name table
 			}
 		}
+
+		// Kept so "vanilla" can be named after the per-mod fragments have
+		// overlaid the rows: there is no vanilla row, every row starts as a
+		// copy of this table. See romdataRomFileName.
+		g_RomNameTable = nameOffsets;
+		g_RomNameCount = (s32)i;
 
 		for (i = 1; i < (u32)(sizeof(fileSlots[0]) / sizeof(fileSlots[0][0])); ++i) {
 			// `mod < g_NumModDirs - 1` skipped the last mod row, so the
@@ -3135,6 +3186,22 @@ u8 *romdataSegGetDataEnd(const char *segName)
 u32 romdataSegGetSize(const char *segName)
 {
 	return romdataGetSeg(segName)->size;
+}
+
+s32 romdataSegCount(void)
+{
+	s32 n = 0;
+	while (romSegs[n].name) ++n;
+	return n;
+}
+
+const char *romdataSegName(s32 index)
+{
+	if (index < 0) return NULL;
+	for (s32 n = 0; romSegs[n].name; ++n) {
+		if (n == index) return romSegs[n].name;
+	}
+	return NULL;
 }
 
 u32 romdataFileGetEstimatedSize(const u32 size, const u32 loadtype)
