@@ -386,58 +386,228 @@ void mainInit(void) {
 }
 
 /*
- * --asset-probe <path>[,<path>...]: resolve, format, test and load each
- * path through the asset drives, print one line per path, exit. Runs once
- * every table the drives read is populated and before any stage loads,
- * which is the earliest point a mod's file can be asked for. This is the
- * headless proof that a path means what the page says it means, and the
- * shape pdt's `asset get` will call.
+ * The asset command line: the engine as a file tool.
+ *
+ *   pd --asset ls   <path>              one item per line: canonical path, size
+ *   pd --asset test <path>[,<path>...]  exit 0 if every path exists, 1 if not
+ *   pd --asset stat <path>[,<path>...]  one line per path: rc, path, owner, id, sub, exists, size
+ *   pd --asset get  <path> [--asset-out <file>]   the bytes, to the file or stdout
+ *   pd --asset link <path>              what the path links to (stage field, head...)
+ *   --asset-json                        stat and ls emit one JSON object per line
+ *
+ * Runs once every table the drives read is populated and before any stage
+ * loads, then exits. Answers come off the live modloader - the roster, the
+ * mounted rom sources, the per-mod filetables - so they are the game's
+ * answers, not a ROM parser's. Logs go to stderr so stdout is the result.
+ * This is what `pdt asset` calls; --asset-probe is the older spelling of
+ * `stat` and stays for the scripts that use it.
  */
-static void assetProbeFromArgs(void)
-{
-  const char *arg = sysArgGetString("--asset-probe");
-  char list[1024];
-  char *cursor;
+struct assetCliLsCtx {
+  s32 json;
+  s32 count;
+};
 
-  if (!arg || !arg[0]) {
-    return;
+static void assetCliJsonString(const char *s)
+{
+  putchar('"');
+  for (; s && *s; ++s) {
+    if (*s == '"' || *s == '\\') {
+      putchar('\\');
+    }
+    putchar(*s);
+  }
+  putchar('"');
+}
+
+static void assetCliStatLine(const char *given, s32 rc, const struct assetref *ref, s32 json)
+{
+  char path[160] = "";
+  u32 size = 0;
+  s32 exists = 0;
+  void *data = NULL;
+
+  if (rc == ASSET_OK) {
+    assetFormat(ref, path, sizeof(path));
+    exists = assetExists(ref);
+    data = assetLoad(ref, &size);
   }
 
-  snprintf(list, sizeof(list), "%s", arg);
-  cursor = list;
+  if (json) {
+    printf("{\"given\":");
+    assetCliJsonString(given);
+    printf(",\"rc\":%d,\"path\":", rc);
+    assetCliJsonString(path[0] ? path : NULL);
+    printf(",\"owner\":%d,\"id\":%d,\"sub\":%d,\"via\":%d,\"exists\":%d,\"load\":%s,\"size\":%u}\n",
+        ref->owner, ref->id, ref->sub, ref->via, exists, data ? "true" : "false", size);
+  } else {
+    printf("%s\trc=%d\tpath=%s\towner=%d\tid=%d\tsub=%d\texists=%d\tload=%s\tsize=%u\n",
+        given, rc, path[0] ? path : "-", ref->owner, ref->id, ref->sub, exists,
+        data ? "yes" : "no", size);
+  }
+}
+
+static s32 assetCliLsVisit(const struct assetref *ref, const char *name, void *vctx)
+{
+  struct assetCliLsCtx *ctx = (struct assetCliLsCtx *)vctx;
+  char path[160] = "";
+
+  assetFormat(ref, path, sizeof(path));
+  ctx->count++;
+
+  if (ctx->json) {
+    printf("{\"path\":");
+    assetCliJsonString(path);
+    printf(",\"name\":");
+    assetCliJsonString(name);
+    printf(",\"owner\":%d,\"id\":%d,\"sub\":%d}\n", ref->owner, ref->id, ref->sub);
+  } else {
+    printf("%s\n", path[0] ? path : name);
+  }
+
+  return 1;
+}
+
+/* walk a comma-separated list; fn returns 0 to make the whole run fail */
+static s32 assetCliEach(const char *list, s32 (*fn)(const char *path, void *ctx), void *ctx)
+{
+  char buf[2048];
+  char *cursor = buf;
+  s32 ok = 1;
+
+  snprintf(buf, sizeof(buf), "%s", list);
 
   while (cursor && *cursor) {
     char *comma = strchr(cursor, ',');
-    struct assetref ref;
-    char path[128] = "";
-    u32 size = 0;
-    s32 rc;
-    s32 exists = 0;
-    void *data = NULL;
 
     if (comma) {
       *comma = '\0';
     }
 
-    rc = assetResolve(cursor, &ref);
-
-    if (rc == ASSET_OK) {
-      assetFormat(&ref, path, sizeof(path));
-      exists = assetExists(&ref);
-      data = assetLoad(&ref, &size);
+    if (!fn(cursor, ctx)) {
+      ok = 0;
     }
-
-    printf("asset-probe %s: rc=%d path=%s owner=%d id=%d sub=%d exists=%d load=%s size=%u\n",
-        cursor, rc, path[0] ? path : "-", ref.owner, ref.id, ref.sub, exists,
-        data ? "yes" : "no", size);
-    sysLogPrintf(LOG_NOTE, "asset-probe %s: rc=%d path=%s exists=%d load=%s size=%u",
-        cursor, rc, path[0] ? path : "-", exists, data ? "yes" : "no", size);
 
     cursor = comma ? comma + 1 : NULL;
   }
 
+  return ok;
+}
+
+static s32 assetCliStatOne(const char *path, void *ctx)
+{
+  struct assetref ref;
+  s32 rc = assetResolve(path, &ref);
+
+  assetCliStatLine(path, rc, &ref, *(s32 *)ctx);
+  return 1;
+}
+
+static s32 assetCliTestOne(const char *path, void *ctx)
+{
+  struct assetref ref;
+  s32 ok = assetResolve(path, &ref) == ASSET_OK && assetExists(&ref) == 1;
+
+  (void)ctx;
+  printf("%s\t%s\n", ok ? "yes" : "no", path);
+  return ok;
+}
+
+static s32 assetCliLinkOne(const char *path, void *ctx)
+{
+  struct assetref ref;
+  struct assetref target;
+  char out[160] = "";
+  s32 rc = assetResolve(path, &ref);
+
+  (void)ctx;
+
+  if (rc == ASSET_OK && assetLink(&ref, &target) == ASSET_OK) {
+    assetFormat(&target, out, sizeof(out));
+  }
+
+  printf("%s\t%s\n", path, out[0] ? out : "-");
+  return out[0] != '\0';
+}
+
+static void assetCliFromArgs(void)
+{
+  const char *verb = sysArgGetString("--asset");
+  const char *probe = sysArgGetString("--asset-probe");
+  const char *out = sysArgGetString("--asset-out");
+  const s32 json = sysArgCheck("--asset-json");
+  const char *arg;
+  s32 status = 0;
+
+  if (probe && probe[0]) {
+    /* the older spelling: stat, text, and the name it had */
+    s32 j = json;
+    assetCliEach(probe, assetCliStatOne, &j);
+    fflush(stdout);
+    exit(0);
+  }
+
+  if (!verb || !verb[0]) {
+    return;
+  }
+
+  arg = sysArgGetString2("--asset");
+
+  if (!arg) {
+    fprintf(stderr, "--asset %s: a path is required\n", verb);
+    exit(2);
+  }
+
+  if (!strcmp(verb, "ls")) {
+    struct assetCliLsCtx ctx = { json, 0 };
+    s32 n = assetEnumerate(arg, assetCliLsVisit, &ctx);
+
+    if (n < 0) {
+      fprintf(stderr, "--asset ls %s: rc=%d\n", arg, n);
+      status = 1;
+    }
+  } else if (!strcmp(verb, "stat")) {
+    s32 j = json;
+    assetCliEach(arg, assetCliStatOne, &j);
+  } else if (!strcmp(verb, "test")) {
+    status = assetCliEach(arg, assetCliTestOne, NULL) ? 0 : 1;
+  } else if (!strcmp(verb, "link")) {
+    status = assetCliEach(arg, assetCliLinkOne, NULL) ? 0 : 1;
+  } else if (!strcmp(verb, "get")) {
+    struct assetref ref;
+    u32 size = 0;
+    void *data = NULL;
+    s32 rc = assetResolve(arg, &ref);
+
+    if (rc == ASSET_OK) {
+      data = assetLoad(&ref, &size);
+    }
+
+    if (!data) {
+      fprintf(stderr, "--asset get %s: rc=%d, nothing to load\n", arg, rc);
+      status = 1;
+    } else if (out && out[0] && strcmp(out, "-")) {
+      FILE *f = fopen(out, "wb");
+
+      if (!f || fwrite(data, 1, size, f) != size) {
+        fprintf(stderr, "--asset get %s: could not write %s\n", arg, out);
+        status = 1;
+      } else {
+        fprintf(stderr, "%s: %u bytes -> %s\n", arg, size, out);
+      }
+
+      if (f) {
+        fclose(f);
+      }
+    } else {
+      fwrite(data, 1, size, stdout);
+    }
+  } else {
+    fprintf(stderr, "--asset %s: unknown verb (ls, stat, test, link, get)\n", verb);
+    status = 2;
+  }
+
   fflush(stdout);
-  exit(0);
+  exit(status);
 }
 
 void mainProc(void) {
@@ -452,7 +622,7 @@ void mainProc(void) {
   sysLogPrintf(LOG_NOTE, "mainProc: caching all mod configs");
   sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
   modSwitch(0, -1);
-  assetProbeFromArgs();
+  assetCliFromArgs();
   rdpInit();
   sndInit();
 

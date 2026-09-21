@@ -137,6 +137,11 @@ int main(int argc, const char **argv)
 {
 	sysInitArgs(argc, argv);
 
+	// the asset command line owns stdout; see assetCliFromArgs in pdmain.c
+	if (sysArgCheck("--asset") || sysArgCheck("--asset-probe")) {
+		g_SysLogToStderr = 1;
+	}
+
 	if (!sysArgCheck("--no-crash-handler")) {
 		crashInit();
 	}

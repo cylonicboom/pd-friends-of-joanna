@@ -134,7 +134,7 @@ s32 getModDirCount(const char *arg, int max_values)
 		if (!strcasecmp(sysArgv[i], arg)) {
 			if (i < sysArgc - 1 && count < max_values) {
 				strcpy(modDirs[count++], sysArgv[i + 1]);
-				printf("Found arg %s: %s\n", arg, sysArgv[i + 1]);
+				sysLogPrintf(LOG_NOTE, "Found arg %s: %s", arg, sysArgv[i + 1]);
 			}
 		}
 	}
@@ -148,6 +148,19 @@ const char *sysArgGetString(const char *arg)
 		if (!strcasecmp(sysArgv[i], arg)) {
 			if (i < sysArgc - 1) {
 				return sysArgv[i + 1];
+			}
+		}
+	}
+	return NULL;
+}
+
+// the token two after `arg`: `--asset ls <path>` wants the path
+const char *sysArgGetString2(const char *arg)
+{
+	for (s32 i = 1; i < sysArgc; ++i) {
+		if (!strcasecmp(sysArgv[i], arg)) {
+			if (i < sysArgc - 2) {
+				return sysArgv[i + 2];
 			}
 		}
 	}
@@ -178,6 +191,10 @@ s32 sysLogIsOpen(void)
 	return (logPath[0] != '\0');
 }
 
+// Set by a command-line mode whose stdout is a result stream (--asset):
+// every log line goes to stderr so the result is the only thing on stdout.
+u8 g_SysLogToStderr = 0;
+
 void sysLogPrintf(s32 level, const char *fmt, ...)
 {
 	static const char *prefix[3] = {
@@ -199,7 +216,7 @@ void sysLogPrintf(s32 level, const char *fmt, ...)
 		}
 	}
 
-	FILE *fout = (level == LOG_NOTE) ? stdout : stderr;
+	FILE *fout = (level == LOG_NOTE && !g_SysLogToStderr) ? stdout : stderr;
 	fprintf(fout, "%s%s\n", prefix[level], logmsg);
 }
 

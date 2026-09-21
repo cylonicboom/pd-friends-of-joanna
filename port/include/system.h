@@ -20,6 +20,7 @@ s32 getModDirCount(const char *arg, int max_values);
 
 s32 sysArgCheck(const char *arg);
 const char *sysArgGetString(const char *arg);
+const char *sysArgGetString2(const char *arg);
 s32 sysArgGetInt(const char *arg, s32 defval);
 
 u64 sysGetMicroseconds(void);
@@ -28,6 +29,7 @@ void sysFatalError(const char *fmt, ...) __attribute__((noreturn));
 
 s32 sysLogIsOpen(void);
 void sysLogPrintf(s32 level, const char *fmt, ...);
+extern u8 g_SysLogToStderr;
 
 void sysGetExecutablePath(char *outPath, const u32 outLen);
 void sysGetHomePath(char *outPath, const u32 outLen);
