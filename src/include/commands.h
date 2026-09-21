@@ -4398,6 +4398,11 @@
 /**
  * No-op on the PC port: AIO detection moved to mainInit. Kept so setup files
  * that carry it still parse (fojo).
+ *
+ * TODO: split into detect_aio (an AIO-merged stage) and
+ * detect_transpacific_rom (a JPN rom under a US/EU build, or the reverse).
+ * Two different questions; today both are answered in C and this opcode
+ * must not come to mean either one implicitly.
  */
 #define detect_aio \
 	mkshort(0x0194),
