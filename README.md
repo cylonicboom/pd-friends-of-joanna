@@ -1,3 +1,8 @@
+> **Retired for setup files (2026-09-21).** `src/setups/` in this tree is no
+> longer edited. The stage setup sources now live in `pd-fojo/src/setups/` and
+> are built there with `pd-fojo/tools/mksetups` (clang/lld, no docker). This
+> tree stays as the N64 decomp reference.
+
 # Perfect Dark Decompilation
 
 This repository contains a complete decompilation of Perfect Dark for the Nintendo 64.
