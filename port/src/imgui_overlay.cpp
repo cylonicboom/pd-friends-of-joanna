@@ -4617,9 +4617,19 @@ static bool imguiOverlayBeginWindow(const char *name, bool *open, const ImVec2 &
 	const bool collapsed = ImGui::IsWindowCollapsed();
 
 	if (collapsed && !st.minimised) {
-		st.restorePos = ImGui::GetWindowPos();
-		st.restoreSize = ImGui::GetWindowSize();
+		// SizeFull, not GetWindowSize(). Begin has already run, and for a
+		// collapsed window it sets window->Size to the title-bar rect
+		// (imgui.cpp:7596), so GetWindowSize().y here is one title bar --
+		// about 25px. The < 40 guard below then fired every single time and
+		// handed back the panel's hardcoded default height instead of the
+		// height the window actually had. Width survived; height never did.
+		// SizeFull is what the window will be when it expands, and is also
+		// what ImGui itself writes to the ini (imgui.cpp:15348).
+		const ImGuiWindow *w = ImGui::GetCurrentWindow();
+		st.restorePos = w->Pos;
+		st.restoreSize = w->SizeFull;
 		if (st.restoreSize.y < 40.0f) {
+			// only for a window that has genuinely never been sized
 			st.restoreSize.y = defaultSize.y;
 		}
 		st.minimised = true;
