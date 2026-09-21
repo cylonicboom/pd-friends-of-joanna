@@ -42,7 +42,10 @@ extern "C" {
  * chosen by (supplier, number) rather than number alone is DabDavis's rule
  * from Dab's Mod, carried over via the texture-provenance spike. The index
  * cache and its two invalidation events were designed in the debugger bar
- * and moved here unchanged.
+ * and moved here unchanged. A parallel rather than a source: sm64coopdx's
+ * DynOS (PeachyPeach) keys models and textures by name with an extended id
+ * partitioned above the built-ins, and its ModFS hands the same loaders a
+ * scheme-prefixed path, modfs:/<mod>/<file>, in place of a resource name.
  *
  * Drives:
  *   file:   fileSlots rows. owner = mod or vanilla, id = raw fileNum
