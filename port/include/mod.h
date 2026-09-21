@@ -278,6 +278,8 @@ void modHeadSlotClaim(const char *name, s32 slot);
 void modBodySlotClaim(const char *name, s32 slot);
 s32 modLookupBodyByName(const char *name);
 s32 modLookupHandFileByName(const char *name);
+s32 modHandNameCount(void);
+const char *modHandName(s32 index, u32 *filenum);
 s32 modLookupHeadnumByName(const char *name);
 const char *modGetNameForHeadBodyIndex(s32 headBodyIndex);
 

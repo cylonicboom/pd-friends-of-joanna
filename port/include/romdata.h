@@ -59,10 +59,17 @@ s32 romdataGetFileSlotInfo(s32 modNum, s32 fileNum, struct romdatafileslotinfo *
 u16 modTexMapLookup(s32 modIdx, u16 localTexId);
 u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId);
 s32 modTexMapGetCount(s32 modIdx);
+s32 modTexMapGetEntry(s32 modIdx, s32 index, u16 *localTexId, u16 *portTexId);
+
+// the ROM's own file names, untouched by mod overlays - what "vanilla" means
+s32 romdataRomFileCount(void);
+const char *romdataRomFileName(s32 fileNum);
 
 u8 *romdataSegGetData(const char *segName);
 u8 *romdataSegGetDataEnd(const char *segName);
 u32 romdataSegGetSize(const char *segName);
+s32 romdataSegCount(void);
+const char *romdataSegName(s32 index);
 u32 romdataFileGetEstimatedSize(const u32 size, const u32 loadtype);
 
 s32 romdataCheckGbcRom(void);
@@ -71,6 +78,8 @@ void fileSlotsInit(u32 numMods);
 void romdataResetMod(s32 modNum);
 const u8 romDataFileNumExists(s32 modNum, s32 fileNum);
 u8 romsourceIsMounted(const char *id);
+s32 romsourceCount(void);
+s32 romsourceInfo(s32 index, const char **id, const char **filename, u8 *mounted);
 
 #ifdef __cplusplus
 }

@@ -1823,6 +1823,18 @@ s32 modLookupHandFileByName(const char *name)
 	return -1;
 }
 
+s32 modHandNameCount(void)
+{
+	return g_NumModHandFileNames;
+}
+
+const char *modHandName(s32 index, u32 *filenum)
+{
+	if (index < 0 || index >= g_NumModHandFileNames) return NULL;
+	if (filenum) *filenum = g_ModHandFileNames[index].filenum;
+	return g_ModHandFileNames[index].name;
+}
+
 s32 modLookupHeadnumByName(const char *name)
 {
 	if (!name || !name[0]) return -1;
