@@ -4363,6 +4363,50 @@
 #define remove_references_to_chr \
 	mkshort(0x01e0),
 
+/**
+ * Set g_Vars.chrnummatchmode, which chooses how chrnum lookups match:
+ * default, only, all, any (fojo, PC port only).
+ */
+#define set_chrnum_match_level(chrnum) \
+	mkshort(0x01e1), \
+	chrnum,
+
+/**
+ * Set the current chr's hiddenelsemask, read by if_chr_activated_object
+ * (fojo, PC port only; added for the Attack Ship elevators).
+ */
+#define set_if_chr_hidden_else_mask(mask) \
+	mkshort(0x01e2), \
+	mask,
+
+/**
+ * Follow the label if g_Vars.coopplayers[playernum] is set (fojo, PC port only).
+ */
+#define if_playernum_is_coop(playernum, label) \
+	mkshort(0x01e3), \
+	playernum, \
+	label,
+
+/**
+ * Set the current chr's coopplayernum to playernum if that player is a coop
+ * player, else -1 (fojo, PC port only).
+ */
+#define set_coop_playernum(playernum) \
+	mkshort(0x01e4), \
+	playernum,
+
+/**
+ * No-op on the PC port: AIO detection moved to mainInit. Kept so setup files
+ * that carry it still parse (fojo).
+ *
+ * TODO: split into detect_aio (an AIO-merged stage) and
+ * detect_transpacific_rom (a JPN rom under a US/EU build, or the reverse).
+ * Two different questions; today both are answered in C and this opcode
+ * must not come to mean either one implicitly.
+ */
+#define detect_aio \
+	mkshort(0x0194),
+
 // Convenience macros for readability
 #define beginloop(id) \
 	label(id) \
