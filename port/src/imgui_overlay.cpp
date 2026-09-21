@@ -24,6 +24,7 @@
 #include "input.h"
 #include "mod.h"
 #include "romdata.h"
+#include "asset.h"
 #include "system.h"
 #include "lib/profile.h"
 
@@ -6102,53 +6103,10 @@ static void imguiOverlayDrawWindowContextMenu(void)
 // slot corpus alone is 8192 romdataGetFileSlotInfo calls per mod.
 // ---------------------------------------------------------------------------
 
-// The one corpus that cannot be walked per keystroke. The Assets panel's file
-// slot table is `for fileNum 1..8191 { romdataGetFileSlotInfo(mod, fileNum) }`
-// PER MOD, and it pays that every frame it is open. Doing it on every character
-// typed is not acceptable, so it is indexed once and invalidated on the only
-// two events that can change it: a stage load and a change to the mod roster.
-struct imguiOverlayFileSlotEntry {
-	s32 mod;
-	s32 fileNum;
-	char name[48];
-};
-
-static std::vector<imguiOverlayFileSlotEntry> g_ImGuiOverlayFileIndex;
-static s32 g_ImGuiOverlayFileIndexMods = -1;
-static s32 g_ImGuiOverlayFileIndexStage = -1;
-
-static void imguiOverlayBuildFileIndex(void)
-{
-	const s32 mods = (s32)g_NumModDirs;
-	const s32 stage = (s32)g_Vars.stagenum;
-
-	if (mods == g_ImGuiOverlayFileIndexMods && stage == g_ImGuiOverlayFileIndexStage) {
-		return;
-	}
-
-	g_ImGuiOverlayFileIndex.clear();
-
-	for (s32 mod = 0; mod < mods; ++mod) {
-		for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
-			struct romdatafileslotinfo slotInfo;
-
-			if (!romdataGetFileSlotInfo(mod, fileNum, &slotInfo) || !slotInfo.name) {
-				continue;
-			}
-
-			struct imguiOverlayFileSlotEntry entry;
-			entry.mod = mod;
-			entry.fileNum = fileNum;
-			snprintf(entry.name, sizeof(entry.name), "%s", slotInfo.name);
-			g_ImGuiOverlayFileIndex.push_back(entry);
-		}
-	}
-
-	g_ImGuiOverlayFileIndexMods = mods;
-	g_ImGuiOverlayFileIndexStage = stage;
-	sysLogPrintf(LOG_NOTE, "IMGUI: file slot index built, %u entries across %d mod(s)",
-			(unsigned int)g_ImGuiOverlayFileIndex.size(), mods);
-}
+// File slots come from the file: drive in asset.c, which owns the index the
+// bar used to build here (8192 romdataGetFileSlotInfo calls per mod, built
+// once and invalidated on stage load and roster change). The bar maps its #
+// sigil to file: and is one consumer of that index, not its owner.
 
 enum {
 	kFojoBarWindow,
@@ -6161,6 +6119,7 @@ struct imguiOverlayBarHit {
 	s32 kind;
 	s32 index;              // window row, or command row
 	struct prop *prop;      // entity
+	struct assetref ref;    // file slot
 	s32 score;
 	char label[80];
 	char detail[32];
@@ -6291,7 +6250,7 @@ static bool imguiOverlayBarFuzzy(const char *cand, const char *query, s32 *outSc
 }
 
 static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 score,
-		const char *label, const char *detail)
+		const char *label, const char *detail, const struct assetref *ref = NULL)
 {
 	s32 slot;
 
@@ -6321,8 +6280,42 @@ static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 scor
 	hit.index = index;
 	hit.prop = prop;
 	hit.score = score;
+	if (ref) {
+		hit.ref = *ref;
+	} else {
+		memset(&hit.ref, 0, sizeof(hit.ref));
+		hit.ref.owner = -1;
+		hit.ref.id = -1;
+		hit.ref.sub = -1;
+	}
 	snprintf(hit.label, sizeof(hit.label), "%s", label);
 	snprintf(hit.detail, sizeof(hit.detail), "%s", detail ? detail : "");
+}
+
+struct imguiOverlayBarFileCtx {
+	const char *q;
+	s32 wanted;     // literal fileNum from a "#3412" query, else -1
+};
+
+static s32 imguiOverlayBarFileVisit(const struct assetref *ref, const char *name, void *vctx)
+{
+	const struct imguiOverlayBarFileCtx *ctx = (const struct imguiOverlayBarFileCtx *)vctx;
+	char detail[32];
+	s32 score;
+
+	if (ctx->wanted >= 0) {
+		if (ref->id != ctx->wanted) {
+			return 1;
+		}
+
+		score = 1000;
+	} else if (!imguiOverlayBarFuzzy(name, ctx->q, &score)) {
+		return 1;
+	}
+
+	snprintf(detail, sizeof(detail), "file %d  mod %d", ref->id, ref->owner);
+	imguiOverlayBarPush(kFojoBarFileSlot, -1, NULL, score, name, detail, ref);
+	return 1;
 }
 
 static void imguiOverlayBarSearch(void)
@@ -6428,8 +6421,6 @@ static void imguiOverlayBarSearch(void)
 	}
 
 	if (wantFiles) {
-		imguiOverlayBuildFileIndex();
-
 		// "#3412" means that fileNum, not a name containing those digits
 		bool numeric = q[0] != '\0';
 
@@ -6440,25 +6431,10 @@ static void imguiOverlayBarSearch(void)
 			}
 		}
 
-		const s32 wanted = numeric ? atoi(q) : -1;
-
-		for (size_t i = 0; i < g_ImGuiOverlayFileIndex.size(); ++i) {
-			const struct imguiOverlayFileSlotEntry &entry = g_ImGuiOverlayFileIndex[i];
-			char detail[32];
-
-			if (numeric) {
-				if (entry.fileNum != wanted) {
-					continue;
-				}
-
-				score = 1000;
-			} else if (!imguiOverlayBarFuzzy(entry.name, q, &score)) {
-				continue;
-			}
-
-			snprintf(detail, sizeof(detail), "file %d  mod %d", entry.fileNum, entry.mod);
-			imguiOverlayBarPush(kFojoBarFileSlot, (s32)i, NULL, score, entry.name, detail);
-		}
+		struct imguiOverlayBarFileCtx ctx;
+		ctx.q = q;
+		ctx.wanted = numeric ? atoi(q) : -1;
+		assetEnumerate("file:/", imguiOverlayBarFileVisit, &ctx);
 	}
 
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
@@ -6508,11 +6484,10 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 	case kFojoBarFileSlot:
 		// open Assets on the right mod with the slot table already filtered to
 		// the name, which is where you were going to end up anyway
-		if (hit->index >= 0 && hit->index < (s32)g_ImGuiOverlayFileIndex.size()) {
-			const struct imguiOverlayFileSlotEntry &entry = g_ImGuiOverlayFileIndex[hit->index];
-			g_ImGuiOverlaySlotMod = entry.mod;
+		if (hit->ref.drive == ASSET_DRIVE_FILE && hit->ref.owner >= 0) {
+			g_ImGuiOverlaySlotMod = hit->ref.owner;
 			snprintf(g_ImGuiOverlaySlotFilter.InputBuf,
-					sizeof(g_ImGuiOverlaySlotFilter.InputBuf), "%s", entry.name);
+					sizeof(g_ImGuiOverlaySlotFilter.InputBuf), "%s", hit->label);
 			g_ImGuiOverlaySlotFilter.Build();
 			g_ImGuiOverlayShowAssets = true;
 			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowAssets);
