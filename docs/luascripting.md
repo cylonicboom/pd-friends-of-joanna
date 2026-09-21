@@ -229,12 +229,12 @@ no run has exercised it; **owed** means the mechanism is not built.
 
 | # | Claim | How to check | Stands |
 |---|---|---|---|
-| 1 | A registered override runs instead of the transpiled chunk | `smoke/level.lua`: register a wrapper on a list a live chr is running, count entries | measured — 40 entries over 10 chrs on 0x1d, VM GCC build |
+| 1 | A registered override runs instead of the transpiled chunk | `smoke/level.lua`: register a wrapper on a list a live chr is running, count entries | measured — stage list `0x401` on 0x1d, 40 entries, VM GCC build; the background list `0x1005` alongside it |
 | 2 | Pass-through is behaviour-preserving | the wrapper's `ctx:exec` loop; the chr keeps doing what vanilla does | reasoned per frame; no command-for-command trace against the bytecode path has been taken |
 | 3 | Yield is a return; the function re-enters from the top next frame | `smoke/level.lua` counts re-entries; every `ctx:exec` return seen was `0` or `1` | measured |
 | 4 | Per-chr state survives across yields when kept in a table keyed by `chrnum` | same script | measured |
 | 5 | `ctx:self()` is a fresh snapshot each call | same script: position changes between frames for a moving chr | not shown headless — the stage idles in its cutscene and nothing moved; a Mac run past the cutscene answers it |
-| 6 | A `10xx` background override runs | register on the stage's background list id | measured — `0x1005` on 0x1d, entered 4 times; `ctx:self()` was chrnum 4005, not `nil` |
+| 6 | A `10xx` background override runs | register on the stage's background list id | measured — `0x1005` on 0x1d, 40 entries; `ctx:self()` was chrnum 4005, not `nil` |
 | 7 | An erroring override quarantines only its own list | `core.lua` already proves handler isolation; the list-level case was proven in the containment slice | measured (containment slice) |
 | 8 | Registrations rebuild on stage change; no cached chunk survives a reused list pointer | enter a stage, leave, re-enter, watch `luaai: loaded scripts/init.lua` twice and no stale override | **not measured** — no headless path reaches a stage change; manual on the Mac |
 | 9 | Scripts load from the owning mod, in mod order, with no CWD dependence | `LuaScript` block + filetable | **owed** — discovery not built |
