@@ -1283,10 +1283,20 @@ s32 assetLink(const struct assetref *ref, struct assetref *out)
 
 #define ASSET_SLOT_UNLOADED 0   /* enum loadsource SRC_UNLOADED, romdata.c */
 
+/* What the game would serve for this file, which for a vanilla id is NOT
+ * always the ROM's bytes: romdataFileLoad walks the mounted mod dirs for
+ * an untagged id too, so a mod that ships a loose file under a vanilla
+ * name shadows the ROM (mod_gex_stages does this to 14 of the 16 arenas).
+ * Get-Content answers with what loads. The ROM's own bytes for a slot are
+ * a different question - romdataRomFileData - and not this verb's. */
 static void *assetFileLoad(const struct assetref *ref, u32 *outSize)
 {
 	if (ref->owner == ASSET_OWNER_VANILLA) {
-		return romdataRomFileData(ref->id, outSize);
+		if (!romdataRomFileName(ref->id)) {
+			return NULL;
+		}
+
+		return romdataFileLoad(ref->id, outSize);
 	}
 
 	if (ref->owner < 0 || ref->id < 1) {
@@ -1388,16 +1398,16 @@ s32 assetExists(const struct assetref *ref)
 	case ASSET_DRIVE_BODY:
 	case ASSET_DRIVE_HAND:
 		return assetLink(ref, &target) == ASSET_OK && assetExists(&target);
-	case ASSET_DRIVE_FILE:
-		if (ref->owner == ASSET_OWNER_VANILLA) {
-			return romdataRomFileData(ref->id, NULL) != NULL;
-		}
-
+	case ASSET_DRIVE_FILE: {
 		/* probe through the real loader, then put the slot back the way it
 		 * was: romdataFileFree frees an external load and just marks a ROM
 		 * or alt-rom slot unloaded, so a probe leaves nothing resident that
-		 * was not resident before */
-		wasLoaded = romdataGetFileSlotInfo(ref->owner, ref->id, &info)
+		 * was not resident before. A vanilla id lives in the boot mod's row
+		 * (g_ModNum), which is where romdataFileLoad puts an untagged id. */
+		const s32 row = ref->owner == ASSET_OWNER_VANILLA ? g_ModNum : ref->owner;
+		const s32 id = ref->owner == ASSET_OWNER_VANILLA ? ref->id : MOD_FILEID_MAKE(ref->owner, ref->id);
+
+		wasLoaded = romdataGetFileSlotInfo(row, ref->id, &info)
 			&& info.source != ASSET_SLOT_UNLOADED;
 
 		if (!assetFileLoad(ref, NULL)) {
@@ -1405,10 +1415,11 @@ s32 assetExists(const struct assetref *ref)
 		}
 
 		if (!wasLoaded) {
-			romdataFileFree(MOD_FILEID_MAKE(ref->owner, ref->id));
+			romdataFileFree(id);
 		}
 
 		return 1;
+	}
 	case ASSET_DRIVE_TEX:
 		if (ref->owner != ASSET_OWNER_VANILLA) {
 			return assetTexLink(ref, &target) == ASSET_OK && assetExists(&target);
