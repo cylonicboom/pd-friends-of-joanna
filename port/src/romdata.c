@@ -245,6 +245,10 @@ static u32 g_NumRomSources;
 // whatever a mod later overlays on that id in its own row.
 static const u32 *g_RomNameTable = NULL;
 static s32 g_RomNameCount = 0;
+// The ROM's file offset table, for the same reason: the ROM's own bytes for
+// a slot, whatever the active mod's row now points at.
+static const u32 *g_RomFileOffsets = NULL;
+static s32 g_RomFileOffsetCount = 0;
 // Per-mod altSource: [modIdx][localFileId], modIdx 0-based as above. Row 0
 // carries both mod 0's fragment entries and the global table's, so the two
 // overwrite each other for any file id they share.
@@ -354,6 +358,25 @@ const char *romdataRomFileName(s32 fileNum)
 {
 	if (!g_RomNameTable || fileNum < 1 || fileNum >= g_RomNameCount) return NULL;
 	return (const char *)g_RomNameTable + PD_BE32(g_RomNameTable[fileNum]);
+}
+
+// The ROM's own bytes for a slot, or NULL. Reads the offset table, not
+// fileSlots, so it is the base game's answer whatever a mod overlays.
+u8 *romdataRomFileData(s32 fileNum, u32 *outSize)
+{
+	if (!g_RomFile || !g_RomFileOffsets || fileNum < 1 || fileNum + 1 >= g_RomFileOffsetCount) {
+		return NULL;
+	}
+
+	const u32 ofs = PD_BE32(g_RomFileOffsets[fileNum]);
+	const u32 next = PD_BE32(g_RomFileOffsets[fileNum + 1]);
+
+	if (!ofs || next < ofs || next > g_RomFileSize) {
+		return NULL;
+	}
+
+	if (outSize) *outSize = next - ofs;
+	return g_RomFile + ofs;
 }
 
 s32 romsourceCount(void)
@@ -1279,6 +1302,7 @@ static inline void romdataInitFiles(void)
 		const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
 		u32 i;
 		for (i = 1; offsets[i]; ++i) {
+			g_RomFileOffsetCount = (s32)i + 1;
 			if (offsets + i + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
 				const u32 nextofs = PD_BE32(offsets[i + 1]);
 				const u32 ofs = PD_BE32(offsets[i]);
@@ -1309,6 +1333,7 @@ static inline void romdataInitFiles(void)
 		// copy of this table. See romdataRomFileName.
 		g_RomNameTable = nameOffsets;
 		g_RomNameCount = (s32)i;
+		g_RomFileOffsets = offsets;
 
 		for (i = 1; i < (u32)(sizeof(fileSlots[0]) / sizeof(fileSlots[0][0])); ++i) {
 			// `mod < g_NumModDirs - 1` skipped the last mod row, so the
@@ -1349,7 +1374,14 @@ static inline void romdataInitFiles(void)
 static inline void romdataResetFile(s32 modNum, s32 fileNum)
 {
 	// 1. Load from ROM table first (default)
-	if (romDataSeg) {
+	//
+	// Only for slots the ROM's table actually has. The table is terminated by
+	// a zero offset and the name table follows it in the same segment, so
+	// for a mod-local id (>= FIRST_LOCAL_ID) the two reads below landed in
+	// the names and came back as plausible-looking offsets. Measured with
+	// --asset-probe: a mod head whose declared rom source was not mounted
+	// "loaded" 32768 bytes from the base ROM and reported success.
+	if (romDataSeg && fileNum + 1 < g_RomFileOffsetCount) {
 		const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
 		if (offsets + fileNum + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
 			const u32 nextofs = PD_BE32(offsets[fileNum + 1]);
@@ -1366,6 +1398,14 @@ static inline void romdataResetFile(s32 modNum, s32 fileNum)
 			fileSlots[modNum][fileNum].source = SRC_UNLOADED;
 			fileSlots[modNum][fileNum].preprocessed = 0;
 		}
+	} else if (romDataSeg) {
+		// a mod-local slot: nothing in the ROM to fall back to, so the next
+		// load has to come from a declared source, the mod dirs or the base
+		// dir, or fail honestly
+		fileSlots[modNum][fileNum].data = NULL;
+		fileSlots[modNum][fileNum].size = 0;
+		fileSlots[modNum][fileNum].source = SRC_UNLOADED;
+		fileSlots[modNum][fileNum].preprocessed = 0;
 	}
 
 	// 2. Override with External table if present

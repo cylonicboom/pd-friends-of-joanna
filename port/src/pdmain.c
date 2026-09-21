@@ -26,6 +26,7 @@
 #include "game/music.h"
 #include "game/objectives.h"
 #include "game/pak.h"
+#include "asset.h"
 #include "game/pdmode.h"
 #include "game/player.h"
 #include "game/playermgr.h"
@@ -384,6 +385,61 @@ void mainInit(void) {
   g_MainIsBooting = 0;
 }
 
+/*
+ * --asset-probe <path>[,<path>...]: resolve, format, test and load each
+ * path through the asset drives, print one line per path, exit. Runs once
+ * every table the drives read is populated and before any stage loads,
+ * which is the earliest point a mod's file can be asked for. This is the
+ * headless proof that a path means what the page says it means, and the
+ * shape pdt's `asset get` will call.
+ */
+static void assetProbeFromArgs(void)
+{
+  const char *arg = sysArgGetString("--asset-probe");
+  char list[1024];
+  char *cursor;
+
+  if (!arg || !arg[0]) {
+    return;
+  }
+
+  snprintf(list, sizeof(list), "%s", arg);
+  cursor = list;
+
+  while (cursor && *cursor) {
+    char *comma = strchr(cursor, ',');
+    struct assetref ref;
+    char path[128] = "";
+    u32 size = 0;
+    s32 rc;
+    s32 exists = 0;
+    void *data = NULL;
+
+    if (comma) {
+      *comma = '\0';
+    }
+
+    rc = assetResolve(cursor, &ref);
+
+    if (rc == ASSET_OK) {
+      assetFormat(&ref, path, sizeof(path));
+      exists = assetExists(&ref);
+      data = assetLoad(&ref, &size);
+    }
+
+    printf("asset-probe %s: rc=%d path=%s owner=%d id=%d sub=%d exists=%d load=%s size=%u\n",
+        cursor, rc, path[0] ? path : "-", ref.owner, ref.id, ref.sub, exists,
+        data ? "yes" : "no", size);
+    sysLogPrintf(LOG_NOTE, "asset-probe %s: rc=%d path=%s exists=%d load=%s size=%u",
+        cursor, rc, path[0] ? path : "-", exists, data ? "yes" : "no", size);
+
+    cursor = comma ? comma + 1 : NULL;
+  }
+
+  fflush(stdout);
+  exit(0);
+}
+
 void mainProc(void) {
   mainInit();
 	modScanAllMods();
@@ -396,6 +452,7 @@ void mainProc(void) {
   sysLogPrintf(LOG_NOTE, "mainProc: caching all mod configs");
   sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
   modSwitch(0, -1);
+  assetProbeFromArgs();
   rdpInit();
   sndInit();
 
