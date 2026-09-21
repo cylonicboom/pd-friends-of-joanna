@@ -4557,96 +4557,6 @@ static void imguiOverlaySetNextWindowDefaults(const ImVec2 &size, float xAnchor,
 	ImGui::SetNextWindowSize(size, ImGuiCond_FirstUseEver);
 }
 
-// Minimised windows. Collapsing a Fojo window (the title-bar arrow, or a
-// double-click on the title) is the minimise: the window shrinks to its title
-// and stacks in the lower-left corner in the order it was collapsed. Expanding
-// it puts it back where it was, at the size it had. Windows the ini restores
-// collapsed join the stack on the first frame with their ini geometry saved.
-struct imguiOverlayWindowState {
-	bool minimised;
-	ImVec2 restorePos;
-	ImVec2 restoreSize;
-};
-
-static std::map<std::string, imguiOverlayWindowState> g_ImGuiOverlayWindows;
-static std::vector<std::string> g_ImGuiOverlayMinimisedOrder;
-
-static float imguiOverlayCollapsedTitleWidth(const char *name)
-{
-	const ImGuiStyle &style = ImGui::GetStyle();
-	// title text, the collapse arrow and the close button, each a frame high
-	return ImGui::CalcTextSize(name).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight() * 2.0f + style.ItemInnerSpacing.x * 2.0f;
-}
-
-static ImVec2 imguiOverlayMinimisedSlotPos(s32 slot)
-{
-	const ImGuiViewport *viewport = ImGui::GetMainViewport();
-	const float titleH = ImGui::GetFrameHeight();
-	const float gap = 4.0f;
-	return ImVec2(viewport->WorkPos.x + 8.0f,
-		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (slot + 1) * (titleH + gap) + gap);
-}
-
-static s32 imguiOverlayMinimisedSlot(const std::string &name)
-{
-	for (size_t i = 0; i < g_ImGuiOverlayMinimisedOrder.size(); ++i) {
-		if (g_ImGuiOverlayMinimisedOrder[i] == name) {
-			return (s32)i;
-		}
-	}
-	return -1;
-}
-
-/**
- * Begin a Fojo window: default placement on first use, then the minimise
- * behaviour above. Returns what ImGui::Begin returned; the caller still owns
- * the matching ImGui::End.
- */
-static bool imguiOverlayBeginWindow(const char *name, bool *open, const ImVec2 &defaultSize, float xAnchor, float yAnchor)
-{
-	imguiOverlayWindowState &st = g_ImGuiOverlayWindows[name];
-	imguiOverlaySetNextWindowDefaults(defaultSize, xAnchor, yAnchor);
-
-	if (st.minimised) {
-		const s32 slot = imguiOverlayMinimisedSlot(name);
-		ImGui::SetNextWindowPos(imguiOverlayMinimisedSlotPos(slot < 0 ? 0 : slot), ImGuiCond_Always);
-		ImGui::SetNextWindowSize(ImVec2(imguiOverlayCollapsedTitleWidth(name), st.restoreSize.y), ImGuiCond_Always);
-	}
-
-	const bool visible = ImGui::Begin(name, open);
-	const bool collapsed = ImGui::IsWindowCollapsed();
-
-	if (collapsed && !st.minimised) {
-		// SizeFull, not GetWindowSize(). Begin has already run, and for a
-		// collapsed window it sets window->Size to the title-bar rect
-		// (imgui.cpp:7596), so GetWindowSize().y here is one title bar --
-		// about 25px. The < 40 guard below then fired every single time and
-		// handed back the panel's hardcoded default height instead of the
-		// height the window actually had. Width survived; height never did.
-		// SizeFull is what the window will be when it expands, and is also
-		// what ImGui itself writes to the ini (imgui.cpp:15348).
-		const ImGuiWindow *w = ImGui::GetCurrentWindow();
-		st.restorePos = w->Pos;
-		st.restoreSize = w->SizeFull;
-		if (st.restoreSize.y < 40.0f) {
-			// only for a window that has genuinely never been sized
-			st.restoreSize.y = defaultSize.y;
-		}
-		st.minimised = true;
-		g_ImGuiOverlayMinimisedOrder.push_back(name);
-	} else if (!collapsed && st.minimised) {
-		st.minimised = false;
-		const s32 slot = imguiOverlayMinimisedSlot(name);
-		if (slot >= 0) {
-			g_ImGuiOverlayMinimisedOrder.erase(g_ImGuiOverlayMinimisedOrder.begin() + slot);
-		}
-		ImGui::SetWindowPos(st.restorePos, ImGuiCond_Always);
-		ImGui::SetWindowSize(st.restoreSize, ImGuiCond_Always);
-	}
-
-	return visible;
-}
-
 static const char *imguiOverlayTrackTypeName(s32 tracktype)
 {
 	switch (tracktype) {
@@ -5701,6 +5611,153 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 static const s32 kFojoWindowCount =
 	(s32)(sizeof(g_ImGuiOverlayWindowDefs) / sizeof(g_ImGuiOverlayWindowDefs[0]));
 
+// ---------------------------------------------------------------------------
+// Where a window lands when it comes back.
+//
+// Fojo owns placement now. ImGui still handles the live drag and resize -- that
+// is what it is good at -- but the record of where a window BELONGS lives here,
+// one row per row of the table above. Three things used to answer that question
+// separately and one of them was wrong: the viewport defaults, ImGui's ini, and
+// a partial std::map kept only for the minimise stack.
+//
+// The one mechanism is `live`: a window that was not submitted last frame is
+// reappearing -- reopened from the menu, un-minimised, or (next) arriving from
+// another workspace -- and gets its geometry reapplied exactly once. Every other
+// frame applies nothing, so dragging still works.
+//
+// ImGui's own ini is deliberately NOT disabled. It costs a duplicate block and
+// it buys migration for free: a window fojo has no record for yet keeps
+// whatever ImGui remembered, and the read-back below adopts it on the first
+// frame. Where both have an opinion, fojo's is the one applied.
+// ---------------------------------------------------------------------------
+
+struct imguiOverlayWindowRt {
+	ImVec2 pos;
+	ImVec2 size;          // SizeFull, never the collapsed title-bar rect
+	bool haveGeometry;    // false until seen once or loaded from the ini
+	bool collapsed;
+	bool minimised;       // parked in the lower-left stack
+	bool live;            // was submitted last frame
+};
+
+static struct imguiOverlayWindowRt g_ImGuiOverlayWindowRt[kFojoWindowCount];
+static s32 g_ImGuiOverlayMinimisedOrder[kFojoWindowCount];
+static s32 g_ImGuiOverlayMinimisedCount = 0;
+
+static float imguiOverlayCollapsedTitleWidth(const char *name)
+{
+	const ImGuiStyle &style = ImGui::GetStyle();
+	// title text, the collapse arrow and the close button, each a frame high
+	return ImGui::CalcTextSize(name).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight() * 2.0f + style.ItemInnerSpacing.x * 2.0f;
+}
+
+static ImVec2 imguiOverlayMinimisedSlotPos(s32 slot)
+{
+	const ImGuiViewport *viewport = ImGui::GetMainViewport();
+	const float titleH = ImGui::GetFrameHeight();
+	const float gap = 4.0f;
+	return ImVec2(viewport->WorkPos.x + 8.0f,
+		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (slot + 1) * (titleH + gap) + gap);
+}
+
+static s32 imguiOverlayMinimisedSlot(s32 index)
+{
+	for (s32 i = 0; i < g_ImGuiOverlayMinimisedCount; ++i) {
+		if (g_ImGuiOverlayMinimisedOrder[i] == index) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+static void imguiOverlayMinimisedPush(s32 index)
+{
+	if (imguiOverlayMinimisedSlot(index) < 0 && g_ImGuiOverlayMinimisedCount < kFojoWindowCount) {
+		g_ImGuiOverlayMinimisedOrder[g_ImGuiOverlayMinimisedCount++] = index;
+	}
+}
+
+static void imguiOverlayMinimisedErase(s32 index)
+{
+	const s32 slot = imguiOverlayMinimisedSlot(index);
+
+	if (slot < 0) {
+		return;
+	}
+
+	for (s32 i = slot; i + 1 < g_ImGuiOverlayMinimisedCount; ++i) {
+		g_ImGuiOverlayMinimisedOrder[i] = g_ImGuiOverlayMinimisedOrder[i + 1];
+	}
+
+	g_ImGuiOverlayMinimisedCount--;
+}
+
+/**
+ * Begin a Fojo window by table index. Returns what ImGui::Begin returned; the
+ * caller still owns the matching ImGui::End.
+ *
+ * Collapsing a window (the title-bar arrow, or a double-click on the title) is
+ * the minimise: it shrinks to its title and stacks in the lower-left corner in
+ * the order it was collapsed. Expanding puts it back where it was, at the size
+ * it had -- which is now true across a restart as well, because the record
+ * below is persisted.
+ */
+static bool imguiOverlayBeginWindow(s32 index)
+{
+	const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[index];
+	struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
+	const ImVec2 defaultSize(def->defaultW, def->defaultH);
+
+	imguiOverlaySetNextWindowDefaults(defaultSize, def->xAnchor, def->yAnchor);
+
+	// reappearing: put it back, once
+	if (!rt.live && rt.haveGeometry) {
+		ImGui::SetNextWindowPos(rt.pos, ImGuiCond_Always);
+		ImGui::SetNextWindowSize(rt.size, ImGuiCond_Always);
+		ImGui::SetNextWindowCollapsed(rt.collapsed, ImGuiCond_Always);
+	}
+
+	if (rt.minimised) {
+		const s32 slot = imguiOverlayMinimisedSlot(index);
+		ImGui::SetNextWindowPos(imguiOverlayMinimisedSlotPos(slot < 0 ? 0 : slot), ImGuiCond_Always);
+		ImGui::SetNextWindowSize(ImVec2(imguiOverlayCollapsedTitleWidth(def->title), rt.size.y), ImGuiCond_Always);
+	}
+
+	const bool wasMinimised = rt.minimised;
+	const bool visible = ImGui::Begin(def->title, def->open);
+	const ImGuiWindow *w = ImGui::GetCurrentWindow();
+	const bool collapsed = ImGui::IsWindowCollapsed();
+
+	// Read back BEFORE the transition below, and only while the window is not
+	// parked: a parked window has just had its pos and width forced to the stack
+	// slot, so reading them here would overwrite its real home with the slot.
+	// SizeFull, never w->Size -- for a collapsed window Size is the title bar.
+	if (!wasMinimised) {
+		rt.pos = w->Pos;
+		rt.size = w->SizeFull;
+		if (rt.size.y < 40.0f) {
+			rt.size.y = defaultSize.y;
+		}
+		rt.haveGeometry = true;
+	}
+
+	rt.collapsed = collapsed;
+	rt.live = true;
+
+	if (collapsed && !rt.minimised) {
+		rt.minimised = true;
+		imguiOverlayMinimisedPush(index);
+	} else if (!collapsed && rt.minimised) {
+		rt.minimised = false;
+		imguiOverlayMinimisedErase(index);
+		ImGui::SetWindowPos(rt.pos, ImGuiCond_Always);
+		ImGui::SetWindowSize(rt.size, ImGuiCond_Always);
+	}
+
+	return visible;
+}
+
 // Menu label. Every title is "Fojo <label>"; fall back to the whole title if a
 // row ever breaks that rule rather than chopping five characters off blindly.
 static const char *imguiOverlayWindowLabel(const struct imguiOverlayWindowDef *def)
@@ -5732,11 +5789,49 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 	for (s32 i = 0; i < kFojoWindowCount; ++i) {
 		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
 		const size_t keyLen = strlen(def->key);
-		if (strncmp(line, def->key, keyLen) == 0 && line[keyLen] == '='
-				&& sscanf(line + keyLen + 1, "%d", &value) == 1) {
-			*def->open = value != 0;
-			return;
+		if (strncmp(line, def->key, keyLen) != 0 || line[keyLen] != '=') {
+			continue;
 		}
+
+		const char *rest = line + keyLen + 1;
+		if (sscanf(rest, "%d", &value) == 1) {
+			*def->open = value != 0;
+		}
+
+		// Geometry is optional on the line, so a fojo-imgui.ini written before
+		// this existed still loads -- it just has no record yet, and the first
+		// frame adopts whatever ImGui remembered instead.
+		struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+		const char *tok;
+		float px, py, sx, sy;
+		int flag;
+		bool havePos = false;
+		bool haveSize = false;
+
+		if ((tok = strstr(rest, "pos=")) != NULL && sscanf(tok, "pos=%f,%f", &px, &py) == 2) {
+			rt.pos = ImVec2(px, py);
+			havePos = true;
+		}
+
+		if ((tok = strstr(rest, "size=")) != NULL && sscanf(tok, "size=%f,%f", &sx, &sy) == 2
+				&& sx > 0.0f && sy > 0.0f) {
+			rt.size = ImVec2(sx, sy);
+			haveSize = true;
+		}
+
+		rt.haveGeometry = havePos && haveSize;
+
+		if ((tok = strstr(rest, "collapsed=")) != NULL && sscanf(tok, "collapsed=%d", &flag) == 1) {
+			rt.collapsed = flag != 0;
+			// a window saved collapsed rejoins the stack in load order, so the
+			// lower-left pile is the same one you left
+			if (rt.collapsed && rt.haveGeometry) {
+				rt.minimised = true;
+				imguiOverlayMinimisedPush(i);
+			}
+		}
+
+		return;
 	}
 
 	{
@@ -5754,7 +5849,15 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 
 	for (s32 i = 0; i < kFojoWindowCount; ++i) {
 		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
-		buffer->appendf("%s=%d\n", def->key, *def->open);
+		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+
+		if (!rt.haveGeometry) {
+			buffer->appendf("%s=%d\n", def->key, *def->open);
+			continue;
+		}
+
+		buffer->appendf("%s=%d pos=%.0f,%.0f size=%.0f,%.0f collapsed=%d\n",
+				def->key, *def->open, rt.pos.x, rt.pos.y, rt.size.x, rt.size.y, rt.collapsed);
 	}
 
 	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
@@ -5776,6 +5879,30 @@ static u32 imguiOverlayGetWindowState(void)
 	}
 
 	return state;
+}
+
+/**
+ * A cheap hash of every window's geometry, compared against itself frame to
+ * frame to notice a drag or a resize. Never persisted; it only decides whether
+ * the ini is worth marking dirty.
+ */
+static u32 imguiOverlayGeometryFingerprint(void)
+{
+	u32 h = 2166136261u;
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+		const s32 v[5] = {
+			(s32)rt.pos.x, (s32)rt.pos.y, (s32)rt.size.x, (s32)rt.size.y,
+			(rt.collapsed ? 1 : 0) | (rt.minimised ? 2 : 0),
+		};
+
+		for (s32 k = 0; k < 5; ++k) {
+			h = (h ^ (u32)v[k]) * 16777619u;
+		}
+	}
+
+	return h;
 }
 
 static void imguiOverlaySaveWindowState(void)
@@ -5881,6 +6008,7 @@ void imguiOverlayRender(void)
 
 	if (g_ImGuiOverlayVisible) {
 		const u32 previousWindowState = imguiOverlayGetWindowState();
+		const u32 previousGeometry = imguiOverlayGeometryFingerprint();
 		g_ImGuiOverlayExpandLatch = false;
 		if (!imguiOverlayPropIsCurrent(g_ImGuiOverlayFocusProp)) {
 			g_ImGuiOverlayFocusProp = NULL;
@@ -5927,11 +6055,13 @@ void imguiOverlayRender(void)
 		for (s32 i = 0; i < kFojoWindowCount; ++i) {
 			const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
 			if (!*def->open) {
+				// not submitted this frame, so the next time it is, it is
+				// reappearing and gets its geometry put back
+				g_ImGuiOverlayWindowRt[i].live = false;
 				continue;
 			}
 
-			if (imguiOverlayBeginWindow(def->title, def->open,
-					ImVec2(def->defaultW, def->defaultH), def->xAnchor, def->yAnchor)) {
+			if (imguiOverlayBeginWindow(i)) {
 				def->draw();
 			}
 
@@ -5939,7 +6069,13 @@ void imguiOverlayRender(void)
 		}
 
 		if (imguiOverlayGetWindowState() != previousWindowState) {
+			// opening or closing a window is worth writing out now
 			imguiOverlaySaveWindowState();
+		} else if (imguiOverlayGeometryFingerprint() != previousGeometry) {
+			// dragging one is not: just mark it dirty and let ImGui's own
+			// IniSavingRate (5s) coalesce the write, or this would hit the
+			// disk on every frame of a drag
+			ImGui::MarkIniSettingsDirty();
 		}
 	}
 
