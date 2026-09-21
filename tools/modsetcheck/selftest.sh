@@ -215,6 +215,8 @@ expect() {
 }
 
 expect 'stages: 8 declared - 1 by number, 2 by row name, 5 by the mod'
+expect 'stage 0x40 names a row by number; spell it stage "STAGE_TEST_MP8"'
+expect 'stage STAGE_EXTRA1 claims a STAGE_EXTRA row outright'
 expect 'stage 0x40 (STAGE_TEST_MP8) is claimed by mod_selftest (modconfig.txt:5, as 0x40) and mod_selftest2 (:4, as STAGE_TEST_MP8)'
 expect 'stage "shared_level" is declared by mod_selftest (modconfig.txt:16) and mod_selftest2'
 expect 'bgfile "bg_selftest.seg" is 11 bytes - a stub'
