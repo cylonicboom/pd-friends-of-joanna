@@ -6102,10 +6102,59 @@ static void imguiOverlayDrawWindowContextMenu(void)
 // slot corpus alone is 8192 romdataGetFileSlotInfo calls per mod.
 // ---------------------------------------------------------------------------
 
+// The one corpus that cannot be walked per keystroke. The Assets panel's file
+// slot table is `for fileNum 1..8191 { romdataGetFileSlotInfo(mod, fileNum) }`
+// PER MOD, and it pays that every frame it is open. Doing it on every character
+// typed is not acceptable, so it is indexed once and invalidated on the only
+// two events that can change it: a stage load and a change to the mod roster.
+struct imguiOverlayFileSlotEntry {
+	s32 mod;
+	s32 fileNum;
+	char name[48];
+};
+
+static std::vector<imguiOverlayFileSlotEntry> g_ImGuiOverlayFileIndex;
+static s32 g_ImGuiOverlayFileIndexMods = -1;
+static s32 g_ImGuiOverlayFileIndexStage = -1;
+
+static void imguiOverlayBuildFileIndex(void)
+{
+	const s32 mods = (s32)g_NumModDirs;
+	const s32 stage = (s32)g_Vars.stagenum;
+
+	if (mods == g_ImGuiOverlayFileIndexMods && stage == g_ImGuiOverlayFileIndexStage) {
+		return;
+	}
+
+	g_ImGuiOverlayFileIndex.clear();
+
+	for (s32 mod = 0; mod < mods; ++mod) {
+		for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
+			struct romdatafileslotinfo slotInfo;
+
+			if (!romdataGetFileSlotInfo(mod, fileNum, &slotInfo) || !slotInfo.name) {
+				continue;
+			}
+
+			struct imguiOverlayFileSlotEntry entry;
+			entry.mod = mod;
+			entry.fileNum = fileNum;
+			snprintf(entry.name, sizeof(entry.name), "%s", slotInfo.name);
+			g_ImGuiOverlayFileIndex.push_back(entry);
+		}
+	}
+
+	g_ImGuiOverlayFileIndexMods = mods;
+	g_ImGuiOverlayFileIndexStage = stage;
+	sysLogPrintf(LOG_NOTE, "IMGUI: file slot index built, %u entries across %d mod(s)",
+			(unsigned int)g_ImGuiOverlayFileIndex.size(), mods);
+}
+
 enum {
 	kFojoBarWindow,
 	kFojoBarEntity,
 	kFojoBarCommand,
+	kFojoBarFileSlot,
 };
 
 struct imguiOverlayBarHit {
@@ -6282,6 +6331,7 @@ static void imguiOverlayBarSearch(void)
 	bool wantWindows = true;
 	bool wantEntities = true;
 	bool wantCommands = true;
+	bool wantFiles = false;   // opt-in: thousands of rows would swamp a bare query
 	s32 score;
 
 	g_ImGuiOverlayBarHitCount = 0;
@@ -6290,6 +6340,7 @@ static void imguiOverlayBarSearch(void)
 	if (q[0] == '`')      { wantEntities = wantCommands = false; q++; }
 	else if (q[0] == '@') { wantWindows = wantCommands = false;  q++; }
 	else if (q[0] == '>') { wantWindows = wantEntities = false;  q++; }
+	else if (q[0] == '#') { wantWindows = wantEntities = wantCommands = false; wantFiles = true; q++; }
 	else if (q[0] == '\\') { q++; }
 
 	while (*q == ' ') {
@@ -6376,6 +6427,40 @@ static void imguiOverlayBarSearch(void)
 		}
 	}
 
+	if (wantFiles) {
+		imguiOverlayBuildFileIndex();
+
+		// "#3412" means that fileNum, not a name containing those digits
+		bool numeric = q[0] != '\0';
+
+		for (const char *c = q; *c; ++c) {
+			if (*c < '0' || *c > '9') {
+				numeric = false;
+				break;
+			}
+		}
+
+		const s32 wanted = numeric ? atoi(q) : -1;
+
+		for (size_t i = 0; i < g_ImGuiOverlayFileIndex.size(); ++i) {
+			const struct imguiOverlayFileSlotEntry &entry = g_ImGuiOverlayFileIndex[i];
+			char detail[32];
+
+			if (numeric) {
+				if (entry.fileNum != wanted) {
+					continue;
+				}
+
+				score = 1000;
+			} else if (!imguiOverlayBarFuzzy(entry.name, q, &score)) {
+				continue;
+			}
+
+			snprintf(detail, sizeof(detail), "file %d  mod %d", entry.fileNum, entry.mod);
+			imguiOverlayBarPush(kFojoBarFileSlot, (s32)i, NULL, score, entry.name, detail);
+		}
+	}
+
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
 	for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
 		const struct imguiOverlayBarHit key = g_ImGuiOverlayBarHits[i];
@@ -6420,6 +6505,19 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 	case kFojoBarCommand:
 		g_ImGuiOverlayCommandDefs[hit->index].run();
 		break;
+	case kFojoBarFileSlot:
+		// open Assets on the right mod with the slot table already filtered to
+		// the name, which is where you were going to end up anyway
+		if (hit->index >= 0 && hit->index < (s32)g_ImGuiOverlayFileIndex.size()) {
+			const struct imguiOverlayFileSlotEntry &entry = g_ImGuiOverlayFileIndex[hit->index];
+			g_ImGuiOverlaySlotMod = entry.mod;
+			snprintf(g_ImGuiOverlaySlotFilter.InputBuf,
+					sizeof(g_ImGuiOverlaySlotFilter.InputBuf), "%s", entry.name);
+			g_ImGuiOverlaySlotFilter.Build();
+			g_ImGuiOverlayShowAssets = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowAssets);
+		}
+		break;
 	}
 
 	g_ImGuiOverlayBarOpen = false;
@@ -6453,7 +6551,7 @@ static void imguiOverlayDrawAwesomeBar(void)
 	}
 
 	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command",
+	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot",
 			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
 
 	imguiOverlayBarSearch();
