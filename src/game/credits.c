@@ -239,7 +239,8 @@ struct fojcredit g_FojCredits[] = {
 	// 0.4.0 stubs - HEADINGS AND FLAVOUR TEXT ARE HERS TO WRITE.
 	// group 1: borrowed engine work
 	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "TODO_HEADING_BORROWED",                       ""    },
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "DabDavis",                             "Murk" },
+	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "DabDavis",                             "Murk" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "jonaeru",                              "\n" },
 
 	// group 2: assets and outside distributions
 	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "TODO_HEADING_ASSETS",                         ""    },
