@@ -6082,6 +6082,442 @@ static void imguiOverlayDrawWindowContextMenu(void)
 	ImGui::EndPopup();
 }
 
+// ---------------------------------------------------------------------------
+// The awesome bar. Ctrl+P (Super+P too, where the WM lets it through).
+//
+// Type and it searches everything, ranked. A leading sigil forces one corpus:
+//   @  entities -- props and chrs        >  commands
+//   `  windows and panels
+// A bare sigil is a mode: ` on its own lists every window, which is the window
+// switcher with no query. \ at position 0 escapes the next character, for the
+// one corpus whose names are mod-supplied and so not guaranteed sigil-free.
+//
+// Sigils bind at position 0 ONLY. Measured against the ROM file table: across
+// all 2013 names the set of leading characters is A L P b C U G o, so no name
+// starts with a sigil -- but 181 of them CONTAIN '/', so a sigil must never be
+// treated as a delimiter inside a query.
+//
+// Stages, file slots and textures are not here yet: those want an index built
+// once on stage/mod change rather than a walk per keystroke, because the file
+// slot corpus alone is 8192 romdataGetFileSlotInfo calls per mod.
+// ---------------------------------------------------------------------------
+
+enum {
+	kFojoBarWindow,
+	kFojoBarEntity,
+	kFojoBarCommand,
+};
+
+struct imguiOverlayBarHit {
+	s32 kind;
+	s32 index;              // window row, or command row
+	struct prop *prop;      // entity
+	s32 score;
+	char label[80];
+	char detail[32];
+};
+
+static const s32 kFojoBarMaxHits = 48;
+static bool g_ImGuiOverlayBarOpen = false;
+static bool g_ImGuiOverlayBarJustOpened = false;
+static char g_ImGuiOverlayBarQuery[128];
+static s32 g_ImGuiOverlayBarSel = 0;
+static struct imguiOverlayBarHit g_ImGuiOverlayBarHits[kFojoBarMaxHits];
+static s32 g_ImGuiOverlayBarHitCount = 0;
+
+struct imguiOverlayCommandDef {
+	const char *name;
+	void (*run)(void);
+};
+
+static void imguiOverlayCmdFloor1(void) { g_ImGuiOverlayWorkspace = 0; }
+static void imguiOverlayCmdFloor2(void) { g_ImGuiOverlayWorkspace = 1; }
+static void imguiOverlayCmdFloor3(void) { g_ImGuiOverlayWorkspace = 2; }
+static void imguiOverlayCmdFloor4(void) { g_ImGuiOverlayWorkspace = 3; }
+
+static void imguiOverlayCmdCloseAll(void)
+{
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		*g_ImGuiOverlayWindowDefs[i].open = false;
+	}
+}
+
+static void imguiOverlayCmdResetPositions(void)
+{
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+		rt.haveGeometry = false;
+		rt.minimised = false;
+		rt.live = false;
+	}
+
+	g_ImGuiOverlayMinimisedCount = 0;
+}
+
+static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
+static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
+static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
+
+static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
+	{ "Go to floor 1",            imguiOverlayCmdFloor1 },
+	{ "Go to floor 2",            imguiOverlayCmdFloor2 },
+	{ "Go to floor 3",            imguiOverlayCmdFloor3 },
+	{ "Go to floor 4",            imguiOverlayCmdFloor4 },
+	{ "Close all windows",        imguiOverlayCmdCloseAll },
+	{ "Reset window positions",   imguiOverlayCmdResetPositions },
+	{ "Reload Lua",               imguiOverlayCmdReloadLua },
+	{ "Flush saves",              imguiOverlayCmdFlushSaves },
+	{ "Hide the debugger",        imguiOverlayCmdHide },
+};
+
+static const s32 kFojoCommandCount =
+	(s32)(sizeof(g_ImGuiOverlayCommandDefs) / sizeof(g_ImGuiOverlayCommandDefs[0]));
+
+static char imguiOverlayBarLower(char c)
+{
+	return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
+}
+
+/**
+ * Subsequence match with a score. Every query character must appear in the
+ * candidate, in order, but not adjacently -- "sknm" finds "Skin Match".
+ *
+ * ImGuiTextFilter, which the panels use, is substring-only and carries no
+ * score, so it cannot rank. Ranking is the whole difference between a filter
+ * box and a bar you can type three letters into and hit enter.
+ */
+static bool imguiOverlayBarFuzzy(const char *cand, const char *query, s32 *outScore)
+{
+	s32 score = 0;
+	s32 run = 0;
+	s32 ci = 0;
+	s32 firstHit = -1;
+
+	if (!query[0]) {
+		*outScore = 0;
+		return true;
+	}
+
+	for (s32 qi = 0; query[qi]; ++qi) {
+		const char q = imguiOverlayBarLower(query[qi]);
+		bool found = false;
+
+		if (q == ' ') {
+			continue;
+		}
+
+		while (cand[ci]) {
+			const char c = imguiOverlayBarLower(cand[ci]);
+			const bool wordStart = ci == 0
+				|| (cand[ci - 1] == ' ' || cand[ci - 1] == '_' || cand[ci - 1] == '-'
+					|| cand[ci - 1] == '/' || cand[ci - 1] == '.');
+
+			if (c == q) {
+				if (firstHit < 0) {
+					firstHit = ci;
+				}
+
+				score += 1 + run * 5 + (wordStart ? 8 : 0);
+				run++;
+				ci++;
+				found = true;
+				break;
+			}
+
+			run = 0;
+			ci++;
+		}
+
+		if (!found) {
+			return false;
+		}
+	}
+
+	// a hit near the front, in a short name, beats the same hit buried in a
+	// long one -- "Stage" should outrank "Skin Match" for "sta"
+	score -= firstHit;
+	score += 40 - (s32)strlen(cand);
+	*outScore = score;
+	return true;
+}
+
+static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 score,
+		const char *label, const char *detail)
+{
+	s32 slot;
+
+	if (g_ImGuiOverlayBarHitCount < kFojoBarMaxHits) {
+		slot = g_ImGuiOverlayBarHitCount++;
+	} else {
+		// full: replace the current worst IN PLACE, keeping the count. an
+		// earlier version set the count to `worst` and appended, which quietly
+		// threw away every result after it.
+		s32 worst = 0;
+
+		for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
+			if (g_ImGuiOverlayBarHits[i].score < g_ImGuiOverlayBarHits[worst].score) {
+				worst = i;
+			}
+		}
+
+		if (g_ImGuiOverlayBarHits[worst].score >= score) {
+			return;
+		}
+
+		slot = worst;
+	}
+
+	struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[slot];
+	hit.kind = kind;
+	hit.index = index;
+	hit.prop = prop;
+	hit.score = score;
+	snprintf(hit.label, sizeof(hit.label), "%s", label);
+	snprintf(hit.detail, sizeof(hit.detail), "%s", detail ? detail : "");
+}
+
+static void imguiOverlayBarSearch(void)
+{
+	const char *q = g_ImGuiOverlayBarQuery;
+	bool wantWindows = true;
+	bool wantEntities = true;
+	bool wantCommands = true;
+	s32 score;
+
+	g_ImGuiOverlayBarHitCount = 0;
+
+	// sigils bind at position 0 only
+	if (q[0] == '`')      { wantEntities = wantCommands = false; q++; }
+	else if (q[0] == '@') { wantWindows = wantCommands = false;  q++; }
+	else if (q[0] == '>') { wantWindows = wantEntities = false;  q++; }
+	else if (q[0] == '\\') { q++; }
+
+	while (*q == ' ') {
+		q++;
+	}
+
+	if (wantWindows) {
+		for (s32 i = 0; i < kFojoWindowCount; ++i) {
+			const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+			const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+			const char *label = imguiOverlayWindowLabel(def);
+			char detail[32];
+
+			if (def->gate && !def->gate()) {
+				continue;
+			}
+
+			if (!imguiOverlayBarFuzzy(label, q, &score)) {
+				continue;
+			}
+
+			if (rt.sticky) {
+				snprintf(detail, sizeof(detail), "window  all floors");
+			} else {
+				snprintf(detail, sizeof(detail), "window  floor %d", rt.ws + 1);
+			}
+
+			imguiOverlayBarPush(kFojoBarWindow, i, NULL, score + (*def->open ? 2 : 0),
+					label, detail);
+		}
+	}
+
+	if (wantCommands) {
+		for (s32 i = 0; i < kFojoCommandCount; ++i) {
+			if (imguiOverlayBarFuzzy(g_ImGuiOverlayCommandDefs[i].name, q, &score)) {
+				imguiOverlayBarPush(kFojoBarCommand, i, NULL, score,
+						g_ImGuiOverlayCommandDefs[i].name, "command");
+			}
+		}
+	}
+
+	// Entities are walked live, not indexed: props come and go. Only while the
+	// bar is open, and only the active list, which the Entities panel already
+	// walks once a frame.
+	if (wantEntities && q[0]) {
+		char label[80];
+
+		if (g_ChrSlots && g_NumChrSlots) {
+			for (s32 i = 0; i < g_NumChrSlots; ++i) {
+				struct chrdata *chr = &g_ChrSlots[i];
+
+				if (chr->chrnum < 0 || !chr->prop) {
+					continue;
+				}
+
+				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
+
+				if (imguiOverlayBarFuzzy(label, q, &score)) {
+					char detail[32];
+					snprintf(detail, sizeof(detail), "chr 0x%04x", (u16)chr->chrnum);
+					imguiOverlayBarPush(kFojoBarEntity, i, chr->prop, score, label, detail);
+				}
+			}
+		}
+
+		struct prop *prop = g_Vars.activeprops;
+
+		for (s32 i = 0; prop && prop != g_Vars.pausedprops && i <= g_Vars.maxprops; ++i) {
+			struct prop *next = prop->next;
+
+			if (!imguiOverlayPropIsCurrent(prop)) {
+				break;
+			}
+
+			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
+				snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(prop->type));
+
+				if (imguiOverlayBarFuzzy(label, q, &score)) {
+					imguiOverlayBarPush(kFojoBarEntity, i, prop, score - 6, label, "prop");
+				}
+			}
+
+			prop = next;
+		}
+	}
+
+	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
+	for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
+		const struct imguiOverlayBarHit key = g_ImGuiOverlayBarHits[i];
+		s32 j = i - 1;
+
+		while (j >= 0 && g_ImGuiOverlayBarHits[j].score < key.score) {
+			g_ImGuiOverlayBarHits[j + 1] = g_ImGuiOverlayBarHits[j];
+			j--;
+		}
+
+		g_ImGuiOverlayBarHits[j + 1] = key;
+	}
+
+	if (g_ImGuiOverlayBarSel >= g_ImGuiOverlayBarHitCount) {
+		g_ImGuiOverlayBarSel = g_ImGuiOverlayBarHitCount ? g_ImGuiOverlayBarHitCount - 1 : 0;
+	}
+}
+
+static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
+{
+	switch (hit->kind) {
+	case kFojoBarWindow:
+		if (*g_ImGuiOverlayWindowDefs[hit->index].open) {
+			// focusing an open window takes you to its floor; opening one
+			// brings it to yours
+			const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[hit->index];
+			if (!rt.sticky) {
+				g_ImGuiOverlayWorkspace = rt.ws;
+			}
+			ImGui::SetWindowFocus(g_ImGuiOverlayWindowDefs[hit->index].title);
+		} else {
+			*g_ImGuiOverlayWindowDefs[hit->index].open = true;
+			imguiOverlayBringToCurrentWorkspace(hit->index);
+		}
+		break;
+	case kFojoBarEntity:
+		// this one was already written: latch means "focus it in every panel"
+		if (hit->prop && imguiOverlayPropIsCurrent(hit->prop)) {
+			imguiOverlayLatchPropEverywhere(hit->prop);
+		}
+		break;
+	case kFojoBarCommand:
+		g_ImGuiOverlayCommandDefs[hit->index].run();
+		break;
+	}
+
+	g_ImGuiOverlayBarOpen = false;
+}
+
+static void imguiOverlayDrawAwesomeBar(void)
+{
+	if (!g_ImGuiOverlayBarOpen) {
+		return;
+	}
+
+	const ImGuiViewport *vp = ImGui::GetMainViewport();
+	const float width = vp->WorkSize.x * 0.5f < 420.0f ? 420.0f : vp->WorkSize.x * 0.5f;
+
+	ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x + (vp->WorkSize.x - width) * 0.5f,
+			vp->WorkPos.y + vp->WorkSize.y * 0.18f), ImGuiCond_Always);
+	ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Always);
+	ImGui::SetNextWindowFocus();
+
+	if (!ImGui::Begin("Fojo Find", &g_ImGuiOverlayBarOpen,
+			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
+			| ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
+		ImGui::End();
+		return;
+	}
+
+	if (g_ImGuiOverlayBarJustOpened) {
+		ImGui::SetKeyboardFocusHere();
+		g_ImGuiOverlayBarJustOpened = false;
+	}
+
+	ImGui::SetNextItemWidth(-1.0f);
+	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command",
+			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
+
+	imguiOverlayBarSearch();
+
+	if (ImGui::IsKeyPressed(ImGuiKey_DownArrow, true) && g_ImGuiOverlayBarHitCount) {
+		g_ImGuiOverlayBarSel = (g_ImGuiOverlayBarSel + 1) % g_ImGuiOverlayBarHitCount;
+	}
+
+	if (ImGui::IsKeyPressed(ImGuiKey_UpArrow, true) && g_ImGuiOverlayBarHitCount) {
+		g_ImGuiOverlayBarSel = (g_ImGuiOverlayBarSel + g_ImGuiOverlayBarHitCount - 1)
+			% g_ImGuiOverlayBarHitCount;
+	}
+
+	if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
+		g_ImGuiOverlayBarOpen = false;
+	}
+
+	const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false)
+		|| ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false);
+
+	ImGui::Separator();
+
+	if (!g_ImGuiOverlayBarHitCount) {
+		ImGui::TextDisabled("no match");
+	}
+
+	for (s32 i = 0; i < g_ImGuiOverlayBarHitCount; ++i) {
+		const struct imguiOverlayBarHit *hit = &g_ImGuiOverlayBarHits[i];
+		char row[128];
+
+		snprintf(row, sizeof(row), "%s##fojohit%d", hit->label, i);
+
+		if (ImGui::Selectable(row, i == g_ImGuiOverlayBarSel)) {
+			imguiOverlayBarActivate(hit);
+			break;
+		}
+
+		if (hit->detail[0]) {
+			ImGui::SameLine();
+			ImGui::TextDisabled("  %s", hit->detail);
+		}
+
+		if (i == g_ImGuiOverlayBarSel && (ImGui::IsKeyPressed(ImGuiKey_DownArrow, false)
+				|| ImGui::IsKeyPressed(ImGuiKey_UpArrow, false))) {
+			ImGui::SetScrollHereY(0.5f);
+		}
+	}
+
+	if (enter && g_ImGuiOverlayBarHitCount
+			&& g_ImGuiOverlayBarSel < g_ImGuiOverlayBarHitCount) {
+		imguiOverlayBarActivate(&g_ImGuiOverlayBarHits[g_ImGuiOverlayBarSel]);
+	}
+
+	ImGui::End();
+}
+
+static void imguiOverlayOpenAwesomeBar(void)
+{
+	g_ImGuiOverlayBarOpen = true;
+	g_ImGuiOverlayBarJustOpened = true;
+	g_ImGuiOverlayBarSel = 0;
+	g_ImGuiOverlayBarQuery[0] = '\0';
+}
+
 static void imguiOverlayDrawWindowMenu(void)
 {
 	if (!ImGui::BeginPopupContextVoid("FojoWindowMenu", ImGuiPopupFlags_MouseButtonRight)) {
@@ -6188,6 +6624,22 @@ void imguiOverlayProcessEvent(const SDL_Event *event)
 			&& event->key.repeat == 0) {
 		imguiOverlaySetVisible(!g_ImGuiOverlayVisible);
 	}
+
+	// Ctrl+P has to be caught HERE as well as in the frame, or it only works
+	// once the overlay is already up: imguiOverlayCapturesKeyboard returns false
+	// while hidden, so input.c hands the keyboard to the game and ImGui's own
+	// Shortcut() never sees it. One keystroke from gameplay should enter
+	// debugger mode AND focus the bar. Super is bound too and will usually be
+	// eaten by the window manager on Linux before SDL ever sees it.
+	if (event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_p
+			&& event->key.repeat == 0
+			&& (event->key.keysym.mod & (KMOD_CTRL | KMOD_GUI))) {
+		if (!g_ImGuiOverlayVisible) {
+			imguiOverlaySetVisible(true);
+		}
+
+		imguiOverlayOpenAwesomeBar();
+	}
 }
 
 void imguiOverlayStartFrame(void)
@@ -6223,6 +6675,11 @@ void imguiOverlayRender(void)
 					ImGuiInputFlags_RouteGlobal)) {
 				g_ImGuiOverlayWorkspace = ws;
 			}
+		}
+
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, ImGuiInputFlags_RouteGlobal)
+				|| ImGui::Shortcut(ImGuiMod_Super | ImGuiKey_P, ImGuiInputFlags_RouteGlobal)) {
+			imguiOverlayOpenAwesomeBar();
 		}
 
 		imguiOverlayDrawWindowMenu();
@@ -6280,6 +6737,8 @@ void imguiOverlayRender(void)
 
 			ImGui::End();
 		}
+
+		imguiOverlayDrawAwesomeBar();
 
 		if (imguiOverlayGetWindowState() != previousWindowState) {
 			// opening or closing a window is worth writing out now
