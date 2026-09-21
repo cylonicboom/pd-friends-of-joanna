@@ -1448,6 +1448,21 @@ static void checkStages(struct mod *mods, int n, bool haveIni)
 				continue;
 			}
 
+			/* A name reserved on a row that is not a STAGE_EXTRA row: the
+			 * loader returns a reservation before the usable gate, so the
+			 * level would sit on a vanilla row - a stale positional key that
+			 * was renamed instead of dropped, usually. */
+			if (mods[rv->mod].blocks[rv->block].kind == SPEC_NAME) {
+				const struct stagename *held = stageByNum(rv->slot);
+
+				if (!held || !isExtraRow(held->name)) {
+					finding(LVL_ERROR, "[MpStageSlots] '%s' (declared by %s) is reserved at row 0x%02x "
+							"(%s), not a STAGE_EXTRA row; the loader honours the reservation and "
+							"the level sits on that vanilla row. Drop the key and let it be allocated",
+							rv->name, mods[rv->mod].label, rv->slot, held ? held->name : "no row");
+				}
+			}
+
 			/* A persisted allocation that now sits on a row some block claims
 			 * outright. modSlotReserve returns the reservation before the
 			 * usable gate, so both will write the row; the loader only warns
