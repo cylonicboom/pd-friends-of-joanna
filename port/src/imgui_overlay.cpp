@@ -6289,6 +6289,7 @@ static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 scor
 		hit.ref.owner = -1;
 		hit.ref.id = -1;
 		hit.ref.sub = -1;
+		hit.ref.via = -1;
 	}
 	snprintf(hit.label, sizeof(hit.label), "%s", label);
 	snprintf(hit.detail, sizeof(hit.detail), "%s", detail ? detail : "");
