@@ -364,6 +364,7 @@ static void imguiPropLatch(struct chrdata *chr);
 static bool imguiOverlayChrIsCurrent(struct chrdata *chr);
 static void imguiOverlayFocusChr(struct chrdata *chr);
 static void imguiOverlayFocusProp(struct prop *prop);
+static void imguiOverlayBringFlagToCurrentWorkspace(bool *open);
 
 #define CASE_NAME(x) case x: return #x;
 
@@ -5529,11 +5530,13 @@ static void imguiOverlayLatchPropEverywhere(struct prop *prop)
 {
 	g_ImGuiOverlayFocusProp = prop;
 	g_ImGuiOverlayShowEntities = true;
+	imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowEntities);
 
 	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && imguiOverlayChrIsCurrent(prop->chr)) {
 		struct chrdata *chr = prop->chr;
 		g_ImGuiOverlaySkinChr = chr;
 		g_ImGuiOverlayShowSkinMatch = true;
+		imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowSkinMatch);
 		imguiOverlayFocusChr(chr);
 		if (chr->bodynum >= 0) {
 			imguiOverlayProbeModelFileTexture((u16)(g_HeadsAndBodies[chr->bodynum].filenum & 0xffff));
@@ -5638,11 +5641,54 @@ struct imguiOverlayWindowRt {
 	bool collapsed;
 	bool minimised;       // parked in the lower-left stack
 	bool live;            // was submitted last frame
+	s32 ws;               // which floor it lives on, 0..kFojoWorkspaces-1
+	bool sticky;          // shows on every floor
 };
+
+// Four floors of the institute. A window lives on exactly one, unless it is
+// sticky, in which case it shows on all of them. A window that is neither on
+// the visible floor nor sticky is simply NOT SUBMITTED -- no Begin, no cost --
+// and the `live` flag from the geometry record is what puts it back where it
+// belongs when you switch to its floor. That is the whole of it.
+static const s32 kFojoWorkspaces = 4;
+static s32 g_ImGuiOverlayWorkspace = 0;
+static s32 g_ImGuiOverlayCtxWindow = -1;
+static bool g_ImGuiOverlayCtxOpen = false;
 
 static struct imguiOverlayWindowRt g_ImGuiOverlayWindowRt[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedOrder[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedCount = 0;
+
+static bool imguiOverlayWindowOnThisFloor(s32 index)
+{
+	const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
+
+	return rt.sticky || rt.ws == g_ImGuiOverlayWorkspace;
+}
+
+/**
+ * Opening a window brings it to the floor you are on; focusing an already-open
+ * one takes you to its floor instead. Without the first half, force-opens like
+ * imguiOverlayLatchPropEverywhere would open windows you cannot see.
+ */
+static void imguiOverlayBringToCurrentWorkspace(s32 index)
+{
+	struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
+
+	if (!rt.sticky) {
+		rt.ws = g_ImGuiOverlayWorkspace;
+	}
+}
+
+static void imguiOverlayBringFlagToCurrentWorkspace(bool *open)
+{
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		if (g_ImGuiOverlayWindowDefs[i].open == open) {
+			imguiOverlayBringToCurrentWorkspace(i);
+			return;
+		}
+	}
+}
 
 static float imguiOverlayCollapsedTitleWidth(const char *name)
 {
@@ -5666,6 +5712,32 @@ static s32 imguiOverlayMinimisedSlot(s32 index)
 		if (g_ImGuiOverlayMinimisedOrder[i] == index) {
 			return i;
 		}
+	}
+
+	return -1;
+}
+
+/**
+ * Where a parked window sits in the pile you can actually see. Counts only the
+ * windows minimised on the visible floor, so floor 3's stack does not leave
+ * holes for floor 1's windows.
+ */
+static s32 imguiOverlayMinimisedVisibleSlot(s32 index)
+{
+	s32 slot = 0;
+
+	for (s32 i = 0; i < g_ImGuiOverlayMinimisedCount; ++i) {
+		const s32 other = g_ImGuiOverlayMinimisedOrder[i];
+
+		if (!imguiOverlayWindowOnThisFloor(other)) {
+			continue;
+		}
+
+		if (other == index) {
+			return slot;
+		}
+
+		slot++;
 	}
 
 	return -1;
@@ -5719,7 +5791,7 @@ static bool imguiOverlayBeginWindow(s32 index)
 	}
 
 	if (rt.minimised) {
-		const s32 slot = imguiOverlayMinimisedSlot(index);
+		const s32 slot = imguiOverlayMinimisedVisibleSlot(index);
 		ImGui::SetNextWindowPos(imguiOverlayMinimisedSlotPos(slot < 0 ? 0 : slot), ImGuiCond_Always);
 		ImGui::SetNextWindowSize(ImVec2(imguiOverlayCollapsedTitleWidth(def->title), rt.size.y), ImGuiCond_Always);
 	}
@@ -5744,6 +5816,23 @@ static bool imguiOverlayBeginWindow(s32 index)
 
 	rt.collapsed = collapsed;
 	rt.live = true;
+
+	// Right-click the TITLE BAR specifically. BeginPopupContextWindow would fire
+	// anywhere in the window and collide with imguiOverlayDrawEntityContextMenu
+	// on every tree node in Entities. A collapsed window still runs Begin, so a
+	// parked window can be sent away too. The popup itself is opened at top
+	// level in imguiOverlayRender -- a window-scoped popup never opens while
+	// SkipItems is set, which is exactly the collapsed case.
+	{
+		ImGuiContext &g = *ImGui::GetCurrentContext();
+		const ImRect title = w->TitleBarRect();
+
+		if (g.HoveredWindow == w && ImGui::IsMouseClicked(ImGuiMouseButton_Right)
+				&& ImGui::IsMouseHoveringRect(title.Min, title.Max, false)) {
+			g_ImGuiOverlayCtxWindow = index;
+			g_ImGuiOverlayCtxOpen = true;
+		}
+	}
 
 	if (collapsed && !rt.minimised) {
 		rt.minimised = true;
@@ -5821,6 +5910,15 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 
 		rt.haveGeometry = havePos && haveSize;
 
+		if ((tok = strstr(rest, "ws=")) != NULL && sscanf(tok, "ws=%d", &flag) == 1
+				&& flag >= 0 && flag < kFojoWorkspaces) {
+			rt.ws = flag;
+		}
+
+		if ((tok = strstr(rest, "sticky=")) != NULL && sscanf(tok, "sticky=%d", &flag) == 1) {
+			rt.sticky = flag != 0;
+		}
+
 		if ((tok = strstr(rest, "collapsed=")) != NULL && sscanf(tok, "collapsed=%d", &flag) == 1) {
 			rt.collapsed = flag != 0;
 			// a window saved collapsed rejoins the stack in load order, so the
@@ -5832,6 +5930,14 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 		}
 
 		return;
+	}
+
+	{
+		int ws;
+
+		if (sscanf(line, "Workspace=%d", &ws) == 1 && ws >= 0 && ws < kFojoWorkspaces) {
+			g_ImGuiOverlayWorkspace = ws;
+		}
 	}
 
 	{
@@ -5852,14 +5958,16 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
 
 		if (!rt.haveGeometry) {
-			buffer->appendf("%s=%d\n", def->key, *def->open);
+			buffer->appendf("%s=%d ws=%d sticky=%d\n", def->key, *def->open, rt.ws, rt.sticky);
 			continue;
 		}
 
-		buffer->appendf("%s=%d pos=%.0f,%.0f size=%.0f,%.0f collapsed=%d\n",
-				def->key, *def->open, rt.pos.x, rt.pos.y, rt.size.x, rt.size.y, rt.collapsed);
+		buffer->appendf("%s=%d pos=%.0f,%.0f size=%.0f,%.0f collapsed=%d ws=%d sticky=%d\n",
+				def->key, *def->open, rt.pos.x, rt.pos.y, rt.size.x, rt.size.y,
+				rt.collapsed, rt.ws, rt.sticky);
 	}
 
+	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
 	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
 }
 
@@ -5894,7 +6002,8 @@ static u32 imguiOverlayGeometryFingerprint(void)
 		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
 		const s32 v[5] = {
 			(s32)rt.pos.x, (s32)rt.pos.y, (s32)rt.size.x, (s32)rt.size.y,
-			(rt.collapsed ? 1 : 0) | (rt.minimised ? 2 : 0),
+			(rt.collapsed ? 1 : 0) | (rt.minimised ? 2 : 0)
+				| (rt.sticky ? 4 : 0) | (rt.ws << 3),
 		};
 
 		for (s32 k = 0; k < 5; ++k) {
@@ -5911,18 +6020,110 @@ static void imguiOverlaySaveWindowState(void)
 	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
 }
 
+/**
+ * The menu a right-click on a window's title bar opens: which floor it lives
+ * on, whether it follows you everywhere, and the two housekeeping items.
+ */
+static void imguiOverlayDrawWindowContextMenu(void)
+{
+	if (g_ImGuiOverlayCtxOpen) {
+		ImGui::OpenPopup("FojoWindowCtx");
+		g_ImGuiOverlayCtxOpen = false;
+	}
+
+	if (!ImGui::BeginPopup("FojoWindowCtx")) {
+		return;
+	}
+
+	if (g_ImGuiOverlayCtxWindow < 0 || g_ImGuiOverlayCtxWindow >= kFojoWindowCount) {
+		ImGui::EndPopup();
+		return;
+	}
+
+	const s32 index = g_ImGuiOverlayCtxWindow;
+	const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[index];
+	struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
+
+	ImGui::SeparatorText(imguiOverlayWindowLabel(def));
+
+	for (s32 ws = 0; ws < kFojoWorkspaces; ++ws) {
+		char label[32];
+		snprintf(label, sizeof(label), "Send to floor %d", ws + 1);
+
+		if (ImGui::MenuItem(label, NULL, !rt.sticky && rt.ws == ws, !rt.sticky)) {
+			rt.ws = ws;
+		}
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::MenuItem("Sticky (all floors)", NULL, rt.sticky)) {
+		rt.sticky = !rt.sticky;
+		if (!rt.sticky) {
+			// landing it where you are beats landing it on whichever floor it
+			// happened to be on before it went sticky
+			rt.ws = g_ImGuiOverlayWorkspace;
+		}
+	}
+
+	if (ImGui::MenuItem("Reset position")) {
+		rt.haveGeometry = false;
+		rt.minimised = false;
+		imguiOverlayMinimisedErase(index);
+		rt.live = false;
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::MenuItem("Close")) {
+		*def->open = false;
+	}
+
+	ImGui::EndPopup();
+}
+
 static void imguiOverlayDrawWindowMenu(void)
 {
 	if (!ImGui::BeginPopupContextVoid("FojoWindowMenu", ImGuiPopupFlags_MouseButtonRight)) {
 		return;
 	}
 
+	ImGui::SeparatorText("Floor");
+
+	for (s32 ws = 0; ws < kFojoWorkspaces; ++ws) {
+		char label[24];
+		snprintf(label, sizeof(label), "%d", ws + 1);
+
+		if (ws) {
+			ImGui::SameLine();
+		}
+
+		if (ImGui::RadioButton(label, g_ImGuiOverlayWorkspace == ws)) {
+			g_ImGuiOverlayWorkspace = ws;
+		}
+	}
+
 	ImGui::SeparatorText("Fojo Windows");
 
 	for (s32 i = 0; i < kFojoWindowCount; ++i) {
 		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
-		ImGui::MenuItem(imguiOverlayWindowLabel(def), NULL, def->open,
-				def->gate == NULL || def->gate());
+		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+		const bool wasOpen = *def->open;
+		char label[64];
+
+		// say where it is, so a window that is open but on another floor does
+		// not read as broken
+		if (rt.sticky) {
+			snprintf(label, sizeof(label), "%s\t*", imguiOverlayWindowLabel(def));
+		} else {
+			snprintf(label, sizeof(label), "%s\t%d", imguiOverlayWindowLabel(def), rt.ws + 1);
+		}
+
+		ImGui::MenuItem(label, NULL, def->open, def->gate == NULL || def->gate());
+
+		if (!wasOpen && *def->open) {
+			imguiOverlayBringToCurrentWorkspace(i);
+		}
 	}
 
 	ImGui::EndPopup();
@@ -6014,7 +6215,18 @@ void imguiOverlayRender(void)
 			g_ImGuiOverlayFocusProp = NULL;
 		}
 		imguiOverlayApplyWindowGates();
+
+		// Ctrl+1..4 switches floor. RouteGlobal so it works wherever focus is,
+		// including inside a panel.
+		for (s32 ws = 0; ws < kFojoWorkspaces; ++ws) {
+			if (ImGui::Shortcut(ImGuiMod_Ctrl | (ImGuiKey)(ImGuiKey_1 + ws),
+					ImGuiInputFlags_RouteGlobal)) {
+				g_ImGuiOverlayWorkspace = ws;
+			}
+		}
+
 		imguiOverlayDrawWindowMenu();
+		imguiOverlayDrawWindowContextMenu();
 
 		{
 			const ImGuiIO &io = ImGui::GetIO();
@@ -6054,9 +6266,10 @@ void imguiOverlayRender(void)
 
 		for (s32 i = 0; i < kFojoWindowCount; ++i) {
 			const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
-			if (!*def->open) {
-				// not submitted this frame, so the next time it is, it is
-				// reappearing and gets its geometry put back
+			if (!*def->open || !imguiOverlayWindowOnThisFloor(i)) {
+				// closed, or living on a floor you are not standing on. either
+				// way it is not submitted this frame, so the next time it is,
+				// it is reappearing and gets its geometry put back
 				g_ImGuiOverlayWindowRt[i].live = false;
 				continue;
 			}
