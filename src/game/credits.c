@@ -232,7 +232,22 @@ struct fojcredit g_FojCredits[] = {
 	// decomp / port
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Jonaeru",                    "modloader base"  },
 	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Ryan Dwyer",                           "perfect dark decompilation" },
-	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "fdsfdsfgs",                            "perfect dark pc port" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "fgsfdsfgs",                            "perfect dark pc port" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_CORETEAM,   "Lua",                                  "TODO" }, // PUC-Rio, vendored runtime
+
+	//
+	// 0.4.0 stubs - HEADINGS AND FLAVOUR TEXT ARE HERS TO WRITE.
+	// group 1: borrowed engine work
+	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "TODO_HEADING_BORROWED",                       ""    },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "DabDavis",                             "Murk" },
+
+	// group 2: assets and outside distributions
+	{ 1, RETAIN_OUT,  0, CREDITSTYLE_HEADING1,   "TODO_HEADING_ASSETS",                         ""    },
+	{ 1, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "JillyJane",                            "Wreck" },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Paradox",                              "TimEh" },
+
+	{ 1, RETAIN_IN,   0, CREDITSTYLE_HEADING1,   "TODO_HEADING_ASSETS",                         ""    },
+	{ 0, RETAIN_NONE, 0, CREDITSTYLE_NAME1,      "Atari-Dude",                           "\n" },
 
 	//
 	// special thanks
