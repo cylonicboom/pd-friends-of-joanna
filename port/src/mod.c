@@ -2700,6 +2700,19 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		// A literal is the modconfig's own choice; record it so the allocator
 		// cannot later hand the same row to a name.
 		modStageSlotClaim(spec, stagenum);
+
+		// Accepted, discouraged: a number says nothing the row name does not,
+		// and a stage that means to be a new level should give its own name
+		// and let the allocator place it. Two lines a boot for a block that
+		// will be rewritten once, rather than a silent path nobody notices.
+		{
+			const char *rowname = stageGetName(stagenum);
+			const bool extra = rowname && !strncmp(rowname, "STAGE_EXTRA", 11) && rowname[11] >= '0' && rowname[11] <= '9';
+
+			sysLogPrintf(LOG_WARNING, "modconfig: stage %s names a row by number; spell it stage \"%s\"%s",
+					spec, rowname ? rowname : "?",
+					extra ? " - or, for a new level, give it the mod's own name and let the loader place it" : "");
+		}
 	} else {
 		const s32 named = stageGetIndexByName(spec);
 
@@ -2735,6 +2748,14 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			// Recorded, not allocated - same reason modSlotClaim exists for
 			// heads: a name allocated later must not be handed this row.
 			modStageSlotClaim(spec, stagenum);
+
+			// A STAGE_EXTRA row is placeholder content; claiming one by name
+			// is a new level picking its own row, which the allocator would do
+			// for it. Say so; the claim still stands.
+			if (!strncasecmp(spec, "STAGE_EXTRA", 11) && spec[11] >= '0' && spec[11] <= '9') {
+				sysLogPrintf(LOG_WARNING, "modconfig: stage \"%s\" claims a STAGE_EXTRA row outright; "
+						"give the level the mod's own name and let the loader place it", spec);
+			}
 		}
 	}
 

@@ -1252,6 +1252,20 @@ static void checkStages(struct mod *mods, int n, bool haveIni)
 		for (a = 0; a < mods[i].numBlocks; ++a) {
 			const struct stageblock *blk = &mods[i].blocks[a];
 
+			/* 1b. The spellings the loader still accepts but nobody should
+			 * write. A number says nothing a row name does not, and a claim
+			 * of a STAGE_EXTRA row is a NEW level picking its own row - the
+			 * one thing the allocator exists to do for it. */
+			if (blk->kind == SPEC_NUMBER && blk->rowname) {
+				finding(LVL_WARN, "%s: modconfig.txt:%d: stage %s names a row by number; "
+						"spell it stage \"%s\"", mods[i].label, blk->line, blk->spec, blk->rowname);
+			} else if (blk->kind != SPEC_NAME && blk->extra) {
+				finding(LVL_WARN, "%s: modconfig.txt:%d: stage %s claims a STAGE_EXTRA row "
+						"outright. That row is placeholder content, so this is a new level - "
+						"give it the mod's own name and let the loader place it", mods[i].label,
+						blk->line, blk->spec);
+			}
+
 			/* 2. A row with two occupants. The registry is last-writer-wins on
 			 * the owning mod (modStageRegRecord) and g_Stages has one row per
 			 * stage, whichever spelling reached it. */
@@ -1421,10 +1435,16 @@ static void checkStages(struct mod *mods, int n, bool haveIni)
 			}
 
 			if (rv->block < 0) {
+				const struct stagename *held = stageByNum(rv->slot);
+
 				++orphans;
-				finding(LVL_WARN, "[MpStageSlots] '%s' holds row %d (%s) and nothing in this "
+				/* A stale claim of a vanilla row holds nothing - the allocator
+				 * never hands those out - so it is only worth a note. A stale
+				 * reservation of a STAGE_EXTRA row is a row nobody can have. */
+				finding(held && !isExtraRow(held->name) ? LVL_NOTE : LVL_WARN,
+						"[MpStageSlots] '%s' holds row %d (%s) and nothing in this "
 						"set declares it - the row stays held across boots", rv->name,
-						rv->slot, stageByNum(rv->slot) ? stageByNum(rv->slot)->name : "no row");
+						rv->slot, held ? held->name : "no row");
 				continue;
 			}
 
