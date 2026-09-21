@@ -8,7 +8,7 @@ tables and nothing else. The Makefile turns it into a file with
 
 which needs a mips-elf gcc toolchain and the patched gzip in tools/gzip. clang
 carries a MIPS backend, lld links elf32-bigmips, and llvm-objcopy strips it, so
-the whole thing runs on a stock `brew install llvm` with no docker and no
+the whole thing runs on a stock `brew install llvm lld` with no docker and no
 cross-gcc. This script is that pipeline, plus the enum headers under
 src/generated/<romid> that the setups include (generated straight from the
 asset json, skipping the assetmgr object/zip steps).
@@ -40,7 +40,8 @@ Rare's gzip but inflate to the same file; the port's romdata.c and the N64's
 rzip only care about the 1173 header and the payload. If you need a matching
 ROM, use the Makefile.
 
-LLVM lookup: $LLVM_BIN, else /opt/homebrew/opt/llvm/bin, else PATH.
+Tool lookup: $LLVM_BIN / $LLD_BIN, else the homebrew llvm and lld formula dirs,
+else PATH. Two formulae on the mac: `brew install llvm lld` (lld is separate).
 """
 
 import argparse
@@ -75,13 +76,43 @@ CFLAGS = [
 SHIM_RE = re.compile(r'^((?:u8|s8|u16|s16|char) [A-Za-z0-9_]+\[[^\]]*\]) = \{', re.M)
 
 
+TOOLS = {
+    # tool: (homebrew formula that carries it). homebrew's llvm formula no
+    # longer bundles lld; ld.lld comes from its own `lld` formula.
+    'clang': 'llvm',
+    'llvm-objcopy': 'llvm',
+    'ld.lld': 'lld',
+}
+
+SEARCH_DIRS = [
+    os.environ.get('LLVM_BIN'),
+    os.environ.get('LLD_BIN'),
+    '/opt/homebrew/opt/llvm/bin', '/opt/homebrew/opt/lld/bin',
+    '/usr/local/opt/llvm/bin', '/usr/local/opt/lld/bin',
+]
+
+
 def find_llvm():
-    for cand in [os.environ.get('LLVM_BIN'), '/opt/homebrew/opt/llvm/bin', '/usr/local/opt/llvm/bin']:
-        if cand and os.path.exists(os.path.join(cand, 'clang')):
-            return cand
-    if shutil.which('clang') and shutil.which('ld.lld') and shutil.which('llvm-objcopy'):
-        return os.path.dirname(shutil.which('clang'))
-    sys.exit('mksetups: no clang/ld.lld/llvm-objcopy found. brew install llvm, or set LLVM_BIN')
+    """Map each tool name to a path, looking in the well-known brew dirs
+    first, then PATH. Apple's clang has no MIPS backend and Xcode has no lld,
+    so PATH is the fallback, not the first choice."""
+    found = {}
+    missing = []
+    for tool, formula in TOOLS.items():
+        for d in SEARCH_DIRS:
+            if d and os.path.exists(os.path.join(d, tool)):
+                found[tool] = os.path.join(d, tool)
+                break
+        else:
+            p = shutil.which(tool)
+            if p:
+                found[tool] = p
+            else:
+                missing.append('%s (brew install %s, or set %s)' % (
+                    tool, formula, 'LLD_BIN' if formula == 'lld' else 'LLVM_BIN'))
+    if missing:
+        sys.exit('mksetups: not found: ' + '; '.join(missing))
+    return found
 
 
 def write_enums(romid, typename, names, filename, terminator, start=0):
@@ -156,7 +187,7 @@ def build_one(llvm, romid, name, verbose):
                '-DPIRACYCHECKS=1', '-DROM_SIZE=32', '-DAVOID_UB']
     includes = ['-Iinclude', '-Iinclude/PR', '-Isrc/include',
                 '-Isrc/generated/%s' % romid, '-Isrc/lib/ultra/audio']
-    cmd = [os.path.join(llvm, 'clang')] + CFLAGS + defines + includes + ['-c', shimmed, '-o', obj]
+    cmd = [llvm['clang']] + CFLAGS + defines + includes + ['-c', shimmed, '-o', obj]
     if verbose:
         print(' '.join(cmd))
     subprocess.check_call(cmd)
@@ -165,9 +196,9 @@ def build_one(llvm, romid, name, verbose):
         script = fd.read().replace('__FILE__', obj)
     with open(ld, 'w') as fd:
         fd.write(script)
-    subprocess.check_call([os.path.join(llvm, 'ld.lld'), '-T', ld, '-o', elf, obj],
+    subprocess.check_call([llvm['ld.lld'], '-T', ld, '-o', elf, obj],
                           stderr=subprocess.DEVNULL if not verbose else None)
-    subprocess.check_call([os.path.join(llvm, 'llvm-objcopy'), '-O', 'binary', elf, binp])
+    subprocess.check_call([llvm['llvm-objcopy'], '-O', 'binary', elf, binp])
 
     with open(binp, 'rb') as fd:
         raw = fd.read()
