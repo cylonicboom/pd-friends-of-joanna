@@ -182,7 +182,7 @@ You can use this oneliner to rebuild Friends of Joanna, the setup files, and a m
 
 Follow PC port instructions as below.
 
-#### [`fgsfdsfds/perfect_dark@port`](https://github.com/fgsfdsfgs/perfect_dark) vanilla pc port build instructions
+#### [`fgsfdsfgs/perfect_dark@port`](https://github.com/fgsfdsfgs/perfect_dark) vanilla pc port build instructions
 #### [`ryandwyer/perfect_dark@master`](https://gitlab.com/ryandwyer/perfect-dark) n64 decomp build instructions
 ### Build Friends of Joanna N64 Rom
 
@@ -209,20 +209,31 @@ Poplin Dark likeness
 #### Johnny Thunder
 Poplin Dark model / imported from Silvo
 
-#### Winfro
-third person camera / the stance system / jump, roll, flinch and melee
+#### DabDavis
+third person camera / the camera rig on top of it / the stance system / jump, roll, flinch, melee / damage reactions / hit locations / letting a corpse be a corpse — Dab's Mod: https://github.com/DabDavis/perfect-dark-dabs-mod
 
-#### Zaknafein
-damage reactions / hit locations / the melee kick / letting a corpse be a corpse
+#### Murk
+light glare occlusion, by way of perfect_dark_netplay
+
+#### jonaeru
+modloader base / gex model scale table / arena names / AIO, with Atari-Dude
 
 #### JillyJane
 raw asset files
+
+#### Wreck / Paradox / TimEh
+GoldenEye X
+
+#### Lua
+PUC-Rio: https://www.lua.org
 
 #### fgsfdsfgs
 Upstream Perfect Dark PC Port: https://github.com/fgsfdsfgs/perfect_dark
 
 #### Ryan Dwyer
 Perfect Dark Decomp: https://gitlab.com/ryandwyer/perfect-dark
+
+###### GoldenEye X and AIO assets aren't redistributed here. Support for them loads from your own copies, when they're detected.
 
 #
 ###### * Sometimes, the best man for the job is a woman... and her friends.
