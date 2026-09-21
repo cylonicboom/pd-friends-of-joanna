@@ -245,6 +245,9 @@ static u32 g_NumRomSources;
 // whatever a mod later overlays on that id in its own row.
 static const u32 *g_RomNameTable = NULL;
 static s32 g_RomNameCount = 0;
+// The ROM's file offset table length, so a slot the ROM does not have is
+// never read out of the bytes that follow the table.
+static s32 g_RomFileOffsetCount = 0;
 // Per-mod altSource: [modIdx][localFileId], modIdx 0-based as above. Row 0
 // carries both mod 0's fragment entries and the global table's, so the two
 // overwrite each other for any file id they share.
@@ -1279,6 +1282,7 @@ static inline void romdataInitFiles(void)
 		const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
 		u32 i;
 		for (i = 1; offsets[i]; ++i) {
+			g_RomFileOffsetCount = (s32)i + 1;
 			if (offsets + i + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
 				const u32 nextofs = PD_BE32(offsets[i + 1]);
 				const u32 ofs = PD_BE32(offsets[i]);
@@ -1349,7 +1353,14 @@ static inline void romdataInitFiles(void)
 static inline void romdataResetFile(s32 modNum, s32 fileNum)
 {
 	// 1. Load from ROM table first (default)
-	if (romDataSeg) {
+	//
+	// Only for slots the ROM's table actually has. The table is terminated by
+	// a zero offset and the name table follows it in the same segment, so
+	// for a mod-local id (>= FIRST_LOCAL_ID) the two reads below landed in
+	// the names and came back as plausible-looking offsets. Measured with
+	// --asset-probe: a mod head whose declared rom source was not mounted
+	// "loaded" 32768 bytes from the base ROM and reported success.
+	if (romDataSeg && fileNum + 1 < g_RomFileOffsetCount) {
 		const u32 *offsets = (u32 *)(romDataSeg + ROMDATA_FILES_OFS);
 		if (offsets + fileNum + 1 < (u32 *)(romDataSeg + romDataSegSize)) {
 			const u32 nextofs = PD_BE32(offsets[fileNum + 1]);
@@ -1366,6 +1377,14 @@ static inline void romdataResetFile(s32 modNum, s32 fileNum)
 			fileSlots[modNum][fileNum].source = SRC_UNLOADED;
 			fileSlots[modNum][fileNum].preprocessed = 0;
 		}
+	} else if (romDataSeg) {
+		// a mod-local slot: nothing in the ROM to fall back to, so the next
+		// load has to come from a declared source, the mod dirs or the base
+		// dir, or fail honestly
+		fileSlots[modNum][fileNum].data = NULL;
+		fileSlots[modNum][fileNum].size = 0;
+		fileSlots[modNum][fileNum].source = SRC_UNLOADED;
+		fileSlots[modNum][fileNum].preprocessed = 0;
 	}
 
 	// 2. Override with External table if present
