@@ -174,17 +174,38 @@ struct modslottable {
 	// equivalent yet: g_MpSetup.stagenum is still 7 bits with nothing to
 	// recover from, so that table leaves this false.
 	bool hashrecovered;
+	// Whether an explicit claim (`slotnum N`, `stage "STAGE_28"`) is written
+	// to pd.ini as well as recorded in memory. A claim says nothing the
+	// modconfig does not already say, so persisting it only leaves the key
+	// behind when the block goes - the orphaned rows modsetcheck reports.
+	// Heads and bodies still persist theirs: their claims are recorded at
+	// parse time, and the persisted copy is what keeps an earlier-parsed
+	// allocation off a later block's explicit slot on the first boot. Stages
+	// prescan every explicit claim before the first allocation and do not
+	// need that.
+	bool persistclaims;
+	// When set, an ini key this returns false for is not an allocation - it is
+	// a claim spelling (a row constant, a number) that an earlier build wrote -
+	// and it is dropped on read so the next configSave prunes it. NULL keeps
+	// every key.
+	bool (*ownname)(const char *key);
 	s32 count;
 	u8 fullWarned;
 	u8 ceilingWarned;
 	struct modslotreservation entries[MOD_MAX_SLOT_RESERVATIONS];
 };
 
-static struct modslottable g_ModHeadSlots = { .section = MOD_HEADSLOT_SECTION, .hashrecovered = true };
-static struct modslottable g_ModBodySlots = { .section = MOD_BODYSLOT_SECTION, .hashrecovered = true };
+static struct modslottable g_ModHeadSlots = { .section = MOD_HEADSLOT_SECTION, .hashrecovered = true, .persistclaims = true };
+static struct modslottable g_ModBodySlots = { .section = MOD_BODYSLOT_SECTION, .hashrecovered = true, .persistclaims = true };
 static bool modStageSlotUsable(s32 stagenum);
+static bool modStageSlotOwnName(const char *key);
 static void modStageSlotsPrescan(void);
-static struct modslottable g_ModStageSlots = { MOD_STAGESLOT_SECTION, 0, modStageSlotUsable };
+static struct modslottable g_ModStageSlots = {
+	.section = MOD_STAGESLOT_SECTION,
+	.first = 0,
+	.usable = modStageSlotUsable,
+	.ownname = modStageSlotOwnName,
+};
 
 /*
  * Which stagenums the allocator may hand out.
@@ -220,6 +241,23 @@ static bool modStageSlotUsable(s32 stagenum)
 
 	return true;
 }
+
+/*
+ * The only [MpStageSlots] key that carries information is a level's own name:
+ * the row the allocator gave it lives nowhere else. A key spelled as a number
+ * or a STAGE_* row constant is a claim - modConfigParseStage re-derives it
+ * from the modconfig every boot - and older builds wrote those too, which is
+ * how a key like STAGE_MP_TEMPLE=37 outlives the block that made it.
+ */
+static bool modStageSlotOwnName(const char *key)
+{
+	if (key[0] >= '0' && key[0] <= '9') {
+		return false;
+	}
+
+	return stageGetIndexByName(key) < 0;
+}
+
 static bool g_ModSlotsLoaded = false;
 
 static struct modslotreservation *modSlotFind(struct modslottable *tbl, const char *name)
@@ -242,7 +280,7 @@ static bool modSlotTaken(struct modslottable *tbl, s32 slot)
 	return false;
 }
 
-static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const char *name, s32 slot)
+static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const char *name, s32 slot, bool persist)
 {
 	char key[CONFIG_MAX_KEYNAME + 1];
 	struct modslotreservation *r;
@@ -261,9 +299,14 @@ static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const cha
 	snprintf(r->name, sizeof(r->name), "%s", name);
 	r->slot = slot;
 
-	// min == max, so configSet does not clamp it.
-	snprintf(key, sizeof(key), "%s.%s", tbl->section, r->name);
-	configRegisterInt(key, &r->slot, 0, 0);
+	// Registering is what puts the key in pd.ini: configSave writes back
+	// whatever is registered. An unregistered entry still counts for
+	// modSlotTaken, which is all a claim needs.
+	if (persist) {
+		// min == max, so configSet does not clamp it.
+		snprintf(key, sizeof(key), "%s.%s", tbl->section, r->name);
+		configRegisterInt(key, &r->slot, 0, 0);
+	}
 
 	if (slot > MOD_MAX_PERSISTABLE_SLOT && !tbl->hashrecovered && !tbl->ceilingWarned) {
 		tbl->ceilingWarned = 1;
@@ -292,6 +335,13 @@ static void modSlotScanned(const char *name, const char *value, void *ctx)
 		return;
 	}
 
+	if (tbl->ownname && !tbl->ownname(name)) {
+		sysLogPrintf(LOG_NOTE, "modconfig: [%s] '%s' = %d is a claim, not an allocation; dropping it "
+				"(the modconfig that made it re-records it, or it is gone)",
+				tbl->section, name, slot);
+		return;
+	}
+
 	if (modSlotFind(tbl, name)) {
 		return;
 	}
@@ -302,7 +352,7 @@ static void modSlotScanned(const char *name, const char *value, void *ctx)
 		return;
 	}
 
-	modSlotAdd(tbl, name, slot);
+	modSlotAdd(tbl, name, slot, true);
 }
 
 /*
@@ -362,7 +412,7 @@ static s32 modSlotReserve(struct modslottable *tbl, const char *name)
 		return -1;
 	}
 
-	r = modSlotAdd(tbl, name, slot);
+	r = modSlotAdd(tbl, name, slot, true);
 
 	return r ? r->slot : -1;
 }
@@ -370,7 +420,9 @@ static s32 modSlotReserve(struct modslottable *tbl, const char *name)
 /*
  * An explicit slotnum is the modconfig's own choice, so it is recorded rather
  * than allocated - otherwise a later auto-allocated name could be handed the
- * same index.
+ * same index. Whether the record also reaches pd.ini is the table's call
+ * (persistclaims); for stages it does not, so [MpStageSlots] holds allocations
+ * only.
  */
 static void modSlotClaim(struct modslottable *tbl, const char *name, s32 slot)
 {
@@ -401,7 +453,7 @@ static void modSlotClaim(struct modslottable *tbl, const char *name, s32 slot)
 		return;
 	}
 
-	modSlotAdd(tbl, name, slot);
+	modSlotAdd(tbl, name, slot, tbl->persistclaims);
 }
 
 /*

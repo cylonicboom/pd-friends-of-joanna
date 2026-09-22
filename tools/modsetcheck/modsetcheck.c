@@ -1103,11 +1103,14 @@ static struct reservation *g_Reservations;
 static int g_NumReservations;
 
 /**
- * The [MpStageSlots] section of a pd.ini: one `spec=row` per line, where spec
- * is the stage spec exactly as the modconfig wrote it (`0x26`, `STAGE_28`,
- * `gex_arec`) and row is the stagenum it holds. modSlotReserve returns an
- * existing reservation BEFORE the usable gate, so what this file says is what
- * the next boot does.
+ * The [MpStageSlots] section of a pd.ini: one `name=row` per line, where name
+ * is a level's own name (`gex_arec`) and row is the STAGE_EXTRA stagenum the
+ * allocator gave it. modSlotReserve returns an existing reservation BEFORE the
+ * usable gate, so what this file says is what the next boot does.
+ *
+ * Older builds also wrote explicit claims here, under the spec as written
+ * (`0x26`, `STAGE_28`). The loader now drops those on read - a claim is
+ * re-derived from the modconfig every boot - and the next save prunes them.
  */
 static void readIni(const char *path)
 {
@@ -1409,10 +1412,23 @@ static void checkStages(struct mod *mods, int n, bool haveIni)
 	 * reservation with no block is a row held for a level that is gone, and
 	 * whether to release it is a policy call, not this tool's. */
 	{
-		int orphans = 0, highest = -1;
+		int orphans = 0, highest = -1, claims = 0;
 
 		for (r = 0; r < g_NumReservations; ++r) {
 			struct reservation *rv = &g_Reservations[r];
+			const struct stagename *asRow = stageByName(rv->name);
+
+			/* A key spelled as a number or a row constant is a claim an older
+			 * build persisted. It holds nothing: the loader drops it on read and
+			 * the modconfig that made it, if it still exists, re-records it. */
+			if ((rv->name[0] >= '0' && rv->name[0] <= '9') || (asRow && asRow->hasrow)) {
+				++claims;
+				rv->block = -2; /* not listed in the table either */
+				finding(LVL_NOTE, "[MpStageSlots] '%s' = %d is a claim spelling, not a level "
+						"name; the loader drops it and the next save prunes it",
+						rv->name, rv->slot);
+				continue;
+			}
 
 			if (rv->slot > highest) {
 				highest = rv->slot;
@@ -1493,8 +1509,8 @@ static void checkStages(struct mod *mods, int n, bool haveIni)
 			}
 		}
 
-		printf("        [MpStageSlots]: %d reservations, %d orphaned, highest row %d of %d\n",
-				g_NumReservations, orphans, highest, MSC_NUM_STAGENUMS - 1);
+		printf("        [MpStageSlots]: %d allocations, %d orphaned, %d stale claim keys, highest row %d of %d\n",
+				g_NumReservations - claims, orphans, claims, highest, MSC_NUM_STAGENUMS - 1);
 	}
 }
 
@@ -1688,10 +1704,16 @@ static void writeStageTable(const char *path, const struct mod *mods, int n, boo
 	if (haveIni) {
 		fprintf(out, ",\n  \"reservations\": [\n");
 
+		int listed = 0;
+
 		for (r = 0; r < g_NumReservations; ++r) {
 			const struct reservation *rv = &g_Reservations[r];
 
-			fprintf(out, "%s    { \"name\": ", r ? ",\n" : "");
+			if (rv->block == -2) {
+				continue;
+			}
+
+			fprintf(out, "%s    { \"name\": ", listed++ ? ",\n" : "");
 			jsonString(out, rv->name);
 			fprintf(out, ", \"stagenum\": \"0x%02x\", \"declaredBy\": ", rv->slot);
 
