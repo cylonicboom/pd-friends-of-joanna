@@ -309,7 +309,10 @@ static void assetFileIndexBuild(void)
 				continue;
 			}
 
-			assetFileIndexPush(mod, fileNum, romdataFileGetSlotName(mod, fileNum));
+			{
+				const char *declared = romdataFileDeclaredName(mod, fileNum);
+				assetFileIndexPush(mod, fileNum, declared ? declared : romdataFileGetSlotName(mod, fileNum));
+			}
 		}
 	}
 
@@ -436,13 +439,20 @@ static s32 assetFileResolve(const char *rest, struct assetref *out)
 	}
 }
 
+/* A mod file's name is what its PDFT entry declared, not what the slot
+ * carries: the slot holds the path when an entry has both, and a path can
+ * be the context resolver's program. Falls back to the slot for entries
+ * with no declared name. */
 static const char *assetFileName(const struct assetref *ref)
 {
+	const char *declared;
+
 	if (ref->owner == ASSET_OWNER_VANILLA) {
 		return romdataRomFileName(ref->id);
 	}
 
-	return romdataFileGetSlotName(ref->owner, ref->id);
+	declared = romdataFileDeclaredName(ref->owner, ref->id);
+	return declared ? declared : romdataFileGetSlotName(ref->owner, ref->id);
 }
 
 static s32 assetFileEnumerate(const char *rest, assetenumfn fn, void *ctx)
