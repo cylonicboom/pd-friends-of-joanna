@@ -3843,6 +3843,8 @@ void menuResetJoinFadeAlpha(void)
 	}
 }
 
+extern struct menudialogdef g_FojoTitleProfileSelectMenu;
+
 void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 {
 	DEBUG_MENU("menuPushRootDialog: ENTER - root=%d, current_root=%d, prevmenuroot=%d, g_MpPlayerNum=%d\n",
@@ -3942,7 +3944,17 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 				&& g_Vars.stagenum < STAGE_TITLE
 				&& (root == MENUROOT_MAINMENU || root == MENUROOT_FILEMGR);
 
-			if (!livegame) {
+			if (dialogdef == &g_FojoTitleProfileSelectMenu) {
+				// fojo: the title profile picker sits on the slow stars. backing
+				// out of it re-pushes it the same tick menutick queued the fade
+				// to nothing, so if the stars are already up, cancel that fade
+				// rather than start them over.
+				if (g_MenuData.bg == MENUBG_SUCCESS_SLOW) {
+					g_MenuData.nextbg = 255;
+				} else {
+					menuSetBackground(MENUBG_SUCCESS_SLOW);
+				}
+			} else if (!livegame) {
 				menuSetBackground(MENUBG_BLUR);
 			}
 		}
