@@ -52,6 +52,7 @@ static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowProportions = false;
 static bool g_ImGuiOverlayShowStance = false;
 static bool g_ImGuiOverlayShowPauseBlur = false;
+static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
 static bool g_ImGuiOverlayShowSaves = false;
@@ -289,6 +290,9 @@ extern "C" f32 g_RollImpulse;
 extern "C" s32 g_BlurDoseEnabled;
 extern "C" f32 g_BlurDoseFullSecs;
 extern "C" f32 g_BlurDoseK;
+extern "C" struct menubgstars g_MenuBgSlowStars;
+extern "C" const struct menubgstars g_MenuBgSlowStarsDefaults;
+extern "C" void menugfxResetBgSuccessSlow(void);
 extern "C" s32 g_BuildSpeedEnabled;
 extern "C" f32 g_BuildSpeedRef;
 extern "C" f32 g_BuildCrouchMix;
@@ -5005,6 +5009,112 @@ static void imguiOverlayDrawPauseBlurPanel(void)
 	}
 }
 
+// 0xrrggbbaa <-> ImGui's float colour
+static void imguiOverlayRgbaToFloat(u32 rgba, float out[4])
+{
+	out[0] = ((rgba >> 24) & 0xff) / 255.0f;
+	out[1] = ((rgba >> 16) & 0xff) / 255.0f;
+	out[2] = ((rgba >> 8) & 0xff) / 255.0f;
+	out[3] = (rgba & 0xff) / 255.0f;
+}
+
+static u32 imguiOverlayFloatToRgba(const float in[4])
+{
+	u32 c[4];
+
+	for (s32 i = 0; i < 4; i++) {
+		f32 v = in[i] < 0.0f ? 0.0f : (in[i] > 1.0f ? 1.0f : in[i]);
+		c[i] = (u32)(v * 255.0f + 0.5f);
+	}
+
+	return c[0] << 24 | c[1] << 16 | c[2] << 8 | c[3];
+}
+
+static void imguiOverlayMenuBgColour(const char *label, u32 *rgba, bool alpha, const char *help)
+{
+	float f[4];
+
+	imguiOverlayRgbaToFloat(*rgba, f);
+
+	bool changed = alpha
+		? ImGui::ColorEdit4(label, f, ImGuiColorEditFlags_AlphaBar)
+		: ImGui::ColorEdit3(label, f);
+
+	if (changed) {
+		// the star colours keep their alpha byte clear; the renderer owns it
+		if (!alpha) {
+			f[3] = 0.0f;
+		}
+
+		*rgba = imguiOverlayFloatToRgba(f);
+	}
+
+	if (help && ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", help);
+	}
+}
+
+static void imguiOverlayDrawMenuBgPanel(void)
+{
+	struct menubgstars *cfg = &g_MenuBgSlowStars;
+
+	ImGui::TextDisabled("MENUBG_SUCCESS_SLOW. Live only, nothing saves yet.");
+
+	if (g_MenuData.bg == MENUBG_SUCCESS_SLOW || g_MenuData.nextbg == MENUBG_SUCCESS_SLOW) {
+		ImGui::Text("showing (bg %d, next %d)", g_MenuData.bg, g_MenuData.nextbg);
+	} else {
+		ImGui::TextDisabled("not showing (bg %d, next %d)", g_MenuData.bg, g_MenuData.nextbg);
+	}
+
+	ImGui::Separator();
+
+	imguiOverlayStanceKnob("Speed", &cfg->speed, 0.0f, 10.0f, "%.2f",
+			"How fast the stars come at you.\n"
+			"Vanilla success is 5, Defense is 2.");
+
+	ImGui::SeparatorText("Haze");
+	imguiOverlayMenuBgColour("Top", &cfg->hazetop, true, "Top haze plane. Vanilla 0x0000947f.");
+	imguiOverlayMenuBgColour("Bottom", &cfg->hazebottom, true, "Bottom haze plane. Vanilla 0x6200947f.");
+
+	ImGui::SeparatorText("Stars");
+	imguiOverlayMenuBgColour("Core", &cfg->starcore, false, "Star centre. Alpha is the depth falloff, not yours.");
+	imguiOverlayMenuBgColour("Glow A", &cfg->starglow1, false, "Rim on even stars.");
+	imguiOverlayMenuBgColour("Glow B", &cfg->starglow2, false, "Rim on odd stars.");
+
+	ImGui::SeparatorText("Drug blur");
+	{
+		int blur = cfg->blur;
+
+		if (ImGui::SliderInt("Amount", &blur, 0, 230)) {
+			cfg->blur = blur;
+		}
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+					"bviewDrawMotionBlur over the stars, last frame fed back\n"
+					"at this alpha. 230 is the engine's cap. The feedback\n"
+					"starts clean whenever the bg starts over.");
+		}
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::Button("Start over")) {
+		menugfxResetBgSuccessSlow();
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Fresh particles and a clean blur, same knobs.");
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Reset to defaults")) {
+		*cfg = g_MenuBgSlowStarsDefaults;
+		menugfxResetBgSuccessSlow();
+	}
+}
+
 static void imguiOverlayDrawLuaPanel(void)
 {
 	if (!g_LuaAiEnabled) {
@@ -5607,6 +5717,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL },
 	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL },
 	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL },
+	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 400.0f, 0.5f, 0.50f, NULL },
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
 };
