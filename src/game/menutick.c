@@ -229,7 +229,7 @@ void menuTick(void)
 				mult = mult / 5.0f;
 			}
 
-			if (g_MenuData.nextbg == MENUBG_SUCCESS) {
+			if (g_MenuData.nextbg == MENUBG_SUCCESS || g_MenuData.nextbg == MENUBG_SUCCESS_SLOW) {
 				mult = mult / 3.0f;
 			}
 
@@ -267,6 +267,11 @@ void menuTick(void)
 				g_MenuData.unk010 = 0;
 			DEBUG_MENU("menuTick: BG TRANSITION - bg changing from %d to %d (nextbg=%d->255)\n",
 				g_MenuData.bg, g_MenuData.nextbg, g_MenuData.nextbg);
+			// leaving the slow stars resets them, so they come back fresh
+			if (g_MenuData.bg == MENUBG_SUCCESS_SLOW) {
+				menugfxResetBgSuccessSlow();
+			}
+
 			g_MenuData.bg = g_MenuData.nextbg;
 			g_MenuData.nextbg = 255;
 

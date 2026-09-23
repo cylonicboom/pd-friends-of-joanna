@@ -1790,6 +1790,25 @@ u32 menugfxGetParticleArraySize(void)
 	return align16(NUM_SUCCESS_PARTICLES * sizeof(struct coord));
 }
 
+static void menugfxScatterParticle(struct coord *particle)
+{
+	do {
+		particle->x = RANDOMFRAC() * 10000.0f - 5000.0f;
+		particle->y = RANDOMFRAC() * 10000.0f - 5000.0f;
+	} while (particle->x < 640.0f && particle->x > -640.0f
+			&& particle->y < 480.0f && particle->y > -480.0f);
+}
+
+static void menugfxInitParticles(struct coord *particles)
+{
+	s32 i;
+
+	for (i = 0; i < NUM_SUCCESS_PARTICLES; i++) {
+		menugfxScatterParticle(&particles[i]);
+		particles[i].z = -RANDOMFRAC() * 8000.0f;
+	}
+}
+
 /**
  * Render the "success" background, which is used on the solo mission completed
  * endscreen.
@@ -1798,8 +1817,11 @@ u32 menugfxGetParticleArraySize(void)
  * flying towards the camera.
  *
  * In the Defense stage, everything is gray and the particles move slower.
+ *
+ * The drawing is menugfxRenderBgStars, shared with MENUBG_SUCCESS_SLOW, which
+ * brings its own knobs and its own particle array.
  */
-Gfx *menugfxRenderBgSuccess(Gfx *gdl)
+static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct menubgstars *cfg, s32 topplane, s32 bottomplane)
 {
 	Mtxf sp110;
 	Mtxf *modelmtx;
@@ -1808,51 +1830,21 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 	s32 i;
 	s32 j;
 	f32 f0;
-	f32 speed = 5.0f;
-	bool gray = false;
-
-	if (g_StageIndex == STAGEINDEX_DEFENSE) {
-		speed = 2.0f;
-		gray = true;
-	}
-
-	// Initialise particles if they haven't been already
-	if (g_MenuParticles == NULL) {
-		g_MenuParticles = (struct coord *) bgunGetGunMem();
-
-		if (g_MenuParticles == NULL) {
-			return gdl;
-		}
-
-		for (i = 0; i < NUM_SUCCESS_PARTICLES; i++) {
-			do {
-				g_MenuParticles[i].x = RANDOMFRAC() * 10000.0f - 5000.0f;
-				g_MenuParticles[i].y = RANDOMFRAC() * 10000.0f - 5000.0f;
-			} while (g_MenuParticles[i].x < 640.0f && g_MenuParticles[i].x > -640.0f
-					&& g_MenuParticles[i].y < 480.0f && g_MenuParticles[i].y > -480.0f);
-
-			g_MenuParticles[i].z = -RANDOMFRAC() * 8000.0f;
-		}
-	}
+	f32 speed = cfg->speed;
 
 	// Move the particles closer, and reset the ones which have gone behind the camera
 	for (i = 0; i < NUM_SUCCESS_PARTICLES; i++) {
 		s32 mult = (i % 5) + 1;
 
 #if VERSION >= VERSION_PAL_BETA
-		g_MenuParticles[i].z += mult * g_Vars.diffframe240freal * speed;
+		particles[i].z += mult * g_Vars.diffframe240freal * speed;
 #else
-		g_MenuParticles[i].z += mult * g_Vars.diffframe240f * speed;
+		particles[i].z += mult * g_Vars.diffframe240f * speed;
 #endif
 
-		if (g_MenuParticles[i].z > 0.0f) {
-			do {
-				g_MenuParticles[i].x = RANDOMFRAC() * 10000.0f - 5000.0f;
-				g_MenuParticles[i].y = RANDOMFRAC() * 10000.0f - 5000.0f;
-			} while (g_MenuParticles[i].x < 640.0f && g_MenuParticles[i].x > -640.0f
-					&& g_MenuParticles[i].y < 480.0f && g_MenuParticles[i].y > -480.0f);
-
-			g_MenuParticles[i].z = -8000.0f - RANDOMFRAC() * 500.0f;
+		if (particles[i].z > 0.0f) {
+			menugfxScatterParticle(&particles[i]);
+			particles[i].z = -8000.0f - RANDOMFRAC() * 500.0f;
 		}
 	}
 
@@ -1867,13 +1859,8 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 	var8009de90 = -100000;
 	var8009de94 = 100000;
 
-	if (gray) {
-		gdl = menugfxDrawPlane(gdl, -1000, -10, 2000, -10, 0x6060607f, 0x6060607f, MENUPLANE_05);
-		gdl = menugfxDrawPlane(gdl, -1000, viGetHeight() + 10, 2000, viGetHeight() + 10, 0x9090907f, 0x9090907f, MENUPLANE_05);
-	} else {
-		gdl = menugfxDrawPlane(gdl, -1000, -10, 2000, -10, 0x0000947f, 0x0000947f, MENUPLANE_10);
-		gdl = menugfxDrawPlane(gdl, -1000, viGetHeight() + 10, 2000, viGetHeight() + 10, 0x6200947f, 0x6200947f, MENUPLANE_06);
-	}
+	gdl = menugfxDrawPlane(gdl, -1000, -10, 2000, -10, cfg->hazetop, cfg->hazetop, topplane);
+	gdl = menugfxDrawPlane(gdl, -1000, viGetHeight() + 10, 2000, viGetHeight() + 10, cfg->hazebottom, cfg->hazebottom, bottomplane);
 
 	// Prepare stuff for drawing the particles
 	gdl = func0f0d4c80(gdl);
@@ -1901,55 +1888,13 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 
 	colours = gfxAllocateColours(20);
 
-	if (gray) {
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[0].word = PD_BE32(0xffffff00 | ((5 - j) * 127u / 5));
-			ptr += 4;
-			j++;
-		}
-
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[1].word = PD_BE32(0xaaaaaa00 | ((5 - j) * 16u / 5));
-			ptr += 4;
-			j++;
-		}
-
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[2].word = PD_BE32(0xffffff00 | ((5 - j) * 127u / 5));
-			ptr += 4;
-			j++;
-		}
-
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[3].word = PD_BE32(0xaaaaaa00 | ((5 - j) * 16u / 5));
-			ptr += 4;
-			j++;
-		}
-	} else {
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[0].word = PD_BE32(0xffffff00 | ((5 - j) * 127u / 5));
-			ptr += 4;
-			j++;
-		}
-
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[1].word = PD_BE32(0xaaaaff00 | ((5 - j) * 16u / 5));
-			ptr += 4;
-			j++;
-		}
-
-		for (j = 0, ptr = colours; j < 5;) {
-			ptr[2].word = PD_BE32(0xffffff00 | ((5 - j) * 127u / 5));
-			ptr += 4;
-			j++;
-		}
-
-		for (j = 0, ptr = colours; j < 5;) {
-			if (colours);
-			ptr[3].word = PD_BE32(0xffaaff00 | ((5 - j) * 16u / 5));
-			ptr += 4;
-			j++;
-		}
+	// four colours per depth ring, five rings, alpha falling off with depth.
+	// 0 and 2 are the core, 1 and 3 the two glows.
+	for (j = 0, ptr = colours; j < 5; j++, ptr += 4) {
+		ptr[0].word = PD_BE32((cfg->starcore & 0xffffff00) | ((5 - j) * 127u / 5));
+		ptr[1].word = PD_BE32((cfg->starglow1 & 0xffffff00) | ((5 - j) * 16u / 5));
+		ptr[2].word = PD_BE32((cfg->starcore & 0xffffff00) | ((5 - j) * 127u / 5));
+		ptr[3].word = PD_BE32((cfg->starglow2 & 0xffffff00) | ((5 - j) * 16u / 5));
 	}
 
 	{
@@ -1964,9 +1909,9 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 			f32 sine = sinf(f0 * M_BADTAU + M_BADTAU * (i / 15.0f));
 			f32 cosine = cosf(f0 * M_BADTAU + M_BADTAU * (i / 15.0f));
 
-			pos.x = g_MenuParticles[i].x;
-			pos.y = g_MenuParticles[i].y;
-			pos.z = g_MenuParticles[i].z;
+			pos.x = particles[i].x;
+			pos.y = particles[i].y;
+			pos.z = particles[i].z;
 
 			if (pos.z < -6600.0f) {
 				s3 = -(pos.f[2] + 6600.0f) / 1400.0f * 5.0f;
@@ -2014,6 +1959,85 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 	}
 
 	gdl = func0f0d479c(gdl);
+
+	return gdl;
+}
+
+Gfx *menugfxRenderBgSuccess(Gfx *gdl)
+{
+	struct menubgstars cfg = { 5.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0 };
+	s32 topplane = MENUPLANE_10;
+	s32 bottomplane = MENUPLANE_06;
+
+	if (g_StageIndex == STAGEINDEX_DEFENSE) {
+		cfg.speed = 2.0f;
+		cfg.hazetop = 0x6060607f;
+		cfg.hazebottom = 0x9090907f;
+		cfg.starglow1 = 0xaaaaaa00;
+		cfg.starglow2 = 0xaaaaaa00;
+		topplane = MENUPLANE_05;
+		bottomplane = MENUPLANE_05;
+	}
+
+	// Initialise particles if they haven't been already
+	if (g_MenuParticles == NULL) {
+		g_MenuParticles = (struct coord *) bgunGetGunMem();
+
+		if (g_MenuParticles == NULL) {
+			return gdl;
+		}
+
+		menugfxInitParticles(g_MenuParticles);
+	}
+
+	return menugfxRenderBgStars(gdl, g_MenuParticles, &cfg, topplane, bottomplane);
+}
+
+/**
+ * MENUBG_SUCCESS_SLOW: the success starfield with its knobs exposed.
+ *
+ * The defaults are the vanilla success colours at Defense's speed. Its
+ * particles live in their own static array, not gunmem: gunmem belongs to
+ * whatever stage is loaded and to menu models allocated from its base, so a
+ * bg that can show up outside an endscreen cannot borrow it.
+ */
+const struct menubgstars g_MenuBgSlowStarsDefaults = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0 };
+struct menubgstars g_MenuBgSlowStars = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0 };
+
+static struct coord g_MenuSlowParticles[NUM_SUCCESS_PARTICLES];
+static bool g_MenuSlowParticlesReady = false;
+
+/**
+ * Start the bg over: fresh particles, and the drug blur drops its feedback so
+ * the first frames don't smear whatever was on screen before.
+ */
+void menugfxResetBgSuccessSlow(void)
+{
+	g_MenuSlowParticlesReady = false;
+
+#ifndef PLATFORM_N64
+	g_BlurFbDirty = true;
+#endif
+}
+
+Gfx *menugfxRenderBgSuccessSlow(Gfx *gdl)
+{
+	if (!g_MenuSlowParticlesReady) {
+		menugfxInitParticles(g_MenuSlowParticles);
+		g_MenuSlowParticlesReady = true;
+	}
+
+	gdl = menugfxRenderBgStars(gdl, g_MenuSlowParticles, &g_MenuBgSlowStars, MENUPLANE_10, MENUPLANE_06);
+
+	if (g_MenuBgSlowStars.blur > 0) {
+		u32 blur = g_MenuBgSlowStars.blur > 230 ? 230 : g_MenuBgSlowStars.blur;
+
+		// bviewDrawMotionBlur latches once per frame and lv resets it in its
+		// tick, which doesn't run on the title. unlatch it here; any world blur
+		// this frame has already drawn under the menu.
+		bviewSetMotionBlur(0);
+		gdl = bviewDrawMotionBlur(gdl, 0xffffffff, blur);
+	}
 
 	return gdl;
 }

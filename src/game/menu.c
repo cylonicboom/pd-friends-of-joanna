@@ -3817,6 +3817,12 @@ void menuSetBackground(s32 bg)
 
 	if (g_MenuData.bg != bg) {
 		DEBUG_MENU("menuSetBackground: Setting nextbg from %d to %d\n", g_MenuData.nextbg, bg);
+
+		// coming in from another bg starts the slow stars over, drug blur included
+		if (bg == MENUBG_SUCCESS_SLOW && g_MenuData.nextbg != bg) {
+			menugfxResetBgSuccessSlow();
+		}
+
 		g_MenuData.nextbg = bg;
 	}
 
@@ -5568,6 +5574,7 @@ Gfx *menuRenderBackgroundLayer1(Gfx *gdl, u8 bg, f32 frac)
 		}
 		break;
 	case MENUBG_SUCCESS:
+	case MENUBG_SUCCESS_SLOW:
 		{
 			// Fill with black
 			gSPDisplayList(gdl++, var800613a0);
@@ -5576,7 +5583,11 @@ Gfx *menuRenderBackgroundLayer1(Gfx *gdl, u8 bg, f32 frac)
 			gdl = text0f153838(gdl);
 
 			// Render the success BG
-			gdl = menugfxRenderBgSuccess(gdl);
+			if (bg == MENUBG_SUCCESS_SLOW) {
+				gdl = menugfxRenderBgSuccessSlow(gdl);
+			} else {
+				gdl = menugfxRenderBgSuccess(gdl);
+			}
 
 			// Render alpha black if fading in
 			{

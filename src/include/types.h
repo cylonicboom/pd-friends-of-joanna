@@ -4012,6 +4012,24 @@ struct menudfc {
   f32 unk04;
 };
 
+/**
+ * Knobs for the success starfield. The vanilla success bg builds one of these
+ * on the stack (Defense is the slow gray one); MENUBG_SUCCESS_SLOW reads
+ * g_MenuBgSlowStars, which is live-tunable.
+ *
+ * Colours are 0xrrggbbaa. The star colours ignore their alpha byte, because
+ * alpha there is the depth falloff the renderer computes per ring.
+ */
+struct menubgstars {
+	f32 speed;      // vanilla success 5, Defense 2
+	u32 hazetop;
+	u32 hazebottom;
+	u32 starcore;
+	u32 starglow1;
+	u32 starglow2;
+	s32 blur;       // drug blur alpha drawn over the stars, 0-230, 0 is off
+};
+
 struct menudata_endscreen {
   u32 dialogbouncebacktimer;
 
