@@ -21,6 +21,7 @@
 #include "game/music.h"
 #include "mod.h"
 #include "game/stancetuning.h"
+#include "game/menugfx.h"
 #include "lib/snd.h"
 #include "lib/sndcue.h"
 #include "system.h"
@@ -348,6 +349,17 @@ PD_CONSTRUCTOR static void gameConfigInit(void)
 	configRegisterInt("Stance.ReloadAnim", &g_ReloadAnimEnabled, 0, 1);
 	configRegisterFloat("Stance.ReloadAnimSpeed", &g_ReloadAnimSpeed, 0.1f, 4.f);
 	configRegisterFloat("Stance.RollImpulse", &g_RollImpulse, 0.f, 200.f);
+	// MENUBG_SUCCESS_SLOW. Colours are 0xrrggbbaa; they save as decimal, but
+	// reading takes hex too, so 0x333350a0 is fine to hand-edit.
+	configRegisterFloat("MenuBg.Speed", &g_MenuBgSlowStars.speed, 0.f, 20.f);
+	configRegisterUInt("MenuBg.HazeTop", &g_MenuBgSlowStars.hazetop, 0, 0);
+	configRegisterUInt("MenuBg.HazeBottom", &g_MenuBgSlowStars.hazebottom, 0, 0);
+	configRegisterInt("MenuBg.HazeTopInset", &g_MenuBgSlowStars.hazetopinset, -2000, 2000);
+	configRegisterInt("MenuBg.HazeBottomInset", &g_MenuBgSlowStars.hazebottominset, -2000, 2000);
+	configRegisterUInt("MenuBg.StarCore", &g_MenuBgSlowStars.starcore, 0, 0);
+	configRegisterUInt("MenuBg.StarGlowA", &g_MenuBgSlowStars.starglow1, 0, 0);
+	configRegisterUInt("MenuBg.StarGlowB", &g_MenuBgSlowStars.starglow2, 0, 0);
+	configRegisterInt("MenuBg.Blur", &g_MenuBgSlowStars.blur, 0, 230);
 	configRegisterInt("Blur.DoseEnabled", &g_BlurDoseEnabled, 0, 1);
 	configRegisterFloat("Blur.DoseFullSeconds", &g_BlurDoseFullSecs, 1.f, 600.f);
 	configRegisterFloat("Blur.DoseCurve", &g_BlurDoseK, 0.5f, 8.f);

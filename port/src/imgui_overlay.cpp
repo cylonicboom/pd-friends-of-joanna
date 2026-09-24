@@ -293,6 +293,7 @@ extern "C" f32 g_BlurDoseK;
 extern "C" struct menubgstars g_MenuBgSlowStars;
 extern "C" const struct menubgstars g_MenuBgSlowStarsDefaults;
 extern "C" void menugfxResetBgSuccessSlow(void);
+extern "C" void saveQueueMarkConfig(void);
 extern "C" s32 g_BuildSpeedEnabled;
 extern "C" f32 g_BuildSpeedRef;
 extern "C" f32 g_BuildCrouchMix;
@@ -5105,7 +5106,7 @@ static void imguiOverlayDrawMenuBgPanel(void)
 {
 	struct menubgstars *cfg = &g_MenuBgSlowStars;
 
-	ImGui::TextDisabled("MENUBG_SUCCESS_SLOW. Live only, nothing saves yet.");
+	ImGui::TextDisabled("MENUBG_SUCCESS_SLOW. pd.ini [MenuBg] sets where these start.");
 
 	if (g_MenuData.bg == MENUBG_SUCCESS_SLOW || g_MenuData.nextbg == MENUBG_SUCCESS_SLOW) {
 		ImGui::Text("showing (bg %d, next %d)", g_MenuData.bg, g_MenuData.nextbg);
@@ -5166,6 +5167,13 @@ static void imguiOverlayDrawMenuBgPanel(void)
 	if (ImGui::Button("Reset to defaults")) {
 		*cfg = g_MenuBgSlowStarsDefaults;
 		menugfxResetBgSuccessSlow();
+	}
+
+	ImGui::SameLine();
+
+	// every configSave writes these anyway; this just asks for one now
+	if (ImGui::Button("Save to pd.ini")) {
+		saveQueueMarkConfig();
 	}
 }
 
