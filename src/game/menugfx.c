@@ -2001,13 +2001,14 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 /**
  * MENUBG_SUCCESS_SLOW: the success starfield with its knobs exposed.
  *
- * The defaults are the vanilla success colours at Defense's speed. Its
+ * The defaults were tuned in game on team missions (2026-09-23): dimmer
+ * haze, a warm core, and the drug blur on. pd.ini [MenuBg] overrides. Its
  * particles live in their own static array, not gunmem: gunmem belongs to
  * whatever stage is loaded and to menu models allocated from its base, so a
  * bg that can show up outside an endscreen cannot borrow it.
  */
-const struct menubgstars g_MenuBgSlowStarsDefaults = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0, 0, 0 };
-struct menubgstars g_MenuBgSlowStars = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0, 0, 0 };
+const struct menubgstars g_MenuBgSlowStarsDefaults = { 2.0f, 0x333350a0, 0x4b0d39ff, 0xc7bea200, 0xaaaaff00, 0xffaaff00, 144, 0, 0 };
+struct menubgstars g_MenuBgSlowStars = { 2.0f, 0x333350a0, 0x4b0d39ff, 0xc7bea200, 0xaaaaff00, 0xffaaff00, 144, 0, 0 };
 
 static struct coord g_MenuSlowParticles[NUM_SUCCESS_PARTICLES];
 static bool g_MenuSlowParticlesReady = false;
