@@ -61,6 +61,8 @@ local steps = {
 		function() return pd.grayscale(false) == true end },
 	{ "flattex", function() return pd.flattex(1) == true and pd.flattex(2) == true end,
 		function() return pd.flattex(0) == true end },
+	{ "texlabels", function() return pd.texlabels(8) == 0 and type(pd.tex_visible(4)) == "table" end,
+		function() return pd.texlabels(0) == 8 end },
 	{ "shiny", function() return pd.shiny(2) == true end,
 		function() return pd.shiny(0) == true end },
 	{ "crt", function() return pd.crt(true) == true end,

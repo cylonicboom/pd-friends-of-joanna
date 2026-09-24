@@ -173,6 +173,20 @@ s32 chraiLuaFlatTex(s32 mode)
 	return 1;
 }
 
+// pd.texlabels(n): the overlay tags the n textures nearest the screen centre
+// with their texnum (and model file num); 0 = off. Returns the previous n.
+// Cosmetic, save-safe; the renderer captures only while n > 0 or a
+// pd.tex_visible call asked for the next frames.
+s32 chraiLuaTexLabels(s32 n)
+{
+	s32 prev = videoGetTexLabelsMax();
+
+	if (n < 0) n = 0;
+	if (n > 64) n = 64;
+	videoSetTexLabelsMax(n);
+	return prev;
+}
+
 // pd.grayscale(on): force the renderer's grayscale shader path (film noir).
 s32 chraiLuaGrayscale(s32 on)
 {
@@ -467,6 +481,7 @@ void luaFxResetPerStage(void)
 
 	gfx_flattex_mode = 0;
 	gfx_force_grayscale = 0;
+	videoSetTexLabelsMax(0);
 	gfx_shiny_mode = 0;
 	gfx_screen_tint = 0;
 	gfx_retro_pixel_w = 0;

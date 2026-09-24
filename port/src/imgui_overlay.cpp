@@ -5258,6 +5258,16 @@ static void imguiOverlayDrawLuaPanel(void)
 		ImGui::PushTextWrapPos(0.0f);
 		ImGui::TextDisabled("Drawn on the HUD. pd.perf() reports both switches.");
 		ImGui::PopTextWrapPos();
+
+		s32 texlabels = gfx_texlabels_max;
+		ImGui::SetNextItemWidth(120.0f);
+		if (ImGui::SliderInt("Texture tags", &texlabels, 0, 64)) {
+			gfx_texlabels_max = texlabels;
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("pd.texlabels(n): tag the n textures nearest the screen centre with\n"
+					"their texnum (m: the model file num). pd.tex_visible() reads the same list.");
+		}
 	}
 
 	ImGui::SeparatorText("Run");
@@ -7112,6 +7122,30 @@ void imguiOverlayRender(void)
 			// IniSavingRate (5s) coalesce the write, or this would hit the
 			// disk on every frame of a drag
 			ImGui::MarkIniSettingsDirty();
+		}
+	}
+
+	// pd.texlabels: name tags on the textures nearest the screen centre,
+	// drawn whether or not the overlay is up. Same recipe as the ctrl-held
+	// prop labels above: a thin circle and small white text beside it, in
+	// window space (the collector's fractions times DisplaySize, which is how
+	// imguiOverlayProjectToWindow scales the prop positions).
+	if (gfx_texlabels_max > 0) {
+		struct GfxTexLabel labels[64];
+		const s32 n = gfx_texlabels_collect(labels, gfx_texlabels_max > 64 ? 64 : gfx_texlabels_max);
+		const ImVec2 disp = ImGui::GetIO().DisplaySize;
+		ImDrawList *fg = ImGui::GetForegroundDrawList();
+		for (s32 i = 0; i < n; i++) {
+			const struct GfxTexLabel &l = labels[i];
+			const ImVec2 p(l.x * disp.x, l.y * disp.y);
+			const ImU32 col = l.id == 0 ? IM_COL32(79, 216, 255, 220) : IM_COL32(255, 210, 79, 200);
+			char label[48];
+			if (l.id == 0) snprintf(label, sizeof(label), "0x%04x", l.texnum);
+			else snprintf(label, sizeof(label), "0x%04x m:0x%03x", l.texnum, l.id);
+			fg->AddCircle(p, 4.0f, col, 0, 1.0f);
+			// the nearest one sits on the crosshair: keep its text clear of it
+			const float off = i == 0 ? 14.0f : 8.0f;
+			fg->AddText(ImVec2(p.x + off, p.y - off), IM_COL32(255, 255, 255, 255), label);
 		}
 	}
 

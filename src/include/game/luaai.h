@@ -348,6 +348,7 @@ s32 chraiLuaStripAmmo(void);                  /* zero every ammo pool */
 s32 chraiLuaSetAmmo(s32 ammotype, s32 qty);   /* set one ammo pool to an exact qty */
 s32 chraiLuaTeleportToChr(s32 chrnum);        /* snap player to a chr (server-side) */
 s32 chraiLuaFlatTex(s32 mode);                /* 0 normal, 1 white/vertex-only, 2 avg-colour textures */
+s32 chraiLuaTexLabels(s32 n);                 /* overlay name tags on the n textures nearest the screen centre; 0 off; returns previous n */
 s32 chraiLuaGrayscale(s32 on);                /* force the renderer grayscale path */
 s32 chraiLuaShiny(s32 mode);                  /* 0 off, 1 fake-chrome UVs everywhere, 2 + gold tint */
 s32 chraiLuaChrGiveWeapon(s32 chrnum, s32 weaponnum, s32 dual); /* replace an NPC's held weapons with this one (dual = one per hand) */

@@ -1,5 +1,6 @@
 #define NOMINMAX
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -355,6 +356,20 @@ int gfx_flattex_mode = 0;
 unsigned char *gfx_flattex_image = nullptr;
 int gfx_flattex_image_w = 0;
 int gfx_flattex_image_h = 0;
+// pd.texlabels: per-frame capture of {texture identity, screen centroid} for
+// every textured 3D triangle. Two buffers so a collect between frames always
+// reads a complete one. Capture costs one bool test per triangle when off.
+#define GFX_TEXLABELS_CAP 4096
+struct GfxTexLabelTri {
+    uint8_t type;
+    uint16_t id;
+    uint32_t texnum;
+    float x, y;
+};
+int gfx_texlabels_max = 0;
+static int gfx_texlabels_frames = 0;    // pd.tex_visible keeps capture on this many more frames
+static bool gfx_texlabels_capture = false;
+static std::vector<GfxTexLabelTri> gfx_texlabels_cur, gfx_texlabels_last;
 // Forced grayscale: drives rdp.grayscale with a neutral colour from
 // gfx_start_frame (the game itself never emits G_SETGRAYSCALE_EXT, so there
 // is no mid-frame contention).
@@ -1578,6 +1593,35 @@ static inline bool gfx_sampler_mipmaps(int i) {
     return rdp.tex_lod || gfx_rapi->get_texture_filter() == FILTER_THREE_POINT;
 }
 
+static void gfx_texlabels_record(struct LoadedVertex* const* v, uint32_t tile) {
+    const LoadedTexture& lt = rdp.loaded_texture[rdp.texture_tile[tile].tmem];
+    if (lt.type == G_TEXTYPE_NONE) {
+        return;
+    }
+    float sx = 0.0f, sy = 0.0f;
+    for (int i = 0; i < 3; i++) {
+        if (v[i]->w <= 0.0f) {
+            return; // crosses the eye plane; the centroid means nothing
+        }
+        sx += v[i]->x / v[i]->w;
+        sy += v[i]->y / v[i]->w;
+    }
+    sx /= 3.0f;
+    sy /= 3.0f;
+    if (sx < -1.0f || sx > 1.0f || sy < -1.0f || sy > 1.0f) {
+        return;
+    }
+    // NDC -> the GL viewport rdp.viewport was adjusted to (draw-area pixels,
+    // bottom-left origin) -> fraction of the draw area, top-left origin. The
+    // game window viewport is the whole window, so the same fraction holds in
+    // window space whether or not the frame goes through game_framebuffer.
+    const float px = rdp.viewport.x + (sx + 1.0f) * 0.5f * rdp.viewport.width;
+    const float py = rdp.viewport.y + (sy + 1.0f) * 0.5f * rdp.viewport.height;
+    const float dw = gfx_current_dimensions.width ? (float)gfx_current_dimensions.width : 1.0f;
+    const float dh = gfx_current_dimensions.height ? (float)gfx_current_dimensions.height : 1.0f;
+    gfx_texlabels_cur.push_back({ lt.type, (uint16_t)(lt.id | lt.id_mask), lt.texnum, px / dw, 1.0f - py / dh });
+}
+
 static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bool is_rect) {
     struct LoadedVertex* v1 = &rsp.loaded_vertices[vtx1_idx];
     struct LoadedVertex* v2 = &rsp.loaded_vertices[vtx2_idx];
@@ -1734,6 +1778,10 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
     key.options = cc_options;
 
     ColorCombiner* comb = gfx_lookup_or_create_color_combiner(key);
+
+    if (gfx_texlabels_capture && !is_rect && comb->used_textures[0] && gfx_texlabels_cur.size() < GFX_TEXLABELS_CAP) {
+        gfx_texlabels_record(v_arr, rdp.first_tile_index + gfx_lod_tile_offset(0));
+    }
 
     uint32_t tm = 0;
     uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
@@ -3186,6 +3234,14 @@ extern "C" struct GfxRenderingAPI* gfx_get_current_rendering_api(void) {
 extern "C" void gfx_start_frame(void) {
     gfx_debug_textures.clear();
 
+    // pd.texlabels: the frame just finished becomes the readable one
+    gfx_texlabels_last.swap(gfx_texlabels_cur);
+    gfx_texlabels_cur.clear();
+    gfx_texlabels_capture = gfx_texlabels_max > 0 || gfx_texlabels_frames > 0;
+    if (gfx_texlabels_frames > 0) {
+        gfx_texlabels_frames--;
+    }
+
     // pd.* fx per-frame state. The scoped wireframe bracket never survives a
     // frame; the iPod Ad fill scope resets to the wall colour so unbracketed
     // geometry (walls/sky) draws bright with wireframe edges on.
@@ -3346,6 +3402,53 @@ extern "C" void gfx_start_frame(void) {
     // update aspect scale and offset
     gfx_update_aspect_mode();
 	imguiOverlayStartFrame();
+}
+
+extern "C" void gfx_texlabels_request(void) {
+    // two: the frame being built now may already have started without capture
+    gfx_texlabels_frames = 2;
+}
+
+extern "C" int gfx_texlabels_collect(struct GfxTexLabel* out, int max) {
+    if (!out || max <= 0) {
+        return 0;
+    }
+    // one entry per (type, id, texnum), keeping the centroid nearest the
+    // screen centre; distance weighted by the window aspect so "nearest" is
+    // in pixels rather than fractions
+    const float ar = gfx_current_window_dimensions.aspect_ratio > 0.0f ? gfx_current_window_dimensions.aspect_ratio : 1.0f;
+    auto dist2 = [ar](float x, float y) {
+        const float dx = (x - 0.5f) * ar, dy = y - 0.5f;
+        return dx * dx + dy * dy;
+    };
+    std::unordered_map<uint64_t, GfxTexLabel> agg;
+    for (const GfxTexLabelTri& t : gfx_texlabels_last) {
+        const uint64_t k = ((uint64_t)t.type << 48) | ((uint64_t)t.id << 32) | t.texnum;
+        auto it = agg.find(k);
+        if (it == agg.end()) {
+            agg.emplace(k, GfxTexLabel{ t.type, t.id, t.texnum, t.x, t.y, 1 });
+        } else {
+            GfxTexLabel& l = it->second;
+            l.tris++;
+            if (dist2(t.x, t.y) < dist2(l.x, l.y)) {
+                l.x = t.x;
+                l.y = t.y;
+            }
+        }
+    }
+    std::vector<GfxTexLabel> sorted;
+    sorted.reserve(agg.size());
+    for (auto& kv : agg) {
+        sorted.push_back(kv.second);
+    }
+    std::sort(sorted.begin(), sorted.end(), [&](const GfxTexLabel& a, const GfxTexLabel& b) {
+        return dist2(a.x, a.y) < dist2(b.x, b.y);
+    });
+    int n = (int)sorted.size() < max ? (int)sorted.size() : max;
+    for (int i = 0; i < n; i++) {
+        out[i] = sorted[i];
+    }
+    return n;
 }
 
 extern "C" uint32_t gfx_get_debug_texture_count(void) {

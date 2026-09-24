@@ -78,6 +78,21 @@ s32 videoFramebuffersSupported(void);
 void videoResetTextureCache(void);
 void videoFreeCachedTexture(const void *texptr);
 
+// pd.texlabels / pd.tex_visible: the textures drawn last frame, one entry
+// each, nearest the screen centre first. x,y are fractions of the window
+// (0..1, top-left origin).
+struct videotexlabel {
+	u8 type;      // G_TEXTYPE_*
+	u16 id;       // model file num; 0 for bg/general
+	u32 texnum;
+	f32 x, y;
+	u32 tris;
+};
+s32 videoGetTexLabelsMax(void);
+void videoSetTexLabelsMax(s32 n);        // labels the overlay draws; 0 = off
+void videoRequestTexLabels(void);        // capture the next frames without drawing
+s32 videoCollectTexLabels(struct videotexlabel *out, s32 max);
+
 void videoShutdown(void);
 
 #endif

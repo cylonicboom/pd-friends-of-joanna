@@ -561,6 +561,57 @@ static int l_pd_hall_of_mirrors(lua_State *L)
 	return 1;
 }
 
+/* pd.texlabels(n) -> prev. Name tags on the n (max 64) textures nearest the
+ * screen centre: the overlay draws a marker and "0x<texnum>" (bg) or
+ * "0x<texnum> m:0x<model file num>" (model) at each. 0 = off. Cleared on a
+ * stage change with the other renderer knobs. */
+static int l_pd_texlabels(lua_State *L)
+{
+	lua_pushinteger(L, chraiLuaTexLabels((s32)luaL_optinteger(L, 1, 0)));
+	return 1;
+}
+
+/* pd.tex_visible([n]) -> array of {texnum=, id=, type=, x=, y=, tris=}, the
+ * textures drawn last frame, nearest the screen centre first, at most n (max
+ * 64, default 16). x,y are fractions of the window (0..1, top-left origin);
+ * id is the model file num (0 for bg); type is G_TEXTYPE_*. Works without
+ * pd.texlabels: the call itself turns capture on for the next two frames, so
+ * the first call after a quiet spell returns an empty array and the ones
+ * after it are populated. */
+static int l_pd_tex_visible(lua_State *L)
+{
+	struct videotexlabel labels[64];
+	s32 max = (s32)luaL_optinteger(L, 1, 16);
+	s32 n, i;
+
+	if (max < 1) max = 1;
+	if (max > 64) max = 64;
+
+	videoRequestTexLabels();
+	n = videoCollectTexLabels(labels, max);
+
+	lua_createtable(L, n, 0);
+
+	for (i = 0; i < n; i++) {
+		lua_createtable(L, 0, 6);
+		lua_pushinteger(L, labels[i].texnum);
+		lua_setfield(L, -2, "texnum");
+		lua_pushinteger(L, labels[i].id);
+		lua_setfield(L, -2, "id");
+		lua_pushinteger(L, labels[i].type);
+		lua_setfield(L, -2, "type");
+		lua_pushnumber(L, labels[i].x);
+		lua_setfield(L, -2, "x");
+		lua_pushnumber(L, labels[i].y);
+		lua_setfield(L, -2, "y");
+		lua_pushinteger(L, labels[i].tris);
+		lua_setfield(L, -2, "tris");
+		lua_rawseti(L, -2, i + 1);
+	}
+
+	return 1;
+}
+
 /* pd.hudvd(on) -> nil. HUDVD: each HUD element group (health, crosshair,
  * ammo, radar, messages, active menu) bounces DVD-style in its own random
  * diagonal. Purely cosmetic — aim/hit-detection are untouched. */
@@ -624,6 +675,8 @@ static const luaL_Reg g_LuaApiFx[] = {
 	/* screen */
 	{ "fade",            l_pd_fade },
 	{ "flattex",         l_pd_flattex },
+	{ "texlabels",       l_pd_texlabels },
+	{ "tex_visible",     l_pd_tex_visible },
 	{ "shiny",           l_pd_shiny },
 	{ "hud_squish",      l_pd_hud_squish },
 	{ "terminator",      l_pd_terminator },

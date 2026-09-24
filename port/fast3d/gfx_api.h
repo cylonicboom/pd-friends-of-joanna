@@ -72,6 +72,23 @@ extern float gfx_silhouette_color[3];        // current fill scope colour (G_FLA
 extern int gfx_silhouette_edges;             // 1 = draw white wireframe edges (walls only)
 extern float gfx_wireframe_line_width;       // wire thickness in pixels
 
+// pd.texlabels / pd.tex_visible: name tags for the textures on screen. While
+// capture is on, every textured 3D triangle drawn records its texture identity
+// and screen centroid; gfx_texlabels_collect folds that into one entry per
+// texture, nearest the screen centre first. x,y are fractions of the window
+// (0..1, top-left origin), the space the overlay's prop labels use once
+// multiplied by ImGui's DisplaySize.
+struct GfxTexLabel {
+    uint8_t type;      // G_TEXTYPE_*
+    uint16_t id;       // model file num (with its mod mask); 0 for bg/general
+    uint32_t texnum;
+    float x, y;        // centroid nearest the screen centre
+    uint32_t tris;     // triangles drawn with it this frame
+};
+extern int gfx_texlabels_max;                // labels the overlay draws; 0 = off (capture off unless requested)
+void gfx_texlabels_request(void);            // capture the next frames too (pd.tex_visible)
+int gfx_texlabels_collect(struct GfxTexLabel *out, int max); // last complete frame; returns count
+
 void gfx_set_hud_squish(float frac);
 void gfx_hudvd_reset(void);
 void gfx_hudvd_set_active(int on);

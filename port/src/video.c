@@ -575,6 +575,44 @@ void videoFreeCachedTexture(const void *texptr)
 	gfx_texture_cache_delete(texptr);
 }
 
+s32 videoGetTexLabelsMax(void)
+{
+	return gfx_texlabels_max;
+}
+
+void videoSetTexLabelsMax(s32 n)
+{
+	gfx_texlabels_max = n;
+}
+
+void videoRequestTexLabels(void)
+{
+	gfx_texlabels_request();
+}
+
+s32 videoCollectTexLabels(struct videotexlabel *out, s32 max)
+{
+	struct GfxTexLabel tmp[64];
+	s32 n, i;
+
+	if (max > 64) {
+		max = 64;
+	}
+
+	n = gfx_texlabels_collect(tmp, max);
+
+	for (i = 0; i < n; i++) {
+		out[i].type = tmp[i].type;
+		out[i].id = tmp[i].id;
+		out[i].texnum = tmp[i].texnum;
+		out[i].x = tmp[i].x;
+		out[i].y = tmp[i].y;
+		out[i].tris = tmp[i].tris;
+	}
+
+	return n;
+}
+
 void videoShutdown(void)
 {
 	free(vidModes);
