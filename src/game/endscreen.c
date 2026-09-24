@@ -1651,12 +1651,15 @@ void endscreenSetCoopCompleted(void)
 {
 	if (g_CheatsActiveBank0 == 0 && g_CheatsActiveBank1 == 0) {
 #if VERSION >= VERSION_NTSC_1_0
-		if (g_GameFile.coopcompletions[g_MissionConfig.difficulty] & (1 << g_MissionConfig.stageindex)) {
+		if (gamefileSoloIndexOk(g_MissionConfig.stageindex)
+				&& (g_GameFile.coopcompletions[g_MissionConfig.difficulty] & (1 << g_MissionConfig.stageindex))) {
 			g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = true;
 		}
 #endif
 
-		g_GameFile.coopcompletions[g_MissionConfig.difficulty] |= (1 << g_MissionConfig.stageindex);
+		if (gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
+			g_GameFile.coopcompletions[g_MissionConfig.difficulty] |= (1 << g_MissionConfig.stageindex);
+		}
 	}
 }
 
@@ -1783,7 +1786,9 @@ void endscreenPrepare(void)
 				}
 			}
 
-			g_GameFile.autostageindex = g_MissionConfig.stageindex;
+			if (gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
+				g_GameFile.autostageindex = g_MissionConfig.stageindex;
+			}
 			g_GameFile.autodifficulty = g_MissionConfig.difficulty;
 
 #if VERSION >= VERSION_NTSC_1_0 && defined(DEBUG)
@@ -1826,13 +1831,14 @@ void endscreenPrepare(void)
 				}
 
 				// Set best time
-				prevbest = g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty];
+				prevbest = gamefileSoloIndexOk(g_MissionConfig.stageindex)
+					? g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] : 0;
 
 				if (prevbest == 0) {
 					g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = true;
 				}
 
-				if (secs < prevbest || prevbest == 0) {
+				if ((secs < prevbest || prevbest == 0) && gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
 					g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] = secs;
 				}
 
@@ -1846,9 +1852,10 @@ void endscreenPrepare(void)
 				}
 #endif
 #else
-				prevbest = g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty];
+				prevbest = gamefileSoloIndexOk(g_MissionConfig.stageindex)
+					? g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] : 0;
 
-				if (secs < prevbest || prevbest == 0) {
+				if ((secs < prevbest || prevbest == 0) && gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
 					g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] = secs;
 				}
 #endif

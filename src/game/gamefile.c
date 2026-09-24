@@ -20,6 +20,9 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 
 u8 *gamefileGetFlags(void)
 {
@@ -34,6 +37,19 @@ void gamefileSetFlag(u32 value)
 void gamefileUnsetFlag(u32 value)
 {
 	pakSetBitflag(value, g_GameFile.flags, false);
+}
+
+bool gamefileSoloIndexOk(s32 stageindex)
+{
+	if (stageindex >= 0 && stageindex < NUM_SOLOSTAGES) {
+		return true;
+	}
+
+#ifndef PLATFORM_N64
+	sysLogPrintf(LOG_ERROR, "gamefile: stage index %d is outside the %d rows the save holds; refusing the write",
+			stageindex, NUM_SOLOSTAGES);
+#endif
+	return false;
 }
 
 u32 gamefileHasFlag(u32 value)
