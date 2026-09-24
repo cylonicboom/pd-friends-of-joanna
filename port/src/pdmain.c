@@ -789,7 +789,10 @@ static void assetCliFromArgs(void)
     s32 j = json;
     assetCliEach(probe, assetCliStatOne, &j);
     fflush(stdout);
-    exit(0);
+    // _exit, not exit: the atexit cleanup writes pd.ini and this runs before
+    // the guest players' [MpPlayer.PlayerN] sections are bound, so their
+    // properties would be dropped. See mpsetupProbeFromArgs.
+    _exit(0);
   }
 
   if (!verb || !verb[0]) {
@@ -801,12 +804,12 @@ static void assetCliFromArgs(void)
   if (!strcmp(verb, "info")) {
     assetCliInfo(json);
     fflush(stdout);
-    exit(0);
+    _exit(0);
   }
 
   if (!arg) {
     fprintf(stderr, "--asset %s: a path is required\n", verb);
-    exit(2);
+    _exit(2);
   }
 
   if (!strcmp(verb, "ls")) {
@@ -837,7 +840,7 @@ static void assetCliFromArgs(void)
 
       if (len >= sizeof(root)) {
         fprintf(stderr, "--asset find: path too long\n");
-        exit(2);
+        _exit(2);
       }
 
       memcpy(root, arg, len);
@@ -942,7 +945,7 @@ static void assetCliFromArgs(void)
   }
 
   fflush(stdout);
-  exit(status);
+  _exit(status);
 }
 
 void mainProc(void) {
