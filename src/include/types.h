@@ -4028,6 +4028,8 @@ struct menubgstars {
 	u32 starglow1;
 	u32 starglow2;
 	s32 blur;       // drug blur alpha drawn over the stars, 0-230, 0 is off
+	s32 hazetopinset;    // px the top haze moves down from vanilla's y = -10
+	s32 hazebottominset; // px the bottom haze moves up from vanilla's y = height + 10
 };
 
 struct menudata_endscreen {

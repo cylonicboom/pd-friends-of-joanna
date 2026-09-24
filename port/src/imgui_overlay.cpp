@@ -5054,6 +5054,50 @@ static void imguiOverlayMenuBgColour(const char *label, u32 *rgba, bool alpha, c
 	}
 }
 
+// one haze plane: swatch, a slider per channel, and how far it's pulled in
+static void imguiOverlayMenuBgHaze(const char *label, u32 *rgba, s32 *inset, const char *insethelp)
+{
+	static const char *names[4] = { "R", "G", "B", "A" };
+	s32 maxinset = viGetHeight() / 2 + 10;
+
+	ImGui::PushID(label);
+	ImGui::SeparatorText(label);
+
+	// the sliders below are the inputs; the swatch is just a picker
+	{
+		float f[4];
+
+		imguiOverlayRgbaToFloat(*rgba, f);
+
+		if (ImGui::ColorEdit4("##swatch", f, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_AlphaBar)) {
+			*rgba = imguiOverlayFloatToRgba(f);
+		}
+	}
+
+	for (s32 i = 0; i < 4; i++) {
+		s32 shift = 24 - i * 8;
+		int v = (*rgba >> shift) & 0xff;
+
+		if (ImGui::SliderInt(names[i], &v, 0, 255)) {
+			*rgba = (*rgba & ~(0xffu << shift)) | ((u32)v << shift);
+		}
+	}
+
+	{
+		int v = *inset;
+
+		if (ImGui::SliderInt("Inset", &v, 0, maxinset, "%d px")) {
+			*inset = v;
+		}
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("%s", insethelp);
+		}
+	}
+
+	ImGui::PopID();
+}
+
 static void imguiOverlayDrawMenuBgPanel(void)
 {
 	struct menubgstars *cfg = &g_MenuBgSlowStars;
@@ -5072,9 +5116,14 @@ static void imguiOverlayDrawMenuBgPanel(void)
 			"How fast the stars come at you.\n"
 			"Vanilla success is 5, Defense is 2.");
 
-	ImGui::SeparatorText("Haze");
-	imguiOverlayMenuBgColour("Top", &cfg->hazetop, true, "Top haze plane. Vanilla 0x0000947f.");
-	imguiOverlayMenuBgColour("Bottom", &cfg->hazebottom, true, "Bottom haze plane. Vanilla 0x6200947f.");
+	imguiOverlayMenuBgHaze("Haze top", &cfg->hazetop, &cfg->hazetopinset,
+			"Pulls the top plane down from the screen edge.\n"
+			"0 is vanilla. At the max it meets the middle.\n"
+			"Colour vanilla 0x0000947f.");
+	imguiOverlayMenuBgHaze("Haze bottom", &cfg->hazebottom, &cfg->hazebottominset,
+			"Pulls the bottom plane up from the screen edge.\n"
+			"0 is vanilla. At the max it meets the middle.\n"
+			"Colour vanilla 0x6200947f.");
 
 	ImGui::SeparatorText("Stars");
 	imguiOverlayMenuBgColour("Core", &cfg->starcore, false, "Star centre. Alpha is the depth falloff, not yours.");
@@ -5717,7 +5766,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL },
 	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL },
 	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL },
-	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 400.0f, 0.5f, 0.50f, NULL },
+	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL },
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
 };
