@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "game/hudtint.h"
 #include "constants.h"
 #include "../lib/naudio/n_sndp.h"
 #include "game/bondmove.h"
@@ -13705,19 +13706,19 @@ Gfx *bgunDrawHud(Gfx *gdl)
 
 #if VERSION >= VERSION_NTSC_1_0
 				if (funcnum == FUNC_SECONDARY && func->name == ctrl->curfnstr) {
-					colour |= 0x00ff0000;
+					colour |= hudTint(0x00ff0000);
 				}
 
 				if (funcnum == FUNC_PRIMARY && func->name != ctrl->curfnstr) {
-					colour |= 0x00ff0000;
+					colour |= hudTint(0x00ff0000);
 				}
 #else
 				if (hand->gset.weaponfunc == FUNC_SECONDARY && func->name == ctrl->curfnstr) {
-					colour |= 0x00ff0000;
+					colour |= hudTint(0x00ff0000);
 				}
 
 				if (hand->gset.weaponfunc == FUNC_PRIMARY && func->name != ctrl->curfnstr) {
-					colour |= 0x00ff0000;
+					colour |= hudTint(0x00ff0000);
 				}
 #endif
 
@@ -13806,9 +13807,9 @@ Gfx *bgunDrawHud(Gfx *gdl)
 			gdl = bgunDrawHudGauge(gdl,
 					xpos, bottom - reserveheight - clipheight - 3, xpos + barwidth, bottom - reserveheight - 3,
 					&lefthand->abmag, lefthand->loadedammo[ammoindex], lefthand->clipsizes[ammoindex],
-					0x00300080, 0x00ff0040, false);
+					hudTint(0x00300080), hudTint(0x00ff0040), false);
 			gdl = bgunDrawHudInteger(gdl, lefthand->loadedammo[ammoindex], xpos + barwidth + 2, true,
-					bottom - reserveheight - 8, 0, 0x00ff00a0);
+					bottom - reserveheight - 8, 0, hudTint(0x00ff00a0));
 		}
 	}
 
@@ -13850,9 +13851,9 @@ Gfx *bgunDrawHud(Gfx *gdl)
 				&& (weapon->ammos[ammoindex]->flags & AMMOFLAG_EQUIPPEDISRESERVE) == 0) {
 			gdl = bgunDrawHudGauge(gdl, xpos, bottom - reserveheight - clipheight - 3, xpos + barwidth,
 					bottom - reserveheight - 3, &hand->abmag, hand->loadedammo[ammoindex], hand->clipsizes[ammoindex],
-					0x00300080, 0x00ff0040, false);
+					hudTint(0x00300080), hudTint(0x00ff0040), false);
 			gdl = bgunDrawHudInteger(gdl, hand->loadedammo[ammoindex], xpos - 2, false,
-					bottom - reserveheight - 8, 0, 0x00ff00a0);
+					bottom - reserveheight - 8, 0, hudTint(0x00ff00a0));
 		}
 
 		// Reserve

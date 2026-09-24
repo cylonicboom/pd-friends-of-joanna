@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "game/hudtint.h"
 #include "constants.h"
 #include "game/cheats.h"
 #include "game/chraction.h"
@@ -360,7 +361,7 @@ Gfx *radarRender(Gfx *gdl)
 					s32 index = g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].base.team;
 					colour = g_TeamColours[index];
 				} else {
-					colour = 0x00ff0000;
+					colour = hudTintColourFor(g_Vars.playerstats[i].mpindex, 0x00ff0000);
 				}
 
 				gdl = radarDrawDot(gdl, g_Vars.players[i]->prop, &pos, colour, 0, 0);
@@ -432,7 +433,7 @@ Gfx *radarRender(Gfx *gdl)
 			s32 index = g_PlayerConfigsArray[g_Vars.playerstats[playernum].mpindex].base.team;
 			colour = g_TeamColours[index];
 		} else {
-			colour = 0x00ff0000;
+			colour = hudTint(0x00ff0000);
 		}
 
 		gdl = radarDrawDot(gdl, g_Vars.currentplayer->prop, &pos, colour, 0, 0);

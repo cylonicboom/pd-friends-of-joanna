@@ -19,6 +19,7 @@
 #include "lib/memp.h"
 #include "lib/mtx.h"
 #include "lib/snd.h"
+#include "game/hudtint.h"
 #include "lib/str.h"
 #include "lib/vi.h"
 #include "data.h"
@@ -198,7 +199,7 @@ Gfx *hudmsgRenderMissionTimer(Gfx *gdl, u32 alpha)
 
 	textcolour = textcolour * 160 / 255;
 	if (g_Is4Mb);
-	textcolour |= 0x00ff0000;
+	textcolour |= hudTint(0x00ff0000);
 
 	formatTime(buffer, playerGetMissionTime(), TIMEPRECISION_HUNDREDTHS);
 
@@ -242,7 +243,7 @@ Gfx *hudmsgRenderZoomRange(Gfx *gdl, u32 alpha)
 	s32 y2;
 	u32 colour;
 
-	colour = (alpha * 0xa0 / 255) | 0x00ff0000;
+	colour = (alpha * 0xa0 / 255) | hudTint(0x00ff0000);
 	viewtop = viGetViewTop();
 	viewleft = viGetViewLeft() / g_ScaleX;
 	viewhalfwidth = (viGetViewWidth() / g_ScaleX) >> 1;
@@ -354,7 +355,7 @@ Gfx *hudmsgRenderLives(Gfx *gdl, u32 alpha)
 	char buffer[16];
 	s32 playercount;
 
-	textcolour = (alpha * 160 / 255) | 0x00ff0000;
+	textcolour = (alpha * 160 / 255) | hudTint(0x00ff0000);
 
 	viewleft = viGetViewLeft() / g_ScaleX;
 	viewtop = viGetViewTop();
@@ -422,7 +423,7 @@ Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
 	x = viewleft + viewwidth - g_HudPaddingX - textwidth - 3;
 	y = viewtop + g_HudPaddingY + 2;
 
-	textcolour = (alpha * 160 / 255) | 0x00ff0000;
+	textcolour = (alpha * 160 / 255) | hudTint(0x00ff0000);
 
 #ifndef PLATFORM_N64
 	if (PLAYERCOUNT() < 2 || (PLAYERCOUNT() == 2 && optionsGetScreenSplit() == SCREENSPLIT_HORIZONTAL)) {
@@ -1625,10 +1626,10 @@ Gfx *hudmsgsRender(Gfx *gdl)
 
 			alpha = 192.0f * sin;
 
-			textcolour = (msg->textcolour & 0xffffff00) + alpha;
+			textcolour = (hudTint(msg->textcolour) & 0xffffff00) + alpha;
 			glowcolour = msg->glowcolour;
 		} else {
-			textcolour = msg->textcolour | 0xa0;
+			textcolour = hudTint(msg->textcolour) | 0xa0;
 			glowcolour = msg->glowcolour;
 		}
 
@@ -1681,7 +1682,7 @@ Gfx *hudmsgsRender(Gfx *gdl)
 			break;
 		case HUDMSGSTATE_FADINGIN:
 			{
-				u32 bordercolour = msg->textcolour | 0x40;
+				u32 bordercolour = hudTint(msg->textcolour) | 0x40;
 				f32 tmp;
 				f32 spc0;
 
@@ -1739,7 +1740,7 @@ Gfx *hudmsgsRender(Gfx *gdl)
 			break;
 		case HUDMSGSTATE_ONSCREEN:
 			if (msg->boxed) {
-				u32 bordercolour = msg->textcolour | 0x40;
+				u32 bordercolour = hudTint(msg->textcolour) | 0x40;
 
 				if (msg->opacity != 255) {
 					u32 alpha = (msg->opacity * (bordercolour & 0xff)) / 255;
@@ -1773,7 +1774,7 @@ Gfx *hudmsgsRender(Gfx *gdl)
 				f32 spa8 = (sqrtf(msg->width * msg->width + msg->height * msg->height) + 92.0f) / PALUPF(7.0f);
 				f32 tmp;
 
-				bordercolour = msg->textcolour | 0x40;
+				bordercolour = hudTint(msg->textcolour) | 0x40;
 
 				if (msg->opacity != 255) {
 					u32 alpha = (msg->opacity * (bordercolour & 0xff)) / 255;
