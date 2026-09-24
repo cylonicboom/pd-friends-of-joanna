@@ -60,7 +60,12 @@ extern "C" {
  *   file:   fileSlots rows. owner = mod or vanilla, id = raw fileNum
  *   tex:    texture numbers. tex:/vanilla/<n> is a ROM texnum,
  *           tex:/<mod>/<local> a mod-local id (sub = its port id),
- *           tex:/port/<n> an assigned port id resolved back to (mod, local)
+ *           tex:/<mod>/<model>/<local> the same id as one model sees it -
+ *           a mod's textures resolve per model (<Model>/<id>.bin first,
+ *           then flat), the way the debugger's texture probe and
+ *           modeldef's own load do, so the model is part of the address
+ *           when it matters. tex:/port/<n> is an assigned port id
+ *           resolved back to (mod, local). assetLink gives the file:
  *   stage:  g_Stages by stagenum, hex or decimal, or by stageGetName.
  *           stage:/<x>/<field> for bg tiles pads setup mpsetup; assetLink
  *           follows the field to the file: it names, owner and all
@@ -103,6 +108,7 @@ struct assetref {
 	s8 owner;   /* mod index 0..63, ASSET_OWNER_VANILLA, or -1 when the drive has no owner concept */
 	s32 id;     /* drive-typed, see the drive list above */
 	s32 sub;    /* drive-typed sub-item: stage field, tex port id, mp slot; -1 when none */
+	s32 via;    /* tex: the model file (raw fileNum in the owner's row) the texture was asked through; -1 for the flat lookup */
 };
 
 /* assetResolve return codes. Positive is a hit. */
@@ -131,20 +137,20 @@ s32 assetLink(const struct assetref *ref, struct assetref *out);
  * a mod's file (declared self/rom source, then the mod-dir walk, then the
  * base dir, then ROM), the ROM's own table for a vanilla file, the ROM
  * texture bank for a vanilla texture, romdataSegGetData for a segment.
- * Drives with a link (stage fields, heads, bodies, hands) load what they
- * link to. The memory is the engine's cache, not the caller's: do not free
- * it, and a mod file stays loaded exactly as if the game had loaded it.
- * NULL when nothing can produce the bytes; ASSET_UNSUPPORTED drives (rom:,
- * mod:, a stage with no field, a mod texture) return NULL and set *outSize
- * to 0. */
+ * Drives with a link (stage fields, heads, bodies, hands, mod textures)
+ * load what they link to; a mod texture's bytes are the file the engine's
+ * own resolver (modTextureResolveFile) picks, so they are the compressed
+ * texture file, not decoded pixels. The memory is the engine's cache, not
+ * the caller's: do not free it, and a mod file stays loaded exactly as if
+ * the game had loaded it. NULL when nothing can produce the bytes; rom:,
+ * mod: and a stage with no field return NULL and set *outSize to 0. */
 void *assetLoad(const struct assetref *ref, u32 *outSize);
 
 /* Test-Path. 1 if assetLoad would return bytes right now, 0 if it would
- * not, and ASSET_UNSUPPORTED when the question cannot be answered from the
- * ref alone (a mod texture: its bytes depend on which model asks). Never a
- * false no. For a mod file that is not yet loaded this loads it and
- * releases it again, so asking does not change what is resident. rom: is
- * "mounted", mod: is "in the roster". */
+ * not. Never a false no. For a mod file that is not yet loaded this loads
+ * it and releases it again, so asking does not change what is resident.
+ * rom: is "mounted", mod: is "in the roster", a stage row is "in the
+ * table". */
 s32 assetExists(const struct assetref *ref);
 
 /* Get-ChildItem. "drive:" or "drive:/" walks everything the drive has;

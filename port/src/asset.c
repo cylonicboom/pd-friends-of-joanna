@@ -48,6 +48,7 @@ static void assetRefClear(struct assetref *ref)
 	ref->owner = -1;
 	ref->id = -1;
 	ref->sub = -1;
+	ref->via = -1;
 }
 
 /* ------------------------------------------------------------------------
@@ -308,7 +309,10 @@ static void assetFileIndexBuild(void)
 				continue;
 			}
 
-			assetFileIndexPush(mod, fileNum, romdataFileGetSlotName(mod, fileNum));
+			{
+				const char *declared = romdataFileDeclaredName(mod, fileNum);
+				assetFileIndexPush(mod, fileNum, declared ? declared : romdataFileGetSlotName(mod, fileNum));
+			}
 		}
 	}
 
@@ -435,13 +439,20 @@ static s32 assetFileResolve(const char *rest, struct assetref *out)
 	}
 }
 
+/* A mod file's name is what its PDFT entry declared, not what the slot
+ * carries: the slot holds the path when an entry has both, and a path can
+ * be the context resolver's program. Falls back to the slot for entries
+ * with no declared name. */
 static const char *assetFileName(const struct assetref *ref)
 {
+	const char *declared;
+
 	if (ref->owner == ASSET_OWNER_VANILLA) {
 		return romdataRomFileName(ref->id);
 	}
 
-	return romdataFileGetSlotName(ref->owner, ref->id);
+	declared = romdataFileDeclaredName(ref->owner, ref->id);
+	return declared ? declared : romdataFileGetSlotName(ref->owner, ref->id);
 }
 
 static s32 assetFileEnumerate(const char *rest, assetenumfn fn, void *ctx)
@@ -549,6 +560,32 @@ static s32 assetTexResolve(const char *rest, struct assetref *out)
 		return ASSET_NOTFOUND;
 	}
 
+	/* tex:/<mod>/<model>/<local>: the model is the segment before the last */
+	if (owner >= 0) {
+		const char *slash = strrchr(item, '/');
+
+		if (slash && slash > item) {
+			char model[96];
+			u32 len = (u32)(slash - item);
+			s32 modelFileNum;
+
+			if (len >= sizeof(model)) {
+				return ASSET_BADPATH;
+			}
+
+			memcpy(model, item, len);
+			model[len] = '\0';
+			modelFileNum = assetFileLookupInMod(model, owner);
+
+			if (modelFileNum < 0) {
+				return ASSET_NOTFOUND;
+			}
+
+			out->via = modelFileNum;
+			item = slash + 1;
+		}
+	}
+
 	n = assetParseNumber(item);
 
 	if (n < 0) {
@@ -649,6 +686,28 @@ static s32 assetTexEnumerate(const char *rest, assetenumfn fn, void *ctx)
  * field sub-item names one of the five file fields; assetLink follows it
  * to the file: the tagged u32 in g_Stages names, owner included.
  * ---------------------------------------------------------------------- */
+
+/* A mod texture's file, the way modeldef and the debugger's probe find it:
+ * modTextureResolveFile with the mod and the asking model, no globals. The
+ * model is optional; without one only the flat and prefixed candidates are
+ * tried, which is what the resolver does for a model with no per-model dir. */
+static s32 assetTexLink(const struct assetref *ref, struct assetref *out)
+{
+	s32 fileNum;
+
+	if (ref->owner < 0) {
+		return ASSET_NOTFOUND;
+	}
+
+	fileNum = modTextureResolveFile(ref->owner, ref->via > 0 ? ref->via : 0,
+			(u16)(ref->sub >= 0 ? ref->sub : ref->id), NULL, NULL, 0);
+
+	if (fileNum <= 0) {
+		return ASSET_NOTFOUND;
+	}
+
+	return assetFileRefFromId(MOD_FILEID_MAKE(ref->owner, fileNum), out);
+}
 
 static s32 assetStageFieldFromName(const char *s, u32 len)
 {
@@ -1167,6 +1226,21 @@ s32 assetFormat(const struct assetref *ref, char *dst, u32 len)
 		name = assetFileName(ref);
 		return name ? snprintf(dst, len, "file:/%s/%s", assetModLabel(ref->owner), name) : -1;
 	case ASSET_DRIVE_TEX:
+		if (ref->owner >= 0 && ref->via > 0) {
+			const char *model = romdataFileGetSlotName(ref->owner, ref->via);
+			const char *sep = model ? strstr(model, "::") : NULL;
+
+			model = sep ? sep + 2 : model;
+
+			if (model && !strncmp(model, "files/", 6)) {
+				model += 6;
+			}
+
+			if (model) {
+				return snprintf(dst, len, "tex:/%s/%s/0x%04x", assetModLabel(ref->owner), model, ref->id);
+			}
+		}
+
 		return snprintf(dst, len, "tex:/%s/0x%04x", assetModLabel(ref->owner), ref->id);
 	case ASSET_DRIVE_STAGE:
 		if (stageGetIndex(ref->id) < 0) {
@@ -1202,6 +1276,8 @@ s32 assetLink(const struct assetref *ref, struct assetref *out)
 	switch (ref->drive) {
 	case ASSET_DRIVE_STAGE:
 		return assetStageLink(ref, out);
+	case ASSET_DRIVE_TEX:
+		return assetTexLink(ref, out);
 	case ASSET_DRIVE_HEAD:
 	case ASSET_DRIVE_BODY:
 	case ASSET_DRIVE_HAND:
@@ -1217,10 +1293,20 @@ s32 assetLink(const struct assetref *ref, struct assetref *out)
 
 #define ASSET_SLOT_UNLOADED 0   /* enum loadsource SRC_UNLOADED, romdata.c */
 
+/* What the game would serve for this file, which for a vanilla id is NOT
+ * always the ROM's bytes: romdataFileLoad walks the mounted mod dirs for
+ * an untagged id too, so a mod that ships a loose file under a vanilla
+ * name shadows the ROM (mod_gex_stages does this to 14 of the 16 arenas).
+ * Get-Content answers with what loads. The ROM's own bytes for a slot are
+ * a different question - romdataRomFileData - and not this verb's. */
 static void *assetFileLoad(const struct assetref *ref, u32 *outSize)
 {
 	if (ref->owner == ASSET_OWNER_VANILLA) {
-		return romdataRomFileData(ref->id, outSize);
+		if (!romdataRomFileName(ref->id)) {
+			return NULL;
+		}
+
+		return romdataFileLoad(ref->id, outSize);
 	}
 
 	if (ref->owner < 0 || ref->id < 1) {
@@ -1233,10 +1319,16 @@ static void *assetFileLoad(const struct assetref *ref, u32 *outSize)
 static void *assetTexLoad(const struct assetref *ref, u32 *outSize)
 {
 	if (ref->owner != ASSET_OWNER_VANILLA) {
-		/* a mod texture's bytes are resolved against g_TexModNum and a
-		 * per-model dir (modTextureLoad) - that is the two-globals problem
-		 * c-texture-provenance names, and not something to paper over here */
-		return NULL;
+		/* the file the engine's resolver picks for (mod, model, id); the
+		 * runtime path (modTextureLoad) reads the same answer off two
+		 * globals, which is c-texture-provenance's problem, not this one's */
+		struct assetref file;
+
+		if (assetTexLink(ref, &file) != ASSET_OK) {
+			return NULL;
+		}
+
+		return assetFileLoad(&file, outSize);
 	}
 
 	if (!g_Textures || ref->id < 0 || ref->id + 1 >= NUM_TEXTURES) {
@@ -1316,16 +1408,16 @@ s32 assetExists(const struct assetref *ref)
 	case ASSET_DRIVE_BODY:
 	case ASSET_DRIVE_HAND:
 		return assetLink(ref, &target) == ASSET_OK && assetExists(&target);
-	case ASSET_DRIVE_FILE:
-		if (ref->owner == ASSET_OWNER_VANILLA) {
-			return romdataRomFileData(ref->id, NULL) != NULL;
-		}
-
+	case ASSET_DRIVE_FILE: {
 		/* probe through the real loader, then put the slot back the way it
 		 * was: romdataFileFree frees an external load and just marks a ROM
 		 * or alt-rom slot unloaded, so a probe leaves nothing resident that
-		 * was not resident before */
-		wasLoaded = romdataGetFileSlotInfo(ref->owner, ref->id, &info)
+		 * was not resident before. A vanilla id lives in the boot mod's row
+		 * (g_ModNum), which is where romdataFileLoad puts an untagged id. */
+		const s32 row = ref->owner == ASSET_OWNER_VANILLA ? g_ModNum : ref->owner;
+		const s32 id = ref->owner == ASSET_OWNER_VANILLA ? ref->id : MOD_FILEID_MAKE(ref->owner, ref->id);
+
+		wasLoaded = romdataGetFileSlotInfo(row, ref->id, &info)
 			&& info.source != ASSET_SLOT_UNLOADED;
 
 		if (!assetFileLoad(ref, NULL)) {
@@ -1333,17 +1425,14 @@ s32 assetExists(const struct assetref *ref)
 		}
 
 		if (!wasLoaded) {
-			romdataFileFree(MOD_FILEID_MAKE(ref->owner, ref->id));
+			romdataFileFree(id);
 		}
 
 		return 1;
+	}
 	case ASSET_DRIVE_TEX:
 		if (ref->owner != ASSET_OWNER_VANILLA) {
-			/* the texmap knows the number exists; whether its bytes can be
-			 * produced depends on which model asks (per-model dir, see
-			 * modTextureResolveFile), and a ref does not carry a model. Say
-			 * so rather than answer no. */
-			return ASSET_UNSUPPORTED;
+			return assetTexLink(ref, &target) == ASSET_OK && assetExists(&target);
 		}
 
 		return assetLoad(ref, NULL) != NULL;

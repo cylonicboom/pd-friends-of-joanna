@@ -65,6 +65,7 @@ s32 modTexMapGetEntry(s32 modIdx, s32 index, u16 *localTexId, u16 *portTexId);
 s32 romdataRomFileCount(void);
 const char *romdataRomFileName(s32 fileNum);
 u8 *romdataRomFileData(s32 fileNum, u32 *outSize);
+const char *romdataFileDeclaredName(s32 modNum, s32 fileNum);
 
 u8 *romdataSegGetData(const char *segName);
 u8 *romdataSegGetDataEnd(const char *segName);

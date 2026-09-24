@@ -346,6 +346,22 @@ s32 modTexMapGetEntry(s32 modIdx, s32 index, u16 *localTexId, u16 *portTexId)
 	return 1;
 }
 
+// The name a PDFT entry DECLARED for (mod, id), off the name pool, or NULL
+// when the slot got its name from the ROM table or has none. The slot's own
+// .name field is the PATH when an entry carries both, and a path can be the
+// resolver's little program ("context:SOLO::files/X|..."), which is not a
+// name anyone should have to read back. The alias is inserted after the
+// name, so the first pool hit is the name.
+const char *romdataFileDeclaredName(s32 modNum, s32 fileNum)
+{
+	for (s32 i = 0; i < ftPoolUsed; ++i) {
+		if (ftPool[i].fileId == fileNum && ftPool[i].ownerMod == modNum) {
+			return ftPool[i].name;
+		}
+	}
+	return NULL;
+}
+
 s32 romdataRomFileCount(void)
 {
 	return g_RomNameCount;
