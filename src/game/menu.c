@@ -3944,11 +3944,13 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 				&& g_Vars.stagenum < STAGE_TITLE
 				&& (root == MENUROOT_MAINMENU || root == MENUROOT_FILEMGR);
 
-			if (dialogdef == &g_FojoTitleProfileSelectMenu) {
-				// fojo: the title profile picker sits on the slow stars. backing
-				// out of it re-pushes it the same tick menutick queued the fade
-				// to nothing, so if the stars are already up, cancel that fade
-				// rather than start them over.
+			if (dialogdef == &g_FojoTitleProfileSelectMenu || root == MENUROOT_TEAMMISSIONS) {
+				// fojo: the title profile picker and team missions sit on the slow
+				// stars. both re-push root dialogs while the stars are up -- backing
+				// out of the picker the same tick menutick queued the fade to
+				// nothing, team missions for every hub and player profile push --
+				// so if the stars are already up, cancel any pending fade rather
+				// than start them over.
 				if (g_MenuData.bg == MENUBG_SUCCESS_SLOW) {
 					g_MenuData.nextbg = 255;
 				} else {
