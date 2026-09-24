@@ -1859,8 +1859,13 @@ static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct
 	var8009de90 = -100000;
 	var8009de94 = 100000;
 
-	gdl = menugfxDrawPlane(gdl, -1000, -10, 2000, -10, cfg->hazetop, cfg->hazetop, topplane);
-	gdl = menugfxDrawPlane(gdl, -1000, viGetHeight() + 10, 2000, viGetHeight() + 10, cfg->hazebottom, cfg->hazebottom, bottomplane);
+	{
+		s32 top = -10 + cfg->hazetopinset;
+		s32 bottom = viGetHeight() + 10 - cfg->hazebottominset;
+
+		gdl = menugfxDrawPlane(gdl, -1000, top, 2000, top, cfg->hazetop, cfg->hazetop, topplane);
+		gdl = menugfxDrawPlane(gdl, -1000, bottom, 2000, bottom, cfg->hazebottom, cfg->hazebottom, bottomplane);
+	}
 
 	// Prepare stuff for drawing the particles
 	gdl = func0f0d4c80(gdl);
@@ -1965,7 +1970,7 @@ static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct
 
 Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 {
-	struct menubgstars cfg = { 5.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0 };
+	struct menubgstars cfg = { 5.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0, 0, 0 };
 	s32 topplane = MENUPLANE_10;
 	s32 bottomplane = MENUPLANE_06;
 
@@ -2001,8 +2006,8 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
  * whatever stage is loaded and to menu models allocated from its base, so a
  * bg that can show up outside an endscreen cannot borrow it.
  */
-const struct menubgstars g_MenuBgSlowStarsDefaults = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0 };
-struct menubgstars g_MenuBgSlowStars = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0 };
+const struct menubgstars g_MenuBgSlowStarsDefaults = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0, 0, 0 };
+struct menubgstars g_MenuBgSlowStars = { 2.0f, 0x0000947f, 0x6200947f, 0xffffff00, 0xaaaaff00, 0xffaaff00, 0, 0, 0 };
 
 static struct coord g_MenuSlowParticles[NUM_SUCCESS_PARTICLES];
 static bool g_MenuSlowParticlesReady = false;
