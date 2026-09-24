@@ -294,6 +294,7 @@ extern "C" struct menubgstars g_MenuBgSlowStars;
 extern "C" const struct menubgstars g_MenuBgSlowStarsDefaults;
 extern "C" void menugfxResetBgSuccessSlow(void);
 extern "C" void saveQueueMarkConfig(void);
+extern "C" struct menubgglowshare g_MenuBgGlowShare;
 extern "C" s32 g_BuildSpeedEnabled;
 extern "C" f32 g_BuildSpeedRef;
 extern "C" f32 g_BuildCrouchMix;
@@ -5135,6 +5136,51 @@ static void imguiOverlayDrawMenuBgPanel(void)
 	imguiOverlayMenuBgColour("Core", &cfg->starcore, false, "Star centre. Alpha is the depth falloff, not yours.");
 	imguiOverlayMenuBgColour("Glow A", &cfg->starglow1, false, "Rim on even stars.");
 	imguiOverlayMenuBgColour("Glow B", &cfg->starglow2, false, "Rim on odd stars.");
+
+	ImGui::SeparatorText("Glow share");
+	{
+		struct menubgglowshare *share = &g_MenuBgGlowShare;
+		u32 total = 0;
+
+		for (s32 k = 0; k < share->count && k < MENUBG_MAX_GLOWS; k++) {
+			total += share->weight[k];
+		}
+
+		if (share->count == 0) {
+			ImGui::TextDisabled("no share - glows A and B");
+		} else {
+			if (total == 0) {
+				ImGui::TextDisabled("every weight is 0 - glows A and B");
+			}
+
+			for (s32 k = 0; k < share->count && k < MENUBG_MAX_GLOWS; k++) {
+				ImGui::PushID(k);
+
+				if (share->colour[k]) {
+					float f[4];
+					u32 *c = share->colour[k];
+
+					imguiOverlayRgbaToFloat(*c, f);
+
+					// rgb only: the source's alpha may mean something elsewhere
+					if (ImGui::ColorEdit3("##glow", f, ImGuiColorEditFlags_NoInputs)) {
+						f[3] = (*c & 0xff) / 255.0f;
+						*c = imguiOverlayFloatToRgba(f);
+					}
+
+					ImGui::SameLine();
+				}
+
+				ImGui::Text("%-8s %6u  %5.1f%%", share->label[k] ? share->label[k] : "?",
+						share->weight[k], total ? 100.0f * share->weight[k] / total : 0.0f);
+				ImGui::PopID();
+			}
+		}
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Refreshed every frame the stars draw.");
+		}
+	}
 
 	ImGui::SeparatorText("Drug blur");
 	{

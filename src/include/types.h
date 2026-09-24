@@ -4032,6 +4032,24 @@ struct menubgstars {
 	s32 hazebottominset; // px the bottom haze moves up from vanilla's y = height + 10
 };
 
+/**
+ * Who the slow stars' glows belong to. Each entry takes a run of the stars in
+ * proportion to its weight, and both glows of that run are its colour. Filled
+ * each frame by g_MenuBgGlowShareFn; with no fn, or every weight zero, the
+ * stars fall back to glows A and B.
+ *
+ * colour points at the source rather than copying it, so a tuner editing
+ * through it edits the real thing.
+ */
+#define MENUBG_MAX_GLOWS 8
+
+struct menubgglowshare {
+	s32 count;
+	u32 *colour[MENUBG_MAX_GLOWS]; // 0xrrggbbaa, alpha ignored
+	u32 weight[MENUBG_MAX_GLOWS];
+	const char *label[MENUBG_MAX_GLOWS];
+};
+
 struct menudata_endscreen {
   u32 dialogbouncebacktimer;
 
