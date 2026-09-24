@@ -1601,6 +1601,8 @@ menudialogCoopAntiOptions(s32 operation, struct menudialogdef *dialogdef,
   return 0;
 }
 
+extern struct menudialogdef g_TeamMissionsOperativeModelMenuDialog;
+
 MenuDialogHandlerResult
 menudialogTeamCoopAntiOptions(s32 operation, struct menudialogdef *dialogdef,
                               union handlerdata *data) {
@@ -1626,6 +1628,12 @@ menudialogTeamCoopAntiOptions(s32 operation, struct menudialogdef *dialogdef,
       if (inputs->back) {
         saveQueueMarkConfig();
         teamMissionConfigStrUpdateMarquee();
+
+        // fojo: a new operative is written now, on the way out, not whenever
+        // the queue next finds a quiet frame
+        if (dialogdef == &g_TeamMissionsOperativeModelMenuDialog) {
+          saveQueueFlush();
+        }
       }
     }
   }
