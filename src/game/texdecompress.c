@@ -548,7 +548,7 @@ s32 texShrinkPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 format,
 		return dstheight * newdstwidth;
 	case TEXFORMAT_RGBA16_CI4:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? srcwidth >> 1 : 0;
+			nextrow = i + 1 < srcheight ? (srcwidth + 1) >> 1 : 0;
 
 			for (j = 0; j < srcwidth; j += 4) {
 				colour1 = palette[(src8[j >> 1] >> 4) & 0xf];
@@ -563,27 +563,30 @@ s32 texShrinkPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 format,
 
 				dst8[j >> 2] = texFindClosestColourIndexRGBA(palette32, numcolours, r, g, b, a) << 4;
 
-				colour1 = palette[(src8[(j + 2) >> 1] >> 4) & 0xf];
-				colour2 = palette[(src8[(j + 2) >> 1] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
-				colour3 = palette[(src8[nextrow + ((j + 2) >> 1)] >> 4) & 0xf];
-				colour4 = palette[(src8[nextrow + ((j + 2) >> 1)] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
+				// the low nibble is the pad nibble when the dst width is odd
+				if (j + 2 < srcwidth) {
+					colour1 = palette[(src8[(j + 2) >> 1] >> 4) & 0xf];
+					colour2 = palette[(src8[(j + 2) >> 1] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
+					colour3 = palette[(src8[nextrow + ((j + 2) >> 1)] >> 4) & 0xf];
+					colour4 = palette[(src8[nextrow + ((j + 2) >> 1)] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
 
-				r = texGetAverageRed(colour1, colour2, colour3, colour4);
-				g = texGetAverageGreen(colour1, colour2, colour3, colour4);
-				b = texGetAverageBlue(colour1, colour2, colour3, colour4);
-				a = texGetAverageAlpha(colour1, colour2, colour3, colour4);
+					r = texGetAverageRed(colour1, colour2, colour3, colour4);
+					g = texGetAverageGreen(colour1, colour2, colour3, colour4);
+					b = texGetAverageBlue(colour1, colour2, colour3, colour4);
+					a = texGetAverageAlpha(colour1, colour2, colour3, colour4);
 
-				dst8[j >> 2] |= texFindClosestColourIndexRGBA(palette32, numcolours, r, g, b, a) & 0xff;
+					dst8[j >> 2] |= texFindClosestColourIndexRGBA(palette32, numcolours, r, g, b, a) & 0xff;
+				}
 			}
 
-			dst8 += newdstwidth >> 1;
-			src8 += srcwidth;
+			dst8 += (newdstwidth + 1) >> 1;
+			src8 += ((srcwidth + 1) >> 1) * 2;
 		}
 
-		return (newdstwidth >> 1) * dstheight;
+		return ((newdstwidth + 1) >> 1) * dstheight;
 	case TEXFORMAT_IA16_CI4:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? srcwidth >> 1 : 0;
+			nextrow = i + 1 < srcheight ? (srcwidth + 1) >> 1 : 0;
 
 			for (j = 0; j < srcwidth; j += 4) {
 				colour1 = palette[(src8[j >> 1] >> 4) & 0xf];
@@ -596,22 +599,25 @@ s32 texShrinkPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 format,
 
 				dst8[j >> 2] = texFindClosestColourIndexIA(palette, numcolours, c, a) << 4;
 
-				colour1 = palette[(src8[(j + 2) >> 1] >> 4) & 0xf];
-				colour2 = palette[(src8[(j + 2) >> 1] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
-				colour3 = palette[(src8[nextrow + ((j + 2) >> 1)] >> 4) & 0xf];
-				colour4 = palette[(src8[nextrow + ((j + 2) >> 1)] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
+				// the low nibble is the pad nibble when the dst width is odd
+				if (j + 2 < srcwidth) {
+					colour1 = palette[(src8[(j + 2) >> 1] >> 4) & 0xf];
+					colour2 = palette[(src8[(j + 2) >> 1] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
+					colour3 = palette[(src8[nextrow + ((j + 2) >> 1)] >> 4) & 0xf];
+					colour4 = palette[(src8[nextrow + ((j + 2) >> 1)] >> (j + 3 < srcwidth ? 0 : 4)) & 0xf];
 
-				c = ((((colour1 >> 8) & 0xff) + ((colour2 >> 8) & 0xff) + ((colour3 >> 8) & 0xff) + ((colour4 >> 8) & 0xff)) >> 2) & 0xff;
-				a = ((((colour1 >> 0) & 0xff) + ((colour2 >> 0) & 0xff) + ((colour3 >> 0) & 0xff) + ((colour4 >> 0) & 0xff) + 1) >> 2) & 0xff;
+					c = ((((colour1 >> 8) & 0xff) + ((colour2 >> 8) & 0xff) + ((colour3 >> 8) & 0xff) + ((colour4 >> 8) & 0xff)) >> 2) & 0xff;
+					a = ((((colour1 >> 0) & 0xff) + ((colour2 >> 0) & 0xff) + ((colour3 >> 0) & 0xff) + ((colour4 >> 0) & 0xff) + 1) >> 2) & 0xff;
 
-				dst8[j >> 2] |= texFindClosestColourIndexIA(palette, numcolours, c, a) & 0xff;
+					dst8[j >> 2] |= texFindClosestColourIndexIA(palette, numcolours, c, a) & 0xff;
+				}
 			}
 
-			dst8 += newdstwidth >> 1;
-			src8 += srcwidth;
+			dst8 += (newdstwidth + 1) >> 1;
+			src8 += ((srcwidth + 1) >> 1) * 2;
 		}
 
-		return (newdstwidth >> 1) * dstheight;
+		return ((newdstwidth + 1) >> 1) * dstheight;
 	}
 
 	return 0;
@@ -882,20 +888,25 @@ s32 texInflateNonZlib(u8 *src, u8 *dst, bool hasloddata, s32 numlods, struct tex
  *
  * If the source width is an odd number, the destination's final column is
  * calculated by sampling the final source column twice. Likewise for the height.
+ *
+ * Rows are packed: every row is exactly ceil(width * bpp / 8) bytes, with no
+ * TMEM line padding, in both the source and the destination. This matches
+ * what the writers in this file produce and what the renderer reads.
  */
 s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 format)
 {
 	s32 i;
 	s32 j;
-	s32 alignedsrcwidth;
-	s32 aligneddstwidth;
+	s32 dstwidth = (srcwidth + 1) >> 1;
+	s32 dstheight = (srcheight + 1) >> 1;
 	u32 *dst32 = (u32 *) dst;
 	u16 *dst16 = (u16 *) dst;
 	u8 *dst8 = dst;
 	u32 *src32 = (u32 *) src;
 	u16 *src16 = (u16 *) src;
 	u8 *src8 = src;
-	s32 dstheight = (srcheight + 1) >> 1;
+	s32 srcstride;
+	s32 dststride;
 	s32 r;
 	s32 g;
 	s32 b;
@@ -919,34 +930,10 @@ s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 form
 	switch (format) {
 	case TEXFORMAT_RGBA32:
 	case TEXFORMAT_RGB24:
-		aligneddstwidth = (((srcwidth + 1) >> 1) + 3) & 0xffc;
-		alignedsrcwidth = (srcwidth + 3) & 0xffc;
-		break;
-	case TEXFORMAT_RGBA16:
-	case TEXFORMAT_RGB15:
-	case TEXFORMAT_IA16:
-		aligneddstwidth = (((srcwidth + 1) >> 1) + 3) & 0xffc;
-		alignedsrcwidth = (srcwidth + 3) & 0xffc;
-		break;
-	case TEXFORMAT_IA8:
-	case TEXFORMAT_I8:
-		aligneddstwidth = (((srcwidth + 1) >> 1) + 7) & 0xff8;
-		alignedsrcwidth = (srcwidth + 7) & 0xff8;
-		break;
-	case TEXFORMAT_IA4:
-	case TEXFORMAT_I4:
-		aligneddstwidth = (((srcwidth + 1) >> 1) + 15) & 0xff0;
-		alignedsrcwidth = (srcwidth + 15) & 0xff0;
-		break;
-	}
-
-	switch (format) {
-	case TEXFORMAT_RGBA32:
-	case TEXFORMAT_RGB24:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? alignedsrcwidth : 0;
+			nextrow = i + 1 < srcheight ? srcwidth : 0;
 
-			for (j = 0; j < alignedsrcwidth; j += 2) {
+			for (j = 0; j < srcwidth; j += 2) {
 				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
 				tl32 = src32[j];
@@ -962,17 +949,17 @@ s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 form
 				dst32[j >> 1] = r << 24 | g << 16 | b << 8 | a;
 			}
 
-			dst32 += aligneddstwidth;
-			src32 += alignedsrcwidth * 2;
+			dst32 += dstwidth;
+			src32 += srcwidth * 2;
 		}
 
-		return dstheight * aligneddstwidth * 4;
+		return dstheight * dstwidth * 4;
 	case TEXFORMAT_RGBA16:
 	case TEXFORMAT_RGB15:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? alignedsrcwidth : 0;
+			nextrow = i + 1 < srcheight ? srcwidth : 0;
 
-			for (j = 0; j < alignedsrcwidth; j += 2) {
+			for (j = 0; j < srcwidth; j += 2) {
 				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
 				tl16 = src16[j];
@@ -988,16 +975,16 @@ s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 form
 				dst16[j >> 1] = r << 11 | g << 6 | b << 1 | a;
 			}
 
-			dst16 += aligneddstwidth;
-			src16 += alignedsrcwidth * 2;
+			dst16 += dstwidth;
+			src16 += srcwidth * 2;
 		}
 
-		return dstheight * aligneddstwidth * 2;
+		return dstheight * dstwidth * 2;
 	case TEXFORMAT_IA16:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? alignedsrcwidth : 0;
+			nextrow = i + 1 < srcheight ? srcwidth : 0;
 
-			for (j = 0; j < alignedsrcwidth; j += 2) {
+			for (j = 0; j < srcwidth; j += 2) {
 				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
 				tl16 = src16[j];
@@ -1032,16 +1019,16 @@ s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 form
 				dst16[j >> 1] = c << 8 | a;
 			}
 
-			dst16 += aligneddstwidth;
-			src16 += alignedsrcwidth * 2;
+			dst16 += dstwidth;
+			src16 += srcwidth * 2;
 		}
 
-		return dstheight * aligneddstwidth * 2;
+		return dstheight * dstwidth * 2;
 	case TEXFORMAT_IA8:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? alignedsrcwidth : 0;
+			nextrow = i + 1 < srcheight ? srcwidth : 0;
 
-			for (j = 0; j < alignedsrcwidth; j += 2) {
+			for (j = 0; j < srcwidth; j += 2) {
 				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
 				tl8 = src8[j];
@@ -1074,24 +1061,24 @@ s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 form
 				dst8[j >> 1] = c | a;
 			}
 
-			dst8 += aligneddstwidth;
-			src8 += alignedsrcwidth * 2;
+			dst8 += dstwidth;
+			src8 += srcwidth * 2;
 		}
 
-		return dstheight * aligneddstwidth;
+		return dstheight * dstwidth;
 	case TEXFORMAT_I8:
 		for (i = 0; i < srcheight; i += 2) {
-			nextrow = i + 1 < srcheight ? alignedsrcwidth : 0;
+			nextrow = i + 1 < srcheight ? srcwidth : 0;
 
-			for (j = 0; j < alignedsrcwidth; j += 2) {
+			for (j = 0; j < srcwidth; j += 2) {
 				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
-				// @bug: The code reads from uninitialised variable br8.
-				// This is assumed to be due to a double write to bl8 as shown:
+				// The original reads an uninitialised br8 here (a double write
+				// to bl8). Sample the full 2x2 group instead.
 				tl8 = src8[j];
 				tr8 = src8[nextcol];
-				bl8 = src8[nextrow + j]; // optimised out
-				bl8 = src8[nextrow + nextcol];
+				bl8 = src8[nextrow + j];
+				br8 = src8[nextrow + nextcol];
 
 				c = (tl8 + tr8 + bl8 + br8 + 2) >> 2;
 
@@ -1106,54 +1093,73 @@ s32 texShrinkNonPaletted(u8 *src, u8 *dst, s32 srcwidth, s32 srcheight, s32 form
 				dst8[j >> 1] = c;
 			}
 
-			dst8 += aligneddstwidth;
-			src8 += alignedsrcwidth * 2;
+			dst8 += dstwidth;
+			src8 += srcwidth * 2;
 		}
 
-		return dstheight * aligneddstwidth;
+		return dstheight * dstwidth;
 	case TEXFORMAT_IA4:
+		srcstride = (srcwidth + 1) >> 1;
+		dststride = (dstwidth + 1) >> 1;
+
 		for (i = 0; i < srcheight; i += 2) {
-			nextcol = i + 1;
+			nextrow = i + 1 < srcheight ? srcstride : 0;
 
-			for (j = 0; j < alignedsrcwidth; j += 4) {
-				tl8 = src8[j >> 1];
-				tr8 = src8[(nextcol < srcheight ? (alignedsrcwidth >> 1) : 0) + (j >> 1)];
-				bl8 = src8[(j >> 1) + 1];
-				br8 = src8[(nextcol < srcheight ? (alignedsrcwidth >> 1) : 0) + (j >> 1) + 1];
+			for (j = 0; j < srcwidth; j += 2) {
+				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
-				c = (((((tl8 >> 5) & 7) + ((tl8 >> 1) & 7) + ((tr8 >> 5) & 7) + ((tr8 >> 1) & 7)) << 3) & 0xe0)
-					| (((((bl8 >> 5) & 7) + ((bl8 >> 1) & 7) + ((br8 >> 5) & 7) + ((br8 >> 1) & 7)) >> 1) & 0xe);
+				// each source pixel is a nibble: high nibble is the even column
+				tl8 = (src8[j >> 1] >> ((j & 1) ? 0 : 4)) & 0xf;
+				tr8 = (src8[nextcol >> 1] >> ((nextcol & 1) ? 0 : 4)) & 0xf;
+				bl8 = (src8[nextrow + (j >> 1)] >> ((j & 1) ? 0 : 4)) & 0xf;
+				br8 = (src8[nextrow + (nextcol >> 1)] >> ((nextcol & 1) ? 0 : 4)) & 0xf;
 
-				a = (((((tl8 >> 4) & 1) + (tl8 & 1) + ((tr8 >> 4) & 1) + (tr8 & 1) + 1) << 2) & 0x10)
-					| (((((bl8 >> 4) & 1) + (bl8 & 1) + ((br8 >> 4) & 1) + (br8 & 1) + 1) >> 2) & 1);
+				c = (((tl8 >> 1) & 7) + ((tr8 >> 1) & 7) + ((bl8 >> 1) & 7) + ((br8 >> 1) & 7)) >> 2;
+				a = ((tl8 & 1) + (tr8 & 1) + (bl8 & 1) + (br8 & 1) + 1) >> 2;
 
-				dst8[j >> 2] = c | a;
+				c = ((c & 7) << 1) | (a & 1);
+
+				if ((j >> 1) & 1) {
+					dst8[j >> 2] |= c;
+				} else {
+					dst8[j >> 2] = c << 4;
+				}
 			}
 
-			dst8 += aligneddstwidth >> 1;
-			src8 += alignedsrcwidth;
+			dst8 += dststride;
+			src8 += srcstride * 2;
 		}
 
-		return (aligneddstwidth >> 1) * dstheight;
+		return dststride * dstheight;
 	case TEXFORMAT_I4:
+		srcstride = (srcwidth + 1) >> 1;
+		dststride = (dstwidth + 1) >> 1;
+
 		for (i = 0; i < srcheight; i += 2) {
-			for (j = 0; j < alignedsrcwidth; j += 4) {
-				tl8 = src8[j >> 1];
-				tr8 = src8[(i + 1 < srcheight ? (alignedsrcwidth >> 1) : 0) + (j >> 1)];
-				bl8 = src8[(j >> 1) + 1];
-				br8 = src8[(i + 1 < srcheight ? (alignedsrcwidth >> 1) : 0) + (j >> 1) + 1];
+			nextrow = i + 1 < srcheight ? srcstride : 0;
 
-				c = ((((tl8 >> 4) & 0xf) + (tl8 & 0xf) + ((tr8 >> 4) & 0xf) + (tr8 & 0xf)) << 2) & 0xf0;
-				a = ((((bl8 >> 4) & 0xf) + (bl8 & 0xf) + ((br8 >> 4) & 0xf) + (br8 & 0xf)) >> 2) & 0xf;
+			for (j = 0; j < srcwidth; j += 2) {
+				nextcol = j + 1 < srcwidth ? j + 1 : j;
 
-				dst8[j >> 2] = c | a;
+				tl8 = (src8[j >> 1] >> ((j & 1) ? 0 : 4)) & 0xf;
+				tr8 = (src8[nextcol >> 1] >> ((nextcol & 1) ? 0 : 4)) & 0xf;
+				bl8 = (src8[nextrow + (j >> 1)] >> ((j & 1) ? 0 : 4)) & 0xf;
+				br8 = (src8[nextrow + (nextcol >> 1)] >> ((nextcol & 1) ? 0 : 4)) & 0xf;
+
+				c = ((tl8 + tr8 + bl8 + br8) >> 2) & 0xf;
+
+				if ((j >> 1) & 1) {
+					dst8[j >> 2] |= c;
+				} else {
+					dst8[j >> 2] = c << 4;
+				}
 			}
 
-			dst8 += aligneddstwidth >> 1;
-			src8 += alignedsrcwidth;
+			dst8 += dststride;
+			src8 += srcstride * 2;
 		}
 
-		return (aligneddstwidth >> 1) * dstheight;
+		return dststride * dstheight;
 	}
 
 	return 0;
@@ -1637,7 +1643,6 @@ s32 texChannelsToPixels(u8 *src, s32 width, s32 height, u8 *dst, s32 format)
 		return width * height;
 	case TEXFORMAT_IA4:
 		for (y = 0; y < height; y++) {
-			if ((width + 15) & 0xff0);
 
 			for (x = 0; x < width; x += 2) {
 				dst8[x >> 1] = src[pos] << 5 | src[pos + mult * 3] << 4 | src[pos + 1] << 1 | src[pos + mult * 3 + 1];
@@ -1648,10 +1653,10 @@ s32 texChannelsToPixels(u8 *src, s32 width, s32 height, u8 *dst, s32 format)
 				pos--;
 			}
 
-			dst8 += width;
+			dst8 += (width + 1) / 2;
 		}
 
-		return width * height / 2;
+		return ((width + 1) / 2) * height;
 	case TEXFORMAT_I4:
 		for (y = 0; y < height; y++) {
 			for (x = 0; x < width; x += 2) {
@@ -1663,10 +1668,10 @@ s32 texChannelsToPixels(u8 *src, s32 width, s32 height, u8 *dst, s32 format)
 				pos--;
 			}
 
-			dst8 += width / 2;
+			dst8 += (width + 1) / 2;
 		}
 
-		return width * height / 2;
+		return ((width + 1) / 2) * height;
 	}
 
 	return 0;
@@ -1762,10 +1767,10 @@ s32 texInflateLookup(s32 width, s32 height, u8 *dst, u8 *lookup, s32 numcolours,
 				}
 			}
 
-			dst8 += width / 2;
+			dst8 += (width + 1) / 2;
 		}
 
-		return width * height / 2;
+		return ((width + 1) / 2) * height;
 	}
 
 	return 0;
@@ -1892,12 +1897,12 @@ s32 texInflateLookupFromBuffer(u8 *src, s32 width, s32 height, u8 *dst, u8 *look
 				}
 			}
 
-			dst8 += width / 2;
+			dst8 += (width + 1) / 2;
 			src8 += width;
 			src16 += width;
 		}
 
-		return width * height / 2;
+		return ((width + 1) / 2) * height;
 	}
 
 	return 0;

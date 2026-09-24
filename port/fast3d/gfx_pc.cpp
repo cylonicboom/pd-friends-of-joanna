@@ -926,19 +926,24 @@ static TexDims import_texture_ia4(int tile, const LoadedTexture& loaded_texture,
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
-	const uint32_t size_bytes = width * height / 2;
+	// rows are packed to whole bytes: (width + 1) / 2 bytes per row, and an
+	// odd width leaves a pad nibble at the end of every row
+	const uint32_t line_size = (width + 1) / 2;
 
     uint8_t *dest = tex_upload_buffer;
-    for (uint32_t i = 0; i < size_bytes * 2; i++, dest += 4) {
-        const uint8_t byte = addr[i / 2];
-        const uint8_t part = (byte >> (4 - (i % 2) * 4)) & 0xf;
-        const uint8_t intensity = part >> 1;
-        const uint8_t alpha = part & 1;
-        const uint8_t c = SCALE_3_8(intensity);
-        dest[0] = c;
-        dest[1] = c;
-        dest[2] = c;
-        dest[3] = alpha ? 255 : 0;
+    const uint8_t *src = addr;
+    for (uint32_t y = 0; y < height; y++, src += line_size) {
+        for (uint32_t x = 0; x < width; x++, dest += 4) {
+            const uint8_t byte = src[x / 2];
+            const uint8_t part = (byte >> (4 - (x % 2) * 4)) & 0xf;
+            const uint8_t intensity = part >> 1;
+            const uint8_t alpha = part & 1;
+            const uint8_t c = SCALE_3_8(intensity);
+            dest[0] = c;
+            dest[1] = c;
+            dest[2] = c;
+            dest[3] = alpha ? 255 : 0;
+        }
     }
 
     gfx_upload_tex_filtered(width, height, gen_mipmaps);
@@ -989,17 +994,22 @@ static TexDims import_texture_i4(int tile, const LoadedTexture& loaded_texture, 
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
-	const uint32_t size_bytes = (width * height + 1) / 2;
+	// rows are packed to whole bytes: (width + 1) / 2 bytes per row, and an
+	// odd width leaves a pad nibble at the end of every row
+	const uint32_t line_size = (width + 1) / 2;
 
     uint8_t *dest = tex_upload_buffer;
-    for (uint32_t i = 0; i < size_bytes * 2; i++, dest += 4) {
-        const uint8_t byte = addr[i / 2];
-        const uint8_t part = (byte >> (4 - (i % 2) * 4)) & 0xf;
-        const uint8_t intensity = SCALE_4_8(part);
-        dest[0] = intensity;
-        dest[1] = intensity;
-        dest[2] = intensity;
-        dest[3] = intensity;
+    const uint8_t *src = addr;
+    for (uint32_t y = 0; y < height; y++, src += line_size) {
+        for (uint32_t x = 0; x < width; x++, dest += 4) {
+            const uint8_t byte = src[x / 2];
+            const uint8_t part = (byte >> (4 - (x % 2) * 4)) & 0xf;
+            const uint8_t intensity = SCALE_4_8(part);
+            dest[0] = intensity;
+            dest[1] = intensity;
+            dest[2] = intensity;
+            dest[3] = intensity;
+        }
     }
 
     gfx_upload_tex_filtered(width, height, gen_mipmaps);
