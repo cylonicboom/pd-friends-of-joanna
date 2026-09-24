@@ -2317,6 +2317,26 @@ static inline uint64_t make_key(bool external, uint64_t type, uint64_t id, uint3
 	return (uint64_t)external << 7*8 | type << 6*8 | id << 4*8 | texnum;
 }
 
+// ext_tex: stamp the pending G_SETTEXINFO_EXT tag onto a tmem slot as it is
+// loaded -- the identity the texture inspector, skin match and the png lookup
+// all read -- then consume it, as kai does. Not every load site emits a tag
+// (hud, menus, some model display lists), and a tag left pending would stamp
+// the next untagged load with the last tagged texture's identity and png.
+static void gfx_stamp_loaded_texture(LoadedTexture& loaded_texture) {
+    auto& tag = rdp.texture_to_load;
+    loaded_texture.type = tag.type;
+    loaded_texture.id = tag.id;
+    loaded_texture.id_mask = tag.id_mask;
+    loaded_texture.texnum = tag.texnum;
+    loaded_texture.skin_body =
+        skinmatchNumSidecars() > 0 ? skinmatchBodyFor(tag.type, tag.id, tag.texnum, true) : nullptr;
+
+    tag.type = G_TEXTYPE_NONE;
+    tag.id = 0;
+    tag.id_mask = 0;
+    tag.texnum = 0;
+}
+
 static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t dxt) {
     // SUPPORT_CHECK(tile == G_TX_LOADTILE);
     SUPPORT_CHECK(uls == 0);
@@ -2339,43 +2359,27 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
     loaded_texture.full_image_line_size_bytes = size_bytes;
     loaded_texture.tex_flags = rdp.texture_to_load.tex_flags;
     loaded_texture.raw_tex_metadata = rdp.texture_to_load.raw_tex_metadata;
+    // .addr is set even when a png replaces the texture (as in kai): flat-
+    // texture fx and a mid-session toggle of external textures decode the
+    // rom data, and the cache key for those is this address
+    loaded_texture.addr = rdp.texture_to_load.addr;
 
-	auto& tex_to_load = rdp.texture_to_load;
-	uint8_t type = tex_to_load.type;
-	uint16_t id = tex_to_load.id;
-	uint16_t id_mask = tex_to_load.id_mask;
-	uint32_t texnum = tex_to_load.texnum;
-    loaded_texture.type = type;
-    loaded_texture.id = id;
-    loaded_texture.id_mask = id_mask;
-    loaded_texture.texnum = texnum;
-    loaded_texture.skin_body = skinmatchNumSidecars() > 0 ? skinmatchBodyFor(type, id, texnum, true) : nullptr;
+    gfx_stamp_loaded_texture(loaded_texture);
 
-	// Log all non-NONE texture info for debugging
-	if (type != 0) {
-		// sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: type=%d id=%04x texnum=%05x enabled=%d exists=%d",
-		//	type, id, texnum, gfx_external_textures_enabled, extTexExists(type, id, texnum));
-	}
+	const uint8_t type = loaded_texture.type;
+	const uint16_t id = loaded_texture.id;
+	const uint16_t id_mask = loaded_texture.id_mask;
+	const uint32_t texnum = loaded_texture.texnum;
 
 	if (gfx_external_textures_enabled && extTexExists(type, id, texnum)) {
-		// sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: EXT TEX HIT type=%d id=%04x texnum=%04x", type, id, texnum);
-		loaded_texture.type = type;
-		loaded_texture.id = id;
-		loaded_texture.texnum = texnum;
-		loaded_texture.id_mask = id_mask;
-        loaded_texture.ext_key = make_key(1, type, id, texnum);
+		loaded_texture.ext_key = make_key(1, type, id, texnum);
 
-		// clear the masked id if can't find the texture associated with it
+		// clear the masked id (font outline) if there is no png for it
 		if (id_mask != 0 && !extTexExists(type, id | id_mask, texnum)) {
 			loaded_texture.id_mask = 0;
 		}
-	}
-	else {
-		if (type == G_TEXTYPE_MODEL) {
-			// sysLogPrintf(LOG_NOTE, "gfx_dp_load_block: EXT TEX MISS type=MODEL id=%04x texnum=%04x", id, texnum);
-		}
-		loaded_texture.addr = rdp.texture_to_load.addr;
-		loaded_texture.ext_key = make_key(0, type, id, texnum);
+	} else {
+		loaded_texture.ext_key = 0;
 	}
 
     rdp.textures_changed[0] = rdp.textures_changed[1] = true;
@@ -2417,6 +2421,10 @@ static void gfx_dp_load_tile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t 
     loaded_texture.tex_flags = rdp.texture_to_load.tex_flags;
     loaded_texture.raw_tex_metadata = rdp.texture_to_load.raw_tex_metadata;
     loaded_texture.addr = rdp.texture_to_load.addr + start_offset_bytes;
+    // LOADTILE loads are never replaced by a png; take the tag for identity
+    // and clear any external flag the slot held from an earlier block load
+    gfx_stamp_loaded_texture(loaded_texture);
+    loaded_texture.ext_key = 0;
 
     rdp.texture_tile[tile].uls = uls;
     rdp.texture_tile[tile].ult = ult;
