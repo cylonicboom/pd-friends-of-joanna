@@ -16,6 +16,7 @@
 #include "game/lv.h"
 #include "game/options.h"
 #include "game/propobj.h"
+#include "game/hudtint.h"
 #include "bss.h"
 #include "lib/vi.h"
 #include "lib/main.h"
@@ -26,7 +27,7 @@
 #include <math.h>
 #include "video.h"
 
-#define SIGHT_COLOUR ((PLAYER_EXTCFG().crosshairhealth >= CROSSHAIR_HEALTH_ON_GREEN) ? sightGetCrosshairHealthColor(g_Vars.currentplayer->bondhealth, g_Vars.currentplayer->prop->chr->cshield * 0.125f) : PLAYER_EXTCFG().crosshaircolour)
+#define SIGHT_COLOUR ((PLAYER_EXTCFG().crosshairhealth >= CROSSHAIR_HEALTH_ON_GREEN) ? sightGetCrosshairHealthColor(g_Vars.currentplayer->bondhealth, g_Vars.currentplayer->prop->chr->cshield * 0.125f) : hudTintCrosshair(PLAYER_EXTCFG().crosshaircolour))
 #define SIGHT_SCALE PLAYER_EXTCFG().crosshairsize
 
 static u32 sightGetCrosshairHealthColor(float health, float shield)
@@ -489,13 +490,13 @@ Gfx *sightDrawTargetBox(Gfx *gdl, struct trackedprop *trackedprop, s32 textid, s
 				// textid 1 writes '0'
 				label[0] = textid + 0x2f;
 
-				gdl = textRender(gdl, &x, &y, label, g_CharsNumeric, g_FontNumeric, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+				gdl = textRender(gdl, &x, &y, label, g_CharsNumeric, g_FontNumeric, hudTint(0x00ff00a0), 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
 			} else {
 				char *text = langGet(textid);
 #if VERSION >= VERSION_JPN_FINAL
-				gdl = func0f1574d0jf(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+				gdl = func0f1574d0jf(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, hudTint(0x00ff00a0), 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
 #else
-				gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+				gdl = textRender(gdl, &x, &y, text, g_CharsHandelGothicXs, g_FontHandelGothicXs, hudTint(0x00ff00a0), 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
 #endif
 			}
 		}
@@ -790,11 +791,11 @@ Gfx *sightDrawDefault(Gfx *gdl, bool sighton, f32 crossx, f32 crossy)
 				// "Identify"
 #if VERSION == VERSION_JPN_FINAL
 				gdl = func0f1574d0jf(gdl, &textx, &texty, langGet(L_MISC_439),
-						g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0,
+						g_CharsHandelGothicXs, g_FontHandelGothicXs, hudTint(0x00ff00a0), 0x000000a0,
 						viGetWidth(), viGetHeight(), 0, 0);
 #else
 				gdl = textRender(gdl, &textx, &texty, langGet(L_MISC_439),
-						g_CharsHandelGothicXs, g_FontHandelGothicXs, 0x00ff00a0, 0x000000a0,
+						g_CharsHandelGothicXs, g_FontHandelGothicXs, hudTint(0x00ff00a0), 0x000000a0,
 						viGetWidth(), viGetHeight(), 0, 0);
 #endif
 			}
@@ -1525,8 +1526,8 @@ Gfx *sightDrawMaian(Gfx *gdl, bool sighton, f32 crossx, f32 crossy)
 	}
 #endif
 
-	colours[0].word = PD_BE32(0x00ff000f);
-	colours[1].word = PD_BE32(hasprop ? colour : 0x00ff0044);
+	colours[0].word = PD_BE32(hudTint(0x00ff000f));
+	colours[1].word = PD_BE32(hasprop ? colour : hudTint(0x00ff0044));
 
 	vertices[0].colour = 0;
 	vertices[1].colour = 0;

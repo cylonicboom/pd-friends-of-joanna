@@ -1821,7 +1821,7 @@ static void menugfxInitParticles(struct coord *particles)
  * The drawing is menugfxRenderBgStars, shared with MENUBG_SUCCESS_SLOW, which
  * brings its own knobs and its own particle array.
  */
-static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct menubgstars *cfg, s32 topplane, s32 bottomplane)
+static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct menubgstars *cfg, s32 topplane, s32 bottomplane, const struct menubgglowshare *share)
 {
 	Mtxf sp110;
 	Mtxf *modelmtx;
@@ -1831,6 +1831,14 @@ static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct
 	s32 j;
 	f32 f0;
 	f32 speed = cfg->speed;
+	s32 k;
+	s32 g;
+	s32 ngroups = 0;
+	s32 gstart[MENUBG_MAX_GLOWS];
+	s32 gend[MENUBG_MAX_GLOWS];
+	u32 gglow1[MENUBG_MAX_GLOWS];
+	u32 gglow2[MENUBG_MAX_GLOWS];
+	u32 total = 0;
 
 	// Move the particles closer, and reset the ones which have gone behind the camera
 	for (i = 0; i < NUM_SUCCESS_PARTICLES; i++) {
@@ -1891,25 +1899,62 @@ static Gfx *menugfxRenderBgStars(Gfx *gdl, struct coord *particles, const struct
 
 	gSPMatrix(gdl++, osVirtualToPhysical(modelmtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-	colours = gfxAllocateColours(20);
-
-	// four colours per depth ring, five rings, alpha falling off with depth.
-	// 0 and 2 are the core, 1 and 3 the two glows.
-	for (j = 0, ptr = colours; j < 5; j++, ptr += 4) {
-		ptr[0].word = PD_BE32((cfg->starcore & 0xffffff00) | ((5 - j) * 127u / 5));
-		ptr[1].word = PD_BE32((cfg->starglow1 & 0xffffff00) | ((5 - j) * 16u / 5));
-		ptr[2].word = PD_BE32((cfg->starcore & 0xffffff00) | ((5 - j) * 127u / 5));
-		ptr[3].word = PD_BE32((cfg->starglow2 & 0xffffff00) | ((5 - j) * 16u / 5));
+	// The stars are drawn in runs, one colour table per run. Without a share
+	// there is one run and glows A and B alternate, as vanilla. With one, each
+	// weighted entry takes a run of stars in proportion to its weight.
+	if (share) {
+		for (k = 0; k < share->count && k < MENUBG_MAX_GLOWS; k++) {
+			total += share->weight[k];
+		}
 	}
 
-	{
+	if (total > 0) {
+		u64 acc = 0;
+		s32 prev = 0;
+
+		for (k = 0; k < share->count && k < MENUBG_MAX_GLOWS; k++) {
+			s32 end;
+
+			acc += share->weight[k];
+			end = (s32)(acc * NUM_SUCCESS_PARTICLES / total);
+
+			if (end > prev && share->colour[k]) {
+				gstart[ngroups] = prev;
+				gend[ngroups] = end;
+				gglow1[ngroups] = *share->colour[k];
+				gglow2[ngroups] = *share->colour[k];
+				ngroups++;
+			}
+
+			prev = end;
+		}
+	} else {
+		gstart[0] = 0;
+		gend[0] = NUM_SUCCESS_PARTICLES;
+		gglow1[0] = cfg->starglow1;
+		gglow2[0] = cfg->starglow2;
+		ngroups = 1;
+	}
+
+	for (g = 0; g < ngroups; g++) {
 		struct coord pos;
 		u32 stack[5];
+
+		colours = gfxAllocateColours(20);
+
+		// four colours per depth ring, five rings, alpha falling off with depth.
+		// 0 and 2 are the core, 1 and 3 the two glows.
+		for (j = 0, ptr = colours; j < 5; j++, ptr += 4) {
+			ptr[0].word = PD_BE32((cfg->starcore & 0xffffff00) | ((5 - j) * 127u / 5));
+			ptr[1].word = PD_BE32((gglow1[g] & 0xffffff00) | ((5 - j) * 16u / 5));
+			ptr[2].word = PD_BE32((cfg->starcore & 0xffffff00) | ((5 - j) * 127u / 5));
+			ptr[3].word = PD_BE32((gglow2[g] & 0xffffff00) | ((5 - j) * 16u / 5));
+		}
 
 		gSPColor(gdl++, osVirtualToPhysical(colours), 20);
 
 		// Draw the particles
-		for (i = NUM_SUCCESS_PARTICLES - 1; i >= 0; i--) {
+		for (i = gend[g] - 1; i >= gstart[g]; i--) {
 			s32 s3 = 0;
 			f32 sine = sinf(f0 * M_BADTAU + M_BADTAU * (i / 15.0f));
 			f32 cosine = cosf(f0 * M_BADTAU + M_BADTAU * (i / 15.0f));
@@ -1995,7 +2040,7 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl)
 		menugfxInitParticles(g_MenuParticles);
 	}
 
-	return menugfxRenderBgStars(gdl, g_MenuParticles, &cfg, topplane, bottomplane);
+	return menugfxRenderBgStars(gdl, g_MenuParticles, &cfg, topplane, bottomplane, NULL);
 }
 
 /**
@@ -2011,6 +2056,9 @@ const struct menubgstars g_MenuBgSlowStarsDefaults = { 2.0f, 0x333350a0, 0x4b0d3
 struct menubgstars g_MenuBgSlowStars = { 2.0f, 0x333350a0, 0x4b0d39ff, 0xc7bea200, 0xaaaaff00, 0xffaaff00, 144, 0, 0 };
 
 static struct coord g_MenuSlowParticles[NUM_SUCCESS_PARTICLES];
+
+struct menubgglowshare g_MenuBgGlowShare;
+void (*g_MenuBgGlowShareFn)(struct menubgglowshare *share) = NULL;
 static bool g_MenuSlowParticlesReady = false;
 
 /**
@@ -2033,7 +2081,13 @@ Gfx *menugfxRenderBgSuccessSlow(Gfx *gdl)
 		g_MenuSlowParticlesReady = true;
 	}
 
-	gdl = menugfxRenderBgStars(gdl, g_MenuSlowParticles, &g_MenuBgSlowStars, MENUPLANE_10, MENUPLANE_06);
+	g_MenuBgGlowShare.count = 0;
+
+	if (g_MenuBgGlowShareFn) {
+		g_MenuBgGlowShareFn(&g_MenuBgGlowShare);
+	}
+
+	gdl = menugfxRenderBgStars(gdl, g_MenuSlowParticles, &g_MenuBgSlowStars, MENUPLANE_10, MENUPLANE_06, &g_MenuBgGlowShare);
 
 	if (g_MenuBgSlowStars.blur > 0) {
 		u32 blur = g_MenuBgSlowStars.blur > 230 ? 230 : g_MenuBgSlowStars.blur;

@@ -2,6 +2,7 @@
 #include "constants.h"
 #include "game/player.h"
 #include "game/healthbar.h"
+#include "game/hudtint.h"
 #include "game/game_1531a0.h"
 #include "game/gfxmemory.h"
 #include "game/file.h"
@@ -475,7 +476,7 @@ Gfx *healthbarDraw(Gfx *gdl, struct chrdata *chr, s32 offyarg, f32 heightfracarg
 		index = armourmarkerindexes[i];
 		marker = &armourmarkers[index];
 
-		colour = healthbarChooseColour(armourcol, bgcol, armourfillexcfade, armourfillincfade, marker->frac);
+		colour = healthbarChooseColour(hudTint(armourcol), bgcol, armourfillexcfade, armourfillincfade, marker->frac);
 
 		armourvertices->x = (s32)marker->x1 + offx;
 		armourvertices->y = 0;

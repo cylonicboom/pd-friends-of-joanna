@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "game/hudtint.h"
 #include "constants.h"
 #include "game/dlights.h"
 #include "game/game_006900.h"
@@ -1099,7 +1100,7 @@ Gfx *bviewDrawEyespyMetrics(Gfx *gdl)
 #endif
 
 	if (g_Vars.currentplayer->eyespy->mode == EYESPYMODE_CAMSPY) {
-		gdl = textSetPrimColour(gdl, 0x00ff0028);
+		gdl = textSetPrimColour(gdl, hudTint(0x00ff0028));
 	} else if (g_Vars.currentplayer->eyespy->mode == EYESPYMODE_DRUGSPY) {
 		gdl = textSetPrimColour(gdl, 0x2244ffa0);
 	} else {
@@ -1147,9 +1148,9 @@ Gfx *bviewDrawEyespyMetrics(Gfx *gdl)
 	}
 
 	if (g_Vars.currentplayer->eyespy->mode == EYESPYMODE_CAMSPY) {
-		colourtextbright = 0x00ff00a0;
-		colourtextdull = 0x005000ff;
-		colourglow = 0x000f00ff;
+		colourtextbright = hudTint(0x00ff00a0);
+		colourtextdull = hudTint(0x005000ff);
+		colourglow = hudTint(0x000f00ff);
 	} else if (g_Vars.currentplayer->eyespy->mode == EYESPYMODE_DRUGSPY) {
 		colourtextbright = 0x2244ffff;
 		colourtextdull = 0x2244ffff;

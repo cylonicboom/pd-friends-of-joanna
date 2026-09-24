@@ -22,6 +22,7 @@
 #include "mod.h"
 #include "game/stancetuning.h"
 #include "game/menugfx.h"
+#include "game/fojofriends.h"
 #include "lib/snd.h"
 #include "lib/sndcue.h"
 #include "system.h"
@@ -365,6 +366,9 @@ PD_CONSTRUCTOR static void gameConfigInit(void)
 	configRegisterUInt("MenuBg.StarGlowA", &g_MenuBgSlowStars.starglow1, 0, 0);
 	configRegisterUInt("MenuBg.StarGlowB", &g_MenuBgSlowStars.starglow2, 0, 0);
 	configRegisterInt("MenuBg.Blur", &g_MenuBgSlowStars.blur, 0, 230);
+
+	// friends of jo colour their players' huds and the slow stars' glows
+	fojoFriendsInit();
 	configRegisterInt("Blur.DoseEnabled", &g_BlurDoseEnabled, 0, 1);
 	configRegisterFloat("Blur.DoseFullSeconds", &g_BlurDoseFullSecs, 1.f, 600.f);
 	configRegisterFloat("Blur.DoseCurve", &g_BlurDoseK, 0.5f, 8.f);

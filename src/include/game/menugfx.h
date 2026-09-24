@@ -39,6 +39,8 @@ Gfx *menugfxRenderBgSuccess(Gfx *gdl);
 extern struct menubgstars g_MenuBgSlowStars;
 extern const struct menubgstars g_MenuBgSlowStarsDefaults;
 void menugfxResetBgSuccessSlow(void);
+extern struct menubgglowshare g_MenuBgGlowShare;
+extern void (*g_MenuBgGlowShareFn)(struct menubgglowshare *share);
 Gfx *menugfxRenderBgSuccessSlow(Gfx *gdl);
 
 #endif
