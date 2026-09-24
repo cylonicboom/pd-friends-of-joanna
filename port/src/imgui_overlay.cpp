@@ -293,6 +293,7 @@ extern "C" f32 g_BlurDoseK;
 extern "C" struct menubgstars g_MenuBgSlowStars;
 extern "C" const struct menubgstars g_MenuBgSlowStarsDefaults;
 extern "C" void menugfxResetBgSuccessSlow(void);
+extern "C" void saveQueueMarkConfig(void);
 extern "C" s32 g_BuildSpeedEnabled;
 extern "C" f32 g_BuildSpeedRef;
 extern "C" f32 g_BuildCrouchMix;
@@ -5058,7 +5059,10 @@ static void imguiOverlayMenuBgColour(const char *label, u32 *rgba, bool alpha, c
 static void imguiOverlayMenuBgHaze(const char *label, u32 *rgba, s32 *inset, const char *insethelp)
 {
 	static const char *names[4] = { "R", "G", "B", "A" };
+	// in as far as the middle, out as far as a whole screen. the plane recedes
+	// towards the centre, so pushed off the edge its far side still shows
 	s32 maxinset = viGetHeight() / 2 + 10;
+	s32 mininset = -viGetHeight();
 
 	ImGui::PushID(label);
 	ImGui::SeparatorText(label);
@@ -5086,7 +5090,7 @@ static void imguiOverlayMenuBgHaze(const char *label, u32 *rgba, s32 *inset, con
 	{
 		int v = *inset;
 
-		if (ImGui::SliderInt("Inset", &v, 0, maxinset, "%d px")) {
+		if (ImGui::SliderInt("Inset", &v, mininset, maxinset, "%d px")) {
 			*inset = v;
 		}
 
@@ -5102,7 +5106,7 @@ static void imguiOverlayDrawMenuBgPanel(void)
 {
 	struct menubgstars *cfg = &g_MenuBgSlowStars;
 
-	ImGui::TextDisabled("MENUBG_SUCCESS_SLOW. Live only, nothing saves yet.");
+	ImGui::TextDisabled("MENUBG_SUCCESS_SLOW. pd.ini [MenuBg] sets where these start.");
 
 	if (g_MenuData.bg == MENUBG_SUCCESS_SLOW || g_MenuData.nextbg == MENUBG_SUCCESS_SLOW) {
 		ImGui::Text("showing (bg %d, next %d)", g_MenuData.bg, g_MenuData.nextbg);
@@ -5118,11 +5122,13 @@ static void imguiOverlayDrawMenuBgPanel(void)
 
 	imguiOverlayMenuBgHaze("Haze top", &cfg->hazetop, &cfg->hazetopinset,
 			"Pulls the top plane down from the screen edge.\n"
-			"0 is vanilla. At the max it meets the middle.\n"
+			"0 is vanilla, negative pushes it off the screen.\n"
+			"At the max it meets the middle.\n"
 			"Colour vanilla 0x0000947f.");
 	imguiOverlayMenuBgHaze("Haze bottom", &cfg->hazebottom, &cfg->hazebottominset,
 			"Pulls the bottom plane up from the screen edge.\n"
-			"0 is vanilla. At the max it meets the middle.\n"
+			"0 is vanilla, negative pushes it off the screen.\n"
+			"At the max it meets the middle.\n"
 			"Colour vanilla 0x6200947f.");
 
 	ImGui::SeparatorText("Stars");
@@ -5161,6 +5167,13 @@ static void imguiOverlayDrawMenuBgPanel(void)
 	if (ImGui::Button("Reset to defaults")) {
 		*cfg = g_MenuBgSlowStarsDefaults;
 		menugfxResetBgSuccessSlow();
+	}
+
+	ImGui::SameLine();
+
+	// every configSave writes these anyway; this just asks for one now
+	if (ImGui::Button("Save to pd.ini")) {
+		saveQueueMarkConfig();
 	}
 }
 
