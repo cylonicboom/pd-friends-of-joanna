@@ -63,6 +63,8 @@ static std::vector<Framebuffer> framebuffers;
 static size_t current_framebuffer;
 static float current_noise_scale;
 static FilteringMode current_filter_mode = FILTER_LINEAR;
+static MipmapFilteringMode current_mipmap_filter_mode = MIPMAP_LINEAR;
+static int current_anisotropy_level = 1;
 static bool current_textures_linear_filter[2] = {false, false};
 
 static int gl_glsl_version = 130;
@@ -751,8 +753,11 @@ static void gfx_opengl_select_texture(int tile, GLuint texture_id, bool linear_f
     current_textures_linear_filter[tile] = linear_filter;
 }
 
-static void gfx_opengl_upload_texture(const uint8_t* rgba32_buf, uint32_t width, uint32_t height) {
+static void gfx_opengl_upload_texture(const uint8_t* rgba32_buf, uint32_t width, uint32_t height, bool gen_mipmaps) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba32_buf);
+    if (gen_mipmaps || current_filter_mode == FILTER_THREE_POINT) {
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
 }
 
 // Skin match companion mask. Lives on GL_TEXTURE2 so it never disturbs the
@@ -805,11 +810,32 @@ static uint32_t gfx_cm_to_opengl(uint32_t val) {
     return 0;
 }
 
-static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint32_t cms, uint32_t cmt) {
-    const GLint filter = linear_filter && (current_filter_mode == FILTER_LINEAR) ? GL_LINEAR : GL_NEAREST;
+static void gfx_opengl_set_sampler_parameters(int tile, bool linear_filter, uint32_t cms, uint32_t cmt, bool mipmaps) {
+    static const GLint min_filters[3][3] = {
+        // MIPMAP_DISABLED          MIPMAP_NEAREST              MIPMAP_LINEAR
+        { GL_NEAREST,               GL_NEAREST_MIPMAP_NEAREST,  GL_NEAREST_MIPMAP_LINEAR }, // FILTER_NONE
+        { GL_LINEAR,                GL_LINEAR_MIPMAP_NEAREST,   GL_LINEAR_MIPMAP_LINEAR },  // FILTER_LINEAR
+        { GL_LINEAR_MIPMAP_LINEAR,  GL_LINEAR_MIPMAP_LINEAR,    GL_LINEAR_MIPMAP_LINEAR },  // FILTER_THREE_POINT
+    };
+    static const GLint min_filters_nomips[3] = { GL_NEAREST, GL_LINEAR, GL_LINEAR };
+
+    // mipmaps says the texture has a chain; without one a *_MIPMAP_* min
+    // filter makes it incomplete (samples black), so fall back to level 0 --
+    // framebuffer textures and anything uploaded before the flag was set
+    const bool use_mips = mipmaps && current_mipmap_filter_mode != MIPMAP_DISABLED;
+    const int mip_idx = use_mips ? current_mipmap_filter_mode : 0;
+    GLint min_filter = GL_NEAREST;
+    if (linear_filter) {
+        min_filter = mipmaps ? min_filters[current_filter_mode][mip_idx] : min_filters_nomips[current_filter_mode];
+    }
+    const GLint mag_filter = linear_filter && (current_filter_mode != FILTER_NONE) ? GL_LINEAR : GL_NEAREST;
+
     glActiveTexture(GL_TEXTURE0 + tile);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, min_filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, mag_filter);
+    if (use_mips && (GLAD_GL_ARB_texture_filter_anisotropic || GLAD_GL_EXT_texture_filter_anisotropic)) {
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, (GLfloat)current_anisotropy_level);
+    }
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, gfx_cm_to_opengl(cms));
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, gfx_cm_to_opengl(cmt));
 }
@@ -1378,6 +1404,24 @@ FilteringMode gfx_opengl_get_texture_filter(void) {
     return current_filter_mode;
 }
 
+void gfx_opengl_set_mipmap_filter(MipmapFilteringMode mode) {
+    current_mipmap_filter_mode = mode;
+}
+
+static int gfx_opengl_get_max_anisotropy_level(void) {
+    if (!GLAD_GL_ARB_texture_filter_anisotropic && !GLAD_GL_EXT_texture_filter_anisotropic) {
+        return 1;
+    }
+    GLfloat max_aniso_level = 1.f;
+    glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max_aniso_level);
+    return max_aniso_level < 1.f ? 1 : (int)max_aniso_level;
+}
+
+static void gfx_opengl_set_anisotropy_level(int level) {
+    // 0 from the config/slider means off; GL's floor is 1
+    current_anisotropy_level = level < 1 ? 1 : level;
+}
+
 // pd.* fx post filter (from the Perfect Dark Kai fork, be46717).
 // gfx_retro.cpp does the work and saves/restores every piece of GL state it
 // touches. Desktop GL only: the capture path needs FBOs and blits.
@@ -1390,7 +1434,7 @@ static void gfx_opengl_retro_filter(int pixw, int pixh, int cmode, int clevels, 
                      gl_glsl_version_str);
 }
 
-struct GfxRenderingAPI gfx_opengl_api = { 
+struct GfxRenderingAPI gfx_opengl_api = {
     gfx_opengl_get_name,
     gfx_opengl_get_max_texture_size,
     gfx_opengl_get_clip_parameters,
@@ -1428,5 +1472,8 @@ struct GfxRenderingAPI gfx_opengl_api = {
     gfx_opengl_get_texture_filter,
     gfx_opengl_retro_filter,
     gfx_opengl_skinmask_upload,
-    gfx_opengl_set_skinmatch
+    gfx_opengl_set_skinmatch,
+    gfx_opengl_set_mipmap_filter,
+    gfx_opengl_set_anisotropy_level,
+    gfx_opengl_get_max_anisotropy_level
 };

@@ -13,6 +13,7 @@ struct GfxClipParameters {
 };
 
 enum FilteringMode { FILTER_NONE, FILTER_LINEAR, FILTER_THREE_POINT };
+enum MipmapFilteringMode { MIPMAP_DISABLED, MIPMAP_NEAREST, MIPMAP_LINEAR };
 
 // Skin match (SHADER_OPT_SKINMATCH): everything the fragment shader needs for
 // one bracket of body draws. Filled by gfx_pc from port/src/skinmatch.c, in
@@ -40,8 +41,11 @@ struct GfxRenderingAPI {
     void (*clear_shaders)(void);
     uint32_t (*new_texture)(void);
     void (*select_texture)(int tile, uint32_t texture_id, bool linear_filter);
-    void (*upload_texture)(const uint8_t* rgba32_buf, uint32_t width, uint32_t height);
-    void (*set_sampler_parameters)(int sampler, bool linear_filter, uint32_t cms, uint32_t cmt);
+    // gen_mipmaps: build the mip chain for this upload (texture drawn with
+    // G_TL_LOD); three-point filtering always builds one
+    void (*upload_texture)(const uint8_t* rgba32_buf, uint32_t width, uint32_t height, bool gen_mipmaps);
+    // mipmaps: the bound texture has a mip chain and may be sampled through it
+    void (*set_sampler_parameters)(int sampler, bool linear_filter, uint32_t cms, uint32_t cmt, bool mipmaps);
     void (*set_depth_mode)(bool depth_test, bool depth_update, bool depth_compare, bool depth_source_prim, uint16_t zmode);
     void (*set_depth_range)(float znear, float zfar);
     void (*set_viewport)(int x, int y, int width, int height);
@@ -75,6 +79,10 @@ struct GfxRenderingAPI {
     // Skin match: bind the mask on the third unit and load the uniforms into
     // the currently loaded shader program. Nullable.
     void (*set_skinmatch)(const struct SkinMatchUniforms* u);
+    // mipmaps and anisotropic filtering (upstream c303c81f8)
+    void (*set_mipmap_filter)(enum MipmapFilteringMode mode);
+    void (*set_anisotropy_level)(int level);
+    int (*get_max_anisotropy_level)(void);
 };
 
 #endif

@@ -768,8 +768,12 @@ static bool gfx_texture_cache_lookup(int i, const TextureCacheKey& key) {
     node->second.texture_id = texture_id;
     node->second.lru_location = gfx_texture_cache.lru.insert(gfx_texture_cache.lru.end(), { it });
 
+    // the import that follows uploads with rdp.tex_lod as its mip flag (and
+    // the backend always builds a chain for three-point filtering)
+    node->second.mipmapped = rdp.tex_lod || gfx_rapi->get_texture_filter() == FILTER_THREE_POINT;
+
     gfx_rapi->select_texture(i, texture_id, false);
-    gfx_rapi->set_sampler_parameters(i, false, 0, 0);
+    gfx_rapi->set_sampler_parameters(i, false, 0, 0, node->second.mipmapped);
     *n = node;
     rendering_state.textures_are_fb[i] = false;
     return false;
@@ -816,7 +820,7 @@ struct TexDims {
 // into tex_upload_buffer as RGBA32 and upload from there. When a pd.* fx
 // flat-texture mode is active, munge the buffer in place first (see the
 // gfx_flattex_mode comment for the mode semantics).
-static void gfx_upload_tex_filtered(uint32_t width, uint32_t height) {
+static void gfx_upload_tex_filtered(uint32_t width, uint32_t height, bool gen_mipmaps) {
     if (gfx_flattex_mode == 1 || gfx_flattex_mode == 2) {
         const uint32_t count = width * height;
         uint8_t* px = tex_upload_buffer;
@@ -859,12 +863,12 @@ static void gfx_upload_tex_filtered(uint32_t width, uint32_t height) {
             }
         }
     }
-    gfx_rapi->upload_texture(tex_upload_buffer, width, height);
+    gfx_rapi->upload_texture(tex_upload_buffer, width, height, gen_mipmaps);
     skinmatchOnTexturePixels(gfx_skinmatch_import_type, gfx_skinmatch_import_id, gfx_skinmatch_import_texnum,
                              tex_upload_buffer, width, height);
 }
 
-static TexDims import_texture_rgba16(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_rgba16(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -883,11 +887,11 @@ static TexDims import_texture_rgba16(int tile, const LoadedTexture& loaded_textu
         dest[3] = a ? 255 : 0;
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_rgba32(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_rgba32(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -899,11 +903,11 @@ static TexDims import_texture_rgba32(int tile, const LoadedTexture& loaded_textu
         *dest = PD_BE32(*src);
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_ia4(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_ia4(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -922,11 +926,11 @@ static TexDims import_texture_ia4(int tile, const LoadedTexture& loaded_texture,
         dest[3] = alpha ? 255 : 0;
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_ia8(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_ia8(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -942,11 +946,11 @@ static TexDims import_texture_ia8(int tile, const LoadedTexture& loaded_texture,
         dest[3] = alpha;
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_ia16(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_ia16(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -962,11 +966,11 @@ static TexDims import_texture_ia16(int tile, const LoadedTexture& loaded_texture
         dest[3] = alpha;
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_i4(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_i4(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -983,11 +987,11 @@ static TexDims import_texture_i4(int tile, const LoadedTexture& loaded_texture, 
         dest[3] = intensity;
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_i8(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_i8(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	const uint32_t width = rdp.texture_tile[tile].width;
 	const uint32_t height = rdp.texture_tile[tile].height;
@@ -1002,7 +1006,7 @@ static TexDims import_texture_i8(int tile, const LoadedTexture& loaded_texture, 
         dest[3] = intensity;
     }
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
@@ -1027,7 +1031,7 @@ static inline void palette_to_rgba32(const uint16_t palentry, uint8_t *rgba32_bu
     }
 }
 
-static TexDims import_texture_ci4(int tile, const LoadedTexture& loaded_texture, bool is_rect) {
+static TexDims import_texture_ci4(int tile, const LoadedTexture& loaded_texture, bool is_rect, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
     const uint32_t pal_idx = rdp.texture_tile[tile].palette; // 0-15
     const uint16_t* palette = (const uint16_t *)(rdp.palette + pal_idx * 16); // 16 pixel entries, 16 bits each
@@ -1056,11 +1060,11 @@ static TexDims import_texture_ci4(int tile, const LoadedTexture& loaded_texture,
 		src += line_size;
 	}
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
-static TexDims import_texture_ci8(int tile, const LoadedTexture& loaded_texture, bool importReplacement) {
+static TexDims import_texture_ci8(int tile, const LoadedTexture& loaded_texture, bool importReplacement, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
 	uint32_t width = rdp.texture_tile[tile].width;
 	uint32_t height = rdp.texture_tile[tile].height;
@@ -1071,7 +1075,7 @@ static TexDims import_texture_ci8(int tile, const LoadedTexture& loaded_texture,
 		palette_to_rgba32(rdp.palette[idx], tex_upload_buffer + 4 * i);
 	}
 
-    gfx_upload_tex_filtered(width, height);
+    gfx_upload_tex_filtered(width, height, gen_mipmaps);
     return { width, height };
 }
 
@@ -1127,6 +1131,9 @@ static void import_texture(int i, int tile, bool is_rect) {
         loaded_texture.id_mask = 0;
         return;
     }
+    // what the entry was created for (tex_lod at first import, or three-point);
+    // a skin match re-decode onto a cached id keeps the same chain shape
+    const bool gen_mipmaps = rendering_state.textures[i]->second.mipmapped;
     gfx_skinmatch_import_type = loaded_texture.type;
     gfx_skinmatch_import_id = loaded_texture.id;
     gfx_skinmatch_import_texnum = loaded_texture.texnum;
@@ -1151,7 +1158,7 @@ static void import_texture(int i, int tile, bool is_rect) {
 
 		loaded_texture.id_mask = 0;
 
-		gfx_rapi->upload_texture(addr, width, height);
+		gfx_rapi->upload_texture(addr, width, height, gen_mipmaps);
 		skinmatchOnTexturePixels(type, id, texnum, addr, width, height);
 		rendering_state.textures[i]->second.width = width;
 		rendering_state.textures[i]->second.height = height;
@@ -1161,35 +1168,35 @@ static void import_texture(int i, int tile, bool is_rect) {
     TexDims dims;
     if (fmt == G_IM_FMT_RGBA) {
         if (siz == G_IM_SIZ_16b) {
-            dims = import_texture_rgba16(tile, loaded_texture, is_rect);
+            dims = import_texture_rgba16(tile, loaded_texture, is_rect, gen_mipmaps);
         } else if (siz == G_IM_SIZ_32b) {
-            dims = import_texture_rgba32(tile, loaded_texture, is_rect);
+            dims = import_texture_rgba32(tile, loaded_texture, is_rect, gen_mipmaps);
         } else {
             sysFatalError("Bad size for RGBA texture in tile %d: %02x", tile, siz);
         }
     } else if (fmt == G_IM_FMT_IA) {
         if (siz == G_IM_SIZ_4b) {
-            dims = import_texture_ia4(tile, loaded_texture, is_rect);
+            dims = import_texture_ia4(tile, loaded_texture, is_rect, gen_mipmaps);
         } else if (siz == G_IM_SIZ_8b) {
-            dims = import_texture_ia8(tile, loaded_texture, is_rect);
+            dims = import_texture_ia8(tile, loaded_texture, is_rect, gen_mipmaps);
         } else if (siz == G_IM_SIZ_16b) {
-            dims = import_texture_ia16(tile, loaded_texture, is_rect);
+            dims = import_texture_ia16(tile, loaded_texture, is_rect, gen_mipmaps);
         } else {
             sysFatalError("Bad size for IA texture in tile %d: %02x", tile, siz);
         }
     } else if (fmt == G_IM_FMT_CI) {
         if (siz == G_IM_SIZ_4b) {
-            dims = import_texture_ci4(tile, loaded_texture, is_rect);
+            dims = import_texture_ci4(tile, loaded_texture, is_rect, gen_mipmaps);
         } else if (siz == G_IM_SIZ_8b) {
-            dims = import_texture_ci8(tile, loaded_texture, is_rect);
+            dims = import_texture_ci8(tile, loaded_texture, is_rect, gen_mipmaps);
         } else {
             sysFatalError("Bad size for CI texture in tile %d: %02x", tile, siz);
         }
     } else if (fmt == G_IM_FMT_I) {
         if (siz == G_IM_SIZ_4b) {
-            dims = import_texture_i4(tile, loaded_texture, is_rect);
+            dims = import_texture_i4(tile, loaded_texture, is_rect, gen_mipmaps);
         } else if (siz == G_IM_SIZ_8b) {
-            dims = import_texture_i8(tile, loaded_texture, is_rect);
+            dims = import_texture_i8(tile, loaded_texture, is_rect, gen_mipmaps);
         } else {
             sysFatalError("Bad size for I texture in tile %d: %02x", tile, siz);
         }
@@ -1559,6 +1566,18 @@ static inline int gfx_lod_tile_offset(const int i) {
     return (rdp.tex_lod ? rdp.tex_detail : i);
 }
 
+// Whether texture unit i may sample through a mip chain: rdp.tex_lod as in
+// upstream/Kai (three-point filtering always does), but never for a bound
+// framebuffer texture (rendering_state.textures[i] is then a stale entry and
+// the fb colour buffer has no chain) or an entry uploaded without one.
+static inline bool gfx_sampler_mipmaps(int i) {
+    if (rendering_state.textures_are_fb[i] || !rendering_state.textures[i] ||
+        !rendering_state.textures[i]->second.mipmapped) {
+        return false;
+    }
+    return rdp.tex_lod || gfx_rapi->get_texture_filter() == FILTER_THREE_POINT;
+}
+
 static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bool is_rect) {
     struct LoadedVertex* v1 = &rsp.loaded_vertices[vtx1_idx];
     struct LoadedVertex* v2 = &rsp.loaded_vertices[vtx2_idx];
@@ -1794,7 +1813,7 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
                 if (linear_filter != rendering_state.textures[i]->second.linear_filter ||
                     cms != rendering_state.textures[i]->second.cms || cmt != rendering_state.textures[i]->second.cmt) {
                     gfx_flush();
-                    gfx_rapi->set_sampler_parameters(i, linear_filter, cms, cmt);
+                    gfx_rapi->set_sampler_parameters(i, linear_filter, cms, cmt, gfx_sampler_mipmaps(i));
                     rendering_state.textures[i]->second.linear_filter = linear_filter;
                     rendering_state.textures[i]->second.cms = cms;
                     rendering_state.textures[i]->second.cmt = cmt;
@@ -3472,7 +3491,7 @@ extern "C" void gfx_set_target_fps(int fps) {
     gfx_wapi->set_target_fps(fps);
 }
 
-extern "C" void gfx_set_texture_filter(enum FilteringMode mode) {
+static void reset_texture_state(void) {
     gfx_texture_cache_clear();
     if (rendering_state.shader_program) {
         gfx_rapi->unload_shader(rendering_state.shader_program);
@@ -3481,7 +3500,16 @@ extern "C" void gfx_set_texture_filter(enum FilteringMode mode) {
     gfx_rapi->clear_shaders();
     color_combiner_pool.clear();
     prev_combiner = color_combiner_pool.end();
+}
+
+extern "C" void gfx_set_texture_filter(enum FilteringMode mode) {
+    reset_texture_state();
     gfx_rapi->set_texture_filter(mode);
+}
+
+extern "C" void gfx_set_mipmap_filter(enum MipmapFilteringMode mode) {
+    reset_texture_state();
+    gfx_rapi->set_mipmap_filter(mode);
 }
 
 extern "C" int gfx_create_framebuffer(uint32_t width, uint32_t height, int upscale, int autoresize) {

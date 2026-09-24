@@ -941,6 +941,20 @@ static MenuItemHandlerResult menuhandlerTexFilter2D(s32 operation, struct menuit
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerAnisotropicFiltering(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GETSLIDER:
+		data->slider.value = videoGetAnisotropicFilter();
+		break;
+	case MENUOP_SET:
+		videoSetAnisotropicFilter(data->slider.value);
+		break;
+	}
+
+	return 0;
+}
+
 static MenuItemHandlerResult menuhandlerDisplayFPS(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	switch (operation) {
@@ -1131,6 +1145,14 @@ struct menuitem g_ExtendedVideoMenuItems[] = {
 		(uintptr_t)"GUI Texture Filtering",
 		0,
 		menuhandlerTexFilter2D,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SLIDER_WIDE,
+		(uintptr_t)"Anisotropic Filtering",
+		8,
+		menuhandlerAnisotropicFiltering,
 	},
 	{
 		MENUITEMTYPE_CHECKBOX,
@@ -2271,3 +2293,27 @@ struct menudialogdef g_ExtendedMenuVDialog = {
 	MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
+
+// the anisotropy slider's max is whatever the GL context reports (upstream
+// c303c81f8); run once the renderer is up
+static void updateMaxAnisotropyLevel(void)
+{
+	for (s32 i = 0; i < ARRAYCOUNT(g_ExtendedVideoMenuItems); ++i) {
+		struct menuitem *item = &g_ExtendedVideoMenuItems[i];
+		if (item->type == MENUITEMTYPE_END) {
+			break;
+		}
+		// literal labels only: resolving a language string this early would
+		// call into the menu text machinery before the game is up
+		const char *text = (item->flags & MENUITEMFLAG_LITERAL_TEXT) ? (const char *)item->param2 : NULL;
+		if (text && strstr(text, "Anisotropic Filtering") != NULL) {
+			item->param3 = videoGetMaxAnisotropyLevel();
+			break;
+		}
+	}
+}
+
+void optionsMenuInit(void)
+{
+	updateMaxAnisotropyLevel();
+}

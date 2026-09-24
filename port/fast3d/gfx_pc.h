@@ -56,6 +56,9 @@ struct TextureCacheValue {
     // source of truth for UV normalization, since more than one code path can
     // decide what to upload (tile rect vs TMEM line size, ext_tex, etc.).
     uint32_t width, height;
+    // uploaded with a mip chain (drawn with G_TL_LOD, or three-point filtering
+    // on); only such an entry may be sampled with a *_MIPMAP_* min filter
+    bool mipmapped;
 
     std::list<struct TextureCacheMapIter>::iterator lru_location;
 };
