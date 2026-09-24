@@ -272,6 +272,13 @@ const char *modHeadSlotName(s32 slot);
 const char *modBodySlotName(s32 slot);
 s32 modHeadSlotForHash(u32 hash);
 s32 modBodySlotForHash(u32 hash);
+// A saved MP setup records its level and each bot's head and body by NAME in
+// pd.ini ([MpSetup.<guid>]) beside the 7-bit fields; these are the lookups
+// both directions. The ForName lookups never allocate. See mpsetups.c.
+const char *modStageSlotName(s32 stagenum);
+s32 modStageSlotForName(const char *name);
+s32 modHeadSlotForName(const char *name);
+s32 modBodySlotForName(const char *name);
 s32 modHeadSlotReserve(const char *name);
 s32 modBodySlotReserve(const char *name);
 void modHeadSlotClaim(const char *name, s32 slot);

@@ -80,6 +80,8 @@
 #include "lib/videbug.h"
 #include "lib/vm.h"
 #include "mod.h"
+#include "mpsetups.h"
+#include <unistd.h>
 #include "system.h"
 #include "savequeue.h"
 #include "types.h"
@@ -956,6 +958,7 @@ void mainProc(void) {
   sysLogPrintf(LOG_NOTE, "mainProc: initial modSwitch for mod 0");
   modSwitch(0, -1);
   assetCliFromArgs();
+  mpsetupProbeFromArgs();
   rdpInit();
   sndInit();
 

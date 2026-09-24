@@ -5243,6 +5243,15 @@ enum weaponnum {
 #define MPSETUP_MAXSETUPS 128
 #define MPSETUP_MAXNAME 17
 #define MPSETUP_BLOCKSIZE 80
+// Version 2 appends a 32-bit guid after the teams. Everything before it is the
+// N64 wad layout plus the port's additions, 570 bits in every block: name 144,
+// numsims 4, stagenum 7, scenario 3, scenario save 32 (koh and the default
+// both write 32), options 32, bots 8 x 25, weapons 6 x 7, random filters 64,
+// weapon set 8, time 6, score 7, team score 9, teams 4 x 3. A v1 block reads
+// the same and its guid reads as 0. mpsetupfileSaveWad checks the offset.
+#define MPSETUP_VERSION 2
+#define MPSETUP_VERSION_GUID 2
+#define MPSETUP_GUID_BITPOS 570
 
 #define PLAYERROLE_NONE 0
 #define PLAYERROLE_COOP 1

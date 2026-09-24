@@ -167,12 +167,12 @@ struct modslottable {
 	// count is a legal home. Stage rows are not like that - a stagenum selects
 	// a row that already exists and carries data - so that table sets this.
 	bool (*usable)(s32 slot);
-	// Set when a name hash stored in the extended profile can restore this
-	// table's slot after the 7-bit save field truncates it - see
-	// mpProfileApplySlotHashes(). Such a table has no effective ceiling, so the
-	// warning in modSlotAdd() does not apply to it. Stage rows have no
-	// equivalent yet: g_MpSetup.stagenum is still 7 bits with nothing to
-	// recover from, so that table leaves this false.
+	// Set when a name stored in pd.ini beside the 7-bit save field can restore
+	// this table's slot after that field truncates it - the extended profile's
+	// name hash for a player's head and body (mpProfileApplySlotHashes()), the
+	// [MpSetup.<guid>] section's names for a setup's level and its bots
+	// (mpsetupApplyExt() in mpsetups.c). Such a table has no effective
+	// ceiling, so the warning in modSlotAdd() does not apply to it.
 	bool hashrecovered;
 	// Whether an explicit claim (`slotnum N`, `stage "STAGE_28"`) is written
 	// to pd.ini as well as recorded in memory. A claim says nothing the
@@ -205,6 +205,7 @@ static struct modslottable g_ModStageSlots = {
 	.first = 0,
 	.usable = modStageSlotUsable,
 	.ownname = modStageSlotOwnName,
+	.hashrecovered = true,
 };
 
 /*
@@ -509,6 +510,33 @@ const char *modHeadSlotName(s32 slot) { return modSlotNameForIndex(&g_ModHeadSlo
 const char *modBodySlotName(s32 slot) { return modSlotNameForIndex(&g_ModBodySlots, slot); }
 s32 modHeadSlotForHash(u32 hash) { return modSlotIndexForHash(&g_ModHeadSlots, hash); }
 s32 modBodySlotForHash(u32 hash) { return modSlotIndexForHash(&g_ModBodySlots, hash); }
+
+// The reverse lookups a saved MP setup needs: a name back to the slot it
+// holds THIS session, or -1 when no mounted mod reserved that name. Pure
+// lookups - they never allocate, which is the difference from the Reserve
+// functions and the reason a setup for an unmounted mod cannot be handed some
+// other mod's row by accident.
+static s32 modSlotIndexForName(struct modslottable *tbl, const char *name)
+{
+	if (!name || !name[0]) {
+		return -1;
+	}
+
+	for (s32 i = 0; i < tbl->count; ++i) {
+		if (!strcmp(tbl->entries[i].name, name)) {
+			return tbl->entries[i].slot;
+		}
+	}
+
+	return -1;
+}
+
+// A vanilla row has no reservation, so its name is NULL - "trust the number",
+// which is right: vanilla stagenums never move.
+const char *modStageSlotName(s32 stagenum) { return modSlotNameForIndex(&g_ModStageSlots, stagenum); }
+s32 modStageSlotForName(const char *name) { return modSlotIndexForName(&g_ModStageSlots, name); }
+s32 modHeadSlotForName(const char *name) { return modSlotIndexForName(&g_ModHeadSlots, name); }
+s32 modBodySlotForName(const char *name) { return modSlotIndexForName(&g_ModBodySlots, name); }
 
 s32 modHeadSlotReserve(const char *name) { return modSlotReserve(&g_ModHeadSlots, name); }
 s32 modBodySlotReserve(const char *name) { return modSlotReserve(&g_ModBodySlots, name); }

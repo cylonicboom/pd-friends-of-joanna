@@ -4861,6 +4861,9 @@ static void unpackWeaponSetRandomFilters(u64 packed) {
   }
 }
 
+// Identity of the setup currently in g_MpSetup; see mpsetupfileLoadWad.
+u32 g_MpSetupGuid = 0;
+
 void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version) {
   s32 i;
   s32 j;
@@ -4934,6 +4937,17 @@ void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version) {
     g_PlayerConfigsArray[i].base.team = savebufferReadBits(buffer, 3);
   }
 
+  // Everything above is the N64 wad layout plus the port's own additions, and
+  // a reader that predates the guid stops here. The guid is the setup's
+  // identity in pd.ini - [MpSetup.<guid>] carries its level and its bots'
+  // heads and bodies by NAME, which is what survives when the numbers above
+  // move. See mpsetupBindExt in mpsetups.c.
+  if (version >= MPSETUP_VERSION_GUID) {
+    g_MpSetupGuid = savebufferReadBits(buffer, 32);
+  } else {
+    g_MpSetupGuid = 0;
+  }
+
   challengeForceUnlockBotFeatures();
 }
 
@@ -5001,6 +5015,30 @@ void mpsetupfileSaveWad(struct savebuffer *buffer) {
   for (i = 0; i < MAX_PLAYERS; i++) {
     savebufferOr(buffer, g_PlayerConfigsArray[i].base.team, 3);
   }
+
+  if (buffer->bitpos != MPSETUP_GUID_BITPOS) {
+    // mpsetupfilePeekGuid reads the guid at a fixed offset without decoding
+    // the block. If the layout above ever changes width, this is the line
+    // that says so; fix MPSETUP_GUID_BITPOS rather than the check.
+    sysLogPrintf(LOG_ERROR, "mpsetupfileSaveWad: guid lands at bit %u, MPSETUP_GUID_BITPOS says %u",
+        buffer->bitpos, MPSETUP_GUID_BITPOS);
+  }
+
+  savebufferOr(buffer, g_MpSetupGuid, 32);
+}
+
+// The guid of a saved block without decoding the rest of it, for binding
+// every setup's ini section when the file loads. 0 for a block written before
+// guids existed (its tail is zero-filled on read).
+u32 mpsetupfilePeekGuid(struct savebuffer *buffer) {
+  buffer->bitpos = MPSETUP_GUID_BITPOS;
+  return savebufferReadBits(buffer, 32);
+}
+
+// Stamp a guid into a block whose tail is still zero, in place.
+void mpsetupfilePokeGuid(struct savebuffer *buffer, u32 guid) {
+  buffer->bitpos = MPSETUP_GUID_BITPOS;
+  savebufferOr(buffer, guid, 32);
 }
 
 void mpsetupfileGetOverview(char *arg0, char *filename, u16 *numsims,

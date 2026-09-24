@@ -129,6 +129,9 @@ void mpApplyConfig(struct mpconfigfull *mpconfig);
 void mp0f18dec4(s32 arg0);
 void mpsetupfileLoadWad(struct savebuffer *buffer, u8 version);
 void mpsetupfileSaveWad(struct savebuffer *buffer);
+u32 mpsetupfilePeekGuid(struct savebuffer *buffer);
+void mpsetupfilePokeGuid(struct savebuffer *buffer, u32 guid);
+extern u32 g_MpSetupGuid;
 void mpsetupfileGetOverview(char *arg0, char *filename, u16 *numsims,
                             u16 *stagenum, u16 *scenarionum);
 s32 mpsetupfileSave(s32 device, s32 filenum, u16 deviceserial);
