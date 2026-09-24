@@ -31,8 +31,8 @@
  * way the loader does, reports rows with two occupants whichever spelling
  * reached them, checks the free STAGE_EXTRA rows against the names that need
  * one, and - with --ini - reads what the last boot actually allocated.
- * --stage-table writes the whole picture out as JSON: the stage twin of
- * mpHeadsAndBodiesTable.json, generated from the packs rather than typed.
+ * --stage-table writes the whole picture out as JSON, generated from the
+ * packs rather than typed.
  *
  * NOTE ON A WORD: the code calls a slot a texture "port" (MOD_TEX_PORT_BASE,
  * g_NextGlobalTexPort). This tool says SLOT, and its output says slot.
@@ -1599,8 +1599,7 @@ static void jsonFileRef(FILE *out, const struct mod *mods, const char *key, cons
 }
 
 /**
- * The distribution-wide stage table: what mpHeadsAndBodiesTable.json is for
- * heads and bodies, for stages. It DESCRIBES what the mounted modconfigs
+ * The distribution-wide stage table. It DESCRIBES what the mounted modconfigs
  * declare - it is generated from them, not the other way round - so
  * regenerating it and diffing against the committed copy is the check that
  * the packs still say what the table says. Whether it should one day be the
