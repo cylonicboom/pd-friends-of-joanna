@@ -4353,7 +4353,12 @@ static inline void mpplayerBindExtendedProfile(s32 playernum) {
   s32 configindex = getExtendedProfileIndexFromFileGuid(
       &g_PlayerConfigsArray[playernum].fileguid);
 
-  if (configindex > 0) {
+  // 0 is a real slot -- iniAllocateProfileSlot hands it to the first profile.
+  // Testing > 0 sent that profile down the register path on every load and
+  // save, which rewrites every extended property to its initial value and
+  // re-runs the inits, so its settings (the fojo operative among them) came
+  // back as defaults each time it was saved.
+  if (configindex >= 0) {
     // old config is still saved to its own index, if any
     // we just need to calculate the index of the config in the global array
     // for the player we just loaded
