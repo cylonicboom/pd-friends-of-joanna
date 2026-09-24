@@ -5058,7 +5058,10 @@ static void imguiOverlayMenuBgColour(const char *label, u32 *rgba, bool alpha, c
 static void imguiOverlayMenuBgHaze(const char *label, u32 *rgba, s32 *inset, const char *insethelp)
 {
 	static const char *names[4] = { "R", "G", "B", "A" };
+	// in as far as the middle, out as far as a whole screen. the plane recedes
+	// towards the centre, so pushed off the edge its far side still shows
 	s32 maxinset = viGetHeight() / 2 + 10;
+	s32 mininset = -viGetHeight();
 
 	ImGui::PushID(label);
 	ImGui::SeparatorText(label);
@@ -5086,7 +5089,7 @@ static void imguiOverlayMenuBgHaze(const char *label, u32 *rgba, s32 *inset, con
 	{
 		int v = *inset;
 
-		if (ImGui::SliderInt("Inset", &v, 0, maxinset, "%d px")) {
+		if (ImGui::SliderInt("Inset", &v, mininset, maxinset, "%d px")) {
 			*inset = v;
 		}
 
@@ -5118,11 +5121,13 @@ static void imguiOverlayDrawMenuBgPanel(void)
 
 	imguiOverlayMenuBgHaze("Haze top", &cfg->hazetop, &cfg->hazetopinset,
 			"Pulls the top plane down from the screen edge.\n"
-			"0 is vanilla. At the max it meets the middle.\n"
+			"0 is vanilla, negative pushes it off the screen.\n"
+			"At the max it meets the middle.\n"
 			"Colour vanilla 0x0000947f.");
 	imguiOverlayMenuBgHaze("Haze bottom", &cfg->hazebottom, &cfg->hazebottominset,
 			"Pulls the bottom plane up from the screen edge.\n"
-			"0 is vanilla. At the max it meets the middle.\n"
+			"0 is vanilla, negative pushes it off the screen.\n"
+			"At the max it meets the middle.\n"
 			"Colour vanilla 0x6200947f.");
 
 	ImGui::SeparatorText("Stars");
