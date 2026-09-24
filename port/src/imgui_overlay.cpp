@@ -1868,6 +1868,10 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 		ImGui::EndCombo();
 	}
 	g_ImGuiOverlayModelFilter.Draw("Search models", 180.0f);
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Name or file id: 067, 0x067, 0x0067 all find the same slot.\n"
+				"The id is the m:0x... in a pd.texlabels tag.");
+	}
 	ImGui::SameLine();
 	if (ImGui::Button("Use current") && currentModelMod >= 0 && currentModelFileNum > 0) {
 		g_ImGuiOverlayTextureModelMod = currentModelMod;
@@ -1892,8 +1896,15 @@ static void imguiOverlayDrawTextureModelSearch(s32 currentModelMod, s32 currentM
 			for (s32 fileNum = 1; fileNum < 8192; ++fileNum) {
 				struct romdatafileslotinfo slotInfo;
 				if (!romdataGetFileSlotInfo(g_ImGuiOverlayTextureModelMod, fileNum, &slotInfo)
-						|| !imguiOverlayIsModelSlotName(slotInfo.name)
-						|| !g_ImGuiOverlayModelFilter.PassFilter(slotInfo.name)) {
+						|| !imguiOverlayIsModelSlotName(slotInfo.name)) {
+					continue;
+				}
+
+				// Match the id as well as the name, in the spellings the tags and
+				// tables use: "067", "0x067", "0x0067".
+				char idText[32];
+				snprintf(idText, sizeof(idText), "%s 0x%03x 0x%04x", slotInfo.name, fileNum, fileNum);
+				if (!g_ImGuiOverlayModelFilter.PassFilter(idText)) {
 					continue;
 				}
 
