@@ -3817,6 +3817,12 @@ void menuSetBackground(s32 bg)
 
 	if (g_MenuData.bg != bg) {
 		DEBUG_MENU("menuSetBackground: Setting nextbg from %d to %d\n", g_MenuData.nextbg, bg);
+
+		// coming in from another bg starts the slow stars over, drug blur included
+		if (bg == MENUBG_SUCCESS_SLOW && g_MenuData.nextbg != bg) {
+			menugfxResetBgSuccessSlow();
+		}
+
 		g_MenuData.nextbg = bg;
 	}
 
@@ -3836,6 +3842,8 @@ void menuResetJoinFadeAlpha(void)
 		}
 	}
 }
+
+extern struct menudialogdef g_FojoTitleProfileSelectMenu;
 
 void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 {
@@ -3936,7 +3944,19 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 				&& g_Vars.stagenum < STAGE_TITLE
 				&& (root == MENUROOT_MAINMENU || root == MENUROOT_FILEMGR);
 
-			if (!livegame) {
+			if (dialogdef == &g_FojoTitleProfileSelectMenu || root == MENUROOT_TEAMMISSIONS) {
+				// fojo: the title profile picker and team missions sit on the slow
+				// stars. both re-push root dialogs while the stars are up -- backing
+				// out of the picker the same tick menutick queued the fade to
+				// nothing, team missions for every hub and player profile push --
+				// so if the stars are already up, cancel any pending fade rather
+				// than start them over.
+				if (g_MenuData.bg == MENUBG_SUCCESS_SLOW) {
+					g_MenuData.nextbg = 255;
+				} else {
+					menuSetBackground(MENUBG_SUCCESS_SLOW);
+				}
+			} else if (!livegame) {
 				menuSetBackground(MENUBG_BLUR);
 			}
 		}
@@ -5568,6 +5588,7 @@ Gfx *menuRenderBackgroundLayer1(Gfx *gdl, u8 bg, f32 frac)
 		}
 		break;
 	case MENUBG_SUCCESS:
+	case MENUBG_SUCCESS_SLOW:
 		{
 			// Fill with black
 			gSPDisplayList(gdl++, var800613a0);
@@ -5576,7 +5597,11 @@ Gfx *menuRenderBackgroundLayer1(Gfx *gdl, u8 bg, f32 frac)
 			gdl = text0f153838(gdl);
 
 			// Render the success BG
-			gdl = menugfxRenderBgSuccess(gdl);
+			if (bg == MENUBG_SUCCESS_SLOW) {
+				gdl = menugfxRenderBgSuccessSlow(gdl);
+			} else {
+				gdl = menugfxRenderBgSuccess(gdl);
+			}
 
 			// Render alpha black if fading in
 			{

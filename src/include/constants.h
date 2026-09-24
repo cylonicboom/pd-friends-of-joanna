@@ -1811,6 +1811,7 @@
 #define MENUBG_SUCCESS    7 // solo mission success endscreen
 #define MENUBG_8          8
 #define MENUBG_CONEOPAQUE 9 // 4MB combat simulator
+#define MENUBG_SUCCESS_SLOW 10 // success stars and haze, tuned by g_MenuBgSlowStars
 
 #define MENUDIALOGFLAG_CLOSEONSELECT     0x0001
 #define MENUDIALOGFLAG_0002              0x0002

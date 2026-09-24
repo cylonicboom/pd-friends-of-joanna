@@ -36,4 +36,9 @@ void menugfxFreeParticles(void);
 u32 menugfxGetParticleArraySize(void);
 Gfx *menugfxRenderBgSuccess(Gfx *gdl);
 
+extern struct menubgstars g_MenuBgSlowStars;
+extern const struct menubgstars g_MenuBgSlowStarsDefaults;
+void menugfxResetBgSuccessSlow(void);
+Gfx *menugfxRenderBgSuccessSlow(Gfx *gdl);
+
 #endif
