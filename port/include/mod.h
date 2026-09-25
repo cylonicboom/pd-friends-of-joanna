@@ -170,6 +170,9 @@ extern struct modStageRegEntry *g_ModStageReg;
 extern s32 g_NumModStageReg;
 
 void modStageRegReset(void);
+// The mod directory's basename ("mod_fojo"), or its index when it has none.
+// The mod's identity in pd.ini keys that outlive a session.
+const char *modDirName(s32 modnum, char *buf, size_t bufSize);
 struct modStageRegEntry *modStageRegFind(s32 stagenum);
 struct modStageRegEntry *modStageRegRecord(s32 stagenum, s32 modnum, s32 kind,
 		const char *name, s32 langid, s32 requirefeature);

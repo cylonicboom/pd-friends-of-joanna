@@ -23,6 +23,7 @@
 #include "types.h"
 #include "mpsetups.h"
 #ifndef PLATFORM_N64
+#include "soloprogress.h"
 #include "system.h"
 #endif
 
@@ -144,6 +145,9 @@ static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, 
 				}
 				mpsetupCopyAllFromPak();
 				mpsetupLoadCurrentFile();
+#ifndef PLATFORM_N64
+				soloProgressBind();
+#endif
 				g_FilemgrDefaultRealityLoaded = true;
 			} else {
 				g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
@@ -2954,6 +2958,9 @@ MenuItemHandlerResult filemgrChooseAgentListMenuHandler(s32 operation, struct me
 				// load the setup file when loading the agent
 				mpsetupCopyAllFromPak();
 				mpsetupLoadCurrentFile();
+#ifndef PLATFORM_N64
+				soloProgressBind();
+#endif
 			}
 		}
 		break;

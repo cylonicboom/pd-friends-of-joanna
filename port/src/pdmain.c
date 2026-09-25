@@ -81,6 +81,7 @@
 #include "lib/vm.h"
 #include "mod.h"
 #include "mpsetups.h"
+#include "soloprogress.h"
 #include <unistd.h>
 #include "system.h"
 #include "savequeue.h"
@@ -962,6 +963,7 @@ void mainProc(void) {
   modSwitch(0, -1);
   assetCliFromArgs();
   mpsetupProbeFromArgs();
+  soloProgressProbeFromArgs();
   rdpInit();
   sndInit();
 
