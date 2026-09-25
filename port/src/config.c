@@ -98,6 +98,36 @@ static inline const char *configGetSection(char *sec, const struct configentry *
 	return sec;
 }
 
+/*
+ * Keys nothing has bound.
+ *
+ * Every key configLoad parses becomes an entry, but until something calls
+ * configRegister* on it the entry has no ptr. configSet used to throw the
+ * value away and configSaveEntry skipped the entry, so any key whose owner
+ * had not registered yet by the time of a save was DROPPED from the file:
+ * the guest players' [MpPlayer.PlayerN] blocks on any early exit (30 lines
+ * of a real pd.ini, measured), and anything a later feature keys by an
+ * identity chosen at runtime - a reality, a saved setup - for a reality or
+ * setup not touched this session.
+ *
+ * Now the value waits in `pending`: written back verbatim by configSave,
+ * applied by whichever configRegister* eventually binds the key. Nothing
+ * needs a queue-and-rebind dance to survive a save any more. The one thing
+ * that changes is that forgetting a key becomes an act - configForgetKey -
+ * where it used to be the default.
+ */
+void configSet(struct configentry *cfg, const char *val);
+
+static void configApplyPending(struct configentry *cfg)
+{
+	if (cfg->pending && cfg->ptr) {
+		char *val = cfg->pending;
+		cfg->pending = NULL;
+		configSet(cfg, val);
+		free(val);
+	}
+}
+
 void configRegisterInt(const char *key, s32 *var, s32 min, s32 max)
 {
 	struct configentry *cfg = configFindOrAddEntry(key);
@@ -106,6 +136,7 @@ void configRegisterInt(const char *key, s32 *var, s32 min, s32 max)
 		cfg->ptr = var;
 		cfg->min_s32 = min;
 		cfg->max_s32 = max;
+		configApplyPending(cfg);
 	}
 }
 
@@ -117,6 +148,7 @@ void configRegisterUInt(const char* key, u32* var, u32 min, u32 max)
 		cfg->ptr = var;
 		cfg->min_u32 = min;
 		cfg->max_u32 = max;
+		configApplyPending(cfg);
 	}
 }
 
@@ -128,6 +160,7 @@ void configRegisterU8Int(const char* key, u8* var, u32 min, u32 max)
 		cfg->ptr = var;
 		cfg->min_u32 = min;
 		cfg->max_u32 = max;
+		configApplyPending(cfg);
 	}
 }
 
@@ -139,6 +172,7 @@ void configRegisterFloat(const char *key, f32 *var, f32 min, f32 max)
 		cfg->ptr = var;
 		cfg->min_f32 = min;
 		cfg->max_f32 = max;
+		configApplyPending(cfg);
 	}
 }
 
@@ -149,7 +183,56 @@ void configRegisterString(const char *key, char *var, u32 maxstr)
 		cfg->type = CFG_STR;
 		cfg->ptr = var;
 		cfg->max_str = maxstr;
+		configApplyPending(cfg);
 	}
+}
+
+// strdup is POSIX, not C99; the build asks for C99.
+static char *configStrdup(const char *src)
+{
+	size_t len = strlen(src) + 1;
+	char *dst = malloc(len);
+	if (dst) {
+		memcpy(dst, src, len);
+	}
+	return dst;
+}
+
+void configForgetKey(const char *key)
+{
+	struct configentry *cfg = configFindEntry(key);
+	if (cfg) {
+		free(cfg->pending);
+		cfg->pending = NULL;
+		cfg->ptr = NULL;
+	}
+}
+
+void configUnbindKey(const char *key)
+{
+	struct configentry *cfg = configFindEntry(key);
+	char buf[64];
+
+	if (!cfg || !cfg->ptr) {
+		return;
+	}
+
+	switch (cfg->type) {
+		case CFG_S32: snprintf(buf, sizeof(buf), "%d", *(s32 *)cfg->ptr); break;
+		case CFG_U32: snprintf(buf, sizeof(buf), "%u", *(u32 *)cfg->ptr); break;
+		case CFG_U8:  snprintf(buf, sizeof(buf), "%u", *(u8 *)cfg->ptr); break;
+		case CFG_F32: snprintf(buf, sizeof(buf), "%f", *(f32 *)cfg->ptr); break;
+		case CFG_STR:
+			free(cfg->pending);
+			cfg->pending = configStrdup((char *)cfg->ptr);
+			cfg->ptr = NULL;
+			return;
+		default: buf[0] = '\0'; break;
+	}
+
+	free(cfg->pending);
+	cfg->pending = configStrdup(buf);
+	cfg->ptr = NULL;
 }
 
 void configSet(struct configentry *cfg, const char *val) {
@@ -158,6 +241,9 @@ void configSet(struct configentry *cfg, const char *val) {
 	u32 tmp_u32;
 	u8  tmp_u8;
 	if (!cfg->ptr) {
+		// Nothing owns this key yet; keep the value for whoever does.
+		free(cfg->pending);
+		cfg->pending = configStrdup(val);
 		return;
 	}
 	switch (cfg->type) {
@@ -210,6 +296,9 @@ static inline void configSetFromString(const char *key, const char *val)
 static void configSaveEntry(struct configentry *cfg, FILE *f)
 {
 	if (!cfg->ptr) {
+		if (cfg->pending) {
+			fprintf(f, "%s=%s\n", cfg->key + cfg->seclen + 1, cfg->pending);
+		}
 		return;
 	}
 	switch (cfg->type) {

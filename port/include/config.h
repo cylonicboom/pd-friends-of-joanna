@@ -32,6 +32,10 @@ struct configentry {
 	s32 seclen;
 	configtype type;
 	void *ptr;
+	// A value parsed from the file for a key nothing has bound yet. Kept so
+	// configSave writes it back verbatim instead of dropping it, and applied
+	// the moment a configRegister* binds the key. See the note in config.c.
+	char *pending;
 	union {
 		struct { f32 min_f32, max_f32; };
 		struct { s32 min_s32, max_s32; };
@@ -74,6 +78,13 @@ void configRegisterInt(const char *key, s32 *var, s32 min, s32 max);
 void configRegisterUInt(const char* key, u32* var, u32 min, u32 max);
 void configRegisterFloat(const char *key, f32 *var, f32 min, f32 max);
 void configRegisterString(const char *key, char *var, u32 maxstr);
+// Drop a parsed-but-unbound key so the next configSave leaves it out. The
+// only way an entry that was in the file goes away.
+void configForgetKey(const char *key);
+// Detach a bound key but keep its current value, so a later save still
+// writes it and a later bind still reads it. For state that belongs to
+// something not loaded any more - a reality that was switched away from.
+void configUnbindKey(const char *key);
 
 // player save stuff
 struct configentry *configFindPlayerEntry(s32 player, const char *key);

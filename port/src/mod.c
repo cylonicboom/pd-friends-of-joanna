@@ -319,6 +319,16 @@ static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const cha
 	return r;
 }
 
+// A key this scan declines is forgotten outright. The config store now keeps
+// an unbound key's value and writes it back (configSet/configSaveEntry), so
+// "not registering it" no longer prunes it - dropping has to be said.
+static void modSlotDrop(struct modslottable *tbl, const char *name)
+{
+	char key[CONFIG_MAX_SECNAME * 2 + 2];
+	snprintf(key, sizeof(key), "%s.%s", tbl->section, name);
+	configForgetKey(key);
+}
+
 static void modSlotScanned(const char *name, const char *value, void *ctx)
 {
 	struct modslottable *tbl = ctx;
@@ -333,6 +343,7 @@ static void modSlotScanned(const char *name, const char *value, void *ctx)
 	if (slot < tbl->first || slot > MOD_MAX_SLOT_INDEX) {
 		sysLogPrintf(LOG_WARNING, "modconfig: [%s] '%s' = %d is out of range; dropping the reservation",
 				tbl->section, name, slot);
+		modSlotDrop(tbl, name);
 		return;
 	}
 
@@ -340,6 +351,7 @@ static void modSlotScanned(const char *name, const char *value, void *ctx)
 		sysLogPrintf(LOG_NOTE, "modconfig: [%s] '%s' = %d is a claim, not an allocation; dropping it "
 				"(the modconfig that made it re-records it, or it is gone)",
 				tbl->section, name, slot);
+		modSlotDrop(tbl, name);
 		return;
 	}
 
@@ -350,6 +362,7 @@ static void modSlotScanned(const char *name, const char *value, void *ctx)
 	if (modSlotTaken(tbl, slot)) {
 		sysLogPrintf(LOG_WARNING, "modconfig: [%s] '%s' wants index %d, already reserved; dropping the reservation",
 				tbl->section, name, slot);
+		modSlotDrop(tbl, name);
 		return;
 	}
 
@@ -358,8 +371,8 @@ static void modSlotScanned(const char *name, const char *value, void *ctx)
 
 /*
  * Read the reservations back before any modconfig is parsed. Dropped keys are
- * simply not registered, so the next configSave writes the file without them
- * and the name is reallocated on the run after that.
+ * forgotten (modSlotDrop), so the next configSave writes the file without
+ * them and the name is reallocated on the run after that.
  */
 void modSlotReservationsInit(void)
 {
@@ -2597,7 +2610,7 @@ void modStageBindingsReset(void)
  * "$B/mods/mod_fojo" reads as "mod_fojo"; an index with no directory reads as
  * its number, because that is still better than nothing.
  */
-static const char *modDirName(s32 modnum, char *buf, size_t bufSize)
+const char *modDirName(s32 modnum, char *buf, size_t bufSize)
 {
 	if (modnum >= 0 && (u32)modnum < g_NumModDirs && modDirs[modnum][0]) {
 		const char *slash = strrchr(modDirs[modnum], '/');
