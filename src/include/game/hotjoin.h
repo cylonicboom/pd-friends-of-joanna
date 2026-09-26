@@ -13,7 +13,8 @@ bool hotjoinAvailable(void);
 s32 hotjoinFreeSlot(void);
 s32 hotjoinLastSlot(void);
 
-// the profile list, for a picker: refreshed from the pak file list each call
+// the profile list, for a picker: a snapshot of the paks, rebuilt when invalid
+void hotjoinInvalidateProfiles(void);
 s32 hotjoinProfileCount(void);
 bool hotjoinProfileInfo(s32 index, char *name, u32 namelen, struct fileguid *guid, s32 *boundslot);
 

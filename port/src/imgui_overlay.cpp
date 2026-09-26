@@ -175,6 +175,7 @@ extern "C" bool hotjoinAvailable(void);
 extern "C" s32 hotjoinFreeSlot(void);
 extern "C" s32 hotjoinLastSlot(void);
 extern "C" s32 hotjoinProfileCount(void);
+extern "C" void hotjoinInvalidateProfiles(void);
 extern "C" bool hotjoinProfileInfo(s32 index, char *name, u32 namelen, struct fileguid *guid, s32 *boundslot);
 extern "C" s32 hotjoinAddPlayer(const struct fileguid *guid);
 extern "C" s32 hotjoinDropLastPlayer(void);
@@ -5683,7 +5684,21 @@ static void imguiOverlayDrawPlayersPanel(void)
 	if (freeslot >= 0) {
 		ImGui::SeparatorText("Profile for the next seat");
 
+		// the list is a snapshot: rescan when the panel comes up, or on demand
+		static int lastDrawnFrame = -10;
+		if (ImGui::GetFrameCount() - lastDrawnFrame > 1) {
+			hotjoinInvalidateProfiles();
+		}
+		lastDrawnFrame = ImGui::GetFrameCount();
+
 		const s32 nprof = hotjoinProfileCount();
+
+		if (ImGui::SmallButton("Rescan paks")) {
+			hotjoinInvalidateProfiles();
+			g_ImGuiPlayersPick = -1;
+		}
+		ImGui::SameLine();
+		ImGui::TextDisabled("%d profile%s", nprof, nprof == 1 ? "" : "s");
 
 		if (nprof == 0) {
 			ImGui::TextDisabled("No profiles on any pak yet.");

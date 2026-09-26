@@ -4,8 +4,6 @@
 #include "constants.h"
 #include "game/hotjoin.h"
 #include "game/playermgr.h"
-#include "game/filelist.h"
-#include "game/filemgr.h"
 #include "game/mainmenu.h"
 #include "game/pak.h"
 #include "game/mplayer/mplayer.h"
@@ -55,53 +53,106 @@ s32 hotjoinLastSlot(void)
 	return (hotjoinAvailable() && n >= 1 && n != g_Vars.bondplayernum) ? n : -1;
 }
 
-static struct filelist *hotjoinProfileList(void)
-{
-	s32 listnum = filelistFindOrCreate(FILETYPE_MPPLAYER);
+/**
+ * The profile list is a snapshot of every MP player file on every pak,
+ * rebuilt only when asked. It deliberately does NOT go through filelist.c:
+ * filelistCreate sets var80062944, and menutick.c:586 answers that with
+ * menuStop() on the next tick whenever no menu is open - which frees every
+ * file list and calls inputAutoLockMouse(true). Built per frame from the
+ * Players panel that was a lock/unlock fight with the overlay every frame,
+ * which pins the cursor to the centre of the window.
+ */
+#define HOTJOIN_MAX_PROFILES 64
 
-	if (listnum < 0 || g_FileLists[listnum] == NULL) {
-		return NULL;
+struct hotjoinprofile {
+	s32 fileid;
+	u16 deviceserial;
+	u8 body[16];
+};
+
+static struct hotjoinprofile g_HotjoinProfiles[HOTJOIN_MAX_PROFILES];
+static s32 g_HotjoinNumProfiles = 0;
+static bool g_HotjoinProfilesValid = false;
+
+void hotjoinInvalidateProfiles(void)
+{
+	g_HotjoinProfilesValid = false;
+}
+
+static void hotjoinRefreshProfiles(void)
+{
+	const s8 devices[] = {
+		SAVEDEVICE_GAMEPAK,
+		SAVEDEVICE_CONTROLLERPAK1,
+		SAVEDEVICE_CONTROLLERPAK2,
+		SAVEDEVICE_CONTROLLERPAK3,
+		SAVEDEVICE_CONTROLLERPAK4,
+	};
+	u32 ids[512];
+	s32 d;
+	s32 j;
+
+	g_HotjoinNumProfiles = 0;
+
+	for (d = 0; d < (s32)ARRAYCOUNT(devices) && g_HotjoinNumProfiles < HOTJOIN_MAX_PROFILES; d++) {
+		if (pakGetFileIdsByType(devices[d], PAKFILETYPE_MPPLAYER, ids) != 0) {
+			continue;
+		}
+
+		for (j = 0; ids[j] != 0 && g_HotjoinNumProfiles < HOTJOIN_MAX_PROFILES; j++) {
+			struct hotjoinprofile *p = &g_HotjoinProfiles[g_HotjoinNumProfiles];
+
+			if (pakReadBodyAtGuid(devices[d], ids[j], p->body, sizeof(p->body)) != 0) {
+				continue;
+			}
+
+			p->fileid = ids[j];
+			p->deviceserial = pakGetSerial(devices[d]);
+			g_HotjoinNumProfiles++;
+		}
 	}
 
-	// the menus tick this from menutick; the picker is open when no menu is
-	filelistUpdate(g_FileLists[listnum]);
-	g_FileLists[listnum]->updatedthisframe = true;
-
-	return g_FileLists[listnum];
+	g_HotjoinProfilesValid = true;
 }
 
 s32 hotjoinProfileCount(void)
 {
-	struct filelist *list = hotjoinProfileList();
-	return list ? list->numfiles : 0;
+	if (!g_HotjoinProfilesValid) {
+		hotjoinRefreshProfiles();
+	}
+
+	return g_HotjoinNumProfiles;
 }
 
 bool hotjoinProfileInfo(s32 index, char *name, u32 namelen, struct fileguid *guid, s32 *boundslot)
 {
-	struct filelist *list = hotjoinProfileList();
-	struct filelistfile *file;
+	struct hotjoinprofile *p;
 	u32 playtime;
 	s32 i;
 
-	if (list == NULL || index < 0 || index >= list->numfiles) {
+	if (!g_HotjoinProfilesValid) {
+		hotjoinRefreshProfiles();
+	}
+
+	if (index < 0 || index >= g_HotjoinNumProfiles) {
 		return false;
 	}
 
-	file = &list->files[index];
+	p = &g_HotjoinProfiles[index];
 
 	name[0] = '\0';
-	mpplayerfileGetOverview(file->name, name, &playtime);
+	mpplayerfileGetOverview((char *)p->body, name, &playtime);
 	name[namelen - 1] = '\0';
 
-	guid->fileid = file->fileid;
-	guid->deviceserial = file->deviceserial;
+	guid->fileid = p->fileid;
+	guid->deviceserial = p->deviceserial;
 
 	*boundslot = -1;
 
 	for (i = 0; i < PLAYERCOUNT(); i++) {
 		const struct fileguid *bound = &g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].fileguid;
 
-		if (bound->fileid == file->fileid && bound->deviceserial == file->deviceserial) {
+		if (bound->fileid == p->fileid && bound->deviceserial == p->deviceserial) {
 			*boundslot = i;
 			break;
 		}
@@ -155,6 +206,7 @@ s32 hotjoinAddPlayer(const struct fileguid *guid)
 		return -1;
 	}
 
+	hotjoinInvalidateProfiles();
 	hotjoinSay("%s seated in slot %d", g_PlayerConfigsArray[n].base.name, n + 1);
 
 	return n;
@@ -211,6 +263,7 @@ s32 hotjoinDropLastPlayer(void)
 	mpPlayerSetDefaults(mpindex, true);
 	updatePlayerNames();
 
+	hotjoinInvalidateProfiles();
 	hotjoinSay("%s left from slot %d", name, n + 1);
 
 	return n;
