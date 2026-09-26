@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "game/playermgr.h"
 #include "constants.h"
 #include "game/game_00b820.h"
 #include "game/title.h"
@@ -53,7 +54,7 @@ void chrmgrConfigure(s32 numchrs)
 {
 	s32 i;
 
-	g_NumChrSlots = PLAYERCOUNT() + numchrs + 10;
+	g_NumChrSlots = playermgrBudgetCount() + numchrs + 10; // fojo: MAX_PLAYERS in a team mission
 	g_ChrSlots = mempAlloc(ALIGN16(g_NumChrSlots * sizeof(struct chrdata)), MEMPOOL_STAGE);
 
 	for (i = 0; i < g_NumChrSlots; i++) {

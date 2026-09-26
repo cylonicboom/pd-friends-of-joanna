@@ -56,6 +56,7 @@ static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
 static bool g_ImGuiOverlayShowSaves = false;
+static bool g_ImGuiOverlayShowPlayers = false;
 static struct chrdata *g_ImGuiPropChr = NULL;
 static s32 g_ImGuiPropChrnum = -1;
 static bool g_ImGuiPropApply = true;
@@ -170,7 +171,14 @@ static char g_ImGuiOverlayIniPath[FS_MAXPATH + 1];
 
 extern s32 g_StageNum;
 extern "C" s32 g_MainChangeToStageNum;
-extern "C" s32 playermgrRemoveLastPlayer(void);
+extern "C" bool hotjoinAvailable(void);
+extern "C" s32 hotjoinFreeSlot(void);
+extern "C" s32 hotjoinLastSlot(void);
+extern "C" s32 hotjoinProfileCount(void);
+extern "C" bool hotjoinProfileInfo(s32 index, char *name, u32 namelen, struct fileguid *guid, s32 *boundslot);
+extern "C" s32 hotjoinAddPlayer(const struct fileguid *guid);
+extern "C" s32 hotjoinDropLastPlayer(void);
+extern "C" const char *hotjoinLastMessage(void);
 extern s32 g_ModNum;
 extern u32 g_OsMemSize;
 extern s32 g_StageIndex;
@@ -326,6 +334,10 @@ static bool g_ImGuiLuaResultOk = true;
 // half way through a draw list.
 static bool g_ImGuiSavesFlushPending = false;
 static bool g_ImGuiDropLastPlayerPending = false;
+static bool g_ImGuiAddPlayerPending = false;
+static struct fileguid g_ImGuiAddPlayerGuid;
+static bool g_ImGuiPlayersFocusPicker = false;
+static s32 g_ImGuiPlayersPick = -1;
 static char g_ImGuiSavesResult[512];
 static bool g_ImGuiSavesResultOk = true;
 
@@ -5570,24 +5582,167 @@ static void imguiOverlayDrawSavesPanel(void)
 
 // Runs after the overlay has rendered, for the same reason as the Lua requests:
 // the game frame is finished and the next has not started.
-// Spike: the last player leaves. The stats roll-up and the profile save are
-// NOT done here yet - this proves the teardown alone. Do not land as a product
-// path without them (d-drop-counts-as-death).
-static void imguiOverlayRunDropRequests(void)
+// Hot join. Both requests are deferred to after the overlay renders, like the
+// Lua reload and the saves flush - a player must not appear or vanish half way
+// through a frame that is iterating players.
+static void imguiOverlayRunPlayerRequests(void)
 {
-	if (!g_ImGuiDropLastPlayerPending) {
-		return;
+	if (g_ImGuiDropLastPlayerPending) {
+		g_ImGuiDropLastPlayerPending = false;
+
+		if (hotjoinAvailable() && g_MainChangeToStageNum < 0) {
+			hotjoinDropLastPlayer();
+		} else {
+			sysLogPrintf(LOG_NOTE, "IMGUI: drop player: no team mission running");
+		}
 	}
 
-	g_ImGuiDropLastPlayerPending = false;
+	if (g_ImGuiAddPlayerPending) {
+		g_ImGuiAddPlayerPending = false;
 
-	if (g_StageNum >= STAGE_TITLE || g_MainChangeToStageNum >= 0) {
-		sysLogPrintf(LOG_NOTE, "IMGUI: drop last player: no stage running");
-		return;
+		if (hotjoinAvailable() && g_MainChangeToStageNum < 0) {
+			hotjoinAddPlayer(&g_ImGuiAddPlayerGuid);
+		} else {
+			sysLogPrintf(LOG_NOTE, "IMGUI: add player: no team mission running");
+		}
+	}
+}
+
+// Window > Players. One row per slot; the last live slot can leave, the first
+// free slot can be filled from the profile list. Slot numbers are shown 1-based
+// as the game's menus do; the engine's playernum is one less.
+static void imguiOverlayDrawPlayersPanel(void)
+{
+	const s32 count = PLAYERCOUNT();
+	const s32 freeslot = hotjoinFreeSlot();
+	const s32 lastslot = hotjoinLastSlot();
+	const bool live = hotjoinAvailable();
+
+	if (!live) {
+		ImGui::TextDisabled("Players can join and leave a running Team Mission.");
+		if (g_Vars.stagenum < STAGE_TITLE && !g_MissionConfig.isteam) {
+			ImGui::TextDisabled("This is not a team mission.");
+		}
 	}
 
-	const s32 slot = playermgrRemoveLastPlayer();
-	sysLogPrintf(LOG_NOTE, "IMGUI: drop last player -> %d", slot);
+	if (ImGui::BeginTable("##fojoplayers", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
+		ImGui::TableSetupColumn("slot");
+		ImGui::TableSetupColumn("profile", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("state");
+		ImGui::TableSetupColumn("##act");
+		ImGui::TableHeadersRow();
+
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::Text("%d", i + 1);
+			ImGui::TableNextColumn();
+
+			if (i < count && g_Vars.players[i]) {
+				const struct mpplayerconfig *cfg = &g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex];
+				const bool bound = cfg->fileguid.fileid || cfg->fileguid.deviceserial;
+
+				ImGui::TextUnformatted(cfg->base.name);
+				ImGui::TableNextColumn();
+				if (i == g_Vars.bondplayernum) {
+					ImGui::TextDisabled("operative");
+				} else if (g_Vars.players[i]->isdead) {
+					ImGui::TextColored(ImVec4(0.9f, 0.45f, 0.45f, 1.0f), "dead");
+				} else {
+					ImGui::TextColored(ImVec4(0.5f, 0.86f, 0.6f, 1.0f), bound ? "live" : "live, no file");
+				}
+				ImGui::TableNextColumn();
+				ImGui::PushID(i);
+				ImGui::BeginDisabled(i != lastslot || g_ImGuiDropLastPlayerPending);
+				if (ImGui::Button("Drop")) {
+					g_ImGuiDropLastPlayerPending = true;
+				}
+				ImGui::EndDisabled();
+				if (i != lastslot && i != g_Vars.bondplayernum && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::SetTooltip("Only the last slot can leave for now.");
+				}
+				ImGui::PopID();
+			} else {
+				ImGui::TextDisabled("-");
+				ImGui::TableNextColumn();
+				ImGui::TextDisabled("free");
+				ImGui::TableNextColumn();
+				ImGui::PushID(i);
+				ImGui::BeginDisabled(i != freeslot);
+				if (ImGui::Button("Add...")) {
+					g_ImGuiPlayersFocusPicker = true;
+				}
+				ImGui::EndDisabled();
+				ImGui::PopID();
+			}
+		}
+
+		ImGui::EndTable();
+	}
+
+	if (freeslot >= 0) {
+		ImGui::SeparatorText("Profile for the next seat");
+
+		const s32 nprof = hotjoinProfileCount();
+
+		if (nprof == 0) {
+			ImGui::TextDisabled("No profiles on any pak yet.");
+		}
+
+		if (g_ImGuiPlayersFocusPicker) {
+			ImGui::SetKeyboardFocusHere();
+			g_ImGuiPlayersFocusPicker = false;
+		}
+
+		if (ImGui::BeginListBox("##fojoprofiles", ImVec2(-FLT_MIN, ImGui::GetTextLineHeightWithSpacing() * 6.5f))) {
+			for (s32 i = 0; i < nprof; i++) {
+				char name[32];
+				struct fileguid guid;
+				s32 bound;
+
+				if (!hotjoinProfileInfo(i, name, sizeof(name), &guid, &bound)) {
+					continue;
+				}
+
+				ImGui::PushID(i);
+				ImGui::BeginDisabled(bound >= 0);
+				if (ImGui::Selectable(name[0] ? name : "(unnamed)", g_ImGuiPlayersPick == i)) {
+					g_ImGuiPlayersPick = i;
+				}
+				ImGui::EndDisabled();
+				if (bound >= 0) {
+					ImGui::SameLine();
+					ImGui::TextDisabled("in slot %d", bound + 1);
+				}
+				ImGui::PopID();
+			}
+			ImGui::EndListBox();
+		}
+
+		{
+			char name[32];
+			struct fileguid guid;
+			s32 bound = -1;
+			const bool havepick = g_ImGuiPlayersPick >= 0
+				&& hotjoinProfileInfo(g_ImGuiPlayersPick, name, sizeof(name), &guid, &bound)
+				&& bound < 0;
+
+			ImGui::BeginDisabled(!havepick || g_ImGuiAddPlayerPending);
+			if (ImGui::Button("Load & spawn")) {
+				g_ImGuiAddPlayerGuid = guid;
+				g_ImGuiAddPlayerPending = true;
+				g_ImGuiPlayersPick = -1;
+			}
+			ImGui::EndDisabled();
+			ImGui::SameLine();
+			ImGui::TextDisabled("into slot %d", freeslot + 1);
+		}
+	}
+
+	if (hotjoinLastMessage()[0]) {
+		ImGui::Separator();
+		ImGui::TextDisabled("%s", hotjoinLastMessage());
+	}
 }
 
 static void imguiOverlayRunSaveRequests(void)
@@ -5872,6 +6027,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL },
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
+	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
 };
 
 // The change mask below is one bit per row, so the table has a ceiling of 32.
@@ -6431,11 +6587,15 @@ static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
 static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
 
-// Spike for bar mode: the highest live player leaves the running stage. Parks
-// the prop rather than freeing it (see playermgrRemoveLastPlayer). Deferred to
-// after the overlay renders, like the Lua reload and the saves flush - a
-// player must not vanish half way through a frame that is iterating players.
+// Hot join: a friend walks into or out of a running team mission. Both go
+// through hotjoin.c and run after the overlay renders (imguiOverlayRunPlayerRequests).
 static void imguiOverlayCmdDropLastPlayer(void) { g_ImGuiDropLastPlayerPending = true; }
+static void imguiOverlayCmdAddPlayer(void)
+{
+	g_ImGuiOverlayShowPlayers = true;
+	imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowPlayers);
+	g_ImGuiPlayersFocusPicker = true;
+}
 
 static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Go to floor 1",            imguiOverlayCmdFloor1 },
@@ -6447,7 +6607,8 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },
-	{ "Drop last player (spike)", imguiOverlayCmdDropLastPlayer },
+	{ "Add player",               imguiOverlayCmdAddPlayer },
+	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
 };
 
 static const s32 kFojoCommandCount =
@@ -7195,7 +7356,7 @@ void imguiOverlayRender(void)
 
 	imguiOverlayRunLuaRequests();
 	imguiOverlayRunSaveRequests();
-	imguiOverlayRunDropRequests();
+	imguiOverlayRunPlayerRequests();
 }
 
 bool imguiOverlayCapturesKeyboard(void)

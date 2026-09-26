@@ -150,7 +150,13 @@ void bgunReset(void)
 		i = ALIGN16(bgunCalculateGunMemCapacity());
 	}
 
-	g_Vars.currentplayer->gunctrl.gunmem = mempAlloc(i, MEMPOOL_STAGE);
+	// fojo hot join: a player struct parked and re-seated mid-stage still owns
+	// the gunmem it was given (same base capacity - only a lone player gets
+	// extra). MEMPOOL_STAGE never frees, so allocating again would leak per
+	// join. Fresh structs arrive with gunmem NULL (playermgrAllocatePlayer).
+	if (g_Vars.currentplayer->gunctrl.gunmem == NULL) {
+		g_Vars.currentplayer->gunctrl.gunmem = mempAlloc(i, MEMPOOL_STAGE);
+	}
 	g_Vars.currentplayer->gunctrl.handfilenum = 0;
 	g_Vars.currentplayer->gunctrl.handmemloadptr = 0;
 	g_Vars.currentplayer->gunctrl.handmemloadremaining = 0;

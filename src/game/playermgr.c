@@ -16,7 +16,34 @@
 #include "game/playerreset.h"
 #include "game/chr.h"
 #include "game/prop.h"
+#include "game/menu.h"
+#include "game/activemenu.h"
+#include "game/inv.h"
+#include "game/bondhead.h"
+#include "game/mplayer/mplayer.h"
 #include "system.h"
+
+/**
+ * fojo hot join: player structs for the slots a team mission is NOT using at
+ * load. Allocated from MEMPOOL_STAGE beside the live ones so a mid-stage join
+ * never allocates a player, and re-parked on drop so a re-join reuses the
+ * struct (and its gunmem - see bgunReset).
+ */
+static struct player *g_ParkedPlayers[MAX_PLAYERS];
+
+/**
+ * How many players the stage budgets for: chr slots, display list memory and
+ * the like. A team mission budgets for MAX_PLAYERS so a friend can join a
+ * running one; everything else budgets for the players it has.
+ */
+s32 playermgrBudgetCount(void)
+{
+	if (g_MissionConfig.isteam) {
+		return MAX_PLAYERS;
+	}
+
+	return PLAYERCOUNT();
+}
 
 void playermgrInit(void)
 {
@@ -78,6 +105,10 @@ void playermgrResetTeamPlayers(void)
 
 void playermgrReset(void)
 {
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		g_ParkedPlayers[i] = NULL;
+	}
+
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
 	g_Vars.players[2] = NULL;
@@ -153,6 +184,14 @@ s32 playermgrAllocatePlayers(s32 playercount)
 		}
 
 		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
+
+		// fojo hot join: the unused slots get a struct now, parked, so a join
+		// later never touches MEMPOOL_STAGE
+		for (s32 i = playercount; i < MAX_PLAYERS; i++) {
+			playermgrAllocatePlayer(i);
+			g_ParkedPlayers[i] = g_Vars.players[i];
+			g_Vars.players[i] = NULL;
+		}
 
 		setCurrentPlayerNum(0); // don't think this needed for player loading but probably is there to restart the playerloop
 	} else if (playercount == 0) {
@@ -1114,6 +1153,7 @@ s32 playermgrRemoveLastPlayer(void)
 	g_Vars.playerroles[n] = PLAYERROLE_NONE;
 	g_MpSetup.chrslots &= ~(1 << n);
 	g_Vars.players[n] = NULL;
+	g_ParkedPlayers[n] = player;
 
 	// re-point the coop/anti "current" bookkeeping at a player that exists
 	g_Vars.coopplayernum = -1;
@@ -1137,9 +1177,83 @@ s32 playermgrRemoveLastPlayer(void)
 		}
 	}
 
+	setNumPlayers(PLAYERCOUNT());
 	setCurrentPlayerNum(prev < n ? prev : 0);
 
 	sysLogPrintf(LOG_NOTE, "playermgrRemoveLastPlayer: slot %d parked, %d players remain", n, PLAYERCOUNT());
+
+	return n;
+}
+
+/**
+ * fojo hot join: seat a player in the lowest free slot of a running team
+ * mission. The profile for that slot (g_PlayerConfigsArray[n]) must already be
+ * loaded - hotjoinAddPlayer does that first.
+ *
+ * Runs the same per-player init lvReset runs at stage start (lv.c), under
+ * setCurrentPlayerNum(n), then puts the current player back. The joiner is a
+ * coop player: the same role the Team Missions menu hands out.
+ *
+ * @return the slot seated, or -1.
+ */
+s32 playermgrAddPlayer(void)
+{
+	s32 n = PLAYERCOUNT();
+	s32 prev = g_Vars.currentplayernum;
+
+	if (!g_MissionConfig.isteam || n >= MAX_PLAYERS || n < 1) {
+		return -1;
+	}
+
+	if (g_ParkedPlayers[n] == NULL) {
+		sysLogPrintf(LOG_NOTE, "playermgrAddPlayer: no parked struct for slot %d", n);
+		return -1;
+	}
+
+	g_Vars.players[n] = g_ParkedPlayers[n];
+	g_ParkedPlayers[n] = NULL;
+
+	g_Vars.playerroles[n] = PLAYERROLE_COOP;
+	g_Vars.coopplayers[n] = g_Vars.players[n];
+
+	if (g_Vars.coop == NULL) {
+		g_Vars.coop = g_Vars.players[n];
+	}
+
+	// what mpReset does per chrslots bit at stage start (mplayer.c)
+	g_MpSetup.chrslots |= 1 << n;
+	g_Vars.playerstats[n].mpindex = n;
+	g_PlayerConfigsArray[n].contpad1 = n;
+	g_PlayerConfigsArray[n].contpad2 = 0;
+	mpCalculatePlayerTitle(&g_PlayerConfigsArray[n]);
+	g_PlayerConfigsArray[n].newtitle = g_PlayerConfigsArray[n].title;
+
+	// player entries in g_MpAllChrPtrs are indexed by playernum (player.c,
+	// playerTickChrBody). No simulants exist in a team mission today, so the
+	// entry after the last player is free; the day Friend-slot simulants land
+	// this needs MAX_PLAYERS reserved at mpReset instead.
+	if (g_MpNumChrs < n + 1) {
+		g_MpNumChrs = n + 1;
+	}
+
+	setNumPlayers(n + 1);
+	setCurrentPlayerNum(n);
+
+	g_Vars.currentplayer->usedowntime = 0;
+	g_Vars.currentplayer->invdowntime = 0;
+
+	menuReset();
+	amReset();
+	invReset();
+	bgunReset();
+	playerLoadDefaults();
+	playerReset();
+	playerSpawn();
+	bheadReset();
+
+	setCurrentPlayerNum(prev);
+
+	sysLogPrintf(LOG_NOTE, "playermgrAddPlayer: slot %d seated, %d players", n, PLAYERCOUNT());
 
 	return n;
 }
