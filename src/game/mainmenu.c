@@ -1531,7 +1531,11 @@ MenuItemHandlerResult menuhandlerTeamOptionsContinue(s32 operation,
   }
 
   if (operation == MENUOP_CHECKDISABLED) {
-    return getNumTeamPlayerRoleAssignments() <= 1;
+    // fojo: a team mission seats one. The operative slot is always assigned
+    // (playermgrResetTeamPlayers), so a solo start is a valid team mission -
+    // a friend can join a running one later. Vanilla refused with <= 1 here
+    // and in menuhandlerTeamStartMission.
+    return false;
   }
 
   return 0;
@@ -2923,13 +2927,9 @@ MenuItemHandlerResult menuhandlerTeamStartMission(s32 operation,
   }
 
   if (operation == MENUOP_CHECKDISABLED) {
-    for (int i = 0; i < MAX_PLAYERS; i++) {
-      if (i == g_Vars.bondplayernum)
-        continue;
-      if (g_Vars.playerroles[i])
-        return false;
-    }
-    return true;
+    // fojo: startable with the operative alone - see
+    // menuhandlerTeamOptionsContinue.
+    return false;
   }
   return 0;
 }
