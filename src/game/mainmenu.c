@@ -37,6 +37,7 @@
 #include "lib/str.h"
 #include "lib/vi.h"
 #include "mod.h"
+#include "game/missionrow.h"
 #ifndef PLATFORM_N64
 #include "soloprogress.h"
 #endif
@@ -145,7 +146,7 @@ extern const uintptr_t g_PlayerRoleNames[] = {
 
 char *menuTextCurrentStageName(struct menuitem *item) {
   sprintf(g_StringPointer, "%s\n",
-          langGet(g_SoloStages[g_MissionConfig.stageindex].name3));
+          missionName3(g_MissionConfig.stageindex));
   return g_StringPointer;
 }
 
@@ -952,7 +953,7 @@ char *soloMenuTitleStageOverview(struct menudialogdef *dialogdef) {
   }
 
   sprintf(g_StringPointer, "%s: %s\n",
-          langGet(g_SoloStages[g_MissionConfig.stageindex].name3),
+          missionName3(g_MissionConfig.stageindex),
           langGet(L_OPTIONS_273));
 
   return g_StringPointer;
@@ -1224,6 +1225,12 @@ bool isStageDifficultyUnlocked(s32 stageindex, s32 difficulty) {
   s32 s;
   s32 d;
 
+  // A mod mission (solo-sidecar-plan.md): every difficulty is open, for as
+  // long as the sidecar has the row. Nothing in a modconfig gates one yet.
+  if (missionIsModRow(stageindex)) {
+    return missionStagenum(stageindex) >= 0 && difficulty <= DIFF_PA;
+  }
+
   // Handle special missions
   if (stageindex > SOLOSTAGEINDEX_SKEDARRUINS) {
 #if VERSION >= VERSION_NTSC_1_0
@@ -1415,7 +1422,7 @@ MenuItemHandlerResult menuhandlerPdMode(s32 operation, struct menuitem *item,
 }
 
 char *soloMenuTextBestTime(struct menuitem *item) {
-  u16 time = g_GameFile.besttimes[g_MissionConfig.stageindex][item->param];
+  u16 time = missionBestTime(g_MissionConfig.stageindex, item->param);
   s32 hours = time / 3600;
 
   if (time == 0) {
@@ -3661,19 +3668,17 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
     sp178.list.value -= missionListNumExtra();
 
     if (data->list.value >= sp178.list.value + missionListNumSpecial()) {
-      // A mod mission. Listed, not startable yet: starting one routes the
-      // endscreen's stageindex writes to the sidecar, which is the next step
-      // of solo-sidecar-plan.md. Until then this row does nothing.
-      return 0;
-    }
-
-    if (data->list.value >= sp178.list.value) {
+      // A mod mission: its index is SOLOSTAGEINDEX_MOD_BASE + n, which no
+      // save array can hold and every stageindex reader answers from the
+      // sidecar (game/missionrow.h).
+      sp188 = SOLOSTAGEINDEX_MOD_BASE + (data->list.value - sp178.list.value - missionListNumSpecial());
+    } else if (data->list.value >= sp178.list.value) {
       sp188 = func0f104720(data->list.value - sp178.list.value);
     }
 
     g_Vars.mplayerisrunning = false;
     g_Vars.normmplayerisrunning = false;
-    g_MissionConfig.stagenum = g_SoloStages[sp188].stagenum;
+    g_MissionConfig.stagenum = missionStagenum(sp188);
     g_MissionConfig.stageindex = sp188;
     teamMissionConfigStrUpdateMarquee();
 
@@ -6441,7 +6446,7 @@ char *soloMenuTitlePauseStatus(struct menudialogdef *dialogdef) {
   }
 
   sprintf(g_StringPointer, "%s: %s\n",
-          langGet(g_SoloStages[g_MissionConfig.stageindex].name3),
+          missionName3(g_MissionConfig.stageindex),
           langGet(L_OPTIONS_172));
 
   return g_StringPointer;

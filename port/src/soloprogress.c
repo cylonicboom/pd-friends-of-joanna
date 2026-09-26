@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "types.h"
 #include "constants.h"
@@ -231,6 +232,17 @@ void soloProgressProbeFromArgs(void)
 	g_GameFileGuid.deviceserial = serial;
 	g_GameFileGuid.fileid = fileid;
 	soloProgressBind();
+
+	// --solo-probe-complete SECS: record SECS as the Agent best time on the
+	// first bound mission, the way the endscreen would, so the setter -> ini
+	// path is exercised without a play-through.
+	const char *complete = sysArgGetString("--solo-probe-complete");
+	if (complete && complete[0] && g_NumSoloProgress > 0) {
+		s32 secs = (s32)strtol(complete, NULL, 0);
+		bool ok = soloProgressSetBestTime(g_SoloProgress[0].stagenum, 0, secs);
+		sysLogPrintf(LOG_NOTE, "solo-probe: recorded %d s on stage 0x%02x agent -> %s", secs,
+				g_SoloProgress[0].stagenum, ok ? "ok" : "REFUSED");
+	}
 
 	for (s32 i = 0; i < g_NumSoloProgress; ++i) {
 		const struct soloprogress *sp = &g_SoloProgress[i];
