@@ -169,6 +169,8 @@ static ImGuiTextFilter g_ImGuiOverlayModelFilter;
 static char g_ImGuiOverlayIniPath[FS_MAXPATH + 1];
 
 extern s32 g_StageNum;
+extern "C" s32 g_MainChangeToStageNum;
+extern "C" s32 playermgrRemoveLastPlayer(void);
 extern s32 g_ModNum;
 extern u32 g_OsMemSize;
 extern s32 g_StageIndex;
@@ -323,6 +325,7 @@ static bool g_ImGuiLuaResultOk = true;
 // rendered, between two game frames - a pak write has no business running
 // half way through a draw list.
 static bool g_ImGuiSavesFlushPending = false;
+static bool g_ImGuiDropLastPlayerPending = false;
 static char g_ImGuiSavesResult[512];
 static bool g_ImGuiSavesResultOk = true;
 
@@ -5567,6 +5570,26 @@ static void imguiOverlayDrawSavesPanel(void)
 
 // Runs after the overlay has rendered, for the same reason as the Lua requests:
 // the game frame is finished and the next has not started.
+// Spike: the last player leaves. The stats roll-up and the profile save are
+// NOT done here yet - this proves the teardown alone. Do not land as a product
+// path without them (d-drop-counts-as-death).
+static void imguiOverlayRunDropRequests(void)
+{
+	if (!g_ImGuiDropLastPlayerPending) {
+		return;
+	}
+
+	g_ImGuiDropLastPlayerPending = false;
+
+	if (g_StageNum >= STAGE_TITLE || g_MainChangeToStageNum >= 0) {
+		sysLogPrintf(LOG_NOTE, "IMGUI: drop last player: no stage running");
+		return;
+	}
+
+	const s32 slot = playermgrRemoveLastPlayer();
+	sysLogPrintf(LOG_NOTE, "IMGUI: drop last player -> %d", slot);
+}
+
 static void imguiOverlayRunSaveRequests(void)
 {
 	s32 saved = 0;
@@ -6408,6 +6431,12 @@ static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
 static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
 
+// Spike for bar mode: the highest live player leaves the running stage. Parks
+// the prop rather than freeing it (see playermgrRemoveLastPlayer). Deferred to
+// after the overlay renders, like the Lua reload and the saves flush - a
+// player must not vanish half way through a frame that is iterating players.
+static void imguiOverlayCmdDropLastPlayer(void) { g_ImGuiDropLastPlayerPending = true; }
+
 static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Go to floor 1",            imguiOverlayCmdFloor1 },
 	{ "Go to floor 2",            imguiOverlayCmdFloor2 },
@@ -6418,6 +6447,7 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },
+	{ "Drop last player (spike)", imguiOverlayCmdDropLastPlayer },
 };
 
 static const s32 kFojoCommandCount =
@@ -7165,6 +7195,7 @@ void imguiOverlayRender(void)
 
 	imguiOverlayRunLuaRequests();
 	imguiOverlayRunSaveRequests();
+	imguiOverlayRunDropRequests();
 }
 
 bool imguiOverlayCapturesKeyboard(void)

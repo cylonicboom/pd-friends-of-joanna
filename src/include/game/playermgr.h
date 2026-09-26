@@ -25,5 +25,6 @@ s32 playermgrGetPlayerAtOrder(s32 ordernum);
 void playermgrResetTeamPlayers(void);
 void playermgrDisableTeamPlayers(bool clearroles);
 s32 playermgrAllocatePlayers(s32 playercount);
+s32 playermgrRemoveLastPlayer(void);
 
 #endif

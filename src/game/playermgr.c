@@ -14,6 +14,9 @@
 #include "data.h"
 #include "types.h"
 #include "game/playerreset.h"
+#include "game/chr.h"
+#include "game/prop.h"
+#include "system.h"
 
 void playermgrInit(void)
 {
@@ -1029,4 +1032,114 @@ s32 playermgrGetPlayerAtOrder(s32 ordernum)
 	}
 
 	return 0;
+}
+
+/**
+ * fojo: take the highest live player slot out of a running stage.
+ *
+ * Spike for bar mode ("the spike where the last player leaves the level").
+ * Only the highest slot can go, because PLAYERCOUNT() counts non-NULL slots
+ * and 72 loops in the tree index g_Vars.players[0..PLAYERCOUNT()-1] directly:
+ * a hole would be walked into. Relocating a player into the hole is the
+ * follow-up, not this.
+ *
+ * The prop is PARKED, not freed. g_MpAllChrPtrs[] indexes the chr for the
+ * whole match (mpstats killcounts, aibot attackingplayernum/followingplayernum
+ * are indexes into it), so the chr slot has to keep its chrnum and its prop
+ * pointer has to stay valid. What goes is everything that lets the engine
+ * reach the prop by iteration: the model and fireslots (chrRemove without
+ * free, the same call playerTickChrBody makes when a player takes over a host
+ * body), the room registration, the active list, the onscreen list. Other
+ * chrs' target references are cleared explicitly, since chrRemove only does
+ * that when freeing. The chr is left dead-and-hidden, which is the state a
+ * dead coop partner sits in indefinitely.
+ *
+ * Nothing here saves the profile or rolls up stats; the caller does that
+ * first (teamCalculateAwards under this slot, then mpplayerfileSave).
+ *
+ * @return the slot removed, or -1 if there was nothing removable.
+ */
+s32 playermgrRemoveLastPlayer(void)
+{
+	s32 n = PLAYERCOUNT() - 1;
+	s32 prev = g_Vars.currentplayernum;
+	struct player *player;
+	struct prop *prop;
+	s32 i;
+
+	if (n < 1 || n == g_Vars.bondplayernum) {
+		return -1;
+	}
+
+	player = g_Vars.players[n];
+	prop = player->prop;
+
+	setCurrentPlayerNum(n);
+
+	if (prop) {
+		if (prop->chr) {
+			struct chrdata *chr = prop->chr;
+
+			// the body model only exists when one was built (third person,
+			// or another player's view of us); playerRemoveChrBody guards the
+			// same way. chrRemove without free keeps the chr slot and chrnum.
+			if (chr->model) {
+				chrRemove(prop, false);
+				player->haschrbody = false;
+				player->model00d4 = NULL;
+			}
+
+			chrClearReferences(prop - g_Vars.props);
+			chr->chrflags |= CHRCFLAG_HIDDEN;
+		}
+
+		propDeregisterRooms(prop);
+		propDelist(prop);
+		propDisable(prop);
+	}
+
+	player->isdead = true;
+
+	g_Vars.coopplayers[n] = NULL;
+	g_Vars.antiplayers[n] = NULL;
+
+	if (g_Vars.coop == player) {
+		g_Vars.coop = NULL;
+	}
+
+	if (g_Vars.anti == player) {
+		g_Vars.anti = NULL;
+	}
+
+	g_Vars.playerroles[n] = PLAYERROLE_NONE;
+	g_MpSetup.chrslots &= ~(1 << n);
+	g_Vars.players[n] = NULL;
+
+	// re-point the coop/anti "current" bookkeeping at a player that exists
+	g_Vars.coopplayernum = -1;
+	g_Vars.antiplayernum = -1;
+	g_Vars.currentcoopplayernum = -1;
+	g_Vars.currentantiplayernum = -1;
+
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.coopplayers[i]) {
+			g_Vars.coop = g_Vars.coopplayers[i];
+			g_Vars.currentcoopplayernum = i;
+			break;
+		}
+	}
+
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.antiplayers[i]) {
+			g_Vars.anti = g_Vars.antiplayers[i];
+			g_Vars.currentantiplayernum = i;
+			break;
+		}
+	}
+
+	setCurrentPlayerNum(prev < n ? prev : 0);
+
+	sysLogPrintf(LOG_NOTE, "playermgrRemoveLastPlayer: slot %d parked, %d players remain", n, PLAYERCOUNT());
+
+	return n;
 }
