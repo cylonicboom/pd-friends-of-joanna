@@ -7236,6 +7236,17 @@ void imguiOverlayRender(void)
 	}
 
 	if (g_ImGuiOverlayVisible) {
+		// The game re-locks the mouse behind the overlay: inputAutoLockMouse(true)
+		// runs whenever a game menu closes (menu.c, menustop.c) and hot join's
+		// per-slot menu reset reaches it too. A locked mouse is relative-only,
+		// so ImGui stops seeing the cursor and the panel "will not latch".
+		// Undo it every frame we are up, and remember to put it back on hide.
+		if (inputMouseIsLocked()) {
+			g_ImGuiOverlayRestoreMouseLock = true;
+			inputLockMouse(0);
+			inputMouseShowCursor(1);
+		}
+
 		const u32 previousWindowState = imguiOverlayGetWindowState();
 		const u32 previousGeometry = imguiOverlayGeometryFingerprint();
 		g_ImGuiOverlayExpandLatch = false;

@@ -415,7 +415,11 @@ void playerReset(void)
 	propEnable(g_Vars.currentplayer->prop);
 	chrInit(g_Vars.currentplayer->prop, NULL);
 
-	if (g_Vars.coopplayernum >= 0) {
+	// fojo: a team mission started by the operative alone has coopplayernum
+	// -1 here, so vanilla fell through to the MP branch and gave her the CS
+	// team bit - and a friend who joined later (TEAM_ALLY) was an enemy to her
+	// auto-aim. Every human in a team mission is an ally.
+	if (g_Vars.coopplayernum >= 0 || g_MissionConfig.isteam) {
 		g_Vars.currentplayer->prop->chr->team = TEAM_ALLY;
 	} else if (g_Vars.antiplayernum >= 0) {
 		if (g_Vars.currentplayer == g_Vars.bond) {

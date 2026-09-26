@@ -577,6 +577,44 @@ void amReset(void)
 	g_AmIndex = 0;
 }
 
+/**
+ * fojo hot join: the active menu font is picked per player count at amReset;
+ * a join or a leave changes the count mid-stage.
+ */
+void amUpdateFontForPlayerCount(void)
+{
+#if VERSION == VERSION_JPN_FINAL
+	g_AmFont1 = g_CharsHandelGothicSm;
+	g_AmFont2 = g_FontHandelGothicSm;
+#else
+	if (PLAYERCOUNT() >= 2) {
+		g_AmFont1 = g_CharsHandelGothicXs;
+		g_AmFont2 = g_FontHandelGothicXs;
+	} else {
+		g_AmFont1 = g_CharsHandelGothicSm;
+		g_AmFont2 = g_FontHandelGothicSm;
+	}
+#endif
+}
+
+/**
+ * fojo hot join: the per-slot part of amReset for a player seated into a
+ * running mission, plus the font size, which follows the player count.
+ * amReset() itself wipes every slot's favourites and g_AmIndex.
+ */
+void amResetSlot(s32 i)
+{
+	s32 j;
+
+	g_AmMenus[i].togglefunc = false;
+
+	for (j = 0; j < ARRAYCOUNT(g_AmMenus[i].favourites); j++) {
+		g_AmMenus[i].favourites[j] = 0xff;
+	}
+
+	amUpdateFontForPlayerCount();
+}
+
 s16 amCalculateSlotWidth(void)
 {
 	s32 textheight;

@@ -19,6 +19,8 @@ void amApply(s32 slot);
 
 void amGetSlotDetails(s32 slot, u32 *flags, char *label, s32 len);
 void amReset(void);
+void amResetSlot(s32 i);
+void amUpdateFontForPlayerCount(void);
 s16 amCalculateSlotWidth(void);
 void amChangeScreen(s32 step);
 void amAssignWeaponSlots(void);
