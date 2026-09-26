@@ -8658,7 +8658,8 @@ bool aiSetTargetToEyespyIfInSight(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	s16 prevtarget = g_Vars.chrdata->target;
-	struct eyespy *eyespy = g_Vars.players[g_Vars.chrdata->p1p2]->eyespy;
+	struct player *p1p2player = g_Vars.players[g_Vars.chrdata->p1p2];
+	struct eyespy *eyespy = (p1p2player ? p1p2player : g_Vars.bond)->eyespy; // fojo: slot may have left
 
 	if (eyespy) {
 		struct chrdata *chr = eyespy->prop->chr;

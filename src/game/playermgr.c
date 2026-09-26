@@ -1140,6 +1140,12 @@ s32 playermgrRemoveLastPlayer(void)
 
 	player->isdead = true;
 
+	// every chr watching this slot (p1p2) looks at the operative now. The
+	// engine only does this on a coop DEATH (chrsClearRefsToPlayer); a slot
+	// that leaves without dying kept its watchers, and chrGetTargetProp
+	// dereferenced g_Vars.players[p1p2] on the next tick.
+	chrsRetargetPlayer(n, g_Vars.bondplayernum, prop ? (s32)(prop - g_Vars.props) : -1);
+
 	g_Vars.coopplayers[n] = NULL;
 	g_Vars.antiplayers[n] = NULL;
 

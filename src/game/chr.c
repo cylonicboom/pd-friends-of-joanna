@@ -5349,7 +5349,11 @@ struct prop *chrGetTargetProp(struct chrdata *chr)
 	struct prop *ret;
 
 	if (chr->target == -1) {
-		ret = g_Vars.players[chr->p1p2]->prop;
+		// fojo: p1p2 can name a slot that has since left the stage (hot
+		// join); the leaver's chrs are retargeted on the way out, but a slot
+		// that is NULL here is never worth a crash - fall back to the operative
+		struct player *player = g_Vars.players[chr->p1p2];
+		ret = (player ? player : g_Vars.bond)->prop;
 	} else {
 		ret = g_Vars.props + chr->target;
 	}
