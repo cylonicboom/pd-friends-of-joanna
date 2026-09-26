@@ -4141,6 +4141,31 @@ void menuResetModel(struct menumodel *menumodel, u32 allocationlen, bool allocat
 	menumodel->bodynum = -1;
 }
 
+/**
+ * fojo hot join: reset ONE player's menu slot. menuReset() is global - it
+ * clears every player's dialog stack and the shared root, and allocates a
+ * blur buffer from MEMPOOL_STAGE - which is right at stage start when it runs
+ * once per player on empty state, and wrong for a player seated into a
+ * running mission, where it closed everyone else's pause menu.
+ */
+void menuResetSlot(s32 i)
+{
+	g_Menus[i].menumodel.allocstart = NULL;
+	g_Menus[i].menumodel.ownsalloc = false;
+	g_Menus[i].curdialog = NULL;
+	g_Menus[i].depth = 0;
+	g_Menus[i].numdialogs = 0;
+	g_Menus[i].unk820 = 0;
+	g_Menus[i].rowend = 0;
+	g_Menus[i].blockend = 0;
+	g_Menus[i].colend = 0;
+	g_Menus[i].bannernum = -1;
+	g_Menus[i].fm.unke41 = 0;
+	g_Menus[i].fm.unke64 = 0;
+	g_Menus[i].fm.headtextures = NULL;
+	g_Menus[i].playernum = i;
+}
+
 void menuReset(void)
 {
 	sysLogPrintf(LOG_NOTE, "menuReset called");

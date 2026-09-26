@@ -18,6 +18,7 @@
 #include "game/prop.h"
 #include "game/menu.h"
 #include "game/activemenu.h"
+#include "game/chraction.h"
 #include "game/inv.h"
 #include "game/bondhead.h"
 #include "game/mplayer/mplayer.h"
@@ -1178,6 +1179,7 @@ s32 playermgrRemoveLastPlayer(void)
 	}
 
 	setNumPlayers(PLAYERCOUNT());
+	amUpdateFontForPlayerCount();
 	setCurrentPlayerNum(prev < n ? prev : 0);
 
 	sysLogPrintf(LOG_NOTE, "playermgrRemoveLastPlayer: slot %d parked, %d players remain", n, PLAYERCOUNT());
@@ -1242,14 +1244,22 @@ s32 playermgrAddPlayer(void)
 	g_Vars.currentplayer->usedowntime = 0;
 	g_Vars.currentplayer->invdowntime = 0;
 
-	menuReset();
-	amReset();
+	// lvReset's per-player sequence, with the two GLOBAL resets swapped for
+	// their per-slot halves: menuReset() would close every player's pause
+	// menu and amReset() every player's favourites.
+	menuResetSlot(n);
+	g_Vars.currentplayer->activemenumode = AMMODE_CLOSED;
+	amResetSlot(n);
 	invReset();
 	bgunReset();
 	playerLoadDefaults();
 	playerReset();
 	playerSpawn();
 	bheadReset();
+
+	// the team lists chrs consult were built without this chr
+	rebuildTeams();
+	rebuildSquadrons();
 
 	setCurrentPlayerNum(prev);
 
