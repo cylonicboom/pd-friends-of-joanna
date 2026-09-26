@@ -22,6 +22,13 @@
 void soloProgressBind(void);
 void soloProgressUnbind(void);
 
+// The bound missions in list order, for the mission list's third segment.
+s32 soloProgressCount(void);
+s32 soloProgressStagenumAt(s32 index);
+// Display name: the block's arenaname, else the level's own name, else the
+// row constant. Never NULL.
+const char *soloProgressNameAt(s32 index);
+
 // -1 when the stage is not a mod mission bound this session.
 s32 soloProgressBestTime(s32 stagenum, s32 difficulty);
 bool soloProgressSetBestTime(s32 stagenum, s32 difficulty, s32 secs);

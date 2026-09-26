@@ -37,6 +37,9 @@
 #include "lib/str.h"
 #include "lib/vi.h"
 #include "mod.h"
+#ifndef PLATFORM_N64
+#include "soloprogress.h"
+#endif
 #include "system.h"
 #include "types.h"
 #include <stdlib.h>
@@ -3491,6 +3494,76 @@ s32 func0f104720(s32 value) {
   return 20;
 }
 
+/*
+ * The mission list's third segment.
+ *
+ * The list is the campaign rows the player has reached, then the unlocked
+ * special assignments (func0f104720 maps a position to its g_SoloStages
+ * index), and now the mod missions the sidecar bound for this reality
+ * (soloProgressBind). A mod mission has no g_SoloStages row and no place in
+ * the save, so every read the renderer makes goes through these, keyed by
+ * (stageindex, modidx): modidx < 0 is a vanilla row and reads the save as
+ * ever; modidx >= 0 is the modidx-th sidecar entry and reads pd.ini.
+ *
+ * Every place the handler derived "regular rows = total - specials" now
+ * subtracts the mod rows too (missionListNumExtra); the one loop that walks
+ * the specials by index keeps the special count alone.
+ */
+#ifndef PLATFORM_N64
+static s32 missionListNumMod(void) { return soloProgressCount(); }
+#else
+static s32 missionListNumMod(void) { return 0; }
+#endif
+
+static s32 missionListNumSpecial(void) {
+  return getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
+                                     g_MissionConfig.iscoop ||
+                                     g_MissionConfig.isanti);
+}
+
+static s32 missionListNumExtra(void) {
+  return missionListNumSpecial() + missionListNumMod();
+}
+
+static s32 missionListBestTime(s32 stageindex, s32 modidx, s32 difficulty) {
+#ifndef PLATFORM_N64
+  if (modidx >= 0) {
+    s32 t = soloProgressBestTime(soloProgressStagenumAt(modidx), difficulty);
+    return t < 0 ? 0 : t;
+  }
+#endif
+  return g_GameFile.besttimes[stageindex][difficulty];
+}
+
+static bool missionListCoopDone(s32 stageindex, s32 modidx, s32 difficulty) {
+#ifndef PLATFORM_N64
+  if (modidx >= 0) {
+    return soloProgressCoopDone(soloProgressStagenumAt(modidx), difficulty);
+  }
+#endif
+  return (g_GameFile.coopcompletions[difficulty] & (1 << stageindex)) != 0;
+}
+
+static const char *missionListName1(s32 stageindex, s32 modidx) {
+#ifndef PLATFORM_N64
+  if (modidx >= 0) {
+    return soloProgressNameAt(modidx);
+  }
+#endif
+  return langGet(g_SoloStages[stageindex].name1);
+}
+
+static const char *missionListName2(s32 stageindex, s32 modidx) {
+  if (modidx >= 0) {
+    return "";
+  }
+  return langGet(g_SoloStages[stageindex].name2);
+}
+
+// The group header over the third segment. A plain string, not a lang id:
+// no text bank has one, and the menu returns whatever pointer it is given.
+static const char *missionListModGroupName(void) { return "Mod Missions"; }
+
 MenuItemHandlerResult menuhandlerMissionList(s32 operation,
                                              struct menuitem *item,
                                              union handlerdata *data) {
@@ -3556,9 +3629,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
       }
     }
 
-    data->list.value += getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                                    g_MissionConfig.iscoop ||
-                                                    g_MissionConfig.isanti);
+    data->list.value += missionListNumExtra();
     break;
   case MENUOP_GETOPTIONTEXT:
     if (data->list.unk04u32 == 0) {
@@ -3575,6 +3646,11 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
       return (uintptr_t)langGet(g_SoloStages[data->list.value].name1);
     }
 
+    if (data->list.value >= data->list.unk04u32 + missionListNumSpecial()) {
+      // A mod mission, from the sidecar
+      return (uintptr_t)missionListName1(0, data->list.value - data->list.unk04u32 - missionListNumSpecial());
+    }
+
     // Special stages have no dash and suffix, so just return the name
     return (uintptr_t)langGet(
         g_SoloStages[func0f104720(data->list.value - data->list.unk04u32)]
@@ -3582,9 +3658,14 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
   case MENUOP_SET:
     sp188 = data->list.value;
     menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp178);
-    sp178.list.value -= getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                                    g_MissionConfig.iscoop ||
-                                                    g_MissionConfig.isanti);
+    sp178.list.value -= missionListNumExtra();
+
+    if (data->list.value >= sp178.list.value + missionListNumSpecial()) {
+      // A mod mission. Listed, not startable yet: starting one routes the
+      // endscreen's stageindex writes to the sidecar, which is the next step
+      // of solo-sidecar-plan.md. Until then this row does nothing.
+      return 0;
+    }
 
     if (data->list.value >= sp178.list.value) {
       sp188 = func0f104720(data->list.value - sp178.list.value);
@@ -3617,14 +3698,10 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
       data->list.value = g_GameFile.autostageindex;
 
       menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp168);
-      sp168.list.value -= getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                                      g_MissionConfig.iscoop ||
-                                                      g_MissionConfig.isanti);
+      sp168.list.value -= missionListNumExtra();
 
       if (data->list.value >= sp168.list.value) {
-        sp164 = getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                            g_MissionConfig.iscoop ||
-                                            g_MissionConfig.isanti);
+        sp164 = missionListNumSpecial();
 
         data->list.value = sp168.list.value - 1;
 
@@ -3638,9 +3715,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
     break;
   case MENUOP_GETOPTGROUPCOUNT:
     menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp150);
-    sp150.list.value -= getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                                    g_MissionConfig.iscoop ||
-                                                    g_MissionConfig.isanti);
+    sp150.list.value -= missionListNumExtra();
 
     data->list.unk0c = 0;
 
@@ -3650,21 +3725,25 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
       }
     }
 
-    data->list.value = data->list.unk0c + 1;
+    data->list.value = data->list.unk0c + 1 + (missionListNumMod() > 0 ? 1 : 0);
     break;
   case MENUOP_GETOPTGROUPTEXT:
+    if (data->list.unk0c + 1 == data->list.value) {
+      return (uintptr_t)missionListModGroupName();
+    }
     if (data->list.unk0c == data->list.value) {
       return (uintptr_t)langGet(groups[9].langid); // "Special Assignments"
     }
     return (uintptr_t)langGet(groups[data->list.value].langid);
   case MENUOP_GETGROUPSTARTINDEX:
-    if (data->list.unk0c == data->list.value) {
+    if (data->list.unk0c + 1 == data->list.value) {
+      menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp13c);
+      data->list.groupstartindex = sp13c.list.value - missionListNumMod();
+    } else if (data->list.unk0c == data->list.value) {
       menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &sp13c);
       data->list.groupstartindex =
           sp13c.list.value -
-          getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                      g_MissionConfig.iscoop ||
-                                      g_MissionConfig.isanti);
+          missionListNumExtra();
     } else {
       data->list.groupstartindex = groups[data->list.value].offset;
     }
@@ -3678,18 +3757,25 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
     if (data->type19.unk0c == 0) {
       menuhandlerMissionList(MENUOP_GETOPTIONCOUNT, item, &spdc);
       data->type19.unk0c = spdc.list.value -
-                           getNumUnlockedSpecialStages(g_MissionConfig.isteam ||
-                                                       g_MissionConfig.iscoop ||
-                                                       g_MissionConfig.isanti);
+                           missionListNumExtra();
     }
 
-    if (data->type19.unk04u32 >= data->type19.unk0c) {
+    s32 modidx = -1;
+
+    if (data->type19.unk04u32 >= data->type19.unk0c + missionListNumSpecial()) {
+      // A mod mission: its progress is in the sidecar, and stageindex must
+      // not reach the save arrays below.
+      modidx = data->type19.unk04u32 - data->type19.unk0c - missionListNumSpecial();
+      stageindex = 0;
+    } else if (data->type19.unk04u32 >= data->type19.unk0c) {
       stageindex = func0f104720(data->type19.unk04u32 - data->type19.unk0c);
     }
 
-    // Draw the thumbnail
+    // Draw the thumbnail. A mod mission has no slot in g_TexGeneralConfigs
+    // (13..33 are the 21 campaign thumbnails; 34 and 36 are the pips), so
+    // it draws none.
     u32 nummenus = menuGetNumDialogs();
-    if (nummenus < 2) {
+    if (nummenus < 2 && modidx < 0) {
       gDPPipeSync(gdl++);
       gDPSetTexturePersp(gdl++, G_TP_NONE);
       gDPSetAlphaCompare(gdl++, G_AC_NONE);
@@ -3729,7 +3815,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
         for (k = 0; k < 3; k++) {
           s32 relx = 63 + k * 17;
 
-          if ((g_GameFile.coopcompletions[k] & (1 << stageindex)) == 0) {
+          if (!missionListCoopDone(stageindex, modidx, k)) {
 #if VERSION >= VERSION_NTSC_1_0
             gDPSetEnvColorViaWord(
                 gdl++, 0xffffff00 | ((renderdata->colour & 0xff) * 63 / 256));
@@ -3770,7 +3856,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
 #endif
 
         for (k = 0; k < 3; k++) {
-          if (g_GameFile.besttimes[stageindex][k] != 0) {
+          if (missionListBestTime(stageindex, modidx, k) != 0) {
             incompleteindex = k + 1;
           }
         }
@@ -3813,7 +3899,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
     gdl = text0f153628(gdl);
 
     // Draw first part of name
-    strcpy(text, langGet(g_SoloStages[stageindex].name1));
+    strcpy(text, missionListName1(stageindex, modidx));
     strcat(text, "\n");
 
     struct font *font = g_FontHandelGothicMd;
@@ -3832,7 +3918,7 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
                             viGetWidth(), viGetHeight(), 0, 0);
 
     // Draw last part of name
-    strcpy(text, langGet(g_SoloStages[stageindex].name2));
+    strcpy(text, missionListName2(stageindex, modidx));
 
     gdl = textRenderProjected(gdl, &x, &y, text, charssm, fontsm,
                               renderdata->colour, viGetWidth(), viGetHeight(),
