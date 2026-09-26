@@ -1,14 +1,17 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "types.h"
 #include "constants.h"
 #include "bss.h"
+#include "data.h"
 #include "config.h"
 #include "mod.h"
 #include "savequeue.h"
 #include "system.h"
 #include "soloprogress.h"
+#include "game/stagetable.h"
 
 struct soloprogress {
 	s16 stagenum;
@@ -50,6 +53,17 @@ static void soloRegister(const char *key, s32 *var, s32 max)
 static void soloDetach(const char *key, s32 *var, s32 max)
 {
 	configUnbindKey(key);
+}
+
+static bool soloIsCampaignRow(s32 stagenum)
+{
+	for (s32 i = 0; i < NUM_SOLOSTAGES; ++i) {
+		if (g_SoloStages[i].stagenum == stagenum) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 static struct soloprogress *soloFind(s32 stagenum)
@@ -96,6 +110,13 @@ void soloProgressBind(void)
 			continue;
 		}
 
+		// A block that replaces a campaign row is already in the list and
+		// keeps its progress in the save; listing it again here would split
+		// its times between the two. Only rows the campaign does not have.
+		if (soloIsCampaignRow(e->stagenum)) {
+			continue;
+		}
+
 		struct soloprogress *sp = &g_SoloProgress[g_NumSoloProgress++];
 		sp->stagenum = e->stagenum;
 		sp->modnum = e->modnum;
@@ -110,6 +131,39 @@ void soloProgressBind(void)
 
 	sysLogPrintf(LOG_NOTE, "solo: %d mod mission(s) bound for reality %x-%x",
 			g_NumSoloProgress, g_GameFileGuid.deviceserial, g_GameFileGuid.fileid);
+}
+
+s32 soloProgressCount(void)
+{
+	return g_NumSoloProgress;
+}
+
+s32 soloProgressStagenumAt(s32 index)
+{
+	return (index >= 0 && index < g_NumSoloProgress) ? g_SoloProgress[index].stagenum : -1;
+}
+
+const char *soloProgressNameAt(s32 index)
+{
+	if (index < 0 || index >= g_NumSoloProgress) {
+		return "?";
+	}
+
+	const s32 stagenum = g_SoloProgress[index].stagenum;
+
+	for (s32 i = 0; i < g_NumModStageReg; ++i) {
+		if (g_ModStageReg[i].stagenum == stagenum && g_ModStageReg[i].name && g_ModStageReg[i].name[0]) {
+			return g_ModStageReg[i].name;
+		}
+	}
+
+	const char *own = modStageSlotName(stagenum);
+	if (own) {
+		return own;
+	}
+
+	const char *row = stageGetName(stagenum);
+	return row ? row : "?";
 }
 
 s32 soloProgressBestTime(s32 stagenum, s32 difficulty)
@@ -178,6 +232,17 @@ void soloProgressProbeFromArgs(void)
 	g_GameFileGuid.deviceserial = serial;
 	g_GameFileGuid.fileid = fileid;
 	soloProgressBind();
+
+	// --solo-probe-complete SECS: record SECS as the Agent best time on the
+	// first bound mission, the way the endscreen would, so the setter -> ini
+	// path is exercised without a play-through.
+	const char *complete = sysArgGetString("--solo-probe-complete");
+	if (complete && complete[0] && g_NumSoloProgress > 0) {
+		s32 secs = (s32)strtol(complete, NULL, 0);
+		bool ok = soloProgressSetBestTime(g_SoloProgress[0].stagenum, 0, secs);
+		sysLogPrintf(LOG_NOTE, "solo-probe: recorded %d s on stage 0x%02x agent -> %s", secs,
+				g_SoloProgress[0].stagenum, ok ? "ok" : "REFUSED");
+	}
 
 	for (s32 i = 0; i < g_NumSoloProgress; ++i) {
 		const struct soloprogress *sp = &g_SoloProgress[i];

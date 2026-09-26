@@ -2777,6 +2777,7 @@ void modStageBindingReport(void)
  */
 static char *modConfigParseStage(char *p, char *token, s32 modnum)
 {
+	bool placeholderrow = false; // an own-name allocation or a claimed STAGE_EXTRA row
 	// stage NUMBER, or stage NAME / stage "NAME"
 	p = strParseToken(p, token, NULL);
 
@@ -2813,6 +2814,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		{
 			const char *rowname = stageGetName(stagenum);
 			const bool extra = rowname && !strncmp(rowname, "STAGE_EXTRA", 11) && rowname[11] >= '0' && rowname[11] <= '9';
+			placeholderrow = extra;
 
 			sysLogPrintf(LOG_WARNING, "modconfig: stage %s names a row by number; spell it stage \"%s\"%s",
 					spec, rowname ? rowname : "?",
@@ -2829,6 +2831,7 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			// changes - which is the whole point, and is how head and body
 			// slots already behave.
 			stagenum = modStageSlotReserve(spec);
+			placeholderrow = true;
 
 			if (stagenum < 0) {
 				sysLogPrintf(LOG_ERROR,
@@ -2911,6 +2914,8 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	// `token`, which the next strParseToken overwrites.
 	s32 kind = MODSTAGE_KIND_NONE;
 	bool gaveallocation = false;
+	bool gavesetup = false;
+	bool gavempsetup = false;
 	char arenaname[64];
 	arenaname[0] = '\0';
 	p = strParseToken(p, token, NULL);
@@ -2934,11 +2939,13 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			// setupfile FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "setupfile", tmp);
 			SET_STAGE_FILEID(stab->setupfileid, "setupfile", tmp);
+			gavesetup = true;
 			modStageBindingRecord(stagenum, modnum, MODSTAGE_SETUP, tmp);
 		} else if (!strcmp(token, "mpsetupfile")) {
 			// mpsetupfile FILE_NAME_OR_NUM
 			PARSE_STAGE_FILENAME("", "mpsetupfile", tmp);
 			SET_STAGE_FILEID(stab->mpsetupfileid, "mpsetupfile", tmp);
+			gavempsetup = true;
 			modStageBindingRecord(stagenum, modnum, MODSTAGE_MPSETUP, tmp);
 		} else if (!strcmp(token, "alarm")) {
 			PARSE_STAGE_INT("", "alarm", tmp, 1, 0xFFFF);
@@ -3096,6 +3103,31 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		}
 		if (!hasrow) {
 			stageSetModAllocation(stagenum, STAGE_ALLOCATION_SOLO_DEFAULT);
+		}
+	}
+
+	// A kind that lists the stage promises a setup to run it with. On a
+	// shipped row the block may lean on the row's own setup (a replacement
+	// keeps what it does not override); on a placeholder row there is nothing
+	// real underneath, and listing the stage would launch STAGE_EXTRA's
+	// parked setup as if it were the level. Downgrade the kind and say so,
+	// rather than list what cannot run or abandon the whole modconfig.
+	if (placeholderrow) {
+		// spec points into the token buffer, long since reused; name the row
+		// by what the allocator recorded for it.
+		const char *own = modStageSlotName(stagenum);
+		const char *label = own ? own : (stageGetName(stagenum) ? stageGetName(stagenum) : "?");
+		const s32 declared = kind;
+
+		if ((declared & MODSTAGE_KIND_SOLO) && !gavesetup) {
+			sysLogPrintf(LOG_WARNING, "modconfig: stage 0x%02x (%s): kind %s but no setupfile; "
+					"not listing it as a mission", stagenum, label, declared == MODSTAGE_KIND_BOTH ? "both" : "solo");
+			kind &= ~MODSTAGE_KIND_SOLO;
+		}
+		if ((declared & MODSTAGE_KIND_MP) && !gavempsetup) {
+			sysLogPrintf(LOG_WARNING, "modconfig: stage 0x%02x (%s): kind %s but no mpsetupfile; "
+					"not listing it as an arena", stagenum, label, declared == MODSTAGE_KIND_BOTH ? "both" : "mp");
+			kind &= ~MODSTAGE_KIND_MP;
 		}
 	}
 

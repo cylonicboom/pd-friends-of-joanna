@@ -23,6 +23,7 @@
 #include "game/mplayer/ingame.h"
 #include "game/challenge.h"
 #include "game/gamefile.h"
+#include "game/missionrow.h"
 #include "game/lang.h"
 #include "game/options.h"
 #include "game/mpstats.h"
@@ -170,7 +171,7 @@ char *endscreenMenuTitleRetryMission(struct menudialogdef *dialogdef)
 	}
 
 	prefix = langGet(L_OPTIONS_296); // "Retry"
-	name = langGet(g_SoloStages[g_MissionConfig.stageindex].name3);
+	name = missionName3(g_MissionConfig.stageindex);
 
 	sprintf(g_StringPointer, "%s: %s\n", prefix, name);
 
@@ -187,7 +188,7 @@ char *endscreenMenuTitleNextMission(struct menudialogdef *dialogdef)
 	}
 
 	prefix = langGet(L_OPTIONS_297); // "Next Mission"
-	name = langGet(g_SoloStages[g_MissionConfig.stageindex].name3);
+	name = missionName3(g_MissionConfig.stageindex);
 
 	sprintf(g_StringPointer, "%s: %s\n", prefix, name);
 
@@ -203,8 +204,11 @@ MenuItemHandlerResult endscreenHandleReplayPreviousMission(s32 operation, struct
 				g_MissionConfig.stageindex, g_MissionConfig.stagenum, g_Vars.stagenum);
 		}
 #endif
-		g_MissionConfig.stageindex--;
-		g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+		// A mod mission has no predecessor in the list; "previous" replays it.
+		if (!missionIsModRow(g_MissionConfig.stageindex)) {
+			g_MissionConfig.stageindex--;
+		}
+		g_MissionConfig.stagenum = missionStagenum(g_MissionConfig.stageindex);
 #ifndef PLATFORM_N64
 		if (getenv("PD_DEBUG_FILELOAD")) {
 			printf("endscreenHandleReplayPreviousMission: AFTER decrement - stageindex=%d, g_MissionConfig.stagenum=0x%02x, g_Vars.stagenum=0x%02x\n",
@@ -485,11 +489,11 @@ char *endscreenMenuTitleStageCompleted(struct menuitem *item)
 {
 #if VERSION >= VERSION_NTSC_1_0
 	sprintf(g_StringPointer, "%s: %s\n",
-			langGet(g_SoloStages[g_Menus[g_MpPlayerNum].endscreen.stageindex].name3),
+			missionName3(g_Menus[g_MpPlayerNum].endscreen.stageindex),
 			langGet(L_OPTIONS_276)); // "Completed"
 #else
 	sprintf(g_StringPointer, "%s: %s\n",
-			langGet(g_SoloStages[g_MissionConfig.stageindex].name3),
+			missionName3(g_MissionConfig.stageindex),
 			langGet(L_OPTIONS_276)); // "Completed"
 #endif
 
@@ -499,7 +503,7 @@ char *endscreenMenuTitleStageCompleted(struct menuitem *item)
 #if VERSION >= VERSION_NTSC_1_0
 char *endscreenMenuTextCurrentStageName3(struct menuitem *item)
 {
-	char *name = langGet(g_SoloStages[g_MissionConfig.stageindex].name3);
+	char *name = missionName3(g_MissionConfig.stageindex);
 	sprintf(g_StringPointer, "%s\n", name);
 
 	return g_StringPointer;
@@ -509,7 +513,7 @@ char *endscreenMenuTextCurrentStageName3(struct menuitem *item)
 char *endscreenMenuTitleStageFailed(struct menuitem *item)
 {
 	sprintf(g_StringPointer, "%s: %s\n",
-			langGet(g_SoloStages[g_MissionConfig.stageindex].name3),
+			missionName3(g_MissionConfig.stageindex),
 			langGet(L_OPTIONS_277)); // "Failed"
 
 	return g_StringPointer;
@@ -535,7 +539,7 @@ struct menudialogdef *endscreenAdvance(void)
 	}
 
 	g_MissionConfig.stageindex++;
-	g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+	g_MissionConfig.stagenum = missionStagenum(g_MissionConfig.stageindex);
 	g_Vars.currentplayer->advancedendscreen = true;
 	return &g_NextMissionMenuDialog;
 }
@@ -563,7 +567,7 @@ MenuItemHandlerResult endscreenHandleReplayLastLevel(s32 operation, struct menui
 	case MENUOP_CHECKHIDDEN:
 		return 0;
 	case MENUOP_SET:
-		g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+		g_MissionConfig.stagenum = missionStagenum(g_MissionConfig.stageindex);
 		return menuhandlerAcceptMission(operation, NULL, data);
 	}
 
@@ -789,7 +793,7 @@ void endscreenContinue(s32 context)
 					DEBUG_ENDSCREEN("endscreenContinue: Next stage IS unlocked, advancing to next stage\n");
 					// Commit to starting next stage
 					g_MissionConfig.stageindex++;
-					g_MissionConfig.stagenum = g_SoloStages[g_MissionConfig.stageindex].stagenum;
+					g_MissionConfig.stagenum = missionStagenum(g_MissionConfig.stageindex);
 					DEBUG_ENDSCREEN("endscreenContinue: NEW stageindex=%d, stagenum=%d\n",
 						g_MissionConfig.stageindex, g_MissionConfig.stagenum);
 
@@ -862,7 +866,11 @@ void endscreenContinue(s32 context)
 					menuResetToTraining();
 				} else if (stageGetIndex(g_MissionConfig.stagenum) < 0
 						|| g_Vars.stagenum == STAGE_CITRAINING
-						|| g_MissionConfig.stageindex >= SOLOSTAGEINDEX_MBR) {
+						|| g_MissionConfig.stageindex >= SOLOSTAGEINDEX_MBR
+						|| missionIsModRow(g_MissionConfig.stageindex)) {
+					// A mod mission is its own end: there is no next row to
+					// advance into, so it returns to training like the last
+					// campaign mission does.
 					DEBUG_ENDSCREEN("endscreenContinue: Invalid stage or training or past MBR, resetting to training\n");
 					while (g_Menus[g_MpPlayerNum].depth > 0) {
 						menuPopDialog();
@@ -1651,15 +1659,13 @@ void endscreenSetCoopCompleted(void)
 {
 	if (g_CheatsActiveBank0 == 0 && g_CheatsActiveBank1 == 0) {
 #if VERSION >= VERSION_NTSC_1_0
-		if (gamefileSoloIndexOk(g_MissionConfig.stageindex)
-				&& (g_GameFile.coopcompletions[g_MissionConfig.difficulty] & (1 << g_MissionConfig.stageindex))) {
+		if (missionCoopDone(g_MissionConfig.stageindex, g_MissionConfig.difficulty)) {
 			g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = true;
 		}
 #endif
 
-		if (gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
-			g_GameFile.coopcompletions[g_MissionConfig.difficulty] |= (1 << g_MissionConfig.stageindex);
-		}
+		// The save for a campaign row, the sidecar for a mod row.
+		missionSetCoopDone(g_MissionConfig.stageindex, g_MissionConfig.difficulty);
 	}
 }
 
@@ -1831,15 +1837,15 @@ void endscreenPrepare(void)
 				}
 
 				// Set best time
-				prevbest = gamefileSoloIndexOk(g_MissionConfig.stageindex)
-					? g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] : 0;
+				prevbest = missionBestTime(g_MissionConfig.stageindex, g_MissionConfig.difficulty);
 
 				if (prevbest == 0) {
 					g_Menus[g_MpPlayerNum].endscreen.isfirstcompletion = true;
 				}
 
-				if ((secs < prevbest || prevbest == 0) && gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
-					g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] = secs;
+				if (secs < prevbest || prevbest == 0) {
+					// The save for a campaign row, the sidecar for a mod row.
+					missionSetBestTime(g_MissionConfig.stageindex, g_MissionConfig.difficulty, secs);
 				}
 
 #ifndef PLATFORM_N64
@@ -1852,11 +1858,11 @@ void endscreenPrepare(void)
 				}
 #endif
 #else
-				prevbest = gamefileSoloIndexOk(g_MissionConfig.stageindex)
-					? g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] : 0;
+				prevbest = missionBestTime(g_MissionConfig.stageindex, g_MissionConfig.difficulty);
 
-				if ((secs < prevbest || prevbest == 0) && gamefileSoloIndexOk(g_MissionConfig.stageindex)) {
-					g_GameFile.besttimes[g_MissionConfig.stageindex][g_MissionConfig.difficulty] = secs;
+				if (secs < prevbest || prevbest == 0) {
+					// The save for a campaign row, the sidecar for a mod row.
+					missionSetBestTime(g_MissionConfig.stageindex, g_MissionConfig.difficulty, secs);
 				}
 #endif
 

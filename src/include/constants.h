@@ -38,6 +38,12 @@
 #define NUM_HOLOTESTS         7
 #define NUM_MPWEAPONSLOTS     6
 #define NUM_SOLOSTAGES        21
+// A mission the sidecar lists (a mod stage with kind solo|both) gets a
+// stageindex of SOLOSTAGEINDEX_MOD_BASE + its sidecar index. Nothing in the
+// save can hold it - gamefileSoloIndexOk refuses it - and every reader of
+// g_MissionConfig.stageindex goes through game/missionrow.h, which answers
+// from pd.ini for these. See solo-sidecar-plan.md.
+#define SOLOSTAGEINDEX_MOD_BASE 0x80
 #define NUM_TEXTURES          (VERSION == VERSION_JPN_FINAL ? 3511 : 3503)
 
 #define osSyncPrintf
