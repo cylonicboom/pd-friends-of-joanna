@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "game/modeldef.h"
 #include "imgui_overlay.h"
+#include "imgui_flagnames.h"
 #include "imgui_skinmatch.h"
 #include "input.h"
 #include "mod.h"
@@ -376,6 +377,8 @@ extern "C" u32 saveQueueFramesPending(void);
 extern "C" u32 saveQueueDeadlineFrames(void);
 extern "C" u32 saveQueueFlushCount(void);
 extern "C" void saveQueueFlush(void);
+extern "C" u8 *ailistFindById(s32 ailistid);      // src/lib/ailist.c
+extern "C" s32 chraiGetListIdByList(u8 *ailist, bool *is_global);
 extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
 extern "C" void modSpectateSetOn(bool on);
@@ -665,17 +668,144 @@ static void imguiOverlayDescribeProjectile(struct projectile *projectile)
 	ImGui::Text("Flight time: %d", projectile->flighttime240);
 }
 
+// ---------------------------------------------------------------------------
+// Inspector pieces (c-entity-inspector). Flag words as named bits with a
+// checkbox each - read first, edit second; a bit with no name in
+// imgui_flagnames.h still shows as hex. Ailist assignment from the loaded
+// setup's list table and the global one, by id. Nearest pad off the pad:
+// drive, since a chr does not remember the pad it spawned on.
+
+static void imguiOverlayFlagWord(const char *label, u32 *word, const struct imguiFlagName *names, s32 count, bool editable)
+{
+	char title[64];
+	snprintf(title, sizeof(title), "%s: 0x%08x", label, *word);
+
+	if (!ImGui::TreeNode(label, "%s", title)) {
+		return;
+	}
+
+	u32 named = 0;
+	for (s32 i = 0; i < count; ++i) {
+		bool on = (*word & names[i].bit) != 0;
+		named |= names[i].bit;
+		char id[80];
+		snprintf(id, sizeof(id), "%s##%s%08x", names[i].name, label, names[i].bit);
+		const bool dim = !on;
+		if (dim) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.55f, 0.55f, 1.0f));
+		if (ImGui::Checkbox(id, &on) && editable) {
+			if (on) *word |= names[i].bit; else *word &= ~names[i].bit;
+		}
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("0x%08x", names[i].bit);
+		if (dim) ImGui::PopStyleColor();
+	}
+
+	const u32 unnamed = *word & ~named;
+	if (unnamed) {
+		ImGui::TextDisabled("unnamed bits: 0x%08x", unnamed);
+	}
+
+	ImGui::TreePop();
+}
+
+static void imguiOverlayFlagWord16(const char *label, u16 *word, const struct imguiFlagName *names, s32 count, bool editable)
+{
+	u32 w = *word;
+	imguiOverlayFlagWord(label, &w, names, count, editable);
+	*word = (u16)w;
+}
+
+static void imguiOverlayFlagWord8(const char *label, u8 *word, const struct imguiFlagName *names, s32 count, bool editable)
+{
+	u32 w = *word;
+	imguiOverlayFlagWord(label, &w, names, count, editable);
+	*word = (u8)w;
+}
+
+// combo over every ailist id the stage can run: the setup's table first,
+// then the globals. Returns the picked id or -1.
+static s32 imguiOverlayAilistPicker(const char *label, s32 currentId)
+{
+	char current[32];
+	s32 picked = -1;
+
+	if (currentId >= 0) snprintf(current, sizeof(current), "0x%04x", currentId);
+	else snprintf(current, sizeof(current), "none");
+
+	if (!ImGui::BeginCombo(label, current)) {
+		return -1;
+	}
+
+	if (g_StageSetup.ailists) {
+		for (s32 i = 0; g_StageSetup.ailists[i].list != NULL; ++i) {
+			char item[32];
+			snprintf(item, sizeof(item), "0x%04x  stage", g_StageSetup.ailists[i].id);
+			if (ImGui::Selectable(item, g_StageSetup.ailists[i].id == currentId)) picked = g_StageSetup.ailists[i].id;
+		}
+	}
+
+	for (s32 i = 0; g_GlobalAilists[i].list != NULL; ++i) {
+		char item[32];
+		snprintf(item, sizeof(item), "0x%04x  global", g_GlobalAilists[i].id);
+		if (ImGui::Selectable(item, g_GlobalAilists[i].id == currentId)) picked = g_GlobalAilists[i].id;
+	}
+
+	ImGui::EndCombo();
+	return picked;
+}
+
+static void imguiOverlayNearestPadLine(const struct coord *pos)
+{
+	const s32 numPads = assetPadCount(g_Vars.stagenum);
+	if (numPads <= 0 || !pos) return;
+
+	struct assetref ref;
+	memset(&ref, 0, sizeof(ref));
+	ref.drive = ASSET_DRIVE_PAD;
+	ref.owner = -1;
+	ref.id = g_Vars.stagenum;
+	ref.via = -1;
+
+	s32 best = -1;
+	f32 bestd = 1e30f;
+	for (s32 i = 0; i < numPads; ++i) {
+		struct pad pad;
+		ref.sub = i;
+		if (assetPadUnpack(&ref, &pad) != ASSET_OK) continue;
+		const f32 dx = pad.pos.x - pos->x, dy = pad.pos.y - pos->y, dz = pad.pos.z - pos->z;
+		const f32 d = dx * dx + dy * dy + dz * dz;
+		if (d < bestd) { bestd = d; best = i; }
+	}
+
+	if (best < 0) return;
+	ref.sub = best;
+	const char *name = assetName(&ref);
+	ImGui::Text("Nearest pad: %s (%.0f)", name ? name : "?", sqrtf(bestd));
+	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Double-click: select it in the Stage panel");
+	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		g_ImGuiOverlayPadSel = best;
+		g_ImGuiOverlayPadFilter.Clear();
+		g_ImGuiOverlayOpenPads = true;
+		g_ImGuiOverlayShowStage = true;
+		imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+	}
+}
+
 static void imguiOverlayDescribeObj(struct defaultobj *obj)
 {
 	ImGui::Text("Type: %s (0x%02x)", imguiOverlayObjTypeName(obj->type), obj->type);
 	ImGui::Text("Model: 0x%04x", (u16)obj->modelnum);
 	ImGui::Text("Pad: 0x%04x", (u16)obj->pad);
-	ImGui::Text("Flags 1: 0x%08x", obj->flags);
-	ImGui::Text("Flags 2: 0x%08x", obj->flags2);
-	ImGui::Text("Flags 3: 0x%08x", obj->flags3);
-	ImGui::Text("Hidden 1: 0x%08x", obj->hidden);
+	if (obj->prop) imguiOverlayNearestPadLine(&obj->prop->pos);
+	imguiOverlayFlagWord("Flags", &obj->flags, g_ImGuiObjFlagNames, (s32)(sizeof(g_ImGuiObjFlagNames) / sizeof(g_ImGuiObjFlagNames[0])), true);
+	imguiOverlayFlagWord("Flags 2", &obj->flags2, g_ImGuiObjFlag2Names, (s32)(sizeof(g_ImGuiObjFlag2Names) / sizeof(g_ImGuiObjFlag2Names[0])), true);
+	imguiOverlayFlagWord("Flags 3", &obj->flags3, g_ImGuiObjFlag3Names, (s32)(sizeof(g_ImGuiObjFlag3Names) / sizeof(g_ImGuiObjFlag3Names[0])), true);
+	imguiOverlayFlagWord("Hidden", &obj->hidden, g_ImGuiObjHFlagNames, (s32)(sizeof(g_ImGuiObjHFlagNames) / sizeof(g_ImGuiObjHFlagNames[0])), true);
 	ImGui::Text("Hidden 2: 0x%02x", obj->hidden2);
 	ImGui::Text("Damage: %d/%d", obj->damage, obj->maxdamage);
+
+	// a plain object has no ailist; the ones that do (chopper, truck,
+	// hovercar) carry it on their own struct and hold with the global
+	// pause only (Runtime > Ailists paused)
 
 	if ((obj->hidden & OBJHFLAG_PROJECTILE) && obj->projectile) {
 		if (ImGui::TreeNode(obj->projectile, "Projectile (%p)", obj->projectile)) {
@@ -780,11 +910,38 @@ static void imguiOverlayDescribeChr(struct chrdata *chr)
 	ImGui::Text("Action: %s (0x%02x)", imguiOverlayActionName(chr->actiontype), (u8)chr->actiontype);
 	ImGui::Text("Damage: %.3f", chr->damage);
 	ImGui::Text("Shield: %.3f", chr->cshield);
-	ImGui::Text("Flags 1: 0x%08x", chr->flags);
-	ImGui::Text("Flags 2: 0x%08x", chr->flags2);
-	ImGui::Text("Hidden 1: 0x%08x", chr->hidden);
-	ImGui::Text("Hidden 2: 0x%04x", chr->hidden2);
-	ImGui::Text("Chr flags: 0x%08x", chr->chrflags);
+	if (chr->prop) imguiOverlayNearestPadLine(&chr->prop->pos);
+	imguiOverlayFlagWord("Flags", &chr->flags, g_ImGuiChrFlag0Names, (s32)(sizeof(g_ImGuiChrFlag0Names) / sizeof(g_ImGuiChrFlag0Names[0])), true);
+	imguiOverlayFlagWord("Flags 2", &chr->flags2, g_ImGuiChrFlag1Names, (s32)(sizeof(g_ImGuiChrFlag1Names) / sizeof(g_ImGuiChrFlag1Names[0])), true);
+	imguiOverlayFlagWord("Hidden", &chr->hidden, g_ImGuiChrHFlagNames, (s32)(sizeof(g_ImGuiChrHFlagNames) / sizeof(g_ImGuiChrHFlagNames[0])), true);
+	imguiOverlayFlagWord16("Hidden 2", &chr->hidden2, g_ImGuiChrH2FlagNames, (s32)(sizeof(g_ImGuiChrH2FlagNames) / sizeof(g_ImGuiChrH2FlagNames[0])), true);
+	imguiOverlayFlagWord("Chr flags", &chr->chrflags, g_ImGuiChrCFlagNames, (s32)(sizeof(g_ImGuiChrCFlagNames) / sizeof(g_ImGuiChrCFlagNames[0])), true);
+
+	{
+		bool isGlobal = false;
+		const s32 id = chr->ailist ? chraiGetListIdByList(chr->ailist, &isGlobal) : -1;
+		const s32 picked = imguiOverlayAilistPicker("Ailist##chr", id);
+		if (picked >= 0) {
+			u8 *list = ailistFindById(picked);
+			if (list) { chr->ailist = list; chr->aioffset = 0; }
+		}
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Restart##chrai")) chr->aioffset = 0;
+		ImGui::SameLine();
+		ImGui::TextDisabled("at 0x%04x", chr->aioffset);
+
+		const s32 shot = imguiOverlayAilistPicker("Shot list##chr", chr->aishotlist);
+		if (shot >= 0) chr->aishotlist = (s16)shot;
+		ImGui::SameLine();
+		if (ImGui::SmallButton("none##shot")) chr->aishotlist = -1;
+
+		bool held = chr->aipaused != 0;
+		if (ImGui::Checkbox("Hold this chr's list", &held)) chr->aipaused = held ? 1 : 0;
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("chrTick skips chraiExecute for this chr while set.\n"
+					"Its current action still finishes; only new orders stop.");
+		}
+	}
 
 	for (s32 handIndex = 0; handIndex < 3; ++handIndex) {
 		if (imguiOverlayPropIsCurrent(chr->weapons_held[handIndex])) {
