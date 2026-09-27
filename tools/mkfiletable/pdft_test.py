@@ -72,9 +72,14 @@ def decode(data):
         flags = r.u8()
         fallback = r.u8()
         r.take(2)
+        patched = None
+        if flags & 4:
+            if version < 5:
+                raise ValueError('patched romSource in a v%u table: the reader would desync here' % version)
+            patched = dict(base=r.s8(), patch=r.s8(), crc=r.u32())
         sources.append(dict(id=sid, filename=fn, expected=expected,
                             required=bool(flags & 1), strict=bool(flags & 2),
-                            fallback=fallback))
+                            fallback=fallback, patched=patched))
 
     files = []
     for _ in range(num_files):
@@ -111,8 +116,12 @@ def hx(s):
 def to_spec(t):
     out = []
     for s in t['sources']:
-        out.append("S %s %s %u %u %u %u" % (hx(s['id']), hx(s['filename']), s['expected'],
-                                            int(s['required']), int(s['strict']), s['fallback']))
+        line = "S %s %s %u %u %u %u" % (hx(s['id']), hx(s['filename']), s['expected'],
+                                        int(s['required']), int(s['strict']), s['fallback'])
+        if s['patched']:
+            p = s['patched']
+            line += " %s %s %u" % (hx(p['base']), hx(p['patch']), p['crc'])
+        out.append(line)
     for f in t['files']:
         a = f['alt']
         out.append("F %u %u %u %u %s %s %d %u %u %u %u" % (

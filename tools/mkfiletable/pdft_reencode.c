@@ -6,7 +6,7 @@
  * so nothing has to be quoted — because its only job is to let the test drive
  * the encoder from a table it decoded elsewhere.
  *
- *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback>
+ *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback> [<hex base> <hex patch> <crc32>]
  *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource]
  *   T <localTexId> <slotIdx>
  *
@@ -90,7 +90,11 @@ int main(int argc, char **argv)
 		int alt;
 
 		if (line[0] == 'S') {
-			if (sscanf(line, "S %s %s %u %u %u %u", hexA, hexB, &a, &b, &c, &d) != 6) continue;
+			char hexC[MAXLINE], hexD[MAXLINE];
+			unsigned crc = 0;
+			int got = sscanf(line, "S %s %s %u %u %u %u %s %s %u", hexA, hexB, &a, &b, &c, &d, hexC, hexD, &crc);
+
+			if (got != 6 && got != 9) continue;
 
 			if (numSources == capSources) {
 				capSources = capSources ? capSources * 2 : 8;
@@ -103,6 +107,9 @@ int main(int argc, char **argv)
 			sources[numSources].required = !!b;
 			sources[numSources].strict = !!c;
 			sources[numSources].fallback = (uint8_t)d;
+			sources[numSources].base = got == 9 ? unhex(hexC) : NULL;
+			sources[numSources].patch = got == 9 ? unhex(hexD) : NULL;
+			sources[numSources].expectedCrc32 = got == 9 ? crc : 0;
 			++numSources;
 		} else if (line[0] == 'F') {
 			unsigned altOfs, altSize, altComp, self = 0;

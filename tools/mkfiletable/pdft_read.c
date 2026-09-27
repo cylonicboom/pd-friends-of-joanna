@@ -98,8 +98,8 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 	out->version = rd32(&r);
 	out->numFiles = rd32(&r);
 
-	if (out->version < 1 || out->version > 4) {
-		snprintf(err, errLen, "version %u is not one of 1, 2, 3", out->version);
+	if (out->version < 1 || out->version > 5) {
+		snprintf(err, errLen, "version %u is not one of 1 to 5", out->version);
 		return false;
 	}
 
@@ -127,11 +127,22 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 			rs->filename = rdStr(&r, rd8(&r));
 			rs->expectedSize = rd32(&r);
 			flags = rd8(&r);
-			rs->required = (flags & 1) != 0;
-			rs->strict = (flags & 2) != 0;
+			rs->required = (flags & PDFT_RS_REQUIRED) != 0;
+			rs->strict = (flags & PDFT_RS_STRICT) != 0;
 			rs->fallback = rd8(&r);
 			rd8(&r);
 			rd8(&r);
+
+			if (flags & PDFT_RS_PATCHED) {
+				if (out->version < 5) {
+					snprintf(err, errLen, "romSource '%s' is patched in a v%u table; the reader would desync here",
+							rs->id ? rs->id : "?", out->version);
+					return false;
+				}
+				rs->base = rdStr(&r, rd8(&r));
+				rs->patch = rdStr(&r, rd8(&r));
+				rs->expectedCrc32 = rd32(&r);
+			}
 		}
 	}
 

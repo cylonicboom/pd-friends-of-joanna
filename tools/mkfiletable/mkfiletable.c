@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #include "pdft_write.h"
 #include "vendor/parson/parson.h"
+#define _LANGUAGE_C 1
+#include "rompatch.h"
 
 #define VANILLA_MAX_ID   2017  /* the first mod-local id is the one after this */
 #define FIRST_LOCAL_ID   2018
@@ -175,6 +177,14 @@ struct altRom {
 	bool required;
 	bool strict;
 	uint8_t fallback;
+	/* A PATCHED source: no file of its own. `base` is another source's id or
+	 * "base" for the base ROM; `patch` is a path inside the mod directory.
+	 * altOpen() builds the image with rompatch and keeps its crc32, which the
+	 * fragment carries so the engine can prove the player's rom produced the
+	 * same image these offsets were computed against. */
+	char base[PDFT_ROMSOURCE_ID];
+	char patch[PDFT_ROMSOURCE_FILE];
+	uint32_t crc32;
 	uint32_t tlistOffset;
 	uint32_t tlistCount;
 	uint32_t texdataOffset;
@@ -196,6 +206,115 @@ struct altRom {
 	const char *variant;
 };
 
+static bool altImage(struct altRom *rom);
+static bool altOpen(struct altRom *rom, const char *const *dirs, int numDirs);
+
+/* Set by main() before any entry is resolved, for altOpenPatched(): where a
+ * patched source finds its base and its patch file. */
+static struct altRom *g_AltRoms;
+static int g_NumAltRoms;
+static struct altRom *g_BaseRom;
+static const char *g_ModDir;
+
+/**
+ * Build a patched source's image: base image + patch file -> rompatch. The
+ * result is kept as the in-memory image (for byName) AND written to a
+ * tmpfile behind rom->fp (for the seek-and-read texture path), so every
+ * reader below sees a patched source exactly as it sees a file on disk.
+ */
+static bool altOpenPatched(struct altRom *rom, const char *const *dirs, int numDirs)
+{
+	struct altRom *base = NULL;
+	char patchPath[PATHMAX];
+	uint8_t *patch, *out;
+	uint32_t patchLen, outLen;
+	char err[256];
+	FILE *pf;
+	long n;
+	int i;
+
+	if (!strcmp(rom->base, PDFT_ROMSOURCE_BASE)) {
+		base = g_BaseRom;
+		if (!base || !base->fp) {
+			die("romSource '%s': base '%s' is the base ROM, which was not found; pass --base-rom or --rom-dir",
+					rom->id, rom->base);
+		}
+	} else {
+		for (i = 0; i < g_NumAltRoms; ++i) {
+			if (&g_AltRoms[i] != rom && !strcmp(g_AltRoms[i].id, rom->base)) {
+				base = &g_AltRoms[i];
+				break;
+			}
+		}
+		if (!base) {
+			die("romSource '%s': base '%s' is not a declared romSource", rom->id, rom->base);
+		}
+		if (!altOpen(base, dirs, numDirs)) {
+			die("romSource '%s': base '%s' (%s) could not be opened; pass --rom-dir",
+					rom->id, rom->base, base->filename);
+		}
+	}
+
+	if (!altImage(base)) {
+		die("romSource '%s': could not read base '%s' (%s)", rom->id, rom->base, base->path);
+	}
+
+	/* Where the engine looks (romSourceMountPatched): the path as given
+	 * inside the mod directory, then under files/. */
+	{
+		struct stat st;
+		bool found = g_ModDir
+			&& snprintf(patchPath, sizeof(patchPath), "%s/%s", g_ModDir, rom->patch) < (int)sizeof(patchPath)
+			&& stat(patchPath, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0;
+		if (!found) {
+			found = g_ModDir
+				&& snprintf(patchPath, sizeof(patchPath), "%s/files/%s", g_ModDir, rom->patch) < (int)sizeof(patchPath)
+				&& stat(patchPath, &st) == 0 && S_ISREG(st.st_mode) && st.st_size > 0;
+		}
+		if (!found) {
+			die("romSource '%s': patch '%s' not found in the mod directory %s",
+					rom->id, rom->patch, g_ModDir ? g_ModDir : "(none)");
+		}
+	}
+
+	pf = fopen(patchPath, "rb");
+	if (!pf || fseek(pf, 0, SEEK_END) != 0 || (n = ftell(pf)) <= 0 || fseek(pf, 0, SEEK_SET) != 0) {
+		die("romSource '%s': could not read patch %s", rom->id, patchPath);
+	}
+	patch = malloc((size_t)n);
+	if (!patch || fread(patch, 1, (size_t)n, pf) != (size_t)n) {
+		die("romSource '%s': could not read patch %s", rom->id, patchPath);
+	}
+	fclose(pf);
+	patchLen = (uint32_t)n;
+
+	if (rompatchApply(base->image, (uint32_t)base->imageLen, patch, patchLen, &out, &outLen, err, sizeof(err)) < 0) {
+		die("romSource '%s': patch %s does not apply to %s: %s", rom->id, patchPath, base->path, err);
+	}
+	free(patch);
+
+	if (rom->expectedSize && outLen != rom->expectedSize) {
+		die("romSource '%s': patched image is %u bytes, the manifest expects %u",
+				rom->id, outLen, rom->expectedSize);
+	}
+
+	rom->image = out;
+	rom->imageLen = outLen;
+	rom->crc32 = (uint32_t)crc32(0L, out, outLen);
+	snprintf(rom->path, sizeof(rom->path), "%s", patchPath);
+
+	/* The texture path seeks and reads through fp; give it the same bytes. */
+	rom->fp = tmpfile();
+	if (!rom->fp || fwrite(out, 1, outLen, rom->fp) != outLen) {
+		die("romSource '%s': could not spool the patched image to a temporary file", rom->id);
+	}
+	rewind(rom->fp);
+
+	printf("romSource '%s': %s patched with %s, %u bytes, crc32 %08x\n",
+			rom->id, base->path, rom->patch, outLen, rom->crc32);
+	return true;
+}
+
 static bool altOpen(struct altRom *rom, const char *const *dirs, int numDirs)
 {
 	int i;
@@ -205,6 +324,10 @@ static bool altOpen(struct altRom *rom, const char *const *dirs, int numDirs)
 	}
 
 	rom->tried = true;
+
+	if (rom->patch[0]) {
+		return altOpenPatched(rom, dirs, numDirs);
+	}
 
 	for (i = 0; i < numDirs; ++i) {
 		char candidate[PATHMAX];
@@ -923,20 +1046,45 @@ int main(int argc, char **argv)
 			JSON_Object *o = json_array_get_object(rs, i);
 			const char *id = o ? json_object_get_string(o, "id") : NULL;
 			const char *fn = o ? json_object_get_string(o, "filename") : NULL;
+			const char *base = o ? json_object_get_string(o, "base") : NULL;
+			const char *patch = o ? json_object_get_string(o, "patch") : NULL;
 			const char *fb = o ? json_object_get_string(o, "fallbackBehavior") : NULL;
 			JSON_Object *tx = o ? json_object_get_object(o, "textures") : NULL;
 			JSON_Object *fl = o ? json_object_get_object(o, "files") : NULL;
 			long v = 0;
 
-			if (!id || !fn) {
-				die("%s: romSource %zu needs an id and a filename", manifestPath, i);
+			if (!id || (!fn && !patch)) {
+				die("%s: romSource %zu needs an id and either a filename or a base + patch", manifestPath, i);
+			}
+
+			if (patch && fn) {
+				die("%s: romSource '%s' has both a filename and a patch; a patched source has no file of its own",
+						manifestPath, id);
+			}
+
+			if (patch && !base) {
+				die("%s: romSource '%s' has a patch but no base (another source's id, or \"%s\")",
+						manifestPath, id, PDFT_ROMSOURCE_BASE);
+			}
+
+			if (!strcmp(id, PDFT_ROMSOURCE_BASE)) {
+				die("%s: romSource id '%s' is reserved for the base ROM", manifestPath, id);
 			}
 
 			snprintf(roms[i].id, sizeof(roms[i].id), "%s", id);
-			snprintf(roms[i].filename, sizeof(roms[i].filename), "%s", fn);
+			snprintf(roms[i].filename, sizeof(roms[i].filename), "%s", fn ? fn : "");
 
-			if (strcmp(roms[i].id, id) || strcmp(roms[i].filename, fn)) {
+			if (strcmp(roms[i].id, id) || strcmp(roms[i].filename, fn ? fn : "")) {
 				die("%s: romSource '%s': id or filename is longer than the reader's buffer", manifestPath, id);
+			}
+
+			if (patch) {
+				snprintf(roms[i].base, sizeof(roms[i].base), "%s", base);
+				snprintf(roms[i].patch, sizeof(roms[i].patch), "%s", patch);
+
+				if (strcmp(roms[i].base, base) || strcmp(roms[i].patch, patch)) {
+					die("%s: romSource '%s': base id or patch path is longer than the reader's buffer", manifestPath, id);
+				}
 			}
 
 			roms[i].expectedSize = numberOf(json_object_get_value(o, "expectedSize"), &v) ? (uint32_t)v : 0;
@@ -967,6 +1115,8 @@ int main(int argc, char **argv)
 
 			sources[i].id = roms[i].id;
 			sources[i].filename = roms[i].filename;
+			sources[i].base = roms[i].patch[0] ? roms[i].base : NULL;
+			sources[i].patch = roms[i].patch[0] ? roms[i].patch : NULL;
 			sources[i].expectedSize = roms[i].expectedSize;
 			sources[i].required = roms[i].required;
 			sources[i].strict = roms[i].strict;
@@ -1015,6 +1165,13 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+
+	/* Where a patched source finds its base and its patch (altOpenPatched).
+	 * The patch lives in the mod directory, next to the self-sourced files. */
+	g_AltRoms = roms;
+	g_NumAltRoms = (int)numRoms;
+	g_BaseRom = &baseRom;
+	g_ModDir = output;
 
 	files = json_object_get_array(manifest, "files");
 	n = files ? json_array_get_count(files) : 0;
@@ -1390,6 +1547,19 @@ int main(int argc, char **argv)
 		}
 
 		free(sorted);
+	}
+
+	/* A patched source is built whether or not an entry reached into it: the
+	 * fragment has to carry the crc of the image the engine will mount, and
+	 * a declared source that does not apply to the base rom in this workspace
+	 * is a broken mod, not a lazily unopened one. */
+	for (i = 0; i < numRoms; ++i) {
+		if (roms[i].patch[0]) {
+			if (!altOpen(&roms[i], romDirs, numRomDirs)) {
+				die("romSource '%s': could not build the patched image", roms[i].id);
+			}
+			sources[i].expectedCrc32 = roms[i].crc32;
+		}
 	}
 
 	{

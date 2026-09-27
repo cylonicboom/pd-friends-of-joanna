@@ -57,6 +57,22 @@
                                  * silent desync a tail behind an ignored bit
                                  * would have produced. */
 
+/* A romSource record's own flags byte (bit0 required, bit1 strict). These are
+ * NOT the PDFT_F_ file-entry bits above; the two bytes share nothing but the
+ * word. */
+#define PDFT_RS_REQUIRED   0x1
+#define PDFT_RS_STRICT     0x2
+#define PDFT_RS_PATCHED    0x4  /* the source is a BASE rom plus a PATCH, not
+                                 * a file on disk: a tail follows the two
+                                 * reserved bytes - u8 len + base id, u8 len +
+                                 * patch path (inside the owning mod's dir),
+                                 * u32 crc32 of the patched image. The base is
+                                 * another declared source's id, or "base" for
+                                 * the rom the engine booted from. MOVES BYTES,
+                                 * so it needs v5; the writer refuses to emit
+                                 * it below that. */
+#define PDFT_ROMSOURCE_BASE "base"
+
 /**
  * The longest name that survives the whole round trip.
  *
