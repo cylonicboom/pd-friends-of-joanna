@@ -351,6 +351,9 @@ extern "C" u32 saveQueueFramesPending(void);
 extern "C" u32 saveQueueDeadlineFrames(void);
 extern "C" u32 saveQueueFlushCount(void);
 extern "C" void saveQueueFlush(void);
+extern "C" void tilesRenderSetMode(s32 mode);   // src/game/tilesrender.c, port only
+extern "C" s32 tilesRenderGetMode(void);
+extern "C" s32 g_TilesRenderAllRooms;
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -1234,6 +1237,27 @@ static void imguiOverlayDrawStagePanel(void)
 		ImGui::Text("Setup: %s", setupName ? setupName : "unregistered");
 	}
 	ImGui::Text("Rooms: %d", g_Vars.roomcount);
+
+	// Tiles as geometry (tilesrender.c): the collision mesh, one hue per
+	// room, lit by each tile's normal. What a blocked-out level looks like
+	// before it has a bg.
+	{
+		int mode = tilesRenderGetMode();
+		ImGui::TextUnformatted("Tiles:");
+		ImGui::SameLine();
+		if (ImGui::RadioButton("off##tiles", &mode, 0)) tilesRenderSetMode(mode);
+		ImGui::SameLine();
+		if (ImGui::RadioButton("shaded##tiles", &mode, 1)) tilesRenderSetMode(mode);
+		ImGui::SameLine();
+		if (ImGui::RadioButton("solid##tiles", &mode, 2)) tilesRenderSetMode(mode);
+		ImGui::SameLine();
+		bool all = g_TilesRenderAllRooms != 0;
+		if (ImGui::Checkbox("every room##tiles", &all)) g_TilesRenderAllRooms = all ? 1 : 0;
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Off: only rooms the portal walk put on screen this frame.\n"
+					"A level with no bg has no walk, so it draws every room either way.");
+		}
+	}
 
 	// What actually made it into memory, and where the player is standing. A
 	// level that draws as a void is one of these three numbers being wrong,
@@ -6368,6 +6392,13 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 	}
 
 	{
+		int mode;
+
+		if (sscanf(line, "ShowTiles=%d", &mode) == 1) tilesRenderSetMode(mode);
+		if (sscanf(line, "ShowTilesAllRooms=%d", &mode) == 1) g_TilesRenderAllRooms = mode != 0;
+	}
+
+	{
 		int ws;
 
 		if (sscanf(line, "Workspace=%d", &ws) == 1 && ws >= 0 && ws < kFojoWorkspaces) {
@@ -6402,6 +6433,8 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 				rt.collapsed, rt.ws, rt.sticky);
 	}
 
+	buffer->appendf("ShowTiles=%d\n", tilesRenderGetMode());
+	buffer->appendf("ShowTilesAllRooms=%d\n", g_TilesRenderAllRooms);
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
 	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
 }
@@ -6598,6 +6631,10 @@ static void imguiOverlayCmdResetPositions(void)
 	g_ImGuiOverlayMinimisedCount = 0;
 }
 
+// Tiles as geometry: off -> shaded -> solid -> off. Stage panel has radios.
+static void imguiOverlayCmdShowTiles(void)   { tilesRenderSetMode((tilesRenderGetMode() + 1) % 3); imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdShowTilesAll(void) { g_TilesRenderAllRooms = !g_TilesRenderAllRooms; imguiOverlaySaveWindowState(); }
+
 static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
 static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
@@ -6619,6 +6656,8 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Go to floor 4",            imguiOverlayCmdFloor4 },
 	{ "Close all windows",        imguiOverlayCmdCloseAll },
 	{ "Reset window positions",   imguiOverlayCmdResetPositions },
+	{ "Show tiles",               imguiOverlayCmdShowTiles },
+	{ "Show tiles: every room",   imguiOverlayCmdShowTilesAll },
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },

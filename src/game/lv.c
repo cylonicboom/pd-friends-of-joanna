@@ -1534,6 +1534,11 @@ Gfx *lvRender(Gfx *gdl)
 				propsTestForPickup();
 
 				gdl = bgRender(gdl);
+#ifndef PLATFORM_N64
+				// editor: the collision tiles as geometry (tilesrender.c),
+				// z-tested against whatever bg there is
+				gdl = tilesRender(gdl);
+#endif
 				chr0f028498(var80075d68 == 15 || g_AnimHostEnabled);
 				gdl = propsRenderBeams(gdl);
 				gdl = shardsRender(gdl);
