@@ -201,10 +201,229 @@ struct vcdwindow {
 	u32 srclen;      // as declared: addresses past it are in the target window
 	u32 srcavail;    // how much of it exists. xdelta3 declares a segment by its
 	                 // window size and lets it run off the end of the file
-	u8 *tgt;         // the target window being built
+	u8 *tgt;         // the target window being built (flat mode)
 	u32 tgtlen;
 	u32 tgtpos;
+
+	// overlay mode: no tgt buffer. Bytes are recorded as segments over the
+	// base instead of written. srcbase is what src resolves to in base
+	// offsets (VCD_SOURCE) or target offsets (VCD_TARGET); tgtbase is where
+	// this window starts in the target.
+	struct romoverlay *ov;
+	u32 srcbase;
+	s32 srcistgt;
+	u32 tgtbase;
 };
+
+/* -- overlay sink ---------------------------------------------------------- */
+
+static s32 ovGrowSegs(struct romoverlay *ov)
+{
+	if (ov->numsegs == ov->capsegs) {
+		u32 cap = ov->capsegs ? ov->capsegs * 2 : 256;
+		struct rompatchseg *g = realloc(ov->segs, cap * sizeof(*g));
+		if (!g) {
+			return 0;
+		}
+		ov->segs = g;
+		ov->capsegs = cap;
+	}
+	return 1;
+}
+
+// append [tgt, tgt+len) = base[src..], coalescing with a contiguous run
+static s32 ovPushSrc(struct romoverlay *ov, u32 tgt, u32 src, u32 len)
+{
+	if (!len) {
+		return 1;
+	}
+	if (ov->numsegs) {
+		struct rompatchseg *last = &ov->segs[ov->numsegs - 1];
+		if (last->src != ROMPATCH_LITERAL && last->tgt + last->len == tgt && last->src + last->len == src) {
+			last->len += len;
+			ov->size = tgt + len;
+			return 1;
+		}
+	}
+	if (!ovGrowSegs(ov)) {
+		return 0;
+	}
+	ov->segs[ov->numsegs].tgt = tgt;
+	ov->segs[ov->numsegs].len = len;
+	ov->segs[ov->numsegs].src = src;
+	ov->segs[ov->numsegs].lit = 0;
+	ov->numsegs++;
+	ov->size = tgt + len;
+	return 1;
+}
+
+// append [tgt, tgt+len) = literal bytes, coalescing into the previous literal
+static s32 ovPushLit(struct romoverlay *ov, u32 tgt, const u8 *p, u32 len)
+{
+	if (!len) {
+		return 1;
+	}
+	if (ov->litlen + len > ov->litcap) {
+		u32 cap = ov->litcap ? ov->litcap : 0x10000;
+		while (cap < ov->litlen + len) {
+			cap *= 2;
+		}
+		u8 *g = realloc(ov->lit, cap);
+		if (!g) {
+			return 0;
+		}
+		ov->lit = g;
+		ov->litcap = cap;
+	}
+	memcpy(ov->lit + ov->litlen, p, len);
+	if (ov->numsegs) {
+		struct rompatchseg *last = &ov->segs[ov->numsegs - 1];
+		if (last->src == ROMPATCH_LITERAL && last->tgt + last->len == tgt && last->lit + last->len == ov->litlen) {
+			last->len += len;
+			ov->litlen += len;
+			ov->size = tgt + len;
+			return 1;
+		}
+	}
+	if (!ovGrowSegs(ov)) {
+		return 0;
+	}
+	ov->segs[ov->numsegs].tgt = tgt;
+	ov->segs[ov->numsegs].len = len;
+	ov->segs[ov->numsegs].src = ROMPATCH_LITERAL;
+	ov->segs[ov->numsegs].lit = ov->litlen;
+	ov->numsegs++;
+	ov->litlen += len;
+	ov->size = tgt + len;
+	return 1;
+}
+
+// index of the segment holding target offset ofs, or -1
+static s32 ovFind(const struct romoverlay *ov, u32 ofs)
+{
+	u32 lo = 0, hi = ov->numsegs;
+
+	while (lo < hi) {
+		const u32 mid = lo + (hi - lo) / 2;
+		const struct rompatchseg *s = &ov->segs[mid];
+		if (ofs < s->tgt) {
+			hi = mid;
+		} else if (ofs >= s->tgt + s->len) {
+			lo = mid + 1;
+		} else {
+			return (s32)mid;
+		}
+	}
+	return -1;
+}
+
+// the target so far ends here
+static u32 ovEnd(const struct romoverlay *ov)
+{
+	if (!ov->numsegs) {
+		return 0;
+	}
+	return ov->segs[ov->numsegs - 1].tgt + ov->segs[ov->numsegs - 1].len;
+}
+
+s32 rompatchOverlayRead(const struct romoverlay *ov, u32 ofs, u32 len, u8 *dst)
+{
+	if (ofs > ov->size || len > ov->size - ofs) {
+		return 0;
+	}
+	while (len) {
+		const s32 i = ovFind(ov, ofs);
+		if (i < 0) {
+			return 0;
+		}
+		const struct rompatchseg *s = &ov->segs[i];
+		const u32 into = ofs - s->tgt;
+		const u32 n = s->len - into < len ? s->len - into : len;
+		if (s->src == ROMPATCH_LITERAL) {
+			memcpy(dst, ov->lit + s->lit + into, n);
+		} else {
+			memcpy(dst, ov->base + s->src + into, n);
+		}
+		dst += n;
+		ofs += n;
+		len -= n;
+	}
+	return 1;
+}
+
+const u8 *rompatchOverlayPeek(const struct romoverlay *ov, u32 ofs, u32 len)
+{
+	if (ofs > ov->size || len > ov->size - ofs) {
+		return NULL;
+	}
+	const s32 i = ovFind(ov, ofs);
+	if (i < 0) {
+		return NULL;
+	}
+	const struct rompatchseg *s = &ov->segs[i];
+	const u32 into = ofs - s->tgt;
+	if (len > s->len - into) {
+		return NULL;
+	}
+	return s->src == ROMPATCH_LITERAL ? ov->lit + s->lit + into : ov->base + s->src + into;
+}
+
+u32 rompatchOverlayCost(const struct romoverlay *ov)
+{
+	return ov->numsegs * (u32)sizeof(struct rompatchseg) + ov->litlen;
+}
+
+void rompatchOverlayFree(struct romoverlay *ov)
+{
+	if (ov) {
+		free(ov->segs);
+		free(ov->lit);
+		free(ov);
+	}
+}
+
+// [tgt, tgt+len) = target[from..]: already-recorded bytes, replicated as
+// segments. An overlapping copy (from + len > tgt, the RLE idiom) is
+// composed byte-by-byte through the read path and stored literal.
+static s32 ovPushTgtCopy(struct romoverlay *ov, u32 tgt, u32 from, u32 len)
+{
+	if (from + len <= tgt) {
+		while (len) {
+			const s32 i = ovFind(ov, from);
+			if (i < 0) {
+				return 0;
+			}
+			const struct rompatchseg s = ov->segs[i]; // by value: pushes may realloc
+			const u32 into = from - s.tgt;
+			const u32 n = s.len - into < len ? s.len - into : len;
+			if (s.src == ROMPATCH_LITERAL) {
+				if (!ovPushLit(ov, tgt, ov->lit + s.lit + into, n)) {
+					return 0;
+				}
+			} else if (!ovPushSrc(ov, tgt, s.src + into, n)) {
+				return 0;
+			}
+			tgt += n;
+			from += n;
+			len -= n;
+		}
+		return 1;
+	}
+
+	// overlapping: the source of the copy is being produced by it, so each
+	// byte is read back out of the overlay (ov->size tracks the live end)
+	// and pushed before the next is read
+	while (len) {
+		u8 b;
+		if (!rompatchOverlayRead(ov, from, 1, &b) || !ovPushLit(ov, tgt, &b, 1)) {
+			return 0;
+		}
+		++tgt;
+		++from;
+		--len;
+	}
+	return 1;
+}
 
 // One instruction. Addresses count through the source segment then the
 // target window, as the RFC has it.
@@ -223,7 +442,13 @@ static s32 vcdRunInst(struct vcdwindow *w, struct vcdcache *c, u32 inst, u32 siz
 		if ((u32)(data->end - data->p) < size) {
 			return 0;
 		}
-		memcpy(w->tgt + w->tgtpos, data->p, size);
+		if (w->ov) {
+			if (!ovPushLit(w->ov, w->tgtbase + w->tgtpos, data->p, size)) {
+				return 0;
+			}
+		} else {
+			memcpy(w->tgt + w->tgtpos, data->p, size);
+		}
 		data->p += size;
 		w->tgtpos += size;
 		return 1;
@@ -234,7 +459,21 @@ static s32 vcdRunInst(struct vcdwindow *w, struct vcdcache *c, u32 inst, u32 siz
 		if (data->bad) {
 			return 0;
 		}
-		memset(w->tgt + w->tgtpos, b, size);
+		if (w->ov) {
+			u8 tmp[256];
+			u32 left = size, at = w->tgtbase + w->tgtpos;
+			memset(tmp, b, sizeof(tmp));
+			while (left) {
+				const u32 n = left < sizeof(tmp) ? left : (u32)sizeof(tmp);
+				if (!ovPushLit(w->ov, at, tmp, n)) {
+					return 0;
+				}
+				at += n;
+				left -= n;
+			}
+		} else {
+			memset(w->tgt + w->tgtpos, b, size);
+		}
 		w->tgtpos += size;
 		return 1;
 	}
@@ -246,6 +485,38 @@ static s32 vcdRunInst(struct vcdwindow *w, struct vcdcache *c, u32 inst, u32 siz
 
 		if (addrs->bad) {
 			return 0;
+		}
+
+		if (w->ov) {
+			const u32 at = w->tgtbase + w->tgtpos;
+			u32 fromsrc = 0;
+
+			if (addr < w->srclen) {
+				// the part inside the source segment, then any run-on into
+				// what this window has written
+				fromsrc = w->srclen - addr < size ? w->srclen - addr : size;
+				if (addr + fromsrc > w->srcavail) {
+					return 0;
+				}
+				if (w->srcistgt) {
+					if (!ovPushTgtCopy(w->ov, at, w->srcbase + addr, fromsrc)) {
+						return 0;
+					}
+				} else if (!ovPushSrc(w->ov, at, w->srcbase + addr, fromsrc)) {
+					return 0;
+				}
+			}
+			if (fromsrc < size) {
+				const u32 t = addr + fromsrc - w->srclen; // offset in this window
+				if (t >= w->tgtpos + fromsrc) {
+					return 0;
+				}
+				if (!ovPushTgtCopy(w->ov, at + fromsrc, w->tgtbase + t, size - fromsrc)) {
+					return 0;
+				}
+			}
+			w->tgtpos += size;
+			return 1;
 		}
 
 		if (addr < w->srclen) {
@@ -279,8 +550,12 @@ static s32 vcdRunInst(struct vcdwindow *w, struct vcdcache *c, u32 inst, u32 siz
 	}
 }
 
+// With ov set, no target is built: the windows are recorded into the overlay
+// and *out / *outlen are untouched. Every check the flat path makes is made
+// here too, including the per-window adler32, which is computed over the
+// window read back out of the overlay.
 static s32 applyXdelta(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
-		u8 **out, u32 *outlen, char *err, u32 errlen)
+		u8 **out, u32 *outlen, char *err, u32 errlen, struct romoverlay *ov)
 {
 	static struct vcdcode codetable[256];
 	static s32 codetableBuilt;
@@ -388,7 +663,7 @@ static s32 applyXdelta(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
 			return -1;
 		}
 
-		if (dstlen + tgtlen > dstcap) {
+		if (!ov && dstlen + tgtlen > dstcap) {
 			u32 cap = dstcap ? dstcap : 0x100000;
 			while (cap < dstlen + tgtlen) {
 				cap *= 2;
@@ -414,9 +689,13 @@ static s32 applyXdelta(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
 		w.src = src;
 		w.srclen = srclen;
 		w.srcavail = srcavail;
-		w.tgt = dst + dstlen;
+		w.tgt = ov ? NULL : dst + dstlen;
 		w.tgtlen = tgtlen;
 		w.tgtpos = 0;
+		w.ov = ov;
+		w.srcbase = srcpos;
+		w.srcistgt = (win & VCD_TARGET) != 0;
+		w.tgtbase = dstlen;
 		vcdCacheInit(&cache);
 
 		while (inst.p < inst.end) {
@@ -455,10 +734,43 @@ static s32 applyXdelta(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
 			return -1;
 		}
 
-		if ((win & VCD_ADLER32) && adler32(adler32(0L, Z_NULL, 0), w.tgt, tgtlen) != adler) {
-			seterr(err, errlen, "xdelta window checksum does not match: is this patch for a different base ROM?");
-			free(dst);
+		if (ov && ovEnd(ov) != dstlen + tgtlen) {
+			seterr(err, errlen, "xdelta overlay came out the wrong size");
 			return -1;
+		}
+
+		if (win & VCD_ADLER32) {
+			u32 got;
+			if (ov) {
+				// read the window back out of the overlay in pieces: this
+				// touches the base pages the window copies, once, and
+				// holds no more than the scratch buffer
+				u8 *scratch = malloc(0x40000);
+				u32 at = 0;
+				if (!scratch) {
+					seterr(err, errlen, "out of memory");
+					return -1;
+				}
+				got = adler32(0L, Z_NULL, 0);
+				while (at < tgtlen) {
+					const u32 n = tgtlen - at < 0x40000 ? tgtlen - at : 0x40000;
+					if (!rompatchOverlayRead(ov, dstlen + at, n, scratch)) {
+						free(scratch);
+						seterr(err, errlen, "xdelta overlay does not cover its own window");
+						return -1;
+					}
+					got = adler32(got, scratch, n);
+					at += n;
+				}
+				free(scratch);
+			} else {
+				got = adler32(adler32(0L, Z_NULL, 0), w.tgt, tgtlen);
+			}
+			if (got != adler) {
+				seterr(err, errlen, "xdelta window checksum does not match: is this patch for a different base ROM?");
+				free(dst);
+				return -1;
+			}
 		}
 
 		dstlen += tgtlen;
@@ -468,6 +780,14 @@ static s32 applyXdelta(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
 		seterr(err, errlen, "xdelta patch is truncated");
 		free(dst);
 		return -1;
+	}
+
+	if (ov) {
+		if (ov->size != dstlen) {
+			seterr(err, errlen, "xdelta overlay came out the wrong size");
+			return -1;
+		}
+		return ROMPATCH_XDELTA;
 	}
 
 	*out = dst;
@@ -676,7 +996,7 @@ s32 rompatchApply(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
 {
 	switch (rompatchIdentify(patch, patchlen)) {
 	case ROMPATCH_XDELTA:
-		return applyXdelta(rom, romlen, patch, patchlen, out, outlen, err, errlen);
+		return applyXdelta(rom, romlen, patch, patchlen, out, outlen, err, errlen, NULL);
 	case ROMPATCH_BPS:
 		return applyBps(rom, romlen, patch, patchlen, out, outlen, err, errlen);
 	case ROMPATCH_IPS:
@@ -685,4 +1005,31 @@ s32 rompatchApply(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
 		seterr(err, errlen, "not a patch format this can read (xdelta, BPS or IPS)");
 		return -1;
 	}
+}
+
+s32 rompatchOverlay(const u8 *rom, u32 romlen, const u8 *patch, u32 patchlen,
+		struct romoverlay **out, char *err, u32 errlen)
+{
+	struct romoverlay *ov;
+
+	if (rompatchIdentify(patch, patchlen) != ROMPATCH_XDELTA) {
+		seterr(err, errlen, "only an xdelta can be applied as an overlay; apply BPS and IPS flat");
+		return -1;
+	}
+
+	ov = calloc(1, sizeof(*ov));
+	if (!ov) {
+		seterr(err, errlen, "out of memory");
+		return -1;
+	}
+	ov->base = rom;
+	ov->baselen = romlen;
+
+	if (applyXdelta(rom, romlen, patch, patchlen, NULL, NULL, err, errlen, ov) < 0) {
+		rompatchOverlayFree(ov);
+		return -1;
+	}
+
+	*out = ov;
+	return ROMPATCH_XDELTA;
 }

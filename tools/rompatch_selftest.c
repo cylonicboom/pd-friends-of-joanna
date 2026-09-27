@@ -7,6 +7,7 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "rompatch.h"
 
 static u8 *loadWhole(const char *path, u32 *len)
@@ -42,7 +43,7 @@ int main(int argc, char **argv)
 	FILE *f;
 
 	if (argc < 4) {
-		fprintf(stderr, "usage: rompatch_selftest <rom> <patch> <out>\n");
+		fprintf(stderr, "usage: rompatch_selftest <rom> <patch> <out> [--overlay]\n");
 		return 2;
 	}
 	if (!(rom = loadWhole(argv[1], &romlen)) || !(patch = loadWhole(argv[2], &patchlen))) {
@@ -50,10 +51,38 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	kind = rompatchApply(rom, romlen, patch, patchlen, &out, &outlen, err, sizeof(err));
-	if (kind < 0) {
-		fprintf(stderr, "FAIL: %s\n", err);
-		return 1;
+	if (argc > 4 && !strcmp(argv[4], "--overlay")) {
+		// decode as an overlay, then compose the whole target through the
+		// read path in odd-sized pieces, so a byte-identical result proves
+		// both the segments and the reader
+		struct romoverlay *ov = NULL;
+		u32 at = 0, step = 4093;
+		kind = rompatchOverlay(rom, romlen, patch, patchlen, &ov, err, sizeof(err));
+		if (kind < 0) {
+			fprintf(stderr, "FAIL: %s\n", err);
+			return 1;
+		}
+		outlen = ov->size;
+		out = malloc(outlen ? outlen : 1);
+		while (at < outlen) {
+			const u32 n = outlen - at < step ? outlen - at : step;
+			if (!rompatchOverlayRead(ov, at, n, out + at)) {
+				fprintf(stderr, "FAIL: overlay read at %u failed\n", at);
+				return 1;
+			}
+			at += n;
+			step = step == 4093 ? 65521 : 4093;
+		}
+		printf("overlay: %u segments, %u literal bytes, %u bytes held for a %u byte target; peek(0x1000,32)=%s\n",
+				ov->numsegs, ov->litlen, rompatchOverlayCost(ov), ov->size,
+				rompatchOverlayPeek(ov, 0x1000, 32) ? "direct" : "split");
+		rompatchOverlayFree(ov);
+	} else {
+		kind = rompatchApply(rom, romlen, patch, patchlen, &out, &outlen, err, sizeof(err));
+		if (kind < 0) {
+			fprintf(stderr, "FAIL: %s\n", err);
+			return 1;
+		}
 	}
 
 	if (!(f = fopen(argv[3], "wb"))) {
