@@ -856,7 +856,24 @@ static void usage(FILE *out)
 		"      checked against the output directory here, so a declaration that\n"
 		"      resolves to nothing fails the build instead of the load. `alias`\n"
 		"      records the name the file answers to outside the mod and must\n"
-		"      agree with `replaces` when both are given.\n");
+		"      agree with `replaces` when both are given.\n"
+		"\n"
+		"A romSource may be a BASE ROM PLUS A PATCH instead of a file:\n"
+		"\n"
+		"  { \"id\": \"coop4\", \"base\": \"base\", \"patch\": \"patches/coop4.xdelta\" }\n"
+		"      the engine mounts it as an overlay over the player's own copy of\n"
+		"      the base (`base` = the rom the port booted from, or another\n"
+		"      source declared earlier). Nothing patched is ever shipped or\n"
+		"      written out. This tool applies the patch here, so byName/byId\n"
+		"      resolve against the image the player's rom will produce, and\n"
+		"      it needs that base rom (--rom-dir / --base-rom).\n"
+		"      AUTHORING DEPENDENCY: the patch has to be MADE, and the tree\n"
+		"      carries a decoder only. Make it with the real xdelta3, and it\n"
+		"      must be plain VCDIFF:\n"
+		"          xdelta3 -S none -e -s <base.z64> <patched.z64> <out.xdelta>\n"
+		"      -S none is required; the engine refuses secondary compression\n"
+		"      (djw/fgk/lzma) by name. xdelta3 is a dev-side tool, never a\n"
+		"      player dependency.\n");
 }
 
 /**
