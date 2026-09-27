@@ -17,5 +17,6 @@ bool modSpectateTakeBodyStale(void);
 void modSpectateApplyStart(void);
 void modSpectateTick(void);
 void modSpectateReset(void);
+void modSpectateTeleport(const struct coord *pos, bool eye);
 
 #endif

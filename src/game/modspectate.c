@@ -352,3 +352,55 @@ void modSpectateTick(void)
 	bmove0f0cc654(0, 0, 0);
 	bmove0f0cc19c(&prop->pos);
 }
+
+/**
+ * Put the player at a point, editor style. The move half of
+ * modSpectateTick() with no input: the destination's rooms come from the
+ * same portal walk and the same bgFindRoomsByPos fallback, so a target
+ * on the far side of three walls still lands in a room, and the ground
+ * and the view are refreshed the way the tick does it.
+ *
+ * `eye` says whether pos is where the eye goes or where the feet go. A
+ * pad is a place to stand, so the bar passes the pad's pos and eye = false
+ * and this lifts it by vv_eyeheight; a chr's prop pos is already an eye.
+ *
+ * Works whether or not spectating: with the walk on, the next bwalkTick
+ * takes it from there and gravity does what it does.
+ */
+void modSpectateTeleport(const struct coord *pos, bool eye)
+{
+	struct prop *prop;
+	struct coord dstpos;
+	RoomNum dstrooms[8];
+
+	if (g_Vars.currentplayer == NULL || g_Vars.currentplayer->prop == NULL || pos == NULL) {
+		return;
+	}
+
+	prop = g_Vars.currentplayer->prop;
+
+	dstpos.x = pos->x;
+	dstpos.y = pos->y + (eye ? 0.0f : g_Vars.currentplayer->vv_eyeheight);
+	dstpos.z = pos->z;
+
+	func0f065e74(&prop->pos, prop->rooms, &dstpos, dstrooms);
+
+	prop->pos.x = dstpos.x;
+	prop->pos.y = dstpos.y;
+	prop->pos.z = dstpos.z;
+
+	propDeregisterRooms(prop);
+	roomsCopy(dstrooms, prop->rooms);
+
+	bmoveUpdateRooms(g_Vars.currentplayer);
+
+	g_Vars.currentplayer->vv_ground = prop->pos.y - g_Vars.currentplayer->vv_height;
+	g_Vars.currentplayer->vv_manground = g_Vars.currentplayer->vv_ground;
+
+	g_Vars.currentplayer->bondprevpos.x = prop->pos.x;
+	g_Vars.currentplayer->bondprevpos.y = prop->pos.y;
+	g_Vars.currentplayer->bondprevpos.z = prop->pos.z;
+
+	bmove0f0cc654(0, 0, 0);
+	bmove0f0cc19c(&prop->pos);
+}

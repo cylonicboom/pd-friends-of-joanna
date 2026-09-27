@@ -347,6 +347,11 @@ static bool g_ImGuiLuaResultOk = true;
 static bool g_ImGuiSavesFlushPending = false;
 static bool g_ImGuiDropLastPlayerPending = false;
 static bool g_ImGuiAddPlayerPending = false;
+// Teleport, applied after the overlay renders like the player requests:
+// the bar runs at draw time, the move belongs after it.
+static bool g_ImGuiTeleportPending = false;
+static bool g_ImGuiTeleportEye = false;
+static struct coord g_ImGuiTeleportPos;
 static struct fileguid g_ImGuiAddPlayerGuid;
 static bool g_ImGuiPlayersFocusPicker = false;
 static s32 g_ImGuiPlayersPick = -1;
@@ -362,6 +367,9 @@ extern "C" u32 saveQueueFramesPending(void);
 extern "C" u32 saveQueueDeadlineFrames(void);
 extern "C" u32 saveQueueFlushCount(void);
 extern "C" void saveQueueFlush(void);
+extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
+extern "C" void modSpectateSetOn(bool on);
+extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -1212,6 +1220,16 @@ static void imguiOverlayDrawRuntimePanel(void)
 	ImGui::Text("Active mod: %d", g_ModNum);
 	ImGui::Text("Window: %ux%u", gfx_current_window_dimensions.width,
 			gfx_current_window_dimensions.height);
+	{
+		bool noclip = modSpectateIsOn();
+		if (ImGui::Checkbox("Noclip", &noclip)) {
+			modSpectateSetOn(noclip);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Spectator: the player prop flies, is not collided with and not noticed.\n"
+					"Look + move to fly; ! in the bar teleports to a pad, an entity or a room.");
+		}
+	}
 	ImGui::Text("Framebuffers: %s", gfx_framebuffers_enabled ? "enabled" : "disabled");
 	ImGui::SeparatorText("Time");
 	ImGui::Text("Level frame: %d", g_Vars.lvframenum);
@@ -5718,6 +5736,14 @@ static void imguiOverlayRunPlayerRequests(void)
 		}
 	}
 
+	if (g_ImGuiTeleportPending) {
+		g_ImGuiTeleportPending = false;
+
+		if (g_MainChangeToStageNum < 0 && g_Vars.currentplayer && g_Vars.currentplayer->prop) {
+			modSpectateTeleport(&g_ImGuiTeleportPos, g_ImGuiTeleportEye);
+		}
+	}
+
 	if (g_ImGuiAddPlayerPending) {
 		g_ImGuiAddPlayerPending = false;
 
@@ -6805,6 +6831,7 @@ static void imguiOverlayDrawWindowContextMenu(void)
 //   @  entities -- props and chrs        >  commands
 //   `  windows and panels                _  pads of the running stage (or the
 //                                           coffee cup U+2615: Doak's coasters)
+//   !  teleport: a pad, a chr, a prop or a room number; enter goes there
 // A bare sigil is a mode: ` on its own lists every window, which is the window
 // switcher with no query. \ at position 0 escapes the next character, for the
 // one corpus whose names are mod-supplied and so not guaranteed sigil-free.
@@ -6832,6 +6859,7 @@ enum {
 	kFojoBarStage,
 	kFojoBarTexture,
 	kFojoBarPad,
+	kFojoBarTeleport,   // ! sigil: a pad, an entity or a room, activated = go there
 };
 
 struct imguiOverlayBarHit {
@@ -6839,6 +6867,8 @@ struct imguiOverlayBarHit {
 	s32 index;              // window row, or command row
 	struct prop *prop;      // entity
 	struct assetref ref;    // file slot, stage, texture
+	struct coord where;     // teleport target
+	bool whereIsEye;        // teleport: pos is the eye (a prop) rather than the feet (a pad)
 	s32 score;
 	char label[80];
 	char detail[32];
@@ -6884,6 +6914,10 @@ static void imguiOverlayCmdResetPositions(void)
 static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
 static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
+// Noclip is DabDavis's spectator (modspectate.c): the player prop kept, not
+// collided with or noticed, rooms from the portal walk. Nothing else toggles
+// it live - --spectate and the ini only - so this is the way in.
+static void imguiOverlayCmdNoclip(void)      { modSpectateSetOn(!modSpectateIsOn()); }
 static void imguiOverlayCmdShowProps(void)   { g_ImGuiOverlayShowPropMarkers = !g_ImGuiOverlayShowPropMarkers; imguiOverlaySaveWindowState(); }
 static void imguiOverlayCmdShowPads(void)    { g_ImGuiOverlayShowPadMarkers = !g_ImGuiOverlayShowPadMarkers; imguiOverlaySaveWindowState(); }
 static void imguiOverlayCmdShowPadsAll(void) { g_ImGuiOverlayPadMarkersAllRooms = !g_ImGuiOverlayPadMarkersAllRooms; imguiOverlaySaveWindowState(); }
@@ -6911,6 +6945,7 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Show props",               imguiOverlayCmdShowProps },
 	{ "Show pads",                imguiOverlayCmdShowPads },
 	{ "Show pads: every room",    imguiOverlayCmdShowPadsAll },
+	{ "Noclip",                   imguiOverlayCmdNoclip },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
 };
@@ -7026,6 +7061,8 @@ static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 scor
 		hit.ref.sub = -1;
 		hit.ref.via = -1;
 	}
+	hit.where.x = hit.where.y = hit.where.z = 0.0f;
+	hit.whereIsEye = false;
 	snprintf(hit.label, sizeof(hit.label), "%s", label);
 	snprintf(hit.detail, sizeof(hit.detail), "%s", detail ? detail : "");
 }
@@ -7113,6 +7150,124 @@ static void imguiOverlayBarSearchAssets(const char *q, s32 kind, const char *dri
 	assetEnumerate(drivePath, imguiOverlayBarAssetVisit, &ctx);
 }
 
+// ! : one corpus for going places. Pads by name or number (live stage),
+// chrs and props by their entity label, rooms by number. Every hit carries
+// its world position, and activating one hands it to modSpectateTeleport
+// after the frame. Turn noclip on first if there are walls in the way.
+static s32 imguiOverlayBarTeleportPadVisit(const struct assetref *ref, const char *name, void *vctx)
+{
+	const struct imguiOverlayBarAssetCtx *ctx = (const struct imguiOverlayBarAssetCtx *)vctx;
+	struct pad pad;
+	s32 score;
+
+	if (ctx->wanted >= 0) {
+		if (ref->sub != ctx->wanted) return 1;
+		score = 1000;
+	} else if (!imguiOverlayBarFuzzy(name, ctx->q, &score)) {
+		return 1;
+	}
+
+	if (assetPadUnpack(ref, &pad) != ASSET_OK) {
+		return 1;
+	}
+
+	char detail[32];
+	snprintf(detail, sizeof(detail), "go: pad 0x%04x  room %d", ref->sub, pad.room);
+	imguiOverlayBarPush(kFojoBarTeleport, -1, NULL, score, name, detail, ref);
+
+	// the push copies the ref; the position rides on the newest hit for it
+	for (s32 i = 0; i < g_ImGuiOverlayBarHitCount; ++i) {
+		struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[i];
+		if (hit.kind == kFojoBarTeleport && hit.ref.drive == ASSET_DRIVE_PAD && hit.ref.sub == ref->sub && hit.ref.id == ref->id) {
+			hit.where = pad.pos;
+			hit.whereIsEye = false;
+		}
+	}
+
+	return 1;
+}
+
+static void imguiOverlayBarSearchTeleport(const char *q)
+{
+	bool numeric = q[0] != '\0';
+	s32 score;
+
+	for (const char *c = q; *c; ++c) {
+		if (*c < '0' || *c > '9') { numeric = false; break; }
+	}
+
+	// pads
+	{
+		struct imguiOverlayBarAssetCtx ctx;
+		ctx.q = q;
+		ctx.kind = kFojoBarTeleport;
+		ctx.wanted = numeric ? atoi(q) : -1;
+		assetEnumerate("pad:/", imguiOverlayBarTeleportPadVisit, &ctx);
+	}
+
+	// rooms, by number only
+	if (numeric && g_Rooms) {
+		const s32 room = atoi(q);
+		if (room > 0 && room < g_Vars.roomcount) {
+			char label[32];
+			snprintf(label, sizeof(label), "room 0x%03x", room);
+			imguiOverlayBarPush(kFojoBarTeleport, room, NULL, 900, label, "go: room centre");
+			for (s32 i = 0; i < g_ImGuiOverlayBarHitCount; ++i) {
+				struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[i];
+				if (hit.kind == kFojoBarTeleport && hit.prop == NULL && hit.index == room && hit.ref.drive != ASSET_DRIVE_PAD) {
+					hit.where = g_Rooms[room].centre;
+					hit.whereIsEye = true;
+				}
+			}
+		}
+	}
+
+	// entities, the same walk the @ corpus does
+	if (q[0]) {
+		char label[80];
+
+		if (g_ChrSlots && g_NumChrSlots) {
+			for (s32 i = 0; i < g_NumChrSlots; ++i) {
+				struct chrdata *chr = &g_ChrSlots[i];
+				if (chr->chrnum < 0 || !chr->prop) continue;
+				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
+				if (imguiOverlayBarFuzzy(label, q, &score)) {
+					char detail[32];
+					snprintf(detail, sizeof(detail), "go: chr 0x%04x", (u16)chr->chrnum);
+					imguiOverlayBarPush(kFojoBarTeleport, i, chr->prop, score, label, detail);
+					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
+						struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
+						if (hit.kind == kFojoBarTeleport && hit.prop == chr->prop) {
+							hit.where = chr->prop->pos;
+							hit.whereIsEye = true;
+						}
+					}
+				}
+			}
+		}
+
+		struct prop *prop = g_Vars.activeprops;
+		for (s32 i = 0; prop && prop != g_Vars.pausedprops && i <= g_Vars.maxprops; ++i) {
+			struct prop *next = prop->next;
+			if (!imguiOverlayPropIsCurrent(prop)) break;
+			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
+				snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(prop->type));
+				if (imguiOverlayBarFuzzy(label, q, &score)) {
+					imguiOverlayBarPush(kFojoBarTeleport, i, prop, score - 6, label, "go: prop");
+					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
+						struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
+						if (hit.kind == kFojoBarTeleport && hit.prop == prop) {
+							hit.where = prop->pos;
+							hit.whereIsEye = true;
+						}
+					}
+				}
+			}
+			prop = next;
+		}
+	}
+}
+
 static void imguiOverlayBarSearch(void)
 {
 	const char *q = g_ImGuiOverlayBarQuery;
@@ -7123,6 +7278,7 @@ static void imguiOverlayBarSearch(void)
 	bool wantStages = false;
 	bool wantTextures = false;
 	bool wantPads = false;
+	bool wantTeleport = false;
 	s32 score;
 
 	g_ImGuiOverlayBarHitCount = 0;
@@ -7135,6 +7291,7 @@ static void imguiOverlayBarSearch(void)
 	else if (q[0] == '/') { wantWindows = wantEntities = wantCommands = false; wantStages = true; q++; }
 	else if (q[0] == '%') { wantWindows = wantEntities = wantCommands = false; wantTextures = true; q++; }
 	else if (q[0] == '_') { wantWindows = wantEntities = wantCommands = false; wantPads = true; q++; }
+	else if (q[0] == '!') { wantWindows = wantEntities = wantCommands = false; wantTeleport = true; q++; }
 	else if (!strncmp(q, "\xE2\x98\x95", 3)) {
 		// the coffee cup, U+2615, alias for pad: - Doak's coasters. Some
 		// keyboards append the emoji variation selector U+FE0F; eat it too.
@@ -7244,6 +7401,10 @@ static void imguiOverlayBarSearch(void)
 		imguiOverlayBarSearchAssets(q, kFojoBarPad, "pad:/");
 	}
 
+	if (wantTeleport) {
+		imguiOverlayBarSearchTeleport(q);
+	}
+
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
 	for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
 		const struct imguiOverlayBarHit key = g_ImGuiOverlayBarHits[i];
@@ -7305,6 +7466,21 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		if (hit->ref.drive == ASSET_DRIVE_TEX) {
 			imguiOverlayFocusTextureId(hit->ref.sub);
 			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowTextures);
+		}
+		break;
+	case kFojoBarTeleport:
+		g_ImGuiTeleportPos = hit->where;
+		g_ImGuiTeleportEye = hit->whereIsEye;
+		g_ImGuiTeleportPending = true;
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			g_ImGuiOverlayPadSel = hit->ref.sub;
+		}
+		{
+			char path[64];
+			if (hit->ref.drive == ASSET_DRIVE_PAD) assetFormat(&hit->ref, path, sizeof(path));
+			else snprintf(path, sizeof(path), "%s", hit->label);
+			sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", path,
+					hit->where.x, hit->where.y, hit->where.z);
 		}
 		break;
 	case kFojoBarPad:
@@ -7369,7 +7545,7 @@ static void imguiOverlayDrawAwesomeBar(void)
 	}
 
 	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot, _a pad",
+	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot, _a pad, !go somewhere",
 			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
 
 	imguiOverlayBarSearch();
