@@ -441,16 +441,17 @@ static void romSourcesMount(void)
 		struct romsource *rs = &g_RomSources[i];
 		if (rs->mounted || !rs->filename[0]) continue;
 
-		rs->data = fsFileLoad(rs->filename, &rs->size);
-		if (!rs->data) {
-			char tmp[FS_MAXPATH];
-			snprintf(tmp, sizeof(tmp), "$B/roms/%s", rs->filename);
-			rs->data = fsFileLoad(tmp, &rs->size);
-		}
-		if (!rs->data) {
-			char tmp[FS_MAXPATH];
-			snprintf(tmp, sizeof(tmp), "$B/%s", rs->filename);
-			rs->data = fsFileLoad(tmp, &rs->size);
+		// Probe with fsFileSize so a miss does not log an error per
+		// candidate; the image itself is mapped, not read (see fsFileMap).
+		const char *cands[3];
+		char tmp1[FS_MAXPATH], tmp2[FS_MAXPATH];
+		snprintf(tmp1, sizeof(tmp1), "$B/roms/%s", rs->filename);
+		snprintf(tmp2, sizeof(tmp2), "$B/%s", rs->filename);
+		cands[0] = rs->filename; cands[1] = tmp1; cands[2] = tmp2;
+		for (u32 c = 0; c < 3 && !rs->data; c++) {
+			if (fsFileSize(cands[c]) > 0) {
+				rs->data = fsFileMap(cands[c], &rs->size);
+			}
 		}
 
 		if (!rs->data) {
@@ -613,7 +614,7 @@ static inline void romdataLoadRom(void)
 {
 	sysLogPrintf(LOG_NOTE, "ROM file: %s", romName);
 
-	g_RomFile = fsFileLoad(romName, &g_RomFileSize);
+	g_RomFile = fsFileMap(romName, &g_RomFileSize);
 
 	if (!g_RomFile) {
 		sysFatalError("Could not open ROM file %s.\nEnsure that it is in the %s directory.", romName, fsFullPath(""));
