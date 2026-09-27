@@ -173,6 +173,15 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 			f->alias = rdStr(&r, rd16(&r));
 		}
 
+		if (flags & PDFT_F_PATCH) {
+			if (out->version < 5) {
+				snprintf(err, errLen, "'%s' carries a patch tail in a v%u table; the reader would desync here",
+						f->name ? f->name : "?", out->version);
+				return false;
+			}
+			f->patch = rdStr(&r, rd16(&r));
+		}
+
 		if (r.bad) {
 			break;
 		}

@@ -56,6 +56,16 @@
                                  * which is a clean failure rather than the
                                  * silent desync a tail behind an ignored bit
                                  * would have produced. */
+#define PDFT_F_PATCH       0x20 /* a patch tail follows the alias tail: u16 len
+                                 * + path, inside the owning mod's directory,
+                                 * of an xdelta applied to this file's bytes
+                                 * AFTER inflate on first load (and the result
+                                 * re-deflated, so the 1173 header carries the
+                                 * patched size). Orthogonal to where the
+                                 * bytes come from - the vanilla rom, a rom
+                                 * source or a self source. MOVES BYTES, so it
+                                 * needs v5. */
+#define PDFT_PATCH_MAX 128      /* the reader's patch path buffer */
 
 /* A romSource record's own flags byte (bit0 required, bit1 strict). These are
  * NOT the PDFT_F_ file-entry bits above; the two bytes share nothing but the

@@ -7,7 +7,7 @@
  * the encoder from a table it decoded elsewhere.
  *
  *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback> [<hex base> <hex patch> <crc32>]
- *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource]
+ *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource] [<hex alias> [<hex patch>]]
  *   T <localTexId> <slotIdx>
  *
  * A hex field of "-" is an absent string; altRom of -1 is no alt-ROM tail.
@@ -113,10 +113,11 @@ int main(int argc, char **argv)
 			++numSources;
 		} else if (line[0] == 'F') {
 			unsigned altOfs, altSize, altComp, self = 0;
-			int got = sscanf(line, "F %u %u %u %u %s %s %d %u %u %u %u",
-					&a, &b, &c, &d, hexA, hexB, &alt, &altOfs, &altSize, &altComp, &self);
+			char hexC[MAXLINE], hexD[MAXLINE];
+			int got = sscanf(line, "F %u %u %u %u %s %s %d %u %u %u %u %s %s",
+					&a, &b, &c, &d, hexA, hexB, &alt, &altOfs, &altSize, &altComp, &self, hexC, hexD);
 
-			if (got != 10 && got != 11) continue;
+			if (got < 10 || got > 13) continue;
 
 			if (got == 10) self = 0;
 
@@ -137,6 +138,8 @@ int main(int argc, char **argv)
 			files[numFiles].alt.size = altSize;
 			files[numFiles].alt.compression = (uint8_t)altComp;
 			files[numFiles].selfSource = !!self;
+			files[numFiles].alias = got >= 12 ? unhex(hexC) : NULL;
+			files[numFiles].patch = got >= 13 ? unhex(hexD) : NULL;
 			++numFiles;
 		} else if (line[0] == 'T') {
 			if (sscanf(line, "T %u %u", &e, &f) != 2) continue;

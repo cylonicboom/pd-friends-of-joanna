@@ -127,6 +127,12 @@ uint32_t pdftVersionFor(const struct pdftInput *in)
 	}
 
 	for (i = 0; i < in->numFiles; ++i) {
+		if (in->files[i].patch && in->files[i].patch[0]) {
+			return 5;
+		}
+	}
+
+	for (i = 0; i < in->numFiles; ++i) {
 		if (in->files[i].alias && in->files[i].alias[0]) {
 			return 4;
 		}
@@ -225,6 +231,17 @@ static bool checkInput(const struct pdftInput *in, uint32_t version, char *err, 
 	for (i = 0; i < in->numFiles; ++i) {
 		const struct pdftFile *f = &in->files[i];
 		size_t n;
+
+		if (f->patch && f->patch[0]) {
+			if (strlen(f->patch) + 1 > PDFT_PATCH_MAX) {
+				return fail(err, errLen, "'%s': patch path is %zu bytes, the reader's buffer is %d",
+						f->name, strlen(f->patch) + 1, PDFT_PATCH_MAX);
+			}
+			if (version < 5) {
+				return fail(err, errLen, "'%s' carries a patch, which needs v5, but the table is v%u",
+						f->name, version);
+			}
+		}
 
 		if (!f->name || !f->name[0]) {
 			return fail(err, errLen, "file entry %u (id %u) has no name", i, f->id);
@@ -398,6 +415,10 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 
 		/* Unlike every flag above, this one has a tail, so it is the one that
 		 * costs a version. */
+		if (f->patch && f->patch[0]) {
+			flags |= PDFT_F_PATCH;
+		}
+
 		if (f->alias && f->alias[0]) {
 			flags |= PDFT_F_ALIAS;
 		}
@@ -420,6 +441,11 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 		 * walks the alt tail correctly before it gives up on the version. */
 		if (f->alias && f->alias[0]) {
 			putStr16(&b, f->alias);
+		}
+
+		/* After the alias tail, for the same reason it sits after alt. */
+		if (f->patch && f->patch[0]) {
+			putStr16(&b, f->patch);
 		}
 	}
 

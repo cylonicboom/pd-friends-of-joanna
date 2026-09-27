@@ -86,6 +86,11 @@ struct pdftFile {
 	bool selfSource;
 	uint32_t offset;
 	uint32_t size;
+
+	/* PDFT_F_PATCH: an xdelta, at this path inside the mod directory, applied
+	 * to the file's inflated bytes on first load. NULL for most entries.
+	 * Setting it forces the table to v5. */
+	const char *patch;
 };
 
 struct pdftTexMap {

@@ -873,7 +873,23 @@ static void usage(FILE *out)
 		"          xdelta3 -S none -e -s <base.z64> <patched.z64> <out.xdelta>\n"
 		"      -S none is required; the engine refuses secondary compression\n"
 		"      (djw/fgk/lzma) by name. xdelta3 is a dev-side tool, never a\n"
-		"      player dependency.\n");
+		"      player dependency.\n"
+		"\n"
+		"A file entry may carry a PATCH applied AFTER INFLATE, whatever its bytes'\n"
+		"source - the vanilla rom (via `replaces`), a rom source, or self:\n"
+		"\n"
+		"  { \"name\": \"UsetupameZ\", \"replaces\": \"UsetupameZ\",\n"
+		"    \"patch\": \"patches/UsetupameZ.xdelta\" }\n"
+		"      the engine inflates the file on first load, applies the xdelta\n"
+		"      to the inflated bytes, and re-packs it, so the 1173 header carries\n"
+		"      the patched size. This is the shape for a modified setup file: a\n"
+		"      rom-level delta of a recompressed setup is the whole setup\n"
+		"      (measured: 5363 of 5437 bytes), a delta of the inflated bytes is\n"
+		"      the change (146-648 bytes on the fojo setups). The patch is proved\n"
+		"      here against the inflated input whenever that input is readable\n"
+		"      (a replaced vanilla file with the base rom found, or a rom-sourced\n"
+		"      entry). `pdt build-file-patches` writes these from a build-setups\n"
+		"      output. Same xdelta3 -S none rule as above.\n");
 }
 
 /**
@@ -943,7 +959,8 @@ static int cmpEntry(const void *a, const void *b)
 {
 	const struct entry { JSON_Object *obj; const char *name; const char *path;
 			long texId; bool isTexture; bool replaces; long fixedId;
-			int altRom; uint32_t altOfs, altSize; bool drop; } *x = a, *y = b;
+			int altRom; bool selfSrc; const char *alias; uint32_t altOfs, altSize; bool drop;
+			const char *patch; } *x = a, *y = b;
 
 	if (x->isTexture != y->isTexture) {
 		return x->isTexture ? 1 : -1;
@@ -1243,6 +1260,7 @@ int main(int argc, char **argv)
 			const char *alias;  /* second name for this id; forces table v4 */
 			uint32_t altOfs, altSize;
 			bool drop;         /* an orphan, kept out of the output */
+			const char *patch; /* top-level "patch": an xdelta applied after inflate; forces v5 */
 		};
 		struct entry *ents = calloc(n, sizeof(*ents));
 		size_t numPlain = 0, numTexEnt = 0;
@@ -1263,6 +1281,15 @@ int main(int argc, char **argv)
 			ents[i].name = name;
 			ents[i].path = json_object_get_string(e, "path");
 			ents[i].isTexture = type && !strcmp(type, "texture");
+			ents[i].patch = json_object_get_string(e, "patch");
+
+			if (ents[i].patch && !ents[i].patch[0]) {
+				ents[i].patch = NULL;
+			}
+
+			if (ents[i].patch && ents[i].isTexture) {
+				die("%s: '%s': a texture cannot carry a patch", manifestPath, name);
+			}
 
 			/* Every per-file name rule, checked with the same predicate the
 			 * loader compiles - see port/include/pdftrules.h. This is fatal
@@ -1479,6 +1506,7 @@ int main(int argc, char **argv)
 			out[numOut].path = ents[i].path;
 			out[numOut].selfSource = ents[i].selfSrc;
 			out[numOut].alias = ents[i].alias;
+			out[numOut].patch = ents[i].patch;
 			out[numOut].alt.romIdx = ents[i].altRom;
 			out[numOut].alt.offset = ents[i].altOfs;
 			out[numOut].alt.size = ents[i].altSize;
@@ -1577,6 +1605,103 @@ int main(int argc, char **argv)
 			}
 			sources[i].expectedCrc32 = roms[i].crc32;
 		}
+	}
+
+	/* A file patch is proved here, not at the load: the patch file must be in
+	 * the mod directory (where the engine looks: <mod>/<patch>, then
+	 * <mod>/files/<patch>), must be an xdelta, and - when the bytes it patches
+	 * can be read here, ie the entry replaces a vanilla file and the base rom
+	 * is open, or it is sourced out of a rom - must apply to those bytes
+	 * inflated. A patch that does not apply would otherwise ship, fail at the
+	 * player's first load, and fall back to the unpatched file without a word. */
+	for (i = 0; i < numOut; ++i) {
+		const struct pdftFile *f = &out[i];
+		char patchPath[PATHMAX];
+		struct stat st;
+		uint8_t *patch = NULL, *src = NULL, *inflated = NULL, *applied = NULL;
+		uint32_t patchLen = 0, srcLen = 0, inflatedLen = 0, appliedLen = 0;
+		uint32_t srcOfs = 0;
+		struct altRom *srcRom = NULL;
+		char err[256];
+		FILE *pf;
+		long pn;
+
+		if (!f->patch) {
+			continue;
+		}
+
+		if (snprintf(patchPath, sizeof(patchPath), "%s/%s", output, f->patch) >= (int)sizeof(patchPath)
+				|| stat(patchPath, &st) != 0 || !S_ISREG(st.st_mode)) {
+			if (snprintf(patchPath, sizeof(patchPath), "%s/files/%s", output, f->patch) >= (int)sizeof(patchPath)
+					|| stat(patchPath, &st) != 0 || !S_ISREG(st.st_mode)) {
+				die("'%s': patch '%s' not found in %s", f->name, f->patch, output);
+			}
+		}
+
+		pf = fopen(patchPath, "rb");
+		if (!pf || fseek(pf, 0, SEEK_END) != 0 || (pn = ftell(pf)) <= 0 || fseek(pf, 0, SEEK_SET) != 0) {
+			die("'%s': could not read patch %s", f->name, patchPath);
+		}
+		patch = malloc((size_t)pn);
+		if (!patch || fread(patch, 1, (size_t)pn, pf) != (size_t)pn) {
+			die("'%s': could not read patch %s", f->name, patchPath);
+		}
+		fclose(pf);
+		patchLen = (uint32_t)pn;
+
+		if (rompatchIdentify(patch, patchLen) != ROMPATCH_XDELTA) {
+			die("'%s': %s is not an xdelta (make it with `xdelta3 -S none`)", f->name, patchPath);
+		}
+
+		/* the bytes it patches, when they are readable from here */
+		if (f->alt.romIdx >= 0) {
+			srcRom = &roms[f->alt.romIdx];
+			srcOfs = f->alt.offset;
+			srcLen = f->alt.size;
+		} else if (!f->path && baseRom.fp && f->id < 2018) {
+			srcRom = &baseRom;
+			if (!altFileExtent(&baseRom, f->name, &srcOfs, &srcLen)) {
+				srcRom = NULL;
+			}
+		}
+
+		if (!srcRom || !altImage(srcRom) || (size_t)srcOfs + srcLen > srcRom->imageLen) {
+			printf("'%s': patch %s present (%u bytes); its input is not readable here, so it is not proved\n",
+					f->name, f->patch, patchLen);
+			free(patch);
+			continue;
+		}
+
+		src = srcRom->image + srcOfs;
+
+		if (srcLen >= 5 && src[0] == 0x11 && src[1] == 0x73) {
+			z_stream zs;
+			inflatedLen = ((uint32_t)src[2] << 16) | ((uint32_t)src[3] << 8) | src[4];
+			inflated = malloc(inflatedLen ? inflatedLen : 1);
+			memset(&zs, 0, sizeof(zs));
+			zs.next_in = src + 5;
+			zs.avail_in = srcLen - 5;
+			zs.next_out = inflated;
+			zs.avail_out = inflatedLen;
+			if (inflateInit2(&zs, -15) != Z_OK || inflate(&zs, Z_FINISH) != Z_STREAM_END) {
+				die("'%s': the file it patches did not inflate (%s at 0x%x)", f->name, srcRom->path, srcOfs);
+			}
+			inflateEnd(&zs);
+		} else {
+			inflated = malloc(srcLen ? srcLen : 1);
+			memcpy(inflated, src, srcLen);
+			inflatedLen = srcLen;
+		}
+
+		if (rompatchApply(inflated, inflatedLen, patch, patchLen, &applied, &appliedLen, err, sizeof(err)) < 0) {
+			die("'%s': patch %s does not apply to the file's inflated bytes: %s", f->name, f->patch, err);
+		}
+
+		printf("'%s': patch %s applies, %u -> %u bytes (%u byte patch)\n",
+				f->name, f->patch, inflatedLen, appliedLen, patchLen);
+		free(applied);
+		free(inflated);
+		free(patch);
 	}
 
 	{
