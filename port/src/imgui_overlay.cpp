@@ -57,6 +57,7 @@ static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
 static bool g_ImGuiOverlayShowSaves = false;
 static bool g_ImGuiOverlayShowPlayers = false;
+static bool g_ImGuiOverlayShowImport = false;
 static struct chrdata *g_ImGuiPropChr = NULL;
 static s32 g_ImGuiPropChrnum = -1;
 static bool g_ImGuiPropApply = true;
@@ -349,6 +350,14 @@ static bool g_ImGuiDropLastPlayerPending = false;
 static bool g_ImGuiAddPlayerPending = false;
 // Teleport, applied after the overlay renders like the player requests:
 // the bar runs at draw time, the move belongs after it.
+// Stage geometry import + reload (c-geometry-import). The reload is a stage
+// restart: free the four slots so the next load re-resolves loose files,
+// then mainChangeToStage on the same stage. Hot swap was ruled out.
+static char g_ImGuiImportPath[FS_MAXPATH] = "";
+static s32 g_ImGuiImportKind = 0;       // 0 auto, then the four stage fields
+static char g_ImGuiImportResult[256] = "";
+static bool g_ImGuiImportResultOk = true;
+static bool g_ImGuiReloadStagePending = false;
 static bool g_ImGuiTeleportPending = false;
 static bool g_ImGuiTeleportEye = false;
 static struct coord g_ImGuiTeleportPos;
@@ -367,6 +376,7 @@ extern "C" u32 saveQueueFramesPending(void);
 extern "C" u32 saveQueueDeadlineFrames(void);
 extern "C" u32 saveQueueFlushCount(void);
 extern "C" void saveQueueFlush(void);
+extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
 extern "C" void modSpectateSetOn(bool on);
 extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
@@ -1212,6 +1222,212 @@ static void imguiOverlayDrawProfilerPanel(void)
 			}
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Import. A bg, tiles, pads or setup file for the running stage, dropped on
+// the window or typed as a path, copied into the owning mod's files/ under
+// the name the stage row already resolves to - so it shadows what loads
+// today through romdataFileLoad's own loose-file walk, and no filetable or
+// modconfig edit is needed. A stage with no row is c-stage-additions, not
+// this. Then Reload restarts the stage.
+
+static const char *const g_ImGuiImportKindNames[] = { "auto", "bg", "tiles", "pads", "setup", "mpsetup" };
+
+static s32 imguiOverlayImportGuessKind(const char *path)
+{
+	const char *base = strrchr(path, '/');
+	base = base ? base + 1 : path;
+	const char *bs = strrchr(base, '\\');
+	base = bs ? bs + 1 : base;
+
+	if (strstr(base, "pads")) return ASSET_STAGE_PADS + 1;
+	if (strstr(base, "tiles")) return ASSET_STAGE_TILES + 1;
+	if (strstr(base, "mpsetup") || strstr(base, "Ump")) return ASSET_STAGE_MPSETUP + 1;
+	if (strstr(base, "setup") || strstr(base, "Usetup")) return ASSET_STAGE_SETUP + 1;
+	if (strstr(base, "bg")) return ASSET_STAGE_BG + 1;
+	return 0;
+}
+
+static u32 imguiOverlayImportFieldId(s32 field)
+{
+	if (g_StageIndex < 0 || g_StageIndex >= kFojoStageTableLen) return 0;
+	const struct stagetableentry *e = &g_Stages[g_StageIndex];
+	switch (field) {
+	case ASSET_STAGE_BG:      return e->bgfileid;
+	case ASSET_STAGE_TILES:   return e->tilefileid;
+	case ASSET_STAGE_PADS:    return e->padsfileid;
+	case ASSET_STAGE_SETUP:   return e->setupfileid;
+	case ASSET_STAGE_MPSETUP: return e->mpsetupfileid;
+	default:                  return 0;
+	}
+}
+
+// where the field's bytes would be read from as a loose file: the owner's
+// mod dir (or the active mod for a vanilla id) + files/<slot name>
+static bool imguiOverlayImportDest(s32 field, char *dest, size_t len, s32 *outOwner, const char **outName)
+{
+	const s32 id = (s32)imguiOverlayImportFieldId(field);
+	if (id == 0) return false;
+
+	const s32 tagged = MOD_FILEID_MOD(id);
+	const s32 owner = tagged >= 0 ? tagged : g_ModNum;
+	const char *name = romdataFileGetSlotName(owner, MOD_FILEID_RAW(id));
+	if (!name || !name[0] || owner < 0 || owner >= (s32)g_NumModDirs || !modDirs[owner][0]) return false;
+
+	const char *sep = strstr(name, "::");
+	if (sep) name = sep + 2;
+
+	if (!strncmp(name, "files/", 6)) {
+		snprintf(dest, len, "%s/%s", modDirs[owner], name);
+	} else {
+		snprintf(dest, len, "%s/files/%s", modDirs[owner], name);
+	}
+
+	if (outOwner) *outOwner = owner;
+	if (outName) *outName = name;
+	return true;
+}
+
+static void imguiOverlayImportMkdirs(const char *dest)
+{
+	char dir[FS_MAXPATH];
+	snprintf(dir, sizeof(dir), "%s", dest);
+	for (char *c = dir + 1; *c; ++c) {
+		if (*c == '/') {
+			*c = '\0';
+			fsCreateDir(dir);
+			*c = '/';
+		}
+	}
+}
+
+static void imguiOverlayImportRun(void)
+{
+	s32 kind = g_ImGuiImportKind ? g_ImGuiImportKind : imguiOverlayImportGuessKind(g_ImGuiImportPath);
+	char dest[FS_MAXPATH];
+	s32 owner = -1;
+	const char *name = NULL;
+
+	g_ImGuiImportResultOk = false;
+
+	if (!g_ImGuiImportPath[0]) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "no file: drop one on the window or type a path");
+		return;
+	}
+	if (kind == 0) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "cannot tell what %s is: pick bg / tiles / pads / setup", g_ImGuiImportPath);
+		return;
+	}
+	if (g_Vars.stagenum <= 0 || g_MainChangeToStageNum >= 0) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "no stage running");
+		return;
+	}
+	if (!imguiOverlayImportDest(kind - 1, dest, sizeof(dest), &owner, &name)) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "stage 0x%02x has no %s slot to shadow", g_Vars.stagenum, g_ImGuiImportKindNames[kind]);
+		return;
+	}
+
+	FILE *in = fopen(g_ImGuiImportPath, "rb");
+	if (!in) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "cannot open %s", g_ImGuiImportPath);
+		return;
+	}
+
+	// keep what was there: <dest>.bak, overwritten each time - one step of undo
+	{
+		FILE *old = fopen(dest, "rb");
+		if (old) {
+			char bak[FS_MAXPATH + 8];
+			snprintf(bak, sizeof(bak), "%s.bak", dest);
+			FILE *out = fopen(bak, "wb");
+			if (out) {
+				char buf[65536];
+				size_t n;
+				while ((n = fread(buf, 1, sizeof(buf), old)) > 0) fwrite(buf, 1, n, out);
+				fclose(out);
+			}
+			fclose(old);
+		}
+	}
+
+	imguiOverlayImportMkdirs(dest);
+	FILE *out = fopen(dest, "wb");
+	if (!out) {
+		fclose(in);
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "cannot write %s", dest);
+		return;
+	}
+
+	size_t total = 0;
+	{
+		char buf[65536];
+		size_t n;
+		while ((n = fread(buf, 1, sizeof(buf), in)) > 0) { fwrite(buf, 1, n, out); total += n; }
+	}
+	fclose(out);
+	fclose(in);
+
+	// drop the cached slot so the next load re-resolves through the walk
+	romdataFileFree((s32)imguiOverlayImportFieldId(kind - 1));
+
+	g_ImGuiImportResultOk = true;
+	snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "%s -> %s (%zu bytes). Reload to see it.", g_ImGuiImportKindNames[kind], dest, total);
+	sysLogPrintf(LOG_NOTE, "IMGUI: import %s: %s -> %s (%zu bytes, mod %d)", g_ImGuiImportKindNames[kind], g_ImGuiImportPath, dest, total, owner);
+}
+
+static void imguiOverlayDrawImportPanel(void)
+{
+	ImGui::TextWrapped("Drop a bg / tiles / pads / setup file on the game window, or type a path. "
+			"It is copied into the owning mod's files/ under the name stage 0x%02x already loads, "
+			"then Reload restarts the stage.", (unsigned int)g_Vars.stagenum);
+	ImGui::InputText("File", g_ImGuiImportPath, sizeof(g_ImGuiImportPath));
+	ImGui::Combo("Kind", &g_ImGuiImportKind, g_ImGuiImportKindNames, (int)(sizeof(g_ImGuiImportKindNames) / sizeof(g_ImGuiImportKindNames[0])));
+
+	{
+		s32 kind = g_ImGuiImportKind ? g_ImGuiImportKind : imguiOverlayImportGuessKind(g_ImGuiImportPath);
+		char dest[FS_MAXPATH];
+		if (kind && imguiOverlayImportDest(kind - 1, dest, sizeof(dest), NULL, NULL)) {
+			ImGui::TextDisabled("as %s ->", g_ImGuiImportKindNames[kind]);
+			ImGui::TextWrapped("%s", dest);
+		} else if (g_ImGuiImportPath[0]) {
+			ImGui::TextDisabled("(no destination yet)");
+		}
+	}
+
+	if (ImGui::Button("Import")) {
+		imguiOverlayImportRun();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reload stage geometry")) {
+		g_ImGuiReloadStagePending = true;
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Frees the bg/tiles/pads/setup slots and restarts stage 0x%02x.", (unsigned int)g_Vars.stagenum);
+	}
+
+	if (g_ImGuiImportResult[0]) {
+		ImGui::PushStyleColor(ImGuiCol_Text, g_ImGuiImportResultOk ? ImVec4(0.6f, 1.0f, 0.6f, 1.0f) : ImVec4(1.0f, 0.5f, 0.5f, 1.0f));
+		ImGui::TextWrapped("%s", g_ImGuiImportResult);
+		ImGui::PopStyleColor();
+	}
+}
+
+static void imguiOverlayReloadStage(void)
+{
+	if (g_Vars.stagenum <= 0 || g_MainChangeToStageNum >= 0) {
+		sysLogPrintf(LOG_NOTE, "IMGUI: reload stage: no stage running");
+		return;
+	}
+
+	for (s32 f = 0; f < ASSET_STAGE_FIELD_COUNT; ++f) {
+		const s32 id = (s32)imguiOverlayImportFieldId(f);
+		if (id) romdataFileFree(id);
+	}
+
+	sysLogPrintf(LOG_NOTE, "IMGUI: reload stage 0x%02x", (unsigned int)g_Vars.stagenum);
+	g_Vars.restartlevel = true;
+	mainChangeToStage(g_Vars.stagenum);
 }
 
 static void imguiOverlayDrawRuntimePanel(void)
@@ -5736,6 +5952,11 @@ static void imguiOverlayRunPlayerRequests(void)
 		}
 	}
 
+	if (g_ImGuiReloadStagePending) {
+		g_ImGuiReloadStagePending = false;
+		imguiOverlayReloadStage();
+	}
+
 	if (g_ImGuiTeleportPending) {
 		g_ImGuiTeleportPending = false;
 
@@ -6339,6 +6560,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
 	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
+	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL },
 };
 
 // The change mask below is one bit per row, so the table has a ceiling of 32.
@@ -6918,6 +7140,12 @@ static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
 // collided with or noticed, rooms from the portal walk. Nothing else toggles
 // it live - --spectate and the ini only - so this is the way in.
 static void imguiOverlayCmdNoclip(void)      { modSpectateSetOn(!modSpectateIsOn()); }
+static void imguiOverlayCmdReloadStage(void) { g_ImGuiReloadStagePending = true; }
+static void imguiOverlayCmdImport(void)
+{
+	g_ImGuiOverlayShowImport = true;
+	imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowImport);
+}
 static void imguiOverlayCmdShowProps(void)   { g_ImGuiOverlayShowPropMarkers = !g_ImGuiOverlayShowPropMarkers; imguiOverlaySaveWindowState(); }
 static void imguiOverlayCmdShowPads(void)    { g_ImGuiOverlayShowPadMarkers = !g_ImGuiOverlayShowPadMarkers; imguiOverlaySaveWindowState(); }
 static void imguiOverlayCmdShowPadsAll(void) { g_ImGuiOverlayPadMarkersAllRooms = !g_ImGuiOverlayPadMarkersAllRooms; imguiOverlaySaveWindowState(); }
@@ -6946,6 +7174,8 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Show pads",                imguiOverlayCmdShowPads },
 	{ "Show pads: every room",    imguiOverlayCmdShowPadsAll },
 	{ "Noclip",                   imguiOverlayCmdNoclip },
+	{ "Import geometry",          imguiOverlayCmdImport },
+	{ "Reload stage geometry",    imguiOverlayCmdReloadStage },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
 };
@@ -7721,6 +7951,17 @@ void imguiOverlayProcessEvent(const SDL_Event *event)
 	if (event->type == SDL_KEYDOWN && event->key.keysym.sym == SDLK_F12
 			&& event->key.repeat == 0) {
 		imguiOverlaySetVisible(!g_ImGuiOverlayVisible);
+	}
+
+	// a file dropped on the game window lands in the Import panel
+	if (event->type == SDL_DROPFILE && event->drop.file) {
+		snprintf(g_ImGuiImportPath, sizeof(g_ImGuiImportPath), "%s", event->drop.file);
+		g_ImGuiImportKind = 0;
+		g_ImGuiImportResult[0] = '\0';
+		SDL_free(event->drop.file);
+		g_ImGuiOverlayShowImport = true;
+		imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowImport);
+		imguiOverlaySetVisible(true);
 	}
 
 	// Ctrl+P has to be caught HERE as well as in the frame, or it only works
