@@ -178,7 +178,6 @@ struct modStageRegEntry *modStageRegRecord(s32 stagenum, s32 modnum, s32 kind,
 		const char *name, s32 langid, s32 requirefeature);
 s32 modStageRegCount(s32 kindmask);
 void modStageRegReport(void);
-void modStageRegWarnUnlisted(void);
 
 /**
  * Per-field stage ownership, as OBSERVED at parse time.

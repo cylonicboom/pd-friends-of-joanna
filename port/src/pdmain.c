@@ -364,7 +364,6 @@ void mainInit(void) {
   // g_NumMpArenaGroups at 0, which is the unmodded game's exact state.
   mpArenasRebuild();
   modStageRegReport();
-  modStageRegWarnUnlisted();
 
   langInit();
   lvInit();
