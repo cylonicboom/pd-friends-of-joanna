@@ -169,6 +169,12 @@ static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
 // Stage panel pads table (pad: drive). Sel is a pad number in the running
 // stage, -1 for none; OpenPads pops the tree node once when the bar lands.
 static ImGuiTextFilter g_ImGuiOverlayPadFilter;
+// World markers, toggled rather than held (her call, c-overlay-toggles):
+// props are the pick shapes ctrl used to show; pads come off the pad: drive.
+// Both ride the fojo ini and draw whether or not the panels are up.
+static bool g_ImGuiOverlayShowPropMarkers = false;
+static bool g_ImGuiOverlayShowPadMarkers = false;
+static bool g_ImGuiOverlayPadMarkersAllRooms = false;
 static s32 g_ImGuiOverlayPadSel = -1;
 static bool g_ImGuiOverlayOpenPads = false;
 static ImGuiTextFilter g_ImGuiOverlayModelFilter;
@@ -6033,6 +6039,156 @@ static s32 imguiOverlayCollectPickShapes(imguiOverlayPickShape *out, s32 max)
 	return n;
 }
 
+// Pads of the running stage, projected. Filtered to rooms drawn this frame
+// (ROOMFLAG_ONSCREEN) unless asked for all: dam has 549 and most of them
+// are behind a wall you are looking at.
+struct imguiOverlayPadMark {
+	s32 padnum;
+	ImVec2 p;       // pad centre in window space
+	ImVec2 look;    // tip of the look arrow
+	float radius;
+};
+
+static s32 imguiOverlayCollectPadMarks(imguiOverlayPadMark *out, s32 max)
+{
+	const s32 numPads = assetPadCount(g_Vars.stagenum);
+	s32 n = 0;
+
+	if (numPads <= 0 || !imguiOverlayCanAimInspect()) {
+		return 0;
+	}
+
+	struct assetref ref;
+	memset(&ref, 0, sizeof(ref));
+	ref.drive = ASSET_DRIVE_PAD;
+	ref.owner = -1;
+	ref.id = g_Vars.stagenum;
+	ref.via = -1;
+
+	for (s32 padnum = 0; padnum < numPads && n < max; ++padnum) {
+		struct pad pad;
+
+		ref.sub = padnum;
+
+		if (assetPadUnpack(&ref, &pad) != ASSET_OK) {
+			continue;
+		}
+
+		if (!g_ImGuiOverlayPadMarkersAllRooms) {
+			if (pad.room <= 0 || pad.room >= g_Vars.roomcount || !g_Rooms
+					|| !(g_Rooms[pad.room].flags & ROOMFLAG_ONSCREEN)) {
+				continue;
+			}
+		}
+
+		imguiOverlayPadMark m;
+		struct coord tip = pad.pos;
+		struct coord side = pad.pos;
+		ImVec2 c;
+
+		tip.x += pad.look.x * 40.0f;
+		tip.y += pad.look.y * 40.0f;
+		tip.z += pad.look.z * 40.0f;
+		side.x += 30.0f;
+
+		if (!imguiOverlayProjectToWindow(&pad.pos, &m.p) || !imguiOverlayProjectToWindow(&side, &c)) {
+			continue;
+		}
+
+		if (!imguiOverlayProjectToWindow(&tip, &m.look)) {
+			m.look = m.p;
+		}
+
+		m.padnum = padnum;
+		m.radius = fabsf(c.x - m.p.x);
+		if (m.radius < 5.0f) m.radius = 5.0f;
+		if (m.radius > 40.0f) m.radius = 40.0f;
+		out[n++] = m;
+	}
+
+	return n;
+}
+
+static s32 imguiOverlayPickPadAtMouse(const ImVec2 &mouse)
+{
+	if (!g_ImGuiOverlayShowPadMarkers) {
+		return -1;
+	}
+
+	imguiOverlayPadMark marks[512];
+	const s32 n = imguiOverlayCollectPadMarks(marks, 512);
+	s32 best = -1;
+	float bestd = 1e9f;
+
+	for (s32 i = 0; i < n; i++) {
+		const float dx = mouse.x - marks[i].p.x;
+		const float dy = mouse.y - marks[i].p.y;
+		const float d = sqrtf(dx * dx + dy * dy);
+		const float reach = marks[i].radius < 12.0f ? 12.0f : marks[i].radius;
+
+		if (d <= reach && d < bestd) {
+			bestd = d;
+			best = marks[i].padnum;
+		}
+	}
+
+	return best;
+}
+
+// The toggled world markers. Same foreground list and projection the
+// texture labels use, so they draw whether or not the panels are up.
+static void imguiOverlayDrawWorldMarkers(void)
+{
+	ImDrawList *fg = ImGui::GetForegroundDrawList();
+
+	if (g_ImGuiOverlayShowPropMarkers) {
+		imguiOverlayPickShape shapes[256];
+		const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
+		for (s32 i = 0; i < n; i++) {
+			const imguiOverlayPickShape &sh = shapes[i];
+			const bool ischr = sh.prop->type == PROPTYPE_CHR || sh.prop->type == PROPTYPE_PLAYER;
+			const ImU32 col = ischr ? IM_COL32(79, 216, 255, 220) : IM_COL32(255, 210, 79, 200);
+			if (ischr) {
+				fg->AddLine(sh.a, sh.b, col, 2.0f);
+				fg->AddCircle(sh.b, 6.0f, col);
+			} else {
+				fg->AddCircle(sh.a, sh.radius, col, 0, 1.0f);
+			}
+			char label[32];
+			if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
+			else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
+			fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
+		}
+	}
+
+	if (g_ImGuiOverlayShowPadMarkers) {
+		imguiOverlayPadMark marks[512];
+		const s32 n = imguiOverlayCollectPadMarks(marks, 512);
+		struct assetref ref;
+		memset(&ref, 0, sizeof(ref));
+		ref.drive = ASSET_DRIVE_PAD;
+		ref.owner = -1;
+		ref.id = g_Vars.stagenum;
+		ref.via = -1;
+
+		for (s32 i = 0; i < n; i++) {
+			const imguiOverlayPadMark &m = marks[i];
+			const bool sel = m.padnum == g_ImGuiOverlayPadSel;
+			// pads are the coaster colour; the selected one is solid
+			const ImU32 col = sel ? IM_COL32(255, 140, 60, 255) : IM_COL32(230, 160, 90, 200);
+			ref.sub = m.padnum;
+			const char *name = assetName(&ref);
+
+			fg->AddCircle(m.p, m.radius, col, 0, sel ? 2.5f : 1.0f);
+			fg->AddLine(m.p, m.look, col, sel ? 2.5f : 1.0f);
+			fg->AddCircleFilled(m.look, 2.5f, col);
+			fg->AddText(ImVec2(m.p.x + m.radius + 4.0f, m.p.y - 7.0f),
+					sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 235, 210, 230),
+					name ? name : "?");
+		}
+	}
+}
+
 static struct prop *imguiOverlayPickPropAtMouse(const ImVec2 &mouse)
 {
 	imguiOverlayPickShape shapes[256];
@@ -6496,6 +6652,14 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 			g_ImGuiPropLoreScale = fvalue;
 		}
 	}
+
+	{
+		int flag;
+
+		if (sscanf(line, "ShowProps=%d", &flag) == 1) g_ImGuiOverlayShowPropMarkers = flag != 0;
+		if (sscanf(line, "ShowPads=%d", &flag) == 1) g_ImGuiOverlayShowPadMarkers = flag != 0;
+		if (sscanf(line, "ShowPadsAllRooms=%d", &flag) == 1) g_ImGuiOverlayPadMarkersAllRooms = flag != 0;
+	}
 }
 
 static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer)
@@ -6517,7 +6681,10 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	}
 
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
-	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
+	buffer->appendf("LoreScale=%.5f\n", g_ImGuiPropLoreScale);
+	buffer->appendf("ShowProps=%d\n", g_ImGuiOverlayShowPropMarkers);
+	buffer->appendf("ShowPads=%d\n", g_ImGuiOverlayShowPadMarkers);
+	buffer->appendf("ShowPadsAllRooms=%d\n\n", g_ImGuiOverlayPadMarkersAllRooms);
 }
 
 /**
@@ -6717,6 +6884,9 @@ static void imguiOverlayCmdResetPositions(void)
 static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
 static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
+static void imguiOverlayCmdShowProps(void)   { g_ImGuiOverlayShowPropMarkers = !g_ImGuiOverlayShowPropMarkers; imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdShowPads(void)    { g_ImGuiOverlayShowPadMarkers = !g_ImGuiOverlayShowPadMarkers; imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdShowPadsAll(void) { g_ImGuiOverlayPadMarkersAllRooms = !g_ImGuiOverlayPadMarkersAllRooms; imguiOverlaySaveWindowState(); }
 
 // Hot join: a friend walks into or out of a running team mission. Both go
 // through hotjoin.c and run after the overlay renders (imguiOverlayRunPlayerRequests).
@@ -6738,6 +6908,9 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },
+	{ "Show props",               imguiOverlayCmdShowProps },
+	{ "Show pads",                imguiOverlayCmdShowPads },
+	{ "Show pads: every room",    imguiOverlayCmdShowPadsAll },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
 };
@@ -7282,6 +7455,12 @@ static void imguiOverlayDrawWindowMenu(void)
 		}
 	}
 
+	ImGui::SeparatorText("Markers");
+
+	if (ImGui::MenuItem("Show props", NULL, &g_ImGuiOverlayShowPropMarkers)) imguiOverlaySaveWindowState();
+	if (ImGui::MenuItem("Show pads", NULL, &g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+	if (ImGui::MenuItem("  every room", NULL, &g_ImGuiOverlayPadMarkersAllRooms, g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+
 	ImGui::SeparatorText("Fojo Windows");
 
 	for (s32 i = 0; i < kFojoWindowCount; ++i) {
@@ -7441,31 +7620,21 @@ void imguiOverlayRender(void)
 
 		{
 			const ImGuiIO &io = ImGui::GetIO();
-			if (io.KeyCtrl) {
-				// show where the picker thinks everything is while ctrl is held
-				imguiOverlayPickShape shapes[256];
-				const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
-				ImDrawList *fg = ImGui::GetForegroundDrawList();
-				for (s32 i = 0; i < n; i++) {
-					const imguiOverlayPickShape &sh = shapes[i];
-					const bool ischr = sh.prop->type == PROPTYPE_CHR || sh.prop->type == PROPTYPE_PLAYER;
-					const ImU32 col = ischr ? IM_COL32(79, 216, 255, 220) : IM_COL32(255, 210, 79, 200);
-					if (ischr) {
-						fg->AddLine(sh.a, sh.b, col, 2.0f);
-						fg->AddCircle(sh.b, 6.0f, col);
-					} else {
-						fg->AddCircle(sh.a, sh.radius, col, 0, 1.0f);
-					}
-					char label[32];
-					if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
-					else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
-					fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
-				}
-			}
+			// ctrl-click still latches; the marker draw itself is a toggle now
+			// (imguiOverlayDrawWorldMarkers, below the panels)
 			if (!io.WantCaptureMouse && io.KeyCtrl && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 				struct prop *picked = imguiOverlayPickPropAtMouse(io.MousePos);
 				if (picked) {
 					imguiOverlayLatchPropEverywhere(picked);
+				} else {
+					const s32 padnum = imguiOverlayPickPadAtMouse(io.MousePos);
+					if (padnum >= 0) {
+						g_ImGuiOverlayPadSel = padnum;
+						g_ImGuiOverlayPadFilter.Clear();
+						g_ImGuiOverlayOpenPads = true;
+						g_ImGuiOverlayShowStage = true;
+						imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+					}
 				}
 			}
 		}
@@ -7506,8 +7675,10 @@ void imguiOverlayRender(void)
 	}
 
 	// pd.texlabels: name tags on the textures nearest the screen centre,
-	// drawn whether or not the overlay is up. Same recipe as the ctrl-held
-	// prop labels above: a thin circle and small white text beside it, in
+	imguiOverlayDrawWorldMarkers();
+
+	// drawn whether or not the overlay is up. Same recipe as the prop
+	// markers above: a thin circle and small white text beside it, in
 	// window space (the collector's fractions times DisplaySize, which is how
 	// imguiOverlayProjectToWindow scales the prop positions).
 	if (gfx_texlabels_max > 0) {
