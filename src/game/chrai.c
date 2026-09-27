@@ -925,9 +925,34 @@ void chraiExecuteBytecode(void *entity, s32 proptype)
 static s32 s_LuaSteps = 0;
 #endif
 
+#ifndef PLATFORM_N64
+// Editor pause (port only). While set, no chr or object advances its
+// ailist: this is the one function every list runs through - chrs from
+// chraction.c, objects from propobj.c, and the Lua path just below - so a
+// guard here is the whole mechanism. Everything else keeps ticking:
+// players, physics, doors, projectiles. A chr already in an action keeps
+// performing it (a guard walking to a pad still arrives); it just gets no
+// new orders until this clears. Set from the debugger, never from a level.
+s32 g_ChrAiPaused = 0;
+
+void chraiSetPaused(s32 paused)
+{
+	g_ChrAiPaused = paused ? 1 : 0;
+}
+
+s32 chraiIsPaused(void)
+{
+	return g_ChrAiPaused;
+}
+#endif
+
 void chraiExecute(void *entity, s32 proptype)
 {
 #ifndef PLATFORM_N64
+	if (g_ChrAiPaused) {
+		return;
+	}
+
 	// g_LuaAiEnabled is set once at startup: on when a Lua script is
 	// present, unless Game.LuaAiMode or --lua-ai / --no-lua-ai force it (see
 	// port/src/main.c). With it off this is exactly chraiExecuteBytecode.
