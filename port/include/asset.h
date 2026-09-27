@@ -81,7 +81,10 @@ extern "C" {
  *           stagenum, sub the pad number, owner whoever owns the stage
  *           row's padsfile. The rom carries no pad names; the symbol is
  *           synthesized from the index exactly as tools/assetmgr/mkpads
- *           does, so what the bar finds is what src/setups says.
+ *           does, so what the bar finds is what src/setups says - unless
+ *           a names sidecar (pads/<padsfile>.names, `<pad>=<name>` lines)
+ *           names it, in which case the name resolves too and is what
+ *           assetName shows; assetPadSymbolName is always the symbol.
  *           pad:/<stage> alone is the set; assetLink gives its file:.
  *           Enumerate and assetPadUnpack are LIVE ONLY: they read the
  *           loaded pad file through padUnpack, so they answer for the
@@ -186,6 +189,11 @@ s32 assetPadUnpack(const struct assetref *ref, struct pad *out);
 /* pad: only. Number of pads in the running stage's pad file, or -1 when
  * no stage is up. */
 s32 assetPadCount(s32 stagenum);
+
+/* pad: only. The PAD_<STAGE>_<HEX> symbol whether or not the sidecar has
+ * named the pad - what a setup line wants. assetName gives the sidecar
+ * name first. Static buffer. */
+const char *assetPadSymbolName(const struct assetref *ref);
 
 #ifdef __cplusplus
 }

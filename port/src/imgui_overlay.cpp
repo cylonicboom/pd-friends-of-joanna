@@ -1294,9 +1294,10 @@ static void imguiOverlayDrawStagePanel(void)
 			}
 
 			if (ImGui::BeginChild("Stage pads", ImVec2(0.0f, 320.0f), ImGuiChildFlags_Borders)) {
-				if (ImGui::BeginTable("Stage pad table", 6,
+				if (ImGui::BeginTable("Stage pad table", 7,
 						ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
 					ImGui::TableSetupColumn("Pad", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+					ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 					ImGui::TableSetupColumn("Room", ImGuiTableColumnFlags_WidthFixed, 52.0f);
 					ImGui::TableSetupColumn("Lift", ImGuiTableColumnFlags_WidthFixed, 36.0f);
 					ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 64.0f);
@@ -1314,13 +1315,22 @@ static void imguiOverlayDrawStagePanel(void)
 					for (s32 padnum = 0; padnum < numPads; ++padnum) {
 						struct pad pad;
 						char label[48];
+						char named[64];
+						const char *symbol;
 						const char *name;
 
 						ref.sub = padnum;
+						symbol = assetPadSymbolName(&ref);
+						snprintf(label, sizeof(label), "%s", symbol ? symbol : "?");
+						// assetName is the sidecar name when there is one, else the symbol
 						name = assetName(&ref);
-						snprintf(label, sizeof(label), "%s", name ? name : "?");
+						named[0] = '\0';
+						if (name && symbol && strcmp(name, symbol) != 0) {
+							snprintf(named, sizeof(named), "%s", name);
+						}
 
-						if (!g_ImGuiOverlayPadFilter.PassFilter(label)) {
+						if (!g_ImGuiOverlayPadFilter.PassFilter(label)
+								&& !(named[0] && g_ImGuiOverlayPadFilter.PassFilter(named))) {
 							char num[16];
 							snprintf(num, sizeof(num), "%d", padnum);
 							if (!g_ImGuiOverlayPadFilter.PassFilter(num)) {
@@ -1344,18 +1354,24 @@ static void imguiOverlayDrawStagePanel(void)
 							}
 						}
 						ImGui::TableSetColumnIndex(1);
-						ImGui::Text("%d", pad.room);
+						if (named[0]) {
+							ImGui::TextUnformatted(named);
+						} else {
+							ImGui::TextDisabled("-");
+						}
 						ImGui::TableSetColumnIndex(2);
+						ImGui::Text("%d", pad.room);
+						ImGui::TableSetColumnIndex(3);
 						if (pad.liftnum) {
 							ImGui::Text("%d", pad.liftnum);
 						} else {
 							ImGui::TextDisabled("-");
 						}
-						ImGui::TableSetColumnIndex(3);
-						ImGui::Text("0x%04x", pad.flags);
 						ImGui::TableSetColumnIndex(4);
-						ImGui::TextUnformatted(imguiOverlayCoordString(&pad.pos));
+						ImGui::Text("0x%04x", pad.flags);
 						ImGui::TableSetColumnIndex(5);
+						ImGui::TextUnformatted(imguiOverlayCoordString(&pad.pos));
+						ImGui::TableSetColumnIndex(6);
 						ImGui::Text("%.2f %.2f %.2f", pad.look.x, pad.look.y, pad.look.z);
 					}
 					ImGui::EndTable();
@@ -6890,9 +6906,9 @@ static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *nam
 	case kFojoBarPad: {
 		struct pad pad;
 		if (assetPadUnpack(ref, &pad) == ASSET_OK) {
-			snprintf(detail, sizeof(detail), "pad %d  room %d", ref->sub, pad.room);
+			snprintf(detail, sizeof(detail), "pad 0x%04x  room %d", ref->sub, pad.room);
 		} else {
-			snprintf(detail, sizeof(detail), "pad %d", ref->sub);
+			snprintf(detail, sizeof(detail), "pad 0x%04x", ref->sub);
 		}
 		break;
 	}
@@ -7122,6 +7138,7 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		// Stage panel, Pads node open, the table filtered to the symbol and
 		// the row selected. The overlay marker for it is c-overlay-toggles.
 		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			// the row is found by number, the filter just narrows the table to it
 			snprintf(g_ImGuiOverlayPadFilter.InputBuf,
 					sizeof(g_ImGuiOverlayPadFilter.InputBuf), "%s", hit->label);
 			g_ImGuiOverlayPadFilter.Build();
