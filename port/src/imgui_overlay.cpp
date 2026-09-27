@@ -166,6 +166,11 @@ static s32 g_ImGuiOverlayScannedTextureModelFileNum = -1;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
+// Stage panel pads table (pad: drive). Sel is a pad number in the running
+// stage, -1 for none; OpenPads pops the tree node once when the bar lands.
+static ImGuiTextFilter g_ImGuiOverlayPadFilter;
+static s32 g_ImGuiOverlayPadSel = -1;
+static bool g_ImGuiOverlayOpenPads = false;
 static ImGuiTextFilter g_ImGuiOverlayModelFilter;
 static char g_ImGuiOverlayIniPath[FS_MAXPATH + 1];
 
@@ -1265,6 +1270,99 @@ static void imguiOverlayDrawStagePanel(void)
 				ImGui::SetTooltip("Room 0 is outside the geometry, and -1 is no player.\n"
 						"Nothing draws from there, however well the rooms loaded.");
 			}
+		}
+	}
+
+	// Pads, off the pad: drive. Live only: the drive reads the running stage's
+	// pad file through padUnpack, and there are no names in the rom - the
+	// PAD_<STAGE>_<HEX> the drive shows is the symbol src/setups compiles
+	// against, synthesized the way mkpads does.
+	{
+		const s32 numPads = assetPadCount(g_Vars.stagenum);
+
+		if (g_ImGuiOverlayOpenPads) {
+			ImGui::SetNextItemOpen(true);
+			g_ImGuiOverlayOpenPads = false;
+		}
+
+		if (numPads >= 0 && ImGui::TreeNode("Pads", "Pads (%d)", numPads)) {
+			g_ImGuiOverlayPadFilter.Draw("Filter##pads", 180.0f);
+			ImGui::SameLine();
+			if (ImGui::SmallButton("Clear##pads")) {
+				g_ImGuiOverlayPadFilter.Clear();
+				g_ImGuiOverlayPadSel = -1;
+			}
+
+			if (ImGui::BeginChild("Stage pads", ImVec2(0.0f, 320.0f), ImGuiChildFlags_Borders)) {
+				if (ImGui::BeginTable("Stage pad table", 6,
+						ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+					ImGui::TableSetupColumn("Pad", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+					ImGui::TableSetupColumn("Room", ImGuiTableColumnFlags_WidthFixed, 52.0f);
+					ImGui::TableSetupColumn("Lift", ImGuiTableColumnFlags_WidthFixed, 36.0f);
+					ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+					ImGui::TableSetupColumn("Pos", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn("Look", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableHeadersRow();
+
+					struct assetref ref;
+					memset(&ref, 0, sizeof(ref));
+					ref.drive = ASSET_DRIVE_PAD;
+					ref.owner = -1;
+					ref.id = g_Vars.stagenum;
+					ref.via = -1;
+
+					for (s32 padnum = 0; padnum < numPads; ++padnum) {
+						struct pad pad;
+						char label[48];
+						const char *name;
+
+						ref.sub = padnum;
+						name = assetName(&ref);
+						snprintf(label, sizeof(label), "%s", name ? name : "?");
+
+						if (!g_ImGuiOverlayPadFilter.PassFilter(label)) {
+							char num[16];
+							snprintf(num, sizeof(num), "%d", padnum);
+							if (!g_ImGuiOverlayPadFilter.PassFilter(num)) {
+								continue;
+							}
+						}
+
+						if (assetPadUnpack(&ref, &pad) != ASSET_OK) {
+							continue;
+						}
+
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(0);
+						{
+							const bool selected = g_ImGuiOverlayPadSel == padnum;
+							if (ImGui::Selectable(label, selected, ImGuiSelectableFlags_SpanAllColumns)) {
+								g_ImGuiOverlayPadSel = selected ? -1 : padnum;
+							}
+							if (selected) {
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+						ImGui::TableSetColumnIndex(1);
+						ImGui::Text("%d", pad.room);
+						ImGui::TableSetColumnIndex(2);
+						if (pad.liftnum) {
+							ImGui::Text("%d", pad.liftnum);
+						} else {
+							ImGui::TextDisabled("-");
+						}
+						ImGui::TableSetColumnIndex(3);
+						ImGui::Text("0x%04x", pad.flags);
+						ImGui::TableSetColumnIndex(4);
+						ImGui::TextUnformatted(imguiOverlayCoordString(&pad.pos));
+						ImGui::TableSetColumnIndex(5);
+						ImGui::Text("%.2f %.2f %.2f", pad.look.x, pad.look.y, pad.look.z);
+					}
+					ImGui::EndTable();
+				}
+			}
+			ImGui::EndChild();
+			ImGui::TreePop();
 		}
 	}
 
@@ -6522,7 +6620,8 @@ static void imguiOverlayDrawWindowContextMenu(void)
 //
 // Type and it searches everything, ranked. A leading sigil forces one corpus:
 //   @  entities -- props and chrs        >  commands
-//   `  windows and panels
+//   `  windows and panels                _  pads of the running stage (or the
+//                                           coffee cup U+2615: Doak's coasters)
 // A bare sigil is a mode: ` on its own lists every window, which is the window
 // switcher with no query. \ at position 0 escapes the next character, for the
 // one corpus whose names are mod-supplied and so not guaranteed sigil-free.
@@ -6549,6 +6648,7 @@ enum {
 	kFojoBarFileSlot,
 	kFojoBarStage,
 	kFojoBarTexture,
+	kFojoBarPad,
 };
 
 struct imguiOverlayBarHit {
@@ -6753,7 +6853,7 @@ static const char *imguiOverlayBarOwnerLabel(s8 owner)
 }
 
 // One visitor for the three asset corpora. The bar's sigils map onto drives
-// (# file:, / stage:, % tex:) before this is ever called; the drive layer
+// (# file:, / stage:, % tex:, _ pad:) before this is ever called; the drive layer
 // never sees a sigil.
 static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *name, void *vctx)
 {
@@ -6762,7 +6862,7 @@ static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *nam
 	s32 score;
 
 	if (ctx->wanted >= 0) {
-		const s32 number = ctx->kind == kFojoBarTexture ? ref->sub : ref->id;
+		const s32 number = (ctx->kind == kFojoBarTexture || ctx->kind == kFojoBarPad) ? ref->sub : ref->id;
 
 		if (number != ctx->wanted) {
 			return 1;
@@ -6787,6 +6887,15 @@ static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *nam
 			snprintf(detail, sizeof(detail), "port %d  %s", ref->sub, imguiOverlayBarOwnerLabel(ref->owner));
 		}
 		break;
+	case kFojoBarPad: {
+		struct pad pad;
+		if (assetPadUnpack(ref, &pad) == ASSET_OK) {
+			snprintf(detail, sizeof(detail), "pad %d  room %d", ref->sub, pad.room);
+		} else {
+			snprintf(detail, sizeof(detail), "pad %d", ref->sub);
+		}
+		break;
+	}
 	default:
 		detail[0] = '\0';
 		break;
@@ -6824,6 +6933,7 @@ static void imguiOverlayBarSearch(void)
 	bool wantFiles = false;   // opt-in: thousands of rows would swamp a bare query
 	bool wantStages = false;
 	bool wantTextures = false;
+	bool wantPads = false;
 	s32 score;
 
 	g_ImGuiOverlayBarHitCount = 0;
@@ -6835,6 +6945,13 @@ static void imguiOverlayBarSearch(void)
 	else if (q[0] == '#') { wantWindows = wantEntities = wantCommands = false; wantFiles = true; q++; }
 	else if (q[0] == '/') { wantWindows = wantEntities = wantCommands = false; wantStages = true; q++; }
 	else if (q[0] == '%') { wantWindows = wantEntities = wantCommands = false; wantTextures = true; q++; }
+	else if (q[0] == '_') { wantWindows = wantEntities = wantCommands = false; wantPads = true; q++; }
+	else if (!strncmp(q, "\xE2\x98\x95", 3)) {
+		// the coffee cup, U+2615, alias for pad: - Doak's coasters. Some
+		// keyboards append the emoji variation selector U+FE0F; eat it too.
+		wantWindows = wantEntities = wantCommands = false; wantPads = true; q += 3;
+		if (!strncmp(q, "\xEF\xB8\x8F", 3)) { q += 3; }
+	}
 	else if (q[0] == '\\') { q++; }
 
 	while (*q == ' ') {
@@ -6933,6 +7050,11 @@ static void imguiOverlayBarSearch(void)
 		imguiOverlayBarSearchAssets(q, kFojoBarTexture, "tex:/");
 	}
 
+	if (wantPads) {
+		// live only: the drive walks the running stage's pad file
+		imguiOverlayBarSearchAssets(q, kFojoBarPad, "pad:/");
+	}
+
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
 	for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
 		const struct imguiOverlayBarHit key = g_ImGuiOverlayBarHits[i];
@@ -6996,6 +7118,19 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowTextures);
 		}
 		break;
+	case kFojoBarPad:
+		// Stage panel, Pads node open, the table filtered to the symbol and
+		// the row selected. The overlay marker for it is c-overlay-toggles.
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			snprintf(g_ImGuiOverlayPadFilter.InputBuf,
+					sizeof(g_ImGuiOverlayPadFilter.InputBuf), "%s", hit->label);
+			g_ImGuiOverlayPadFilter.Build();
+			g_ImGuiOverlayPadSel = hit->ref.sub;
+			g_ImGuiOverlayOpenPads = true;
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+		}
+		break;
 	case kFojoBarFileSlot:
 		// open Assets on the right mod with the slot table already filtered to
 		// the name, which is where you were going to end up anyway. A vanilla
@@ -7044,7 +7179,7 @@ static void imguiOverlayDrawAwesomeBar(void)
 	}
 
 	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot",
+	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot, _a pad",
 			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
 
 	imguiOverlayBarSearch();
