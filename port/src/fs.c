@@ -1,3 +1,8 @@
+// madvise() is a BSD/Linux extension that glibc hides behind a strict -std;
+// this has to precede the first system header.
+#if !defined(_WIN32) && !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE 1
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -521,6 +526,25 @@ void *fsFileMap(const char *name, u32 *outSize)
 	}
 
 	return view;
+}
+
+// Give a mapping's resident pages back without unmapping it: the next touch
+// pages them in from the file again. For a view that was walked once (a
+// patch's checksum pass over its base) and will be read sparsely after.
+// Only meaningful for a mapping; harmless on the fsFileLoad() fallback.
+void fsFileMapRelease(void *p, u32 size)
+{
+	if (!p) {
+		return;
+	}
+#ifdef PLATFORM_WIN32
+	(void)size; // no equivalent worth having; the working set trims itself
+#else
+	// MAP_PRIVATE pages this process never wrote are discarded, not lost;
+	// written (COW) pages are reset to the file's, which a caller that
+	// releases must be fine with. On a heap fallback this fails EINVAL.
+	madvise(p, size, MADV_DONTNEED);
+#endif
 }
 
 void fsFileUnmap(void *p, u32 size)

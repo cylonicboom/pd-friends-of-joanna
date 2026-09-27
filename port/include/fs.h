@@ -23,6 +23,7 @@ s32 fsFileSize(const char *name);
 // copy-on-write mapping of a whole file (falls back to fsFileLoad); see fs.c
 void *fsFileMap(const char *name, u32 *outSize);
 void fsFileUnmap(void *p, u32 size);
+void fsFileMapRelease(void *p, u32 size);
 
 FILE *fsFileOpenWrite(const char *name);
 FILE *fsFileOpenRead(const char *name);
