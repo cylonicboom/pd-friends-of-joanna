@@ -517,6 +517,17 @@ void playerReset(void)
 	}
 
 	playerChooseBodyAndHead(&bodynum, &headnum, 0);
+
+	// A different pair from the one the model was built for: the body the
+	// player is wearing is stale, and playerSpawn() (next, in lvReset and
+	// the restart path) takes it down and builds the right one. The numbers
+	// are still recorded here for the spawn that reads them.
+	if (g_Vars.currentplayer->haschrbody && g_Vars.currentplayer->prop && g_Vars.currentplayer->prop->chr
+			&& (g_Vars.currentplayer->prop->chr->bodynum != bodynum
+				|| g_Vars.currentplayer->prop->chr->headnum != headnum)) {
+		playerMarkBodyStale();
+	}
+
 	g_Vars.currentplayer->prop->chr->bodynum = bodynum;
 	g_Vars.currentplayer->prop->chr->headnum = headnum;
 }

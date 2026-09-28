@@ -988,6 +988,29 @@ bool playerSpawnAnti(struct chrdata *hostchr, bool force)
 	return false;
 }
 
+// The head/body picker (training menu, carousel) changes what the player will
+// be at the next reset, and playerReset() records that on the chr. The model
+// it is wearing was built once, at spawn, for the previous pair: writing new
+// numbers onto it leaves a chr that says Catherine while the model wears the
+// spawn head, and the renderer then walks one model's rwdata against the
+// other's base - third person hit an 'Unknown GBI opcode' in vertex data
+// (2026-09-28, lldb). So playerReset() marks the body stale when the pair
+// changes, and playerSpawn() takes it down and rebuilds it, the same way it
+// already does for the spectator's stale mark.
+static bool g_PlayerBodyStale = false;
+
+void playerMarkBodyStale(void)
+{
+	g_PlayerBodyStale = true;
+}
+
+static bool playerTakeBodyStale(void)
+{
+	const bool stale = g_PlayerBodyStale;
+	g_PlayerBodyStale = false;
+	return stale;
+}
+
 void playerSpawn(void)
 {
 	f32 xdiff;
@@ -1624,16 +1647,23 @@ void playerTickChrBody(void)
 	// The mark is taken whether or not there is a body to take down, because a
 	// body built after it was set is already the right model and the mark has
 	// nothing left to say.
-	if (modSpectateTakeBodyStale() && g_Vars.currentplayer->haschrbody) {
-		playerRemoveChrBody();
+	{
+		// both marks are taken every time, whether or not a body stands:
+		// a body built after either was set is already the right model
+		const bool spectatorStale = modSpectateTakeBodyStale();
+		const bool pairStale = playerTakeBodyStale();
 
-		if (g_Vars.currentplayer->haschrbody) {
-			// Multiplayer keeps its bodies, so playerRemoveChrBody() left this
-			// one standing. Take it down the way playerSpawnAnti() does when it
-			// puts the player into a different model mid-match.
-			g_Vars.currentplayer->haschrbody = false;
-			g_Vars.currentplayer->model00d4 = NULL;
-			chrRemove(g_Vars.currentplayer->prop, false);
+		if ((spectatorStale || pairStale) && g_Vars.currentplayer->haschrbody) {
+			playerRemoveChrBody();
+
+			if (g_Vars.currentplayer->haschrbody) {
+				// Multiplayer keeps its bodies, so playerRemoveChrBody() left this
+				// one standing. Take it down the way playerSpawnAnti() does when it
+				// puts the player into a different model mid-match.
+				g_Vars.currentplayer->haschrbody = false;
+				g_Vars.currentplayer->model00d4 = NULL;
+				chrRemove(g_Vars.currentplayer->prop, false);
+			}
 		}
 	}
 

@@ -10,6 +10,7 @@ void playerStartNewLife(void);
 void playerLoadDefaults(void);
 bool playerSpawnAnti(struct chrdata *chr, s32 param_2);
 void playerSpawn(void);
+void playerMarkBodyStale(void);
 void playerResetBond(struct playerbond *pb, struct coord *pos);
 void playersTickAllChrBodies(void);
 void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2);
