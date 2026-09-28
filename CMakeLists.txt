@@ -416,8 +416,28 @@ if(PYTHON3_EXECUTABLE)
     COMMENT "Generating AI command reference + Lua helper library"
     VERBATIM)
   add_custom_target(pd_aiscripts ALL DEPENDS ${AISCRIPT_OUTPUTS})
+
+  # The debugger's ailist names (port/src/imgui_ailistnames.h) come from the
+  # setups' ailists[] tables and AILIST_* defines plus g_GlobalAilists, via
+  # tools/mkailistnames.py. Same arrangement: regenerated when a setup or the
+  # global lists change, the committed copy used without Python. A new setup
+  # file is picked up at the next configure (the glob is evaluated then).
+  set(AILISTNAMES_GEN "${CMAKE_SOURCE_DIR}/tools/mkailistnames.py")
+  set(AILISTNAMES_OUTPUT "${CMAKE_SOURCE_DIR}/port/src/imgui_ailistnames.h")
+  file(GLOB AILISTNAMES_SETUPS "${CMAKE_SOURCE_DIR}/src/setups/*.c")
+  add_custom_command(
+    OUTPUT "${AILISTNAMES_OUTPUT}"
+    COMMAND "${PYTHON3_EXECUTABLE}" "${AILISTNAMES_GEN}" "${CMAKE_SOURCE_DIR}"
+    DEPENDS "${AILISTNAMES_GEN}"
+            "${CMAKE_SOURCE_DIR}/src/game/gailists.c"
+            "${CMAKE_SOURCE_DIR}/src/include/constants.h"
+            ${AILISTNAMES_SETUPS}
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Generating debugger ailist names"
+    VERBATIM)
+  add_custom_target(pd_ailistnames ALL DEPENDS "${AILISTNAMES_OUTPUT}")
 else()
-  message(STATUS "python not found: using committed docs/aicommands.md + scripts/ai.lua")
+  message(STATUS "python not found: using committed docs/aicommands.md + scripts/ai.lua + port/src/imgui_ailistnames.h")
 endif()
 
 # Game target
@@ -425,6 +445,9 @@ endif()
 set(BIN_NAME "pd${BIN_REGION}.${TARGET_ARCH}")
 add_executable(pd ${SRC})
 add_dependencies(pd pd_headers versioninfo)
+if(PYTHON3_EXECUTABLE)
+  add_dependencies(pd pd_ailistnames)
+endif()
 # Vendored Lua 5.4 (MIT, lua.org/PUC-Rio), carried for the KAI script layer.
 # Nothing calls it yet - this builds and links it so the intake that does can
 # land on its own. lua.c / luac.c / onelua.c are the standalone interpreter and
