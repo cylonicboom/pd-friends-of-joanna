@@ -135,14 +135,51 @@ struct SkinTexRow {
 	SkinTexRef ref; // valid when onscreen
 };
 
+// The texture ids a model file uses. imguiOverlayModelTextureIds goes through
+// modeldefInspectTextureUsage, which loads the whole model file into a fresh
+// heap buffer and frees it again - fine once, not twice a frame for as long
+// as the window is open, which is what this was doing (the whole window
+// strobed while the file slot was rewritten under the renderer). Cached per
+// file; a stage change drops the cache since a mod can shadow the file.
+struct SkinModelIds {
+	s32 fileid;
+	std::vector<u16> ids;
+};
+
+static std::vector<SkinModelIds> g_SkinModelIdCache;
+static s32 g_SkinModelIdCacheStage = -1;
+
+static const std::vector<u16> &skinModelTextureIds(s32 fileid)
+{
+	if (g_SkinModelIdCacheStage != g_Vars.stagenum) {
+		g_SkinModelIdCache.clear();
+		g_SkinModelIdCacheStage = g_Vars.stagenum;
+	}
+
+	for (const SkinModelIds &m : g_SkinModelIdCache) {
+		if (m.fileid == fileid) {
+			return m.ids;
+		}
+	}
+
+	SkinModelIds m;
+	m.fileid = fileid;
+	u16 ids[128];
+	const s32 n = imguiOverlayModelTextureIds(fileid, ids, 128);
+	m.ids.assign(ids, ids + (n > 0 ? n : 0));
+	g_SkinModelIdCache.push_back(m);
+	return g_SkinModelIdCache.back().ids;
+}
+
 static void skinCollectModelRows(s32 fileid, std::vector<SkinTexRow> &rows)
 {
 	rows.clear();
 	std::vector<SkinTexRef> drawn;
 	skinCollectModelTextures((u16)(fileid & 0xffff), drawn);
 
-	u16 ids[128];
-	const s32 n = imguiOverlayModelTextureIds(fileid, ids, 128);
+	const std::vector<u16> &idv = skinModelTextureIds(fileid);
+	const u16 *ids = idv.data();
+	const s32 n = (s32)idv.size();
 
 	for (s32 i = 0; i < n; i++) {
 		SkinTexRow row;
