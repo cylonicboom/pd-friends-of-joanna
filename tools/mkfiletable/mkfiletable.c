@@ -825,14 +825,19 @@ static bool altFileExtent(struct altRom *rom, const char *name, uint32_t *outOfs
 static void usage(FILE *out)
 {
 	fprintf(out,
-		"usage: mkfiletable <mod-name> [--workspace <dir>] [--output <dir>]\n"
+		"usage: mkfiletable <mod-dir> [--workspace <dir>] [--output <dir>]\n"
 		"                   [--rom-dir <dir>]... [--base-rom <file>]\n"
 		"                   [--vanilla <files.json>] [--allow-orphans] [--help]\n"
 		"\n"
 		"Builds a mod's filetable.dat from its JSON manifest.\n"
 		"\n"
-		"  --workspace   where <mod-name>_filetable.json lives (default: .)\n"
-		"  --output      where to write filetable.dat (default: the workspace)\n"
+		"  <mod-dir>     the mod's directory, e.g. data/mods/mod_fojo. THE MOD'S\n"
+		"                NAME IS ITS FOLDER'S NAME - the engine reads it off the\n"
+		"                directory and so does this tool. A bare name is still\n"
+		"                accepted for old scripts, but only when it agrees with\n"
+		"                the basename of --output; a disagreement is an error.\n"
+		"  --workspace   where <mod-name>_filetable.json lives (default: <mod-dir>)\n"
+		"  --output      where to write filetable.dat (default: <mod-dir>)\n"
 		"  --rom-dir     a directory to look for ROMs in; repeatable. Both the\n"
 		"                manifest's romSources and the base ROM are found here.\n"
 		"  --base-rom    the base game ROM, for resolving 'replaces' by name.\n"
@@ -1038,6 +1043,34 @@ int main(int argc, char **argv)
 	if (!modName) {
 		usage(stderr);
 		return 2;
+	}
+
+	/* The positional is the mod DIRECTORY and the name is its basename. A
+	 * bare name (no '/', not a directory) is the old form; it is accepted
+	 * only when it agrees with the folder the table is written into. */
+	{
+		static char nameBuf[PDFT_NAME_MAX];
+		struct stat st;
+		const bool isDir = strchr(modName, '/') || (stat(modName, &st) == 0 && S_ISDIR(st.st_mode));
+
+		if (isDir) {
+			if (!pdftModNameFromDir(modName, nameBuf, sizeof(nameBuf))) {
+				die("could not take a mod name from '%s'", modName);
+			}
+			if (!strcmp(workspace, ".")) {
+				workspace = modName;
+			}
+			if (!output) {
+				output = modName;
+			}
+			modName = nameBuf;
+		} else if (output) {
+			char fromOut[PDFT_NAME_MAX];
+			if (pdftModNameFromDir(output, fromOut, sizeof(fromOut)) && strcmp(fromOut, modName)) {
+				die("mod name '%s' but --output is the folder '%s'; the folder name is the mod name",
+						modName, fromOut);
+			}
+		}
 	}
 
 	JOIN(manifestPath, "%s/%s_filetable.json", workspace, modName);

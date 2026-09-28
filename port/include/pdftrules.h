@@ -33,6 +33,7 @@
 #define _IN_PDFTRULES_H
 
 #include <stddef.h>
+#include <string.h>
 
 /* Per-entry flags, as romdataParseFileTable() reads them. The field is a u32
  * and the reader tests individual bits, so an unknown bit is ignored rather
@@ -95,6 +96,31 @@
  * over this length fails as "missing file" rather than as "name too long".
  */
 #define PDFT_NAME_MAX 128
+
+/* The mod's name IS its folder's name: the engine reads it off modDirs[]
+ * (fs.c, the text after the last '/'), and every tool that names
+ * <mod>_filetable.json must agree. This is that one rule, for the tools:
+ * the basename of a directory path, trailing slashes ignored, copied into
+ * `out` (which must hold PDFT_NAME_MAX). Returns 0 on an empty result. */
+static inline int pdftModNameFromDir(const char *dir, char *out, size_t outLen)
+{
+	size_t end = dir ? strlen(dir) : 0;
+	size_t start;
+
+	while (end > 0 && (dir[end - 1] == '/' || dir[end - 1] == '\\')) {
+		--end;
+	}
+	start = end;
+	while (start > 0 && dir[start - 1] != '/' && dir[start - 1] != '\\') {
+		--start;
+	}
+	if (end == start || end - start + 1 > outLen) {
+		return 0;
+	}
+	memcpy(out, dir + start, end - start);
+	out[end - start] = '\0';
+	return 1;
+}
 
 /** Why a name would not be found at runtime. PDFT_NAME_OK is zero. */
 enum pdftNameVerdict {
