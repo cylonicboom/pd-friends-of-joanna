@@ -2468,23 +2468,6 @@ void modStageRegReport(void)
 }
 
 /*
- * Ungated, unlike the report above, because a mod author who wrote `kind solo`
- * would otherwise get silence and assume it worked. See enum modStageKind for
- * what listing a solo stage would actually cost.
- */
-void modStageRegWarnUnlisted(void)
-{
-	const s32 solo = modStageRegCount(MODSTAGE_KIND_SOLO);
-
-	if (solo > 0) {
-		sysLogPrintf(LOG_WARNING,
-				"modconfig: %d stage(s) declared 'kind solo'; recorded in the stage registry "
-				"but not yet listed - the mission list is indexed by save-file stage index",
-				solo);
-	}
-}
-
-/*
  * The legacy standalone arena declaration.
  *
  * It now feeds the registry instead of appending straight to g_MpArenas_AIO,
