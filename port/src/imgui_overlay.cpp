@@ -597,7 +597,16 @@ static const char *imguiOverlayEntityLabel(struct prop *prop, char *buf, size_t 
 		return buf;
 	}
 
-	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr) {
+	// a free slot keeps whatever type and pointer it last had, and the Props
+	// tree walks every slot once "Active props only" is off (focusing a prop
+	// turns it off), so only an active prop's chr/obj is worth following
+	if (!prop->active) {
+		snprintf(buf, len, "%s (free)", imguiOverlayPropTypeName(prop->type));
+		return buf;
+	}
+
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER || prop->type == PROPTYPE_EYESPY)
+			&& imguiOverlayChrIsCurrent(prop->chr)) {
 		// body, then the head when its slot has a name: two chrs in the same
 		// suit are told apart by who is wearing it
 		const char *head = modGetNameForHeadBodyIndex(prop->chr->headnum);
