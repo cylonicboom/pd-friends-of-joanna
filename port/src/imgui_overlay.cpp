@@ -6443,6 +6443,174 @@ static s32 imguiOverlayCollectPickShapes(imguiOverlayPickShape *out, s32 max)
 	return n;
 }
 
+// ---------------------------------------------------------------------------
+// Registers (c-registers). vim's model: one typed reference per slot, a-z
+// named, "" the unnamed latch every click and enter writes, "0 the last
+// explicit yank. A register holds what a bar hit carries - a prop, a pad, a
+// room or a bare position - plus the stage it was taken in, and is
+// validated on read: a prop pointer dies with its stage, so a stale
+// register reads stale rather than emptying. Session state, never ini.
+
+enum {
+	kFojoRegNone,
+	kFojoRegProp,
+	kFojoRegPad,
+	kFojoRegRoom,
+	kFojoRegPos,
+};
+
+struct imguiOverlayRegister {
+	s32 kind;
+	struct prop *prop;
+	s32 chrnum;             // for a chr: re-found by number after a reload
+	struct assetref ref;    // pad
+	s32 room;
+	struct coord pos;       // pos, and the cached anchor for the others
+	bool eye;
+	s32 stagenum;
+	char label[80];
+};
+
+static const s32 kFojoRegCount = 28;
+static const s32 kFojoRegUnnamed = 26;   // ""
+static const s32 kFojoRegLastYank = 27;  // "0
+static imguiOverlayRegister g_ImGuiRegs[kFojoRegCount];
+
+static const char *imguiOverlayRegName(s32 idx)
+{
+	static char buf[4];
+	if (idx == kFojoRegUnnamed) return "\"\"";
+	if (idx == kFojoRegLastYank) return "\"0";
+	buf[0] = '"'; buf[1] = (char)('a' + idx); buf[2] = '\0';
+	return buf;
+}
+
+static s32 imguiOverlayRegIndex(char c)
+{
+	if (c >= 'a' && c <= 'z') return c - 'a';
+	if (c >= 'A' && c <= 'Z') return c - 'A';
+	if (c == '"') return kFojoRegUnnamed;
+	if (c == '0') return kFojoRegLastYank;
+	return -1;
+}
+
+static bool imguiOverlayRegIsLive(const imguiOverlayRegister *r)
+{
+	if (r->kind == kFojoRegNone || r->stagenum != g_Vars.stagenum) return false;
+	switch (r->kind) {
+	case kFojoRegProp:
+		if (!r->prop || !imguiOverlayPropIsCurrent(r->prop)) return false;
+		if (r->chrnum >= 0) return r->prop->chr && r->prop->chr->chrnum == r->chrnum;
+		return true;
+	case kFojoRegPad:
+		return r->ref.sub >= 0 && r->ref.sub < assetPadCount(g_Vars.stagenum);
+	case kFojoRegRoom:
+		return r->room > 0 && r->room < g_Vars.roomcount;
+	case kFojoRegPos:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// where the register points right now, for a verb that takes an anchor
+static bool imguiOverlayRegAnchor(const imguiOverlayRegister *r, struct coord *where, bool *eye)
+{
+	if (!imguiOverlayRegIsLive(r)) return false;
+	switch (r->kind) {
+	case kFojoRegProp:
+		*where = r->prop->pos; *eye = true; return true;
+	case kFojoRegPad: {
+		struct pad pad;
+		if (assetPadUnpack(&r->ref, &pad) != ASSET_OK) return false;
+		*where = pad.pos; *eye = false; return true;
+	}
+	case kFojoRegRoom:
+		*where = g_Rooms[r->room].centre; *eye = true; return true;
+	case kFojoRegPos:
+		*where = r->pos; *eye = r->eye; return true;
+	default:
+		return false;
+	}
+}
+
+static void imguiOverlayRegSetProp(s32 idx, struct prop *prop)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegProp;
+	r.prop = prop;
+	r.chrnum = (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr ? prop->chr->chrnum : -1;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	if (r.chrnum >= 0) snprintf(r.label, sizeof(r.label), "chr 0x%04x %s", (u16)r.chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
+	else snprintf(r.label, sizeof(r.label), "%s prop", imguiOverlayPropTypeName(prop->type));
+}
+
+static void imguiOverlayRegSetPad(s32 idx, s32 padnum)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegPad;
+	r.chrnum = -1;
+	r.ref.drive = ASSET_DRIVE_PAD; r.ref.owner = -1; r.ref.id = g_Vars.stagenum; r.ref.sub = padnum; r.ref.via = -1;
+	r.stagenum = g_Vars.stagenum;
+	const char *name = assetName(&r.ref);
+	snprintf(r.label, sizeof(r.label), "%s", name ? name : "pad");
+}
+
+static void imguiOverlayRegSetRoom(s32 idx, s32 room)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegRoom;
+	r.chrnum = -1;
+	r.room = room;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	snprintf(r.label, sizeof(r.label), "room 0x%03x", room);
+}
+
+static void imguiOverlayRegSetPos(s32 idx, const struct coord *pos, bool eye, const char *label)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegPos;
+	r.chrnum = -1;
+	r.pos = *pos;
+	r.eye = eye;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	snprintf(r.label, sizeof(r.label), "%s", label);
+}
+
+// a yank: the named slot and "0 both take it
+static void imguiOverlayRegYank(s32 idx, const imguiOverlayRegister *src)
+{
+	g_ImGuiRegs[idx] = *src;
+	if (idx != kFojoRegLastYank) g_ImGuiRegs[kFojoRegLastYank] = *src;
+	sysLogPrintf(LOG_NOTE, "IMGUI: yank %s <- %s", imguiOverlayRegName(idx), src->label);
+}
+
+// the letter a pad or prop sits in, for the marker badges; 0 for none
+static char imguiOverlayRegLetterForPad(s32 padnum)
+{
+	for (s32 i = 0; i < 26; ++i) {
+		const imguiOverlayRegister &r = g_ImGuiRegs[i];
+		if (r.kind == kFojoRegPad && r.ref.sub == padnum && imguiOverlayRegIsLive(&r)) return (char)('a' + i);
+	}
+	return 0;
+}
+
+static char imguiOverlayRegLetterForProp(struct prop *prop)
+{
+	for (s32 i = 0; i < 26; ++i) {
+		const imguiOverlayRegister &r = g_ImGuiRegs[i];
+		if (r.kind == kFojoRegProp && r.prop == prop && imguiOverlayRegIsLive(&r)) return (char)('a' + i);
+	}
+	return 0;
+}
+
 // Pads of the running stage, projected. Filtered to rooms drawn this frame
 // (ROOMFLAG_ONSCREEN) unless asked for all: dam has 549 and most of them
 // are behind a wall you are looking at.
@@ -6562,6 +6730,13 @@ static void imguiOverlayDrawWorldMarkers(void)
 			if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
 			else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
 			fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
+			{
+				const char letter = imguiOverlayRegLetterForProp(sh.prop);
+				if (letter) {
+					char badge[4] = { '"', letter, '\0', '\0' };
+					fg->AddText(ImVec2(sh.b.x - 22.0f, sh.b.y - 8.0f), IM_COL32(120, 220, 255, 255), badge);
+				}
+			}
 		}
 	}
 
@@ -6589,6 +6764,13 @@ static void imguiOverlayDrawWorldMarkers(void)
 			fg->AddText(ImVec2(m.p.x + m.radius + 4.0f, m.p.y - 7.0f),
 					sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 235, 210, 230),
 					name ? name : "?");
+			{
+				const char letter = imguiOverlayRegLetterForPad(m.padnum);
+				if (letter) {
+					char badge[4] = { '"', letter, '\0', '\0' };
+					fg->AddText(ImVec2(m.p.x - m.radius - 18.0f, m.p.y - 7.0f), IM_COL32(120, 220, 255, 255), badge);
+				}
+			}
 		}
 	}
 }
@@ -6635,6 +6817,7 @@ static void imguiOverlayProbeModelFileTexture(u16 fileNum)
 // its model's first texture.
 static void imguiOverlayLatchPropEverywhere(struct prop *prop)
 {
+	imguiOverlayRegSetProp(kFojoRegUnnamed, prop);
 	g_ImGuiOverlayFocusProp = prop;
 	g_ImGuiOverlayShowEntities = true;
 	imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowEntities);
@@ -7211,6 +7394,10 @@ static void imguiOverlayDrawWindowContextMenu(void)
 //   `  windows and panels                _  pads of the running stage (or the
 //                                           coffee cup U+2615: Doak's coasters)
 //   !  teleport: a pad, a chr, a prop or a room number; enter goes there
+//   "  registers: " lists them, "a shows a, "a<query> yanks the top hit into
+//      a. A verb with an argument (Teleport to) stops after enter and asks:
+//      registers first, then every target, "a picks one outright, esc backs
+//      out to the verb line.
 // A bare sigil is a mode: ` on its own lists every window, which is the window
 // switcher with no query. \ at position 0 escapes the next character, for the
 // one corpus whose names are mod-supplied and so not guaranteed sigil-free.
@@ -7238,7 +7425,9 @@ enum {
 	kFojoBarStage,
 	kFojoBarTexture,
 	kFojoBarPad,
-	kFojoBarTeleport,   // ! sigil: a pad, an entity or a room, activated = go there
+	kFojoBarTeleport,   // ! sigil / argument stage: a pad, an entity or a room, activated = go there
+	kFojoBarRegister,   // a register, index = slot
+	kFojoBarYankHere,   // "a with nothing after it: copy "" into a
 };
 
 struct imguiOverlayBarHit {
@@ -7260,10 +7449,20 @@ static char g_ImGuiOverlayBarQuery[128];
 static s32 g_ImGuiOverlayBarSel = 0;
 static struct imguiOverlayBarHit g_ImGuiOverlayBarHits[kFojoBarMaxHits];
 static s32 g_ImGuiOverlayBarHitCount = 0;
+static s32 g_ImGuiOverlayBarVerb = -1;      // command row waiting for its argument, or -1
+static s32 g_ImGuiOverlayBarYankInto = -1;  // "a prefix: the top hit is yanked here instead of acted on
+
+// Commands. argKind says whether the bar stops to ask for something after
+// the verb: kFojoArgNone runs at once, kFojoArgAnchor switches the bar into
+// the argument stage (registers first, then every valid target) and runs
+// runArg with what was picked.
+enum { kFojoArgNone, kFojoArgAnchor };
 
 struct imguiOverlayCommandDef {
 	const char *name;
 	void (*run)(void);
+	s32 argKind;
+	void (*runArg)(const struct coord *where, bool eye, const char *label);
 };
 
 static void imguiOverlayCmdFloor1(void) { g_ImGuiOverlayWorkspace = 0; }
@@ -7298,6 +7497,25 @@ static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
 // it live - --spectate and the ini only - so this is the way in.
 static void imguiOverlayCmdNoclip(void)      { modSpectateSetOn(!modSpectateIsOn()); }
 static void imguiOverlayCmdReloadStage(void) { g_ImGuiReloadStagePending = true; }
+// Teleport takes an anchor: a register or any pad / chr / prop / room
+static void imguiOverlayVerbTeleport(const struct coord *where, bool eye, const char *label)
+{
+	g_ImGuiTeleportPos = *where;
+	g_ImGuiTeleportEye = eye;
+	g_ImGuiTeleportPending = true;
+	sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", label, where->x, where->y, where->z);
+}
+static void imguiOverlayCmdTeleport(void) { /* argument stage does the work */ }
+// "" takes where jo stands; "a then enter on it copies it up
+static void imguiOverlayCmdYankPos(void)
+{
+	if (g_Vars.currentplayer && g_Vars.currentplayer->prop) {
+		char label[48];
+		const struct coord *p = &g_Vars.currentplayer->prop->pos;
+		snprintf(label, sizeof(label), "pos %.0f %.0f %.0f", p->x, p->y, p->z);
+		imguiOverlayRegSetPos(kFojoRegUnnamed, p, true, label);
+	}
+}
 static void imguiOverlayCmdImport(void)
 {
 	g_ImGuiOverlayShowImport = true;
@@ -7333,6 +7551,8 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Noclip",                   imguiOverlayCmdNoclip },
 	{ "Import geometry",          imguiOverlayCmdImport },
 	{ "Reload stage geometry",    imguiOverlayCmdReloadStage },
+	{ "Teleport to",              imguiOverlayCmdTeleport, kFojoArgAnchor, imguiOverlayVerbTeleport },
+	{ "Yank position",            imguiOverlayCmdYankPos },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
 };
@@ -7655,6 +7875,90 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 	}
 }
 
+// the argument stage: registers that can anchor, then every target
+static void imguiOverlayBarSearchAnchor(const char *q)
+{
+	s32 score;
+
+	for (s32 i = 0; i < kFojoRegCount; ++i) {
+		const imguiOverlayRegister &r = g_ImGuiRegs[i];
+		struct coord where;
+		bool eye;
+		char label[96];
+
+		if (r.kind == kFojoRegNone) continue;
+		snprintf(label, sizeof(label), "%s  %s", imguiOverlayRegName(i), r.label);
+
+		// "a typed in the stage picks a outright; anything else fuzzes the label
+		if (q[0] == '"' && q[1]) {
+			if (imguiOverlayRegIndex(q[1]) != i) continue;
+			score = 9000;
+		} else if (!imguiOverlayBarFuzzy(label, q, &score)) {
+			continue;
+		}
+
+		if (!imguiOverlayRegAnchor(&r, &where, &eye)) {
+			imguiOverlayBarPush(kFojoBarRegister, i, NULL, score + 4000, label, "register  stale");
+			continue;
+		}
+
+		imguiOverlayBarPush(kFojoBarRegister, i, NULL, score + 5000, label, "register");
+		for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
+			struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
+			if (hit.kind == kFojoBarRegister && hit.index == i) { hit.where = where; hit.whereIsEye = eye; }
+		}
+	}
+
+	if (!(q[0] == '"' && q[1])) {
+		imguiOverlayBarSearchTeleport(q);
+	}
+}
+
+// " sigil: registers. `"` lists them, `"a` shows a and offers to copy ""
+// into it, `"a<query>` runs the ordinary search and yanks the top hit.
+static bool imguiOverlayBarSearchRegisters(const char *q)
+{
+	const s32 idx = imguiOverlayRegIndex(q[0]);
+
+	g_ImGuiOverlayBarYankInto = -1;
+
+	if (q[0] == '\0') {
+		for (s32 i = 0; i < kFojoRegCount; ++i) {
+			const imguiOverlayRegister &r = g_ImGuiRegs[i];
+			if (r.kind == kFojoRegNone) continue;
+			char label[96];
+			snprintf(label, sizeof(label), "%s  %s", imguiOverlayRegName(i), r.label);
+			imguiOverlayBarPush(kFojoBarRegister, i, NULL, 100 - i, label,
+					imguiOverlayRegIsLive(&r) ? "register" : "register  stale");
+		}
+		return true;
+	}
+
+	if (idx < 0) {
+		return true; // not a register letter: nothing
+	}
+
+	if (q[1] == '\0') {
+		const imguiOverlayRegister &r = g_ImGuiRegs[idx];
+		if (r.kind != kFojoRegNone) {
+			char label[96];
+			snprintf(label, sizeof(label), "%s  %s", imguiOverlayRegName(idx), r.label);
+			imguiOverlayBarPush(kFojoBarRegister, idx, NULL, 200, label,
+					imguiOverlayRegIsLive(&r) ? "register" : "register  stale");
+		}
+		if (idx != kFojoRegUnnamed && g_ImGuiRegs[kFojoRegUnnamed].kind != kFojoRegNone) {
+			char label[96];
+			snprintf(label, sizeof(label), "yank \"\" into %s  (%s)", imguiOverlayRegName(idx), g_ImGuiRegs[kFojoRegUnnamed].label);
+			imguiOverlayBarPush(kFojoBarYankHere, idx, NULL, 150, label, "yank");
+		}
+		return true;
+	}
+
+	// "a<query>: fall through to the ordinary search on the rest, yank on enter
+	g_ImGuiOverlayBarYankInto = idx;
+	return false;
+}
+
 static void imguiOverlayBarSearch(void)
 {
 	const char *q = g_ImGuiOverlayBarQuery;
@@ -7669,6 +7973,23 @@ static void imguiOverlayBarSearch(void)
 	s32 score;
 
 	g_ImGuiOverlayBarHitCount = 0;
+
+	// a verb is waiting for its argument: registers first, then targets
+	if (g_ImGuiOverlayBarVerb >= 0) {
+		imguiOverlayBarSearchAnchor(q);
+		goto sort;
+	}
+
+	// " : registers. May fall through with a yank target armed.
+	if (q[0] == '"') {
+		if (imguiOverlayBarSearchRegisters(q + 1)) {
+			goto sort;
+		}
+		q += 2;
+		while (*q == ' ') q++;
+	} else {
+		g_ImGuiOverlayBarYankInto = -1;
+	}
 
 	// sigils bind at position 0 only
 	if (q[0] == '`')      { wantEntities = wantCommands = false; q++; }
@@ -7789,9 +8110,11 @@ static void imguiOverlayBarSearch(void)
 	}
 
 	if (wantTeleport) {
-		imguiOverlayBarSearchTeleport(q);
+		// ! is a shortcut into the teleport argument stage
+		imguiOverlayBarSearchAnchor(q);
 	}
 
+sort:
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
 	for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
 		const struct imguiOverlayBarHit key = g_ImGuiOverlayBarHits[i];
@@ -7810,9 +8133,117 @@ static void imguiOverlayBarSearch(void)
 	}
 }
 
+// what a hit is, as a register value; false for hits that are not things
+static bool imguiOverlayRegFromHit(const struct imguiOverlayBarHit *hit, imguiOverlayRegister *out)
+{
+	memset(out, 0, sizeof(*out));
+	out->chrnum = -1;
+	out->ref.owner = -1; out->ref.id = -1; out->ref.sub = -1; out->ref.via = -1;
+
+	switch (hit->kind) {
+	case kFojoBarEntity:
+	case kFojoBarTeleport:
+		if (hit->prop && imguiOverlayPropIsCurrent(hit->prop)) {
+			imguiOverlayRegSetProp(kFojoRegLastYank, hit->prop);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			imguiOverlayRegSetPad(kFojoRegLastYank, hit->ref.sub);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		if (hit->kind == kFojoBarTeleport && hit->index > 0 && hit->index < g_Vars.roomcount) {
+			imguiOverlayRegSetRoom(kFojoRegLastYank, hit->index);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		return false;
+	case kFojoBarPad:
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			imguiOverlayRegSetPad(kFojoRegLastYank, hit->ref.sub);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		return false;
+	case kFojoBarRegister:
+		*out = g_ImGuiRegs[hit->index];
+		return out->kind != kFojoRegNone;
+	default:
+		return false;
+	}
+}
+
 static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 {
+	// "a<query> + enter: yank the hit, do not act on it
+	if (g_ImGuiOverlayBarYankInto >= 0) {
+		imguiOverlayRegister r;
+		if (imguiOverlayRegFromHit(hit, &r)) {
+			imguiOverlayRegYank(g_ImGuiOverlayBarYankInto, &r);
+		} else {
+			sysLogPrintf(LOG_NOTE, "IMGUI: %s: nothing to yank from that hit", imguiOverlayRegName(g_ImGuiOverlayBarYankInto));
+		}
+		g_ImGuiOverlayBarYankInto = -1;
+		g_ImGuiOverlayBarOpen = false;
+		return;
+	}
+
+	// the argument stage: hand the anchor to the waiting verb
+	if (g_ImGuiOverlayBarVerb >= 0) {
+		const struct imguiOverlayCommandDef *def = &g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb];
+		struct coord where = hit->where;
+		bool eye = hit->whereIsEye;
+		bool ok = hit->kind == kFojoBarTeleport;
+
+		if (hit->kind == kFojoBarRegister) {
+			ok = imguiOverlayRegAnchor(&g_ImGuiRegs[hit->index], &where, &eye);
+		}
+
+		if (ok && def->runArg) {
+			def->runArg(&where, eye, hit->label);
+			if (hit->ref.drive == ASSET_DRIVE_PAD) g_ImGuiOverlayPadSel = hit->ref.sub;
+		} else {
+			sysLogPrintf(LOG_NOTE, "IMGUI: %s: that is not somewhere to go", def->name);
+		}
+
+		g_ImGuiOverlayBarVerb = -1;
+		g_ImGuiOverlayBarOpen = false;
+		return;
+	}
+
 	switch (hit->kind) {
+	case kFojoBarRegister: {
+		// put "": the register becomes the latch
+		const imguiOverlayRegister &r = g_ImGuiRegs[hit->index];
+		if (!imguiOverlayRegIsLive(&r)) {
+			sysLogPrintf(LOG_NOTE, "IMGUI: %s is stale (%s)", imguiOverlayRegName(hit->index), r.label);
+			break;
+		}
+		if (hit->index != kFojoRegUnnamed) g_ImGuiRegs[kFojoRegUnnamed] = r;
+		switch (r.kind) {
+		case kFojoRegProp:
+			imguiOverlayLatchPropEverywhere(r.prop);
+			break;
+		case kFojoRegPad:
+			g_ImGuiOverlayPadSel = r.ref.sub;
+			g_ImGuiOverlayPadFilter.Clear();
+			g_ImGuiOverlayOpenPads = true;
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+			break;
+		case kFojoRegRoom:
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+	case kFojoBarYankHere:
+		imguiOverlayRegYank(hit->index, &g_ImGuiRegs[kFojoRegUnnamed]);
+		break;
 	case kFojoBarWindow:
 		if (*g_ImGuiOverlayWindowDefs[hit->index].open) {
 			// focusing an open window takes you to its floor; opening one
@@ -7834,6 +8265,14 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		}
 		break;
 	case kFojoBarCommand:
+		if (g_ImGuiOverlayCommandDefs[hit->index].argKind != kFojoArgNone) {
+			// stay open, ask for the argument
+			g_ImGuiOverlayBarVerb = hit->index;
+			g_ImGuiOverlayBarQuery[0] = '\0';
+			g_ImGuiOverlayBarSel = 0;
+			g_ImGuiOverlayBarJustOpened = true;
+			return;
+		}
 		g_ImGuiOverlayCommandDefs[hit->index].run();
 		break;
 	case kFojoBarStage:
@@ -7856,24 +8295,17 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		}
 		break;
 	case kFojoBarTeleport:
-		g_ImGuiTeleportPos = hit->where;
-		g_ImGuiTeleportEye = hit->whereIsEye;
-		g_ImGuiTeleportPending = true;
+		// the ! shortcut lands here with no verb pending
+		imguiOverlayVerbTeleport(&hit->where, hit->whereIsEye, hit->label);
 		if (hit->ref.drive == ASSET_DRIVE_PAD) {
 			g_ImGuiOverlayPadSel = hit->ref.sub;
-		}
-		{
-			char path[64];
-			if (hit->ref.drive == ASSET_DRIVE_PAD) assetFormat(&hit->ref, path, sizeof(path));
-			else snprintf(path, sizeof(path), "%s", hit->label);
-			sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", path,
-					hit->where.x, hit->where.y, hit->where.z);
 		}
 		break;
 	case kFojoBarPad:
 		// Stage panel, Pads node open, the table filtered to the symbol and
 		// the row selected. The overlay marker for it is c-overlay-toggles.
 		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			imguiOverlayRegSetPad(kFojoRegUnnamed, hit->ref.sub);
 			// the row is found by number, the filter just narrows the table to it
 			snprintf(g_ImGuiOverlayPadFilter.InputBuf,
 					sizeof(g_ImGuiOverlayPadFilter.InputBuf), "%s", hit->label);
@@ -7931,8 +8363,14 @@ static void imguiOverlayDrawAwesomeBar(void)
 		g_ImGuiOverlayBarJustOpened = false;
 	}
 
+	if (g_ImGuiOverlayBarVerb >= 0) {
+		ImGui::TextDisabled("%s \u2026", g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb].name);
+	}
+
 	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot, _a pad, !go somewhere",
+	ImGui::InputTextWithHint("##fojofind",
+			g_ImGuiOverlayBarVerb >= 0 ? "a register (\"a), or a pad, chr, prop or room number"
+			: "find a window, an entity, a command, #a file slot, _a pad, !go somewhere, \"registers",
 			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
 
 	imguiOverlayBarSearch();
@@ -7947,7 +8385,14 @@ static void imguiOverlayDrawAwesomeBar(void)
 	}
 
 	if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-		g_ImGuiOverlayBarOpen = false;
+		if (g_ImGuiOverlayBarVerb >= 0) {
+			// back to the verb line, not out of the bar
+			g_ImGuiOverlayBarVerb = -1;
+			g_ImGuiOverlayBarQuery[0] = '\0';
+			g_ImGuiOverlayBarSel = 0;
+		} else {
+			g_ImGuiOverlayBarOpen = false;
+		}
 	}
 
 	const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false)
@@ -7991,6 +8436,8 @@ static void imguiOverlayDrawAwesomeBar(void)
 
 static void imguiOverlayOpenAwesomeBar(void)
 {
+	g_ImGuiOverlayBarVerb = -1;
+	g_ImGuiOverlayBarYankInto = -1;
 	g_ImGuiOverlayBarOpen = true;
 	g_ImGuiOverlayBarJustOpened = true;
 	g_ImGuiOverlayBarSel = 0;
@@ -8203,6 +8650,7 @@ void imguiOverlayRender(void)
 				} else {
 					const s32 padnum = imguiOverlayPickPadAtMouse(io.MousePos);
 					if (padnum >= 0) {
+						imguiOverlayRegSetPad(kFojoRegUnnamed, padnum);
 						g_ImGuiOverlayPadSel = padnum;
 						g_ImGuiOverlayPadFilter.Clear();
 						g_ImGuiOverlayOpenPads = true;
