@@ -194,6 +194,7 @@ bool chrIsTargetInFov(struct chrdata *chr, u8 arg1, u8 reverse);
 bool chrIsLookingAtPos(struct chrdata *chr, struct coord *pos, u8 arg2);
 f32 chrGetSameFloorDistanceToPad(struct chrdata *chr, s32 pad_id);
 void chrsClearRefsToPlayer(s32 playernum);
+void chrsRetargetPlayer(s32 from, s32 to, s32 fromprop);
 s32 chrResolveId(struct chrdata *ref, s32 id);
 f32 chrGetTimer(struct chrdata *chr);
 bool chrIsTargetAimingAtMe(struct chrdata *chr);

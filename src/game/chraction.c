@@ -15516,11 +15516,41 @@ s32 chrResolvePadId(struct chrdata *chr, s32 pad_id)
  * This function is called when the given player has died. It causes all guards
  * to switch their focus to the remaining coop player.
  */
+/**
+ * fojo: point every chr that was watching player `from` at player `to`, and
+ * drop their target on from's prop. The body of chrsClearRefsToPlayer, made
+ * callable for a player who LEFT rather than died - that one only runs when
+ * coopplayernum >= 0 and picks its own replacement.
+ */
+void chrsRetargetPlayer(s32 from, s32 to, s32 fromprop)
+{
+	s32 i;
+
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (g_ChrSlots[i].p1p2 == from) {
+			g_ChrSlots[i].p1p2 = to;
+		}
+
+		if (fromprop >= 0 && g_ChrSlots[i].target == fromprop) {
+			g_ChrSlots[i].target = -1;
+		}
+	}
+
+	for (i = 0; i < g_NumBgChrs; i++) {
+		if (g_BgChrs[i].p1p2 == from) {
+			g_BgChrs[i].p1p2 = to;
+		}
+
+		if (fromprop >= 0 && g_BgChrs[i].target == fromprop) {
+			g_BgChrs[i].target = -1;
+		}
+	}
+}
+
 void chrsClearRefsToPlayer(s32 playernum)
 {
 	s32 otherplayernum;
 	s32 playerpropnum;
-	s32 i;
 
 	if (g_Vars.coopplayernum >= 0) {
 		if (playernum == g_Vars.bondplayernum) {
@@ -15531,25 +15561,7 @@ void chrsClearRefsToPlayer(s32 playernum)
 			playerpropnum = g_Vars.coop->prop - g_Vars.props;
 		}
 
-		for (i = 0; i < chrsGetNumSlots(); i++) {
-			if (g_ChrSlots[i].p1p2 == playernum) {
-				g_ChrSlots[i].p1p2 = otherplayernum;
-			}
-
-			if (g_ChrSlots[i].target == playerpropnum) {
-				g_ChrSlots[i].target = -1;
-			}
-		}
-
-		for (i = 0; i < g_NumBgChrs; i++) {
-			if (g_BgChrs[i].p1p2 == playernum) {
-				g_BgChrs[i].p1p2 = otherplayernum;
-			}
-
-			if (g_BgChrs[i].target == playerpropnum) {
-				g_BgChrs[i].target = -1;
-			}
-		}
+		chrsRetargetPlayer(playernum, otherplayernum, playerpropnum);
 	}
 }
 
