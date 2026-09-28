@@ -132,6 +132,7 @@ static void skinCollectModelTextures(u16 fileNum, std::vector<SkinTexRef> &out)
 struct SkinTexRow {
 	u16 texnum;
 	bool onscreen;
+	bool png;       // the mod ships ext_tex/<Model>/<texnum>.png for this model
 	SkinTexRef ref; // valid when onscreen
 };
 
@@ -177,6 +178,34 @@ static void skinCollectModelRows(s32 fileid, std::vector<SkinTexRow> &rows)
 	std::vector<SkinTexRef> drawn;
 	skinCollectModelTextures((u16)(fileid & 0xffff), drawn);
 
+	// a mod-owned model is what its mod says it is: the PNGs registered
+	// under ext_tex/<Model>/ come first, in the mod's own order, then
+	// whatever else the modeldef references, which with no override is the
+	// ROM's texture. Catherine's head lists a leftover 1012 that way, and
+	// the frock face it resolves to is not hers (her ruling, 2026-09-28)
+	const s16 rawFile = (s16)(fileid & 0xffff);
+	const s32 npng = extTexModelGetTextureCount(rawFile);
+
+	for (s32 i = 0; i < npng; i++) {
+		s32 texnum = -1;
+		if (!extTexModelGetTextureInfo(rawFile, i, &texnum, NULL, NULL, NULL) || texnum < 0) continue;
+		bool seen = false;
+		for (const SkinTexRow &r : rows) if (r.texnum == (u16)texnum) { seen = true; break; }
+		if (seen) continue;
+		SkinTexRow row;
+		row.texnum = (u16)texnum;
+		row.onscreen = false;
+		row.png = true;
+		for (const SkinTexRef &d : drawn) {
+			if (d.info.texnum == (u16)texnum) {
+				row.onscreen = true;
+				row.ref = d;
+				break;
+			}
+		}
+		rows.push_back(row);
+	}
+
 	const std::vector<u16> &idv = skinModelTextureIds(fileid);
 	const u16 *ids = idv.data();
 	const s32 n = (s32)idv.size();
@@ -185,6 +214,10 @@ static void skinCollectModelRows(s32 fileid, std::vector<SkinTexRow> &rows)
 		SkinTexRow row;
 		row.texnum = ids[i];
 		row.onscreen = false;
+		row.png = false;
+		bool seen = false;
+		for (const SkinTexRow &r : rows) if (r.texnum == ids[i]) { seen = true; break; }
+		if (seen) continue;
 		for (const SkinTexRef &d : drawn) {
 			if (d.info.texnum == ids[i]) {
 				row.onscreen = true;
@@ -203,6 +236,7 @@ static void skinCollectModelRows(s32 fileid, std::vector<SkinTexRow> &rows)
 			SkinTexRow row;
 			row.texnum = (u16)d.info.texnum;
 			row.onscreen = true;
+			row.png = false;
 			row.ref = d;
 			rows.push_back(row);
 		}
@@ -333,6 +367,9 @@ static const SkinTexRow *skinDrawTexTable(const char *id, const std::vector<Skin
 				: (skinmatchHeadForTex(fileNum, r.texnum) != NULL && skinmatchHeadForTex(fileNum, r.texnum)->ntags > 0);
 			if (has) { selected = &r; break; }
 		}
+		if (!selected) {
+			for (const SkinTexRow &r : rows) if (r.png) { selected = &r; break; }
+		}
 		if (!selected) selected = &rows[0];
 		*sel = selected->texnum;
 	}
@@ -358,7 +395,10 @@ static const SkinTexRow *skinDrawTexTable(const char *id, const std::vector<Skin
 			ImGui::TableSetColumnIndex(1);
 			if (r.onscreen) ImGui::Text("%dx%d", r.ref.width, r.ref.height); else ImGui::TextDisabled("-");
 			ImGui::TableSetColumnIndex(2);
-			ImGui::TextUnformatted(r.onscreen ? "on screen" : "probe");
+			// where the bytes come from: the mod's PNG, or the ROM's texture
+			// (drawn live or fetched by the probe)
+			ImGui::TextUnformatted(r.png ? (r.onscreen ? "png, on screen" : "png")
+				: (r.onscreen ? "rom, on screen" : "rom, probe"));
 			ImGui::TableSetColumnIndex(3);
 			if (isBody) {
 				const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_GENERAL, fileNum, r.texnum, false);
