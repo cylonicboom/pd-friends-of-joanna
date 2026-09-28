@@ -224,41 +224,39 @@ struct SkinProbeCopy {
 
 static std::vector<SkinProbeCopy> g_SkinProbeCopies;
 
-static bool skinResolveRow(s32 fileid, const SkinTexRow &row, SkinTexRef *out)
+static bool skinFindCopy(s32 fileid, u16 texnum, SkinTexRef *out)
 {
-	if (row.onscreen) {
-		*out = row.ref;
-		return true;
-	}
-
 	for (const SkinProbeCopy &c : g_SkinProbeCopies) {
-		if (c.fileid == fileid && c.texnum == row.texnum) {
+		if (c.fileid == fileid && c.texnum == texnum) {
 			out->info.type = G_TEXTYPE_GENERAL;
 			out->info.id = (u16)(fileid & 0xffff);
-			out->info.texnum = row.texnum;
+			out->info.texnum = texnum;
 			out->info.texture_id = c.gl;
 			out->width = c.width;
 			out->height = c.height;
 			return true;
 		}
 	}
+	return false;
+}
 
-	if (!imguiOverlayProbeModelTexture(fileid, row.texnum, &out->info)) {
-		return false;
-	}
-
-	skinTexDims(out->info.texture_id, &out->width, &out->height);
-	if (out->width <= 0 || out->height <= 0 || out->width > 512 || out->height > 512) {
+// Snapshot a probed texture into a panel-owned GL texture. From then on the
+// row is served from the copy and the engine's one probe slot is free for
+// the next texture.
+static bool skinRememberCopy(s32 fileid, u16 texnum, SkinTexRef *ref)
+{
+	skinTexDims(ref->info.texture_id, &ref->width, &ref->height);
+	if (ref->width <= 0 || ref->height <= 0 || ref->width > 512 || ref->height > 512) {
 		return false;
 	}
 
 	std::vector<u8> px;
-	skinReadbackPixels(*out, px);
+	skinReadbackPixels(*ref, px);
 	SkinProbeCopy c;
 	c.fileid = fileid;
-	c.texnum = row.texnum;
-	c.width = out->width;
-	c.height = out->height;
+	c.texnum = texnum;
+	c.width = ref->width;
+	c.height = ref->height;
 	GLint previous = 0;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previous);
 	glGenTextures(1, &c.gl);
@@ -268,8 +266,49 @@ static bool skinResolveRow(s32 fileid, const SkinTexRow &row, SkinTexRef *out)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glBindTexture(GL_TEXTURE_2D, previous);
 	g_SkinProbeCopies.push_back(c);
-	out->info.texture_id = c.gl;
+	ref->info.texture_id = c.gl;
 	return true;
+}
+
+// The probe's display list runs at the end of every frame and its import is
+// recorded like a real draw, so a probed texture shows up in the "on screen"
+// list the frame it lands. Tell that record apart from the chr actually being
+// drawn: it is the engine's currently submitted probe.
+static bool skinIsProbeRecord(const SkinTexRef &ref)
+{
+	struct GfxTextureDebugInfo probe;
+	return gfx_get_submitted_debug_texture(&probe)
+		&& probe.texnum == ref.info.texnum
+		&& probe.id == ref.info.id
+		&& probe.texture_id == ref.info.texture_id;
+}
+
+static bool skinResolveRow(s32 fileid, const SkinTexRow &row, SkinTexRef *out)
+{
+	if (row.onscreen) {
+		// a chr off screen has only the probe drawing its textures, and the
+		// engine holds one probe: a body and a head would take turns being
+		// "on screen" every other frame (her screenshots, 2026-09-28), each
+		// evicting the other's probe and neither ever settling. copy a
+		// probe-sourced record the frame it lands; the live draw stays live
+		if (skinIsProbeRecord(row.ref) && !skinFindCopy(fileid, row.texnum, out)) {
+			*out = row.ref;
+			skinRememberCopy(fileid, row.texnum, out);
+			return true;
+		}
+		*out = row.ref;
+		return true;
+	}
+
+	if (skinFindCopy(fileid, row.texnum, out)) {
+		return true;
+	}
+
+	if (!imguiOverlayProbeModelTexture(fileid, row.texnum, &out->info)) {
+		return false;
+	}
+
+	return skinRememberCopy(fileid, row.texnum, out);
 }
 
 // The texture table: click a row to select it. Returns the selected row or
