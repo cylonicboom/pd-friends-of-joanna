@@ -598,7 +598,11 @@ static const char *imguiOverlayEntityLabel(struct prop *prop, char *buf, size_t 
 	}
 
 	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr) {
-		snprintf(buf, len, "chr 0x%04x %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
+		// body, then the head when its slot has a name: two chrs in the same
+		// suit are told apart by who is wearing it
+		const char *head = modGetNameForHeadBodyIndex(prop->chr->headnum);
+		if (head) snprintf(buf, len, "chr 0x%04x %s / %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum), head);
+		else snprintf(buf, len, "chr 0x%04x %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
 		return buf;
 	}
 
@@ -8013,7 +8017,7 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 			for (s32 i = 0; i < g_NumChrSlots; ++i) {
 				struct chrdata *chr = &g_ChrSlots[i];
 				if (chr->chrnum < 0 || !chr->prop) continue;
-				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
+				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
 				if (imguiOverlayBarFuzzy(label, q, &score)) {
 					char detail[32];
 					snprintf(detail, sizeof(detail), "go: chr 0x%04x", (u16)chr->chrnum);
@@ -8237,7 +8241,7 @@ static void imguiOverlayBarSearch(void)
 					continue;
 				}
 
-				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
+				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
 
 				if (imguiOverlayBarFuzzy(label, q, &score)) {
 					char detail[32];
