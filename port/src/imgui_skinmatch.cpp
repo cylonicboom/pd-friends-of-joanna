@@ -322,7 +322,18 @@ static const SkinTexRow *skinDrawTexTable(const char *id, const std::vector<Skin
 	const SkinTexRow *selected = NULL;
 	for (const SkinTexRow &r : rows) if ((s32)r.texnum == *sel) { selected = &r; break; }
 	if (!selected) {
-		selected = &rows[0];
+		// nothing picked yet: the texture that already carries this chr's
+		// work is the one to show - the body with a mask, the head with
+		// tags - not whichever row the modeldef lists first. Catherine's
+		// head lists a leftover 1012 ahead of her actual face on 0db6, and
+		// the panel opened on a frock from the JPN rom (2026-09-28)
+		for (const SkinTexRow &r : rows) {
+			const bool has = isBody
+				? skinmatchBodyFor(G_TEXTYPE_GENERAL, fileNum, r.texnum, false) != NULL
+				: (skinmatchHeadForTex(fileNum, r.texnum) != NULL && skinmatchHeadForTex(fileNum, r.texnum)->ntags > 0);
+			if (has) { selected = &r; break; }
+		}
+		if (!selected) selected = &rows[0];
 		*sel = selected->texnum;
 	}
 
