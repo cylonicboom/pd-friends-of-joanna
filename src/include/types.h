@@ -1425,6 +1425,10 @@ struct chrdata {
   // action their AI is running, and the union belongs to that.
   /*ext*/ s32 punchstep;
   /*ext*/ s32 punchtime60;
+  // Editor hold: while set, chrTick skips this chr's chraiExecute and the
+  // list stands still; the global pause (chraiSetPaused) does the same
+  // for everyone. Set only from the debugger's inspector.
+  /*ext*/ u8 aipaused;
   // The animation number of the one shot the third person body is part way
   // through - a punch, a roll, a flinch, a throw - or 0 for none.
   // playerChooseThirdPersonAnimation() leaves the body alone while this is

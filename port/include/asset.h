@@ -75,6 +75,22 @@ extern "C" {
  *   seg:    ROMSEG_LIST segments by name
  *   rom:    mounted rom sources by id
  *   mod:    the mod roster
+ *   pad:    a stage's pads. pad:/<stage>/<n> by number (hex or decimal) or
+ *           by the symbol the setups use, PAD_<STAGE>_<HEX>, whose stage
+ *           part is ignored - the path already says which stage. id is the
+ *           stagenum, sub the pad number, owner whoever owns the stage
+ *           row's padsfile. The rom carries no pad names; the symbol is
+ *           synthesized from the index exactly as tools/assetmgr/mkpads
+ *           does, so what the bar finds is what src/setups says - unless
+ *           a names sidecar (pads/<padsfile>.names, `<pad>=<name>` lines)
+ *           names it, in which case the name resolves too and is what
+ *           assetName shows; assetPadSymbolName is always the symbol.
+ *           pad:/<stage> alone is the set; assetLink gives its file:.
+ *           Enumerate and assetPadUnpack are LIVE ONLY: they read the
+ *           loaded pad file through padUnpack, so they answer for the
+ *           running stage and return ASSET_UNSUPPORTED for any other -
+ *           a cold file is compressed N64-layout bytes and nothing here
+ *           inflates it yet. Resolve is syntactic for a cold stage.
  */
 
 enum assetdrive {
@@ -88,6 +104,7 @@ enum assetdrive {
 	ASSET_DRIVE_SEG,
 	ASSET_DRIVE_ROM,
 	ASSET_DRIVE_MOD,
+	ASSET_DRIVE_PAD,
 	ASSET_DRIVE_COUNT
 };
 
@@ -161,6 +178,22 @@ typedef s32 (*assetenumfn)(const struct assetref *ref, const char *name, void *c
 s32 assetEnumerate(const char *path, assetenumfn fn, void *ctx);
 
 const char *assetDriveName(s32 drive);
+
+/* pad: only. Unpack the pad the ref names from the loaded pad file - pos,
+ * look, up, normal, bbox, room, flags, liftnum, via padUnpack. ASSET_OK on
+ * a live hit, ASSET_UNSUPPORTED when that stage is not the running one,
+ * ASSET_NOTFOUND when the number is past numpads. */
+struct pad;
+s32 assetPadUnpack(const struct assetref *ref, struct pad *out);
+
+/* pad: only. Number of pads in the running stage's pad file, or -1 when
+ * no stage is up. */
+s32 assetPadCount(s32 stagenum);
+
+/* pad: only. The PAD_<STAGE>_<HEX> symbol whether or not the sidecar has
+ * named the pad - what a setup line wants. assetName gives the sidecar
+ * name first. Static buffer. */
+const char *assetPadSymbolName(const struct assetref *ref);
 
 #ifdef __cplusplus
 }

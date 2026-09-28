@@ -1166,6 +1166,7 @@ void chrInit(struct prop *prop, u8 *ailist)
 	chr->aishotlist = -1;
 	chr->aipunchdodgelist = -1;
 #ifndef PLATFORM_N64
+	chr->aipaused = 0;
 	chr->punchstep = 0;
 	chr->punchtime60 = 0;
 	chr->oneshotanim = 0;

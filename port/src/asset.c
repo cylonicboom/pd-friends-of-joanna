@@ -11,6 +11,8 @@
 #include "data.h"
 #include "bss.h"
 #include "game/stagetable.h"
+#include "game/pad.h"
+#include "constants.h"
 
 /* ------------------------------------------------------------------------
  * drives
@@ -27,6 +29,7 @@ static const char *const g_AssetDriveNames[ASSET_DRIVE_COUNT] = {
 	"seg",
 	"rom",
 	"mod",
+	"pad",
 };
 
 const char *assetDriveName(s32 drive)
@@ -726,6 +729,23 @@ static s32 assetStageOwner(s32 stagenum)
 	return e ? e->modnum : ASSET_OWNER_VANILLA;
 }
 
+/* "0x20", "32" or "ame": the table index, and the stagenum through *stagenum */
+static s32 assetStageIndexFromHead(const char *head, s32 *stagenum)
+{
+	s32 index;
+
+	*stagenum = assetParseNumber(head);
+
+	if (*stagenum >= 0) {
+		index = stageGetIndex(*stagenum);
+	} else {
+		index = stageGetIndexByName(head);
+		*stagenum = index >= 0 ? g_Stages[index].id : -1;
+	}
+
+	return index;
+}
+
 static s32 assetStageResolve(const char *rest, struct assetref *out)
 {
 	const char *item;
@@ -754,14 +774,7 @@ static s32 assetStageResolve(const char *rest, struct assetref *out)
 		snprintf(head, sizeof(head), "%s", item);
 	}
 
-	stagenum = assetParseNumber(head);
-
-	if (stagenum >= 0) {
-		index = stageGetIndex(stagenum);
-	} else {
-		index = stageGetIndexByName(head);
-		stagenum = index >= 0 ? g_Stages[index].id : -1;
-	}
+	index = assetStageIndexFromHead(head, &stagenum);
 
 	if (index < 0) {
 		return ASSET_NOTFOUND;
@@ -852,6 +865,474 @@ static s32 assetStageEnumerate(const char *rest, assetenumfn fn, void *ctx)
 		visited++;
 
 		if (!fn(&ref, assetStageDisplayName(stagenum, buf, sizeof(buf)), ctx)) {
+			break;
+		}
+	}
+
+	return visited;
+}
+
+/* ------------------------------------------------------------------------
+ * pad:
+ *
+ * A stage's pads. The rom has no name table for them: bg_<stage>_padsZ is
+ * numpads packed records behind an offset table, and the PAD_<STAGE>_<HEX>
+ * symbols the setups compile against are generated from the index by
+ * tools/assetmgr/mkpads. So a name here is synthesized the same way, and
+ * resolving one is parsing its hex tail.
+ *
+ * Live only. padUnpack reads g_StageSetup.padfiledata, the running stage's
+ * file after preprocessPadsFile has laid it out natively; any other
+ * stage's file is compressed N64-layout bytes we do not inflate here.
+ * ---------------------------------------------------------------------- */
+
+static s32 assetPadOwner(s32 stagenum)
+{
+	s32 index = stageGetIndex(stagenum);
+	s32 owner;
+
+	if (index < 0) {
+		return ASSET_OWNER_VANILLA;
+	}
+
+	owner = MOD_FILEID_MOD((s32)g_Stages[index].padsfileid);
+	return owner >= 0 ? owner : ASSET_OWNER_VANILLA;
+}
+
+static s32 assetPadIsLive(s32 stagenum)
+{
+	return g_Vars.stagenum == stagenum && g_StageSetup.padfiledata != NULL && g_PadsFile != NULL;
+}
+
+s32 assetPadCount(s32 stagenum)
+{
+	return assetPadIsLive(stagenum) ? g_PadsFile->numpads : -1;
+}
+
+/* "PAD_AME_0095" -> 0x95. Case-insensitive, stage part ignored: the path
+ * already named the stage, and a symbol pasted from another stage's setup
+ * is still a number. Anything not PAD_<...>_<hex> is -1. */
+static s32 assetPadNumberFromSymbol(const char *item)
+{
+	const char *tail;
+
+	if (strlen(item) < 5 || (item[0] != 'P' && item[0] != 'p') || (item[1] != 'A' && item[1] != 'a')
+			|| (item[2] != 'D' && item[2] != 'd') || item[3] != '_') {
+		return -1;
+	}
+
+	tail = strrchr(item, '_');
+
+	if (!tail || tail == item + 3 || tail[1] == '\0') {
+		return -1;
+	}
+
+	tail++;
+
+	for (const char *c = tail; *c; ++c) {
+		if (!((*c >= '0' && *c <= '9') || (*c >= 'a' && *c <= 'f') || (*c >= 'A' && *c <= 'F'))) {
+			return -1;
+		}
+	}
+
+	return (s32)strtol(tail, NULL, 16);
+}
+
+static const char *assetPadStageTag(s32 stagenum, char *buf, u32 len)
+{
+	const char *name = stageGetName(stagenum);
+	u32 i;
+
+	if (!name || !name[0]) {
+		snprintf(buf, len, "%02X", stagenum);
+		return buf;
+	}
+
+	for (i = 0; i + 1 < len && name[i]; ++i) {
+		char c = name[i];
+		buf[i] = (c >= 'a' && c <= 'z') ? (char)(c - 'a' + 'A') : c;
+	}
+
+	buf[i] = '\0';
+	return buf;
+}
+
+/* ---- names sidecar --------------------------------------------------
+ *
+ * Her ruling (2026-09-27): pads can be named, through a sidecar. The
+ * padsZ format has no room for a name and the symbol is just the index,
+ * so names live beside the file: pads/<padsfile basename>.names, one
+ * `<pad>=<name>` per line where <pad> is a number (dec or 0x hex) or the
+ * PAD_ symbol, `#` to end of line is a comment. Found by fsFullPath's own
+ * walk - active mod, then every other mod, then the base dir - so a mod
+ * can name a vanilla stage's pads without owning its padsfile.
+ *
+ * Loaded once per running stage, on first ask, and dropped when the
+ * stage changes. Authored names come from the pads json (`name`) and
+ * apply-edits writes this file from it; the engine only reads it.
+ * ---------------------------------------------------------------------- */
+
+static s32 g_AssetPadNamesStage = -1;
+static const void *g_AssetPadNamesFile = NULL; /* the padfiledata it was read against: a restart re-reads */
+static char *g_AssetPadNamesBuf = NULL;   /* the file, mutated in place into strings */
+static const char **g_AssetPadNames = NULL; /* numpads entries, NULL where unnamed */
+static s32 g_AssetPadNamesCount = 0;
+
+static void assetPadNamesDrop(void)
+{
+	if (g_AssetPadNamesBuf) sysMemFree(g_AssetPadNamesBuf);
+	if (g_AssetPadNames) sysMemFree(g_AssetPadNames);
+	g_AssetPadNamesBuf = NULL;
+	g_AssetPadNames = NULL;
+	g_AssetPadNamesCount = 0;
+	g_AssetPadNamesStage = -1;
+	g_AssetPadNamesFile = NULL;
+}
+
+static s32 assetPadNumberFromSymbol(const char *item);
+static const char *assetPadSymbol(const struct assetref *ref);
+
+static void assetPadNamesLoad(s32 stagenum)
+{
+	s32 index;
+	s32 owner;
+	s32 padsId;
+	const char *slot;
+	const char *base;
+	char path[FS_MAXPATH];
+	u32 size = 0;
+	char *line;
+	s32 numpads;
+
+	if (g_AssetPadNamesStage == stagenum && g_AssetPadNamesFile == (const void *)g_StageSetup.padfiledata) {
+		return;
+	}
+
+	assetPadNamesDrop();
+
+	if (!assetPadIsLive(stagenum)) {
+		return;
+	}
+
+	g_AssetPadNamesStage = stagenum;
+	g_AssetPadNamesFile = g_StageSetup.padfiledata;
+	index = stageGetIndex(stagenum);
+
+	if (index < 0) {
+		return;
+	}
+
+	padsId = (s32)g_Stages[index].padsfileid;
+	owner = MOD_FILEID_MOD(padsId);
+	slot = romdataFileGetSlotName(owner >= 0 ? owner : g_ModNum, MOD_FILEID_RAW(padsId));
+
+	if (!slot || !slot[0]) {
+		return;
+	}
+
+	/* "mod_x::files/bgdata/bg_ame_padsZ" -> "bg_ame_padsZ" */
+	base = strstr(slot, "::");
+	base = base ? base + 2 : slot;
+	{
+		const char *sl = strrchr(base, '/');
+		if (sl) base = sl + 1;
+	}
+
+	snprintf(path, sizeof(path), "pads/%s.names", base);
+
+	if (fsFileSize(path) < 0) {
+		return; /* no sidecar: the symbol is the name, quietly */
+	}
+
+	g_AssetPadNamesBuf = (char *)fsFileLoad(path, &size);
+
+	if (!g_AssetPadNamesBuf) {
+		return;
+	}
+
+	numpads = g_PadsFile->numpads;
+	g_AssetPadNames = (const char **)sysMemZeroAlloc(sizeof(const char *) * (u32)numpads);
+
+	if (!g_AssetPadNames) {
+		assetPadNamesDrop();
+		return;
+	}
+
+	g_AssetPadNamesCount = numpads;
+
+	for (line = g_AssetPadNamesBuf; line && *line; ) {
+		char *nl = strchr(line, '\n');
+		char *hash;
+		char *eq;
+		char *end;
+		s32 padnum;
+
+		if (nl) *nl = '\0';
+		if ((hash = strchr(line, '#')) != NULL) *hash = '\0';
+
+		while (*line == ' ' || *line == '\t') line++;
+
+		eq = strchr(line, '=');
+
+		if (eq) {
+			*eq = '\0';
+			end = eq;
+
+			while (end > line && (end[-1] == ' ' || end[-1] == '\t')) *--end = '\0';
+
+			padnum = assetPadNumberFromSymbol(line);
+
+			if (padnum < 0) padnum = assetParseNumber(line);
+
+			if (padnum >= 0 && padnum < numpads) {
+				char *name = eq + 1;
+				char *nend;
+
+				while (*name == ' ' || *name == '\t') name++;
+				nend = name + strlen(name);
+				while (nend > name && (nend[-1] == ' ' || nend[-1] == '\t' || nend[-1] == '\r')) *--nend = '\0';
+
+				if (*name) g_AssetPadNames[padnum] = name;
+			}
+		}
+
+		line = nl ? nl + 1 : NULL;
+	}
+
+	sysLogPrintf(LOG_NOTE, "asset: pad names from %s", path);
+}
+
+static const char *assetPadSidecarName(s32 stagenum, s32 padnum)
+{
+	assetPadNamesLoad(stagenum);
+
+	if (g_AssetPadNamesStage != stagenum || !g_AssetPadNames || padnum < 0 || padnum >= g_AssetPadNamesCount) {
+		return NULL;
+	}
+
+	return g_AssetPadNames[padnum];
+}
+
+/* case-insensitive whole-string match against the sidecar, or -1 */
+static s32 assetPadNumberFromSidecar(s32 stagenum, const char *item)
+{
+	assetPadNamesLoad(stagenum);
+
+	if (g_AssetPadNamesStage != stagenum || !g_AssetPadNames) {
+		return -1;
+	}
+
+	for (s32 i = 0; i < g_AssetPadNamesCount; ++i) {
+		const char *a = g_AssetPadNames[i];
+		const char *b = item;
+
+		if (!a) continue;
+
+		while (*a && *b) {
+			char ca = (*a >= 'A' && *a <= 'Z') ? (char)(*a - 'A' + 'a') : *a;
+			char cb = (*b >= 'A' && *b <= 'Z') ? (char)(*b - 'A' + 'a') : *b;
+			if (ca != cb) break;
+			a++; b++;
+		}
+
+		if (!*a && !*b) return i;
+	}
+
+	return -1;
+}
+
+/* The sidecar name when there is one, else the synthesized symbol in
+ * mkpads' shape: PAD_<STAGE upper>_<%04X>. One static buffer, like every
+ * other assetName answer this file hands out from a table it does not
+ * own the strings of. */
+static const char *assetPadName(const struct assetref *ref)
+{
+	static char buf[48];
+	char tag[24];
+	const char *named;
+
+	if (ref->sub < 0) {
+		return NULL;
+	}
+
+	named = assetPadSidecarName(ref->id, ref->sub);
+
+	if (named) {
+		return named;
+	}
+
+	snprintf(buf, sizeof(buf), "PAD_%s_%04X", assetPadStageTag(ref->id, tag, sizeof(tag)), ref->sub);
+	return buf;
+}
+
+/* the symbol regardless of the sidecar - what a setup line wants */
+const char *assetPadSymbolName(const struct assetref *ref)
+{
+	if (!ref || ref->drive != ASSET_DRIVE_PAD || ref->sub < 0) {
+		return NULL;
+	}
+
+	return assetPadSymbol(ref);
+}
+
+static const char *assetPadSymbol(const struct assetref *ref)
+{
+	static char buf[48];
+	char tag[24];
+
+	snprintf(buf, sizeof(buf), "PAD_%s_%04X", assetPadStageTag(ref->id, tag, sizeof(tag)), ref->sub);
+	return buf;
+}
+
+static s32 assetPadResolve(const char *rest, struct assetref *out)
+{
+	const char *item;
+	const char *slash;
+	char head[64];
+	s32 stagenum;
+	s32 index;
+	s32 padnum;
+
+	if (rest[0] != '/' || rest[1] == '\0') {
+		return rest[0] == '\0' || rest[1] == '\0' ? ASSET_NOTFOUND : ASSET_BADPATH;
+	}
+
+	item = rest + 1;
+	slash = strchr(item, '/');
+
+	if (slash) {
+		u32 n = (u32)(slash - item);
+
+		if (n >= sizeof(head)) {
+			return ASSET_BADPATH;
+		}
+
+		memcpy(head, item, n);
+		head[n] = '\0';
+	} else {
+		snprintf(head, sizeof(head), "%s", item);
+	}
+
+	index = assetStageIndexFromHead(head, &stagenum);
+
+	if (index < 0) {
+		return ASSET_NOTFOUND;
+	}
+
+	out->drive = ASSET_DRIVE_PAD;
+	out->owner = (s8)assetPadOwner(stagenum);
+	out->id = stagenum;
+
+	if (!slash || slash[1] == '\0') {
+		return ASSET_OK; /* the set */
+	}
+
+	padnum = assetPadNumberFromSymbol(slash + 1);
+
+	if (padnum < 0) {
+		padnum = assetParseNumber(slash + 1);
+	}
+
+	if (padnum < 0) {
+		padnum = assetPadNumberFromSidecar(stagenum, slash + 1);
+	}
+
+	if (padnum < 0) {
+		return ASSET_NOTFOUND;
+	}
+
+	/* a cold stage cannot be bounds-checked without inflating its file;
+	 * the live one can, and a number past the end is not a pad */
+	if (assetPadIsLive(stagenum) && padnum >= g_PadsFile->numpads) {
+		return ASSET_NOTFOUND;
+	}
+
+	out->sub = padnum;
+	return ASSET_OK;
+}
+
+static s32 assetPadLink(const struct assetref *ref, struct assetref *out)
+{
+	s32 index = stageGetIndex(ref->id);
+
+	if (index < 0) {
+		return ASSET_NOTFOUND;
+	}
+
+	return assetFileRefFromId((s32)g_Stages[index].padsfileid, out);
+}
+
+s32 assetPadUnpack(const struct assetref *ref, struct pad *out)
+{
+	if (!ref || !out || ref->drive != ASSET_DRIVE_PAD || ref->sub < 0) {
+		return ASSET_NOTFOUND;
+	}
+
+	if (!assetPadIsLive(ref->id)) {
+		return ASSET_UNSUPPORTED;
+	}
+
+	if (ref->sub >= g_PadsFile->numpads) {
+		return ASSET_NOTFOUND;
+	}
+
+	padUnpack(ref->sub, PADFIELD_POS | PADFIELD_LOOK | PADFIELD_UP | PADFIELD_NORMAL
+			| PADFIELD_BBOX | PADFIELD_ROOM | PADFIELD_FLAGS | PADFIELD_LIFT, out);
+	return ASSET_OK;
+}
+
+/* "pad:" and "pad:/" walk the running stage; "pad:/<stage>" that stage,
+ * which has to be the running one. Owners are not a level here: a stage's
+ * pads all have one owner, the padsfile's. */
+static s32 assetPadEnumerate(const char *rest, assetenumfn fn, void *ctx)
+{
+	s32 stagenum;
+	s32 visited = 0;
+	struct assetref ref;
+
+	if (rest[0] == '\0' || (rest[0] == '/' && rest[1] == '\0')) {
+		stagenum = g_Vars.stagenum;
+	} else {
+		char head[64];
+		const char *slash;
+		u32 n;
+
+		if (rest[0] != '/') {
+			return ASSET_BADPATH;
+		}
+
+		slash = strchr(rest + 1, '/');
+		n = slash ? (u32)(slash - (rest + 1)) : (u32)strlen(rest + 1);
+
+		if (n >= sizeof(head)) {
+			return ASSET_BADPATH;
+		}
+
+		if (slash && slash[1] != '\0') {
+			return ASSET_NOTFOUND; /* an item is not a container */
+		}
+
+		memcpy(head, rest + 1, n);
+		head[n] = '\0';
+
+		if (assetStageIndexFromHead(head, &stagenum) < 0) {
+			return ASSET_NOTFOUND;
+		}
+	}
+
+	if (!assetPadIsLive(stagenum)) {
+		return ASSET_UNSUPPORTED;
+	}
+
+	for (s32 i = 0; i < g_PadsFile->numpads; ++i) {
+		assetRefClear(&ref);
+		ref.drive = ASSET_DRIVE_PAD;
+		ref.owner = (s8)assetPadOwner(stagenum);
+		ref.id = stagenum;
+		ref.sub = i;
+		visited++;
+
+		if (!fn(&ref, assetPadName(&ref), ctx)) {
 			break;
 		}
 	}
@@ -1184,6 +1665,7 @@ s32 assetResolve(const char *path, struct assetref *out)
 	case ASSET_DRIVE_SEG:
 	case ASSET_DRIVE_ROM:
 	case ASSET_DRIVE_MOD:   return assetFlatResolve(drive, rest, out);
+	case ASSET_DRIVE_PAD:   return assetPadResolve(rest, out);
 	default:                return ASSET_BADPATH;
 	}
 }
@@ -1208,6 +1690,8 @@ const char *assetName(const struct assetref *ref)
 	case ASSET_DRIVE_ROM:
 	case ASSET_DRIVE_MOD:
 		return assetFlatName(ref);
+	case ASSET_DRIVE_PAD:
+		return assetPadName(ref);
 	default:
 		return NULL;
 	}
@@ -1252,6 +1736,16 @@ s32 assetFormat(const struct assetref *ref, char *dst, u32 len)
 		}
 
 		return snprintf(dst, len, "stage:/0x%02x", ref->id);
+	case ASSET_DRIVE_PAD:
+		if (stageGetIndex(ref->id) < 0) {
+			return -1;
+		}
+
+		if (ref->sub >= 0) {
+			return snprintf(dst, len, "pad:/0x%02x/0x%04x", ref->id, ref->sub);
+		}
+
+		return snprintf(dst, len, "pad:/0x%02x", ref->id);
 	case ASSET_DRIVE_HEAD:
 	case ASSET_DRIVE_BODY:
 	case ASSET_DRIVE_HAND:
@@ -1276,6 +1770,8 @@ s32 assetLink(const struct assetref *ref, struct assetref *out)
 	switch (ref->drive) {
 	case ASSET_DRIVE_STAGE:
 		return assetStageLink(ref, out);
+	case ASSET_DRIVE_PAD:
+		return assetPadLink(ref, out);
 	case ASSET_DRIVE_TEX:
 		return assetTexLink(ref, out);
 	case ASSET_DRIVE_HEAD:
@@ -1372,6 +1868,7 @@ void *assetLoad(const struct assetref *ref, u32 *outSize)
 		size = data ? romdataSegGetSize(romdataSegName(ref->id)) : 0;
 		break;
 	case ASSET_DRIVE_STAGE:
+	case ASSET_DRIVE_PAD:
 	case ASSET_DRIVE_HEAD:
 	case ASSET_DRIVE_BODY:
 	case ASSET_DRIVE_HAND:
@@ -1402,6 +1899,13 @@ s32 assetExists(const struct assetref *ref)
 		if (ref->sub < 0) {
 			/* a stage row is not bytes; it exists if the table has it */
 			return stageGetIndex(ref->id) >= 0;
+		}
+		/* fallthrough */
+	case ASSET_DRIVE_PAD:
+		/* a live pad exists if its number is in range; a cold one, or the
+		 * set itself, exists if the file it sits in does */
+		if (ref->drive == ASSET_DRIVE_PAD && ref->sub >= 0 && assetPadIsLive(ref->id)) {
+			return ref->sub < g_PadsFile->numpads;
 		}
 		/* fallthrough */
 	case ASSET_DRIVE_HEAD:
@@ -1470,6 +1974,7 @@ s32 assetEnumerate(const char *path, assetenumfn fn, void *ctx)
 	case ASSET_DRIVE_SEG:
 	case ASSET_DRIVE_ROM:
 	case ASSET_DRIVE_MOD:   return assetFlatEnumerate(drive, rest, fn, ctx);
+	case ASSET_DRIVE_PAD:   return assetPadEnumerate(rest, fn, ctx);
 	default:                return ASSET_BADPATH;
 	}
 }

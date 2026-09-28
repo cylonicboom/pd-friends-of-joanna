@@ -14677,6 +14677,11 @@ void chraTick(struct chrdata *chr)
 		u8 pass = race == RACE_HUMAN || race == RACE_SKEDAR;
 		chr->sleep = 0;
 
+#ifndef PLATFORM_N64
+		// editor hold on this one chr (inspector); the global pause lives
+		// inside chraiExecute itself
+		if (!chr->aipaused)
+#endif
 		chraiExecute(chr, PROPTYPE_CHR);
 
 		// Consider setting shootingatmelist

@@ -20,6 +20,7 @@
 #include "fs.h"
 #include "game/modeldef.h"
 #include "imgui_overlay.h"
+#include "imgui_flagnames.h"
 #include "imgui_skinmatch.h"
 #include "input.h"
 #include "mod.h"
@@ -57,6 +58,7 @@ static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
 static bool g_ImGuiOverlayShowSaves = false;
 static bool g_ImGuiOverlayShowPlayers = false;
+static bool g_ImGuiOverlayShowImport = false;
 static struct chrdata *g_ImGuiPropChr = NULL;
 static s32 g_ImGuiPropChrnum = -1;
 static bool g_ImGuiPropApply = true;
@@ -166,6 +168,17 @@ static s32 g_ImGuiOverlayScannedTextureModelFileNum = -1;
 static ImGuiTextFilter g_ImGuiOverlayPropTextFilter;
 static ImGuiTextFilter g_ImGuiOverlayChrTextFilter;
 static ImGuiTextFilter g_ImGuiOverlaySlotFilter;
+// Stage panel pads table (pad: drive). Sel is a pad number in the running
+// stage, -1 for none; OpenPads pops the tree node once when the bar lands.
+static ImGuiTextFilter g_ImGuiOverlayPadFilter;
+// World markers, toggled rather than held (her call, c-overlay-toggles):
+// props are the pick shapes ctrl used to show; pads come off the pad: drive.
+// Both ride the fojo ini and draw whether or not the panels are up.
+static bool g_ImGuiOverlayShowPropMarkers = false;
+static bool g_ImGuiOverlayShowPadMarkers = false;
+static bool g_ImGuiOverlayPadMarkersAllRooms = false;
+static s32 g_ImGuiOverlayPadSel = -1;
+static bool g_ImGuiOverlayOpenPads = false;
 static ImGuiTextFilter g_ImGuiOverlayModelFilter;
 static char g_ImGuiOverlayIniPath[FS_MAXPATH + 1];
 
@@ -336,6 +349,19 @@ static bool g_ImGuiLuaResultOk = true;
 static bool g_ImGuiSavesFlushPending = false;
 static bool g_ImGuiDropLastPlayerPending = false;
 static bool g_ImGuiAddPlayerPending = false;
+// Teleport, applied after the overlay renders like the player requests:
+// the bar runs at draw time, the move belongs after it.
+// Stage geometry import + reload (c-geometry-import). The reload is a stage
+// restart: free the four slots so the next load re-resolves loose files,
+// then mainChangeToStage on the same stage. Hot swap was ruled out.
+static char g_ImGuiImportPath[FS_MAXPATH] = "";
+static s32 g_ImGuiImportKind = 0;       // 0 auto, then the four stage fields
+static char g_ImGuiImportResult[256] = "";
+static bool g_ImGuiImportResultOk = true;
+static bool g_ImGuiReloadStagePending = false;
+static bool g_ImGuiTeleportPending = false;
+static bool g_ImGuiTeleportEye = false;
+static struct coord g_ImGuiTeleportPos;
 static struct fileguid g_ImGuiAddPlayerGuid;
 static bool g_ImGuiPlayersFocusPicker = false;
 static s32 g_ImGuiPlayersPick = -1;
@@ -351,6 +377,12 @@ extern "C" u32 saveQueueFramesPending(void);
 extern "C" u32 saveQueueDeadlineFrames(void);
 extern "C" u32 saveQueueFlushCount(void);
 extern "C" void saveQueueFlush(void);
+extern "C" u8 *ailistFindById(s32 ailistid);      // src/lib/ailist.c
+extern "C" s32 chraiGetListIdByList(u8 *ailist, bool *is_global);
+extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
+extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
+extern "C" void modSpectateSetOn(bool on);
+extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -636,17 +668,144 @@ static void imguiOverlayDescribeProjectile(struct projectile *projectile)
 	ImGui::Text("Flight time: %d", projectile->flighttime240);
 }
 
+// ---------------------------------------------------------------------------
+// Inspector pieces (c-entity-inspector). Flag words as named bits with a
+// checkbox each - read first, edit second; a bit with no name in
+// imgui_flagnames.h still shows as hex. Ailist assignment from the loaded
+// setup's list table and the global one, by id. Nearest pad off the pad:
+// drive, since a chr does not remember the pad it spawned on.
+
+static void imguiOverlayFlagWord(const char *label, u32 *word, const struct imguiFlagName *names, s32 count, bool editable)
+{
+	char title[64];
+	snprintf(title, sizeof(title), "%s: 0x%08x", label, *word);
+
+	if (!ImGui::TreeNode(label, "%s", title)) {
+		return;
+	}
+
+	u32 named = 0;
+	for (s32 i = 0; i < count; ++i) {
+		bool on = (*word & names[i].bit) != 0;
+		named |= names[i].bit;
+		char id[80];
+		snprintf(id, sizeof(id), "%s##%s%08x", names[i].name, label, names[i].bit);
+		const bool dim = !on;
+		if (dim) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.55f, 0.55f, 1.0f));
+		if (ImGui::Checkbox(id, &on) && editable) {
+			if (on) *word |= names[i].bit; else *word &= ~names[i].bit;
+		}
+		if (ImGui::IsItemHovered()) ImGui::SetTooltip("0x%08x", names[i].bit);
+		if (dim) ImGui::PopStyleColor();
+	}
+
+	const u32 unnamed = *word & ~named;
+	if (unnamed) {
+		ImGui::TextDisabled("unnamed bits: 0x%08x", unnamed);
+	}
+
+	ImGui::TreePop();
+}
+
+static void imguiOverlayFlagWord16(const char *label, u16 *word, const struct imguiFlagName *names, s32 count, bool editable)
+{
+	u32 w = *word;
+	imguiOverlayFlagWord(label, &w, names, count, editable);
+	*word = (u16)w;
+}
+
+static void imguiOverlayFlagWord8(const char *label, u8 *word, const struct imguiFlagName *names, s32 count, bool editable)
+{
+	u32 w = *word;
+	imguiOverlayFlagWord(label, &w, names, count, editable);
+	*word = (u8)w;
+}
+
+// combo over every ailist id the stage can run: the setup's table first,
+// then the globals. Returns the picked id or -1.
+static s32 imguiOverlayAilistPicker(const char *label, s32 currentId)
+{
+	char current[32];
+	s32 picked = -1;
+
+	if (currentId >= 0) snprintf(current, sizeof(current), "0x%04x", currentId);
+	else snprintf(current, sizeof(current), "none");
+
+	if (!ImGui::BeginCombo(label, current)) {
+		return -1;
+	}
+
+	if (g_StageSetup.ailists) {
+		for (s32 i = 0; g_StageSetup.ailists[i].list != NULL; ++i) {
+			char item[32];
+			snprintf(item, sizeof(item), "0x%04x  stage", g_StageSetup.ailists[i].id);
+			if (ImGui::Selectable(item, g_StageSetup.ailists[i].id == currentId)) picked = g_StageSetup.ailists[i].id;
+		}
+	}
+
+	for (s32 i = 0; g_GlobalAilists[i].list != NULL; ++i) {
+		char item[32];
+		snprintf(item, sizeof(item), "0x%04x  global", g_GlobalAilists[i].id);
+		if (ImGui::Selectable(item, g_GlobalAilists[i].id == currentId)) picked = g_GlobalAilists[i].id;
+	}
+
+	ImGui::EndCombo();
+	return picked;
+}
+
+static void imguiOverlayNearestPadLine(const struct coord *pos)
+{
+	const s32 numPads = assetPadCount(g_Vars.stagenum);
+	if (numPads <= 0 || !pos) return;
+
+	struct assetref ref;
+	memset(&ref, 0, sizeof(ref));
+	ref.drive = ASSET_DRIVE_PAD;
+	ref.owner = -1;
+	ref.id = g_Vars.stagenum;
+	ref.via = -1;
+
+	s32 best = -1;
+	f32 bestd = 1e30f;
+	for (s32 i = 0; i < numPads; ++i) {
+		struct pad pad;
+		ref.sub = i;
+		if (assetPadUnpack(&ref, &pad) != ASSET_OK) continue;
+		const f32 dx = pad.pos.x - pos->x, dy = pad.pos.y - pos->y, dz = pad.pos.z - pos->z;
+		const f32 d = dx * dx + dy * dy + dz * dz;
+		if (d < bestd) { bestd = d; best = i; }
+	}
+
+	if (best < 0) return;
+	ref.sub = best;
+	const char *name = assetName(&ref);
+	ImGui::Text("Nearest pad: %s (%.0f)", name ? name : "?", sqrtf(bestd));
+	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Double-click: select it in the Stage panel");
+	if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+		g_ImGuiOverlayPadSel = best;
+		g_ImGuiOverlayPadFilter.Clear();
+		g_ImGuiOverlayOpenPads = true;
+		g_ImGuiOverlayShowStage = true;
+		imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+	}
+}
+
 static void imguiOverlayDescribeObj(struct defaultobj *obj)
 {
 	ImGui::Text("Type: %s (0x%02x)", imguiOverlayObjTypeName(obj->type), obj->type);
 	ImGui::Text("Model: 0x%04x", (u16)obj->modelnum);
 	ImGui::Text("Pad: 0x%04x", (u16)obj->pad);
-	ImGui::Text("Flags 1: 0x%08x", obj->flags);
-	ImGui::Text("Flags 2: 0x%08x", obj->flags2);
-	ImGui::Text("Flags 3: 0x%08x", obj->flags3);
-	ImGui::Text("Hidden 1: 0x%08x", obj->hidden);
+	if (obj->prop) imguiOverlayNearestPadLine(&obj->prop->pos);
+	imguiOverlayFlagWord("Flags", &obj->flags, g_ImGuiObjFlagNames, (s32)(sizeof(g_ImGuiObjFlagNames) / sizeof(g_ImGuiObjFlagNames[0])), true);
+	imguiOverlayFlagWord("Flags 2", &obj->flags2, g_ImGuiObjFlag2Names, (s32)(sizeof(g_ImGuiObjFlag2Names) / sizeof(g_ImGuiObjFlag2Names[0])), true);
+	imguiOverlayFlagWord("Flags 3", &obj->flags3, g_ImGuiObjFlag3Names, (s32)(sizeof(g_ImGuiObjFlag3Names) / sizeof(g_ImGuiObjFlag3Names[0])), true);
+	imguiOverlayFlagWord("Hidden", &obj->hidden, g_ImGuiObjHFlagNames, (s32)(sizeof(g_ImGuiObjHFlagNames) / sizeof(g_ImGuiObjHFlagNames[0])), true);
 	ImGui::Text("Hidden 2: 0x%02x", obj->hidden2);
 	ImGui::Text("Damage: %d/%d", obj->damage, obj->maxdamage);
+
+	// a plain object has no ailist; the ones that do (chopper, truck,
+	// hovercar) carry it on their own struct and hold with the global
+	// pause only (Runtime > Ailists paused)
 
 	if ((obj->hidden & OBJHFLAG_PROJECTILE) && obj->projectile) {
 		if (ImGui::TreeNode(obj->projectile, "Projectile (%p)", obj->projectile)) {
@@ -751,11 +910,38 @@ static void imguiOverlayDescribeChr(struct chrdata *chr)
 	ImGui::Text("Action: %s (0x%02x)", imguiOverlayActionName(chr->actiontype), (u8)chr->actiontype);
 	ImGui::Text("Damage: %.3f", chr->damage);
 	ImGui::Text("Shield: %.3f", chr->cshield);
-	ImGui::Text("Flags 1: 0x%08x", chr->flags);
-	ImGui::Text("Flags 2: 0x%08x", chr->flags2);
-	ImGui::Text("Hidden 1: 0x%08x", chr->hidden);
-	ImGui::Text("Hidden 2: 0x%04x", chr->hidden2);
-	ImGui::Text("Chr flags: 0x%08x", chr->chrflags);
+	if (chr->prop) imguiOverlayNearestPadLine(&chr->prop->pos);
+	imguiOverlayFlagWord("Flags", &chr->flags, g_ImGuiChrFlag0Names, (s32)(sizeof(g_ImGuiChrFlag0Names) / sizeof(g_ImGuiChrFlag0Names[0])), true);
+	imguiOverlayFlagWord("Flags 2", &chr->flags2, g_ImGuiChrFlag1Names, (s32)(sizeof(g_ImGuiChrFlag1Names) / sizeof(g_ImGuiChrFlag1Names[0])), true);
+	imguiOverlayFlagWord("Hidden", &chr->hidden, g_ImGuiChrHFlagNames, (s32)(sizeof(g_ImGuiChrHFlagNames) / sizeof(g_ImGuiChrHFlagNames[0])), true);
+	imguiOverlayFlagWord16("Hidden 2", &chr->hidden2, g_ImGuiChrH2FlagNames, (s32)(sizeof(g_ImGuiChrH2FlagNames) / sizeof(g_ImGuiChrH2FlagNames[0])), true);
+	imguiOverlayFlagWord("Chr flags", &chr->chrflags, g_ImGuiChrCFlagNames, (s32)(sizeof(g_ImGuiChrCFlagNames) / sizeof(g_ImGuiChrCFlagNames[0])), true);
+
+	{
+		bool isGlobal = false;
+		const s32 id = chr->ailist ? chraiGetListIdByList(chr->ailist, &isGlobal) : -1;
+		const s32 picked = imguiOverlayAilistPicker("Ailist##chr", id);
+		if (picked >= 0) {
+			u8 *list = ailistFindById(picked);
+			if (list) { chr->ailist = list; chr->aioffset = 0; }
+		}
+		ImGui::SameLine();
+		if (ImGui::SmallButton("Restart##chrai")) chr->aioffset = 0;
+		ImGui::SameLine();
+		ImGui::TextDisabled("at 0x%04x", chr->aioffset);
+
+		const s32 shot = imguiOverlayAilistPicker("Shot list##chr", chr->aishotlist);
+		if (shot >= 0) chr->aishotlist = (s16)shot;
+		ImGui::SameLine();
+		if (ImGui::SmallButton("none##shot")) chr->aishotlist = -1;
+
+		bool held = chr->aipaused != 0;
+		if (ImGui::Checkbox("Hold this chr's list", &held)) chr->aipaused = held ? 1 : 0;
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("chrTick skips chraiExecute for this chr while set.\n"
+					"Its current action still finishes; only new orders stop.");
+		}
+	}
 
 	for (s32 handIndex = 0; handIndex < 3; ++handIndex) {
 		if (imguiOverlayPropIsCurrent(chr->weapons_held[handIndex])) {
@@ -1195,12 +1381,228 @@ static void imguiOverlayDrawProfilerPanel(void)
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Import. A bg, tiles, pads or setup file for the running stage, dropped on
+// the window or typed as a path, copied into the owning mod's files/ under
+// the name the stage row already resolves to - so it shadows what loads
+// today through romdataFileLoad's own loose-file walk, and no filetable or
+// modconfig edit is needed. A stage with no row is c-stage-additions, not
+// this. Then Reload restarts the stage.
+
+static const char *const g_ImGuiImportKindNames[] = { "auto", "bg", "tiles", "pads", "setup", "mpsetup" };
+
+static s32 imguiOverlayImportGuessKind(const char *path)
+{
+	const char *base = strrchr(path, '/');
+	base = base ? base + 1 : path;
+	const char *bs = strrchr(base, '\\');
+	base = bs ? bs + 1 : base;
+
+	if (strstr(base, "pads")) return ASSET_STAGE_PADS + 1;
+	if (strstr(base, "tiles")) return ASSET_STAGE_TILES + 1;
+	if (strstr(base, "mpsetup") || strstr(base, "Ump")) return ASSET_STAGE_MPSETUP + 1;
+	if (strstr(base, "setup") || strstr(base, "Usetup")) return ASSET_STAGE_SETUP + 1;
+	if (strstr(base, "bg")) return ASSET_STAGE_BG + 1;
+	return 0;
+}
+
+static u32 imguiOverlayImportFieldId(s32 field)
+{
+	if (g_StageIndex < 0 || g_StageIndex >= kFojoStageTableLen) return 0;
+	const struct stagetableentry *e = &g_Stages[g_StageIndex];
+	switch (field) {
+	case ASSET_STAGE_BG:      return e->bgfileid;
+	case ASSET_STAGE_TILES:   return e->tilefileid;
+	case ASSET_STAGE_PADS:    return e->padsfileid;
+	case ASSET_STAGE_SETUP:   return e->setupfileid;
+	case ASSET_STAGE_MPSETUP: return e->mpsetupfileid;
+	default:                  return 0;
+	}
+}
+
+// where the field's bytes would be read from as a loose file: the owner's
+// mod dir (or the active mod for a vanilla id) + files/<slot name>
+static bool imguiOverlayImportDest(s32 field, char *dest, size_t len, s32 *outOwner, const char **outName)
+{
+	const s32 id = (s32)imguiOverlayImportFieldId(field);
+	if (id == 0) return false;
+
+	const s32 tagged = MOD_FILEID_MOD(id);
+	const s32 owner = tagged >= 0 ? tagged : g_ModNum;
+	const char *name = romdataFileGetSlotName(owner, MOD_FILEID_RAW(id));
+	if (!name || !name[0] || owner < 0 || owner >= (s32)g_NumModDirs || !modDirs[owner][0]) return false;
+
+	const char *sep = strstr(name, "::");
+	if (sep) name = sep + 2;
+
+	if (!strncmp(name, "files/", 6)) {
+		snprintf(dest, len, "%s/%s", modDirs[owner], name);
+	} else {
+		snprintf(dest, len, "%s/files/%s", modDirs[owner], name);
+	}
+
+	if (outOwner) *outOwner = owner;
+	if (outName) *outName = name;
+	return true;
+}
+
+static void imguiOverlayImportMkdirs(const char *dest)
+{
+	char dir[FS_MAXPATH];
+	snprintf(dir, sizeof(dir), "%s", dest);
+	for (char *c = dir + 1; *c; ++c) {
+		if (*c == '/') {
+			*c = '\0';
+			fsCreateDir(dir);
+			*c = '/';
+		}
+	}
+}
+
+static void imguiOverlayImportRun(void)
+{
+	s32 kind = g_ImGuiImportKind ? g_ImGuiImportKind : imguiOverlayImportGuessKind(g_ImGuiImportPath);
+	char dest[FS_MAXPATH];
+	s32 owner = -1;
+	const char *name = NULL;
+
+	g_ImGuiImportResultOk = false;
+
+	if (!g_ImGuiImportPath[0]) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "no file: drop one on the window or type a path");
+		return;
+	}
+	if (kind == 0) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "cannot tell what %s is: pick bg / tiles / pads / setup", g_ImGuiImportPath);
+		return;
+	}
+	if (g_Vars.stagenum <= 0 || g_MainChangeToStageNum >= 0) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "no stage running");
+		return;
+	}
+	if (!imguiOverlayImportDest(kind - 1, dest, sizeof(dest), &owner, &name)) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "stage 0x%02x has no %s slot to shadow", g_Vars.stagenum, g_ImGuiImportKindNames[kind]);
+		return;
+	}
+
+	FILE *in = fopen(g_ImGuiImportPath, "rb");
+	if (!in) {
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "cannot open %s", g_ImGuiImportPath);
+		return;
+	}
+
+	// keep what was there: <dest>.bak, overwritten each time - one step of undo
+	{
+		FILE *old = fopen(dest, "rb");
+		if (old) {
+			char bak[FS_MAXPATH + 8];
+			snprintf(bak, sizeof(bak), "%s.bak", dest);
+			FILE *out = fopen(bak, "wb");
+			if (out) {
+				char buf[65536];
+				size_t n;
+				while ((n = fread(buf, 1, sizeof(buf), old)) > 0) fwrite(buf, 1, n, out);
+				fclose(out);
+			}
+			fclose(old);
+		}
+	}
+
+	imguiOverlayImportMkdirs(dest);
+	FILE *out = fopen(dest, "wb");
+	if (!out) {
+		fclose(in);
+		snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "cannot write %s", dest);
+		return;
+	}
+
+	size_t total = 0;
+	{
+		char buf[65536];
+		size_t n;
+		while ((n = fread(buf, 1, sizeof(buf), in)) > 0) { fwrite(buf, 1, n, out); total += n; }
+	}
+	fclose(out);
+	fclose(in);
+
+	// drop the cached slot so the next load re-resolves through the walk
+	romdataFileFree((s32)imguiOverlayImportFieldId(kind - 1));
+
+	g_ImGuiImportResultOk = true;
+	snprintf(g_ImGuiImportResult, sizeof(g_ImGuiImportResult), "%s -> %s (%zu bytes). Reload to see it.", g_ImGuiImportKindNames[kind], dest, total);
+	sysLogPrintf(LOG_NOTE, "IMGUI: import %s: %s -> %s (%zu bytes, mod %d)", g_ImGuiImportKindNames[kind], g_ImGuiImportPath, dest, total, owner);
+}
+
+static void imguiOverlayDrawImportPanel(void)
+{
+	ImGui::TextWrapped("Drop a bg / tiles / pads / setup file on the game window, or type a path. "
+			"It is copied into the owning mod's files/ under the name stage 0x%02x already loads, "
+			"then Reload restarts the stage.", (unsigned int)g_Vars.stagenum);
+	ImGui::InputText("File", g_ImGuiImportPath, sizeof(g_ImGuiImportPath));
+	ImGui::Combo("Kind", &g_ImGuiImportKind, g_ImGuiImportKindNames, (int)(sizeof(g_ImGuiImportKindNames) / sizeof(g_ImGuiImportKindNames[0])));
+
+	{
+		s32 kind = g_ImGuiImportKind ? g_ImGuiImportKind : imguiOverlayImportGuessKind(g_ImGuiImportPath);
+		char dest[FS_MAXPATH];
+		if (kind && imguiOverlayImportDest(kind - 1, dest, sizeof(dest), NULL, NULL)) {
+			ImGui::TextDisabled("as %s ->", g_ImGuiImportKindNames[kind]);
+			ImGui::TextWrapped("%s", dest);
+		} else if (g_ImGuiImportPath[0]) {
+			ImGui::TextDisabled("(no destination yet)");
+		}
+	}
+
+	if (ImGui::Button("Import")) {
+		imguiOverlayImportRun();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Reload stage geometry")) {
+		g_ImGuiReloadStagePending = true;
+	}
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Frees the bg/tiles/pads/setup slots and restarts stage 0x%02x.", (unsigned int)g_Vars.stagenum);
+	}
+
+	if (g_ImGuiImportResult[0]) {
+		ImGui::PushStyleColor(ImGuiCol_Text, g_ImGuiImportResultOk ? ImVec4(0.6f, 1.0f, 0.6f, 1.0f) : ImVec4(1.0f, 0.5f, 0.5f, 1.0f));
+		ImGui::TextWrapped("%s", g_ImGuiImportResult);
+		ImGui::PopStyleColor();
+	}
+}
+
+static void imguiOverlayReloadStage(void)
+{
+	if (g_Vars.stagenum <= 0 || g_MainChangeToStageNum >= 0) {
+		sysLogPrintf(LOG_NOTE, "IMGUI: reload stage: no stage running");
+		return;
+	}
+
+	for (s32 f = 0; f < ASSET_STAGE_FIELD_COUNT; ++f) {
+		const s32 id = (s32)imguiOverlayImportFieldId(f);
+		if (id) romdataFileFree(id);
+	}
+
+	sysLogPrintf(LOG_NOTE, "IMGUI: reload stage 0x%02x", (unsigned int)g_Vars.stagenum);
+	g_Vars.restartlevel = true;
+	mainChangeToStage(g_Vars.stagenum);
+}
+
 static void imguiOverlayDrawRuntimePanel(void)
 {
 	ImGui::Text("Stage: 0x%02x", (unsigned int)g_StageNum);
 	ImGui::Text("Active mod: %d", g_ModNum);
 	ImGui::Text("Window: %ux%u", gfx_current_window_dimensions.width,
 			gfx_current_window_dimensions.height);
+	{
+		bool noclip = modSpectateIsOn();
+		if (ImGui::Checkbox("Noclip", &noclip)) {
+			modSpectateSetOn(noclip);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Spectator: the player prop flies, is not collided with and not noticed.\n"
+					"Look + move to fly; ! in the bar teleports to a pad, an entity or a room.");
+		}
+	}
 	ImGui::Text("Framebuffers: %s", gfx_framebuffers_enabled ? "enabled" : "disabled");
 	ImGui::SeparatorText("Time");
 	ImGui::Text("Level frame: %d", g_Vars.lvframenum);
@@ -1265,6 +1667,115 @@ static void imguiOverlayDrawStagePanel(void)
 				ImGui::SetTooltip("Room 0 is outside the geometry, and -1 is no player.\n"
 						"Nothing draws from there, however well the rooms loaded.");
 			}
+		}
+	}
+
+	// Pads, off the pad: drive. Live only: the drive reads the running stage's
+	// pad file through padUnpack, and there are no names in the rom - the
+	// PAD_<STAGE>_<HEX> the drive shows is the symbol src/setups compiles
+	// against, synthesized the way mkpads does.
+	{
+		const s32 numPads = assetPadCount(g_Vars.stagenum);
+
+		if (g_ImGuiOverlayOpenPads) {
+			ImGui::SetNextItemOpen(true);
+			g_ImGuiOverlayOpenPads = false;
+		}
+
+		if (numPads >= 0 && ImGui::TreeNode("Pads", "Pads (%d)", numPads)) {
+			g_ImGuiOverlayPadFilter.Draw("Filter##pads", 180.0f);
+			ImGui::SameLine();
+			if (ImGui::SmallButton("Clear##pads")) {
+				g_ImGuiOverlayPadFilter.Clear();
+				g_ImGuiOverlayPadSel = -1;
+			}
+
+			if (ImGui::BeginChild("Stage pads", ImVec2(0.0f, 320.0f), ImGuiChildFlags_Borders)) {
+				if (ImGui::BeginTable("Stage pad table", 7,
+						ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_ScrollY)) {
+					ImGui::TableSetupColumn("Pad", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+					ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 120.0f);
+					ImGui::TableSetupColumn("Room", ImGuiTableColumnFlags_WidthFixed, 52.0f);
+					ImGui::TableSetupColumn("Lift", ImGuiTableColumnFlags_WidthFixed, 36.0f);
+					ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthFixed, 64.0f);
+					ImGui::TableSetupColumn("Pos", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn("Look", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableHeadersRow();
+
+					struct assetref ref;
+					memset(&ref, 0, sizeof(ref));
+					ref.drive = ASSET_DRIVE_PAD;
+					ref.owner = -1;
+					ref.id = g_Vars.stagenum;
+					ref.via = -1;
+
+					for (s32 padnum = 0; padnum < numPads; ++padnum) {
+						struct pad pad;
+						char label[48];
+						char named[64];
+						const char *symbol;
+						const char *name;
+
+						ref.sub = padnum;
+						symbol = assetPadSymbolName(&ref);
+						snprintf(label, sizeof(label), "%s", symbol ? symbol : "?");
+						// assetName is the sidecar name when there is one, else the symbol
+						name = assetName(&ref);
+						named[0] = '\0';
+						if (name && symbol && strcmp(name, symbol) != 0) {
+							snprintf(named, sizeof(named), "%s", name);
+						}
+
+						if (!g_ImGuiOverlayPadFilter.PassFilter(label)
+								&& !(named[0] && g_ImGuiOverlayPadFilter.PassFilter(named))) {
+							char num[16];
+							snprintf(num, sizeof(num), "%d", padnum);
+							if (!g_ImGuiOverlayPadFilter.PassFilter(num)) {
+								continue;
+							}
+						}
+
+						if (assetPadUnpack(&ref, &pad) != ASSET_OK) {
+							continue;
+						}
+
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(0);
+						{
+							const bool selected = g_ImGuiOverlayPadSel == padnum;
+							if (ImGui::Selectable(label, selected, ImGuiSelectableFlags_SpanAllColumns)) {
+								g_ImGuiOverlayPadSel = selected ? -1 : padnum;
+							}
+							if (selected) {
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+						ImGui::TableSetColumnIndex(1);
+						if (named[0]) {
+							ImGui::TextUnformatted(named);
+						} else {
+							ImGui::TextDisabled("-");
+						}
+						ImGui::TableSetColumnIndex(2);
+						ImGui::Text("%d", pad.room);
+						ImGui::TableSetColumnIndex(3);
+						if (pad.liftnum) {
+							ImGui::Text("%d", pad.liftnum);
+						} else {
+							ImGui::TextDisabled("-");
+						}
+						ImGui::TableSetColumnIndex(4);
+						ImGui::Text("0x%04x", pad.flags);
+						ImGui::TableSetColumnIndex(5);
+						ImGui::TextUnformatted(imguiOverlayCoordString(&pad.pos));
+						ImGui::TableSetColumnIndex(6);
+						ImGui::Text("%.2f %.2f %.2f", pad.look.x, pad.look.y, pad.look.z);
+					}
+					ImGui::EndTable();
+				}
+			}
+			ImGui::EndChild();
+			ImGui::TreePop();
 		}
 	}
 
@@ -5598,6 +6109,19 @@ static void imguiOverlayRunPlayerRequests(void)
 		}
 	}
 
+	if (g_ImGuiReloadStagePending) {
+		g_ImGuiReloadStagePending = false;
+		imguiOverlayReloadStage();
+	}
+
+	if (g_ImGuiTeleportPending) {
+		g_ImGuiTeleportPending = false;
+
+		if (g_MainChangeToStageNum < 0 && g_Vars.currentplayer && g_Vars.currentplayer->prop) {
+			modSpectateTeleport(&g_ImGuiTeleportPos, g_ImGuiTeleportEye);
+		}
+	}
+
 	if (g_ImGuiAddPlayerPending) {
 		g_ImGuiAddPlayerPending = false;
 
@@ -5919,6 +6443,338 @@ static s32 imguiOverlayCollectPickShapes(imguiOverlayPickShape *out, s32 max)
 	return n;
 }
 
+// ---------------------------------------------------------------------------
+// Registers (c-registers). vim's model: one typed reference per slot, a-z
+// named, "" the unnamed latch every click and enter writes, "0 the last
+// explicit yank. A register holds what a bar hit carries - a prop, a pad, a
+// room or a bare position - plus the stage it was taken in, and is
+// validated on read: a prop pointer dies with its stage, so a stale
+// register reads stale rather than emptying. Session state, never ini.
+
+enum {
+	kFojoRegNone,
+	kFojoRegProp,
+	kFojoRegPad,
+	kFojoRegRoom,
+	kFojoRegPos,
+};
+
+struct imguiOverlayRegister {
+	s32 kind;
+	struct prop *prop;
+	s32 chrnum;             // for a chr: re-found by number after a reload
+	struct assetref ref;    // pad
+	s32 room;
+	struct coord pos;       // pos, and the cached anchor for the others
+	bool eye;
+	s32 stagenum;
+	char label[80];
+};
+
+static const s32 kFojoRegCount = 28;
+static const s32 kFojoRegUnnamed = 26;   // ""
+static const s32 kFojoRegLastYank = 27;  // "0
+static imguiOverlayRegister g_ImGuiRegs[kFojoRegCount];
+
+static const char *imguiOverlayRegName(s32 idx)
+{
+	static char buf[4];
+	if (idx == kFojoRegUnnamed) return "\"\"";
+	if (idx == kFojoRegLastYank) return "\"0";
+	buf[0] = '"'; buf[1] = (char)('a' + idx); buf[2] = '\0';
+	return buf;
+}
+
+static s32 imguiOverlayRegIndex(char c)
+{
+	if (c >= 'a' && c <= 'z') return c - 'a';
+	if (c >= 'A' && c <= 'Z') return c - 'A';
+	if (c == '"') return kFojoRegUnnamed;
+	if (c == '0') return kFojoRegLastYank;
+	return -1;
+}
+
+static bool imguiOverlayRegIsLive(const imguiOverlayRegister *r)
+{
+	if (r->kind == kFojoRegNone || r->stagenum != g_Vars.stagenum) return false;
+	switch (r->kind) {
+	case kFojoRegProp:
+		if (!r->prop || !imguiOverlayPropIsCurrent(r->prop)) return false;
+		if (r->chrnum >= 0) return r->prop->chr && r->prop->chr->chrnum == r->chrnum;
+		return true;
+	case kFojoRegPad:
+		return r->ref.sub >= 0 && r->ref.sub < assetPadCount(g_Vars.stagenum);
+	case kFojoRegRoom:
+		return r->room > 0 && r->room < g_Vars.roomcount;
+	case kFojoRegPos:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// where the register points right now, for a verb that takes an anchor
+static bool imguiOverlayRegAnchor(const imguiOverlayRegister *r, struct coord *where, bool *eye)
+{
+	if (!imguiOverlayRegIsLive(r)) return false;
+	switch (r->kind) {
+	case kFojoRegProp:
+		*where = r->prop->pos; *eye = true; return true;
+	case kFojoRegPad: {
+		struct pad pad;
+		if (assetPadUnpack(&r->ref, &pad) != ASSET_OK) return false;
+		*where = pad.pos; *eye = false; return true;
+	}
+	case kFojoRegRoom:
+		*where = g_Rooms[r->room].centre; *eye = true; return true;
+	case kFojoRegPos:
+		*where = r->pos; *eye = r->eye; return true;
+	default:
+		return false;
+	}
+}
+
+static void imguiOverlayRegSetProp(s32 idx, struct prop *prop)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegProp;
+	r.prop = prop;
+	r.chrnum = (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr ? prop->chr->chrnum : -1;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	if (r.chrnum >= 0) snprintf(r.label, sizeof(r.label), "chr 0x%04x %s", (u16)r.chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
+	else snprintf(r.label, sizeof(r.label), "%s prop", imguiOverlayPropTypeName(prop->type));
+}
+
+static void imguiOverlayRegSetPad(s32 idx, s32 padnum)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegPad;
+	r.chrnum = -1;
+	r.ref.drive = ASSET_DRIVE_PAD; r.ref.owner = -1; r.ref.id = g_Vars.stagenum; r.ref.sub = padnum; r.ref.via = -1;
+	r.stagenum = g_Vars.stagenum;
+	const char *name = assetName(&r.ref);
+	snprintf(r.label, sizeof(r.label), "%s", name ? name : "pad");
+}
+
+static void imguiOverlayRegSetRoom(s32 idx, s32 room)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegRoom;
+	r.chrnum = -1;
+	r.room = room;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	snprintf(r.label, sizeof(r.label), "room 0x%03x", room);
+}
+
+static void imguiOverlayRegSetPos(s32 idx, const struct coord *pos, bool eye, const char *label)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegPos;
+	r.chrnum = -1;
+	r.pos = *pos;
+	r.eye = eye;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	snprintf(r.label, sizeof(r.label), "%s", label);
+}
+
+// a yank: the named slot and "0 both take it
+static void imguiOverlayRegYank(s32 idx, const imguiOverlayRegister *src)
+{
+	g_ImGuiRegs[idx] = *src;
+	if (idx != kFojoRegLastYank) g_ImGuiRegs[kFojoRegLastYank] = *src;
+	sysLogPrintf(LOG_NOTE, "IMGUI: yank %s <- %s", imguiOverlayRegName(idx), src->label);
+}
+
+// the letter a pad or prop sits in, for the marker badges; 0 for none
+static char imguiOverlayRegLetterForPad(s32 padnum)
+{
+	for (s32 i = 0; i < 26; ++i) {
+		const imguiOverlayRegister &r = g_ImGuiRegs[i];
+		if (r.kind == kFojoRegPad && r.ref.sub == padnum && imguiOverlayRegIsLive(&r)) return (char)('a' + i);
+	}
+	return 0;
+}
+
+static char imguiOverlayRegLetterForProp(struct prop *prop)
+{
+	for (s32 i = 0; i < 26; ++i) {
+		const imguiOverlayRegister &r = g_ImGuiRegs[i];
+		if (r.kind == kFojoRegProp && r.prop == prop && imguiOverlayRegIsLive(&r)) return (char)('a' + i);
+	}
+	return 0;
+}
+
+// Pads of the running stage, projected. Filtered to rooms drawn this frame
+// (ROOMFLAG_ONSCREEN) unless asked for all: dam has 549 and most of them
+// are behind a wall you are looking at.
+struct imguiOverlayPadMark {
+	s32 padnum;
+	ImVec2 p;       // pad centre in window space
+	ImVec2 look;    // tip of the look arrow
+	float radius;
+};
+
+static s32 imguiOverlayCollectPadMarks(imguiOverlayPadMark *out, s32 max)
+{
+	const s32 numPads = assetPadCount(g_Vars.stagenum);
+	s32 n = 0;
+
+	if (numPads <= 0 || !imguiOverlayCanAimInspect()) {
+		return 0;
+	}
+
+	struct assetref ref;
+	memset(&ref, 0, sizeof(ref));
+	ref.drive = ASSET_DRIVE_PAD;
+	ref.owner = -1;
+	ref.id = g_Vars.stagenum;
+	ref.via = -1;
+
+	for (s32 padnum = 0; padnum < numPads && n < max; ++padnum) {
+		struct pad pad;
+
+		ref.sub = padnum;
+
+		if (assetPadUnpack(&ref, &pad) != ASSET_OK) {
+			continue;
+		}
+
+		if (!g_ImGuiOverlayPadMarkersAllRooms) {
+			if (pad.room <= 0 || pad.room >= g_Vars.roomcount || !g_Rooms
+					|| !(g_Rooms[pad.room].flags & ROOMFLAG_ONSCREEN)) {
+				continue;
+			}
+		}
+
+		imguiOverlayPadMark m;
+		struct coord tip = pad.pos;
+		struct coord side = pad.pos;
+		ImVec2 c;
+
+		tip.x += pad.look.x * 40.0f;
+		tip.y += pad.look.y * 40.0f;
+		tip.z += pad.look.z * 40.0f;
+		side.x += 30.0f;
+
+		if (!imguiOverlayProjectToWindow(&pad.pos, &m.p) || !imguiOverlayProjectToWindow(&side, &c)) {
+			continue;
+		}
+
+		if (!imguiOverlayProjectToWindow(&tip, &m.look)) {
+			m.look = m.p;
+		}
+
+		m.padnum = padnum;
+		m.radius = fabsf(c.x - m.p.x);
+		if (m.radius < 5.0f) m.radius = 5.0f;
+		if (m.radius > 40.0f) m.radius = 40.0f;
+		out[n++] = m;
+	}
+
+	return n;
+}
+
+static s32 imguiOverlayPickPadAtMouse(const ImVec2 &mouse)
+{
+	if (!g_ImGuiOverlayShowPadMarkers) {
+		return -1;
+	}
+
+	imguiOverlayPadMark marks[512];
+	const s32 n = imguiOverlayCollectPadMarks(marks, 512);
+	s32 best = -1;
+	float bestd = 1e9f;
+
+	for (s32 i = 0; i < n; i++) {
+		const float dx = mouse.x - marks[i].p.x;
+		const float dy = mouse.y - marks[i].p.y;
+		const float d = sqrtf(dx * dx + dy * dy);
+		const float reach = marks[i].radius < 12.0f ? 12.0f : marks[i].radius;
+
+		if (d <= reach && d < bestd) {
+			bestd = d;
+			best = marks[i].padnum;
+		}
+	}
+
+	return best;
+}
+
+// The toggled world markers. Same foreground list and projection the
+// texture labels use, so they draw whether or not the panels are up.
+static void imguiOverlayDrawWorldMarkers(void)
+{
+	ImDrawList *fg = ImGui::GetForegroundDrawList();
+
+	if (g_ImGuiOverlayShowPropMarkers) {
+		imguiOverlayPickShape shapes[256];
+		const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
+		for (s32 i = 0; i < n; i++) {
+			const imguiOverlayPickShape &sh = shapes[i];
+			const bool ischr = sh.prop->type == PROPTYPE_CHR || sh.prop->type == PROPTYPE_PLAYER;
+			const ImU32 col = ischr ? IM_COL32(79, 216, 255, 220) : IM_COL32(255, 210, 79, 200);
+			if (ischr) {
+				fg->AddLine(sh.a, sh.b, col, 2.0f);
+				fg->AddCircle(sh.b, 6.0f, col);
+			} else {
+				fg->AddCircle(sh.a, sh.radius, col, 0, 1.0f);
+			}
+			char label[32];
+			if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
+			else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
+			fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
+			{
+				const char letter = imguiOverlayRegLetterForProp(sh.prop);
+				if (letter) {
+					char badge[4] = { '"', letter, '\0', '\0' };
+					fg->AddText(ImVec2(sh.b.x - 22.0f, sh.b.y - 8.0f), IM_COL32(120, 220, 255, 255), badge);
+				}
+			}
+		}
+	}
+
+	if (g_ImGuiOverlayShowPadMarkers) {
+		imguiOverlayPadMark marks[512];
+		const s32 n = imguiOverlayCollectPadMarks(marks, 512);
+		struct assetref ref;
+		memset(&ref, 0, sizeof(ref));
+		ref.drive = ASSET_DRIVE_PAD;
+		ref.owner = -1;
+		ref.id = g_Vars.stagenum;
+		ref.via = -1;
+
+		for (s32 i = 0; i < n; i++) {
+			const imguiOverlayPadMark &m = marks[i];
+			const bool sel = m.padnum == g_ImGuiOverlayPadSel;
+			// pads are the coaster colour; the selected one is solid
+			const ImU32 col = sel ? IM_COL32(255, 140, 60, 255) : IM_COL32(230, 160, 90, 200);
+			ref.sub = m.padnum;
+			const char *name = assetName(&ref);
+
+			fg->AddCircle(m.p, m.radius, col, 0, sel ? 2.5f : 1.0f);
+			fg->AddLine(m.p, m.look, col, sel ? 2.5f : 1.0f);
+			fg->AddCircleFilled(m.look, 2.5f, col);
+			fg->AddText(ImVec2(m.p.x + m.radius + 4.0f, m.p.y - 7.0f),
+					sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 235, 210, 230),
+					name ? name : "?");
+			{
+				const char letter = imguiOverlayRegLetterForPad(m.padnum);
+				if (letter) {
+					char badge[4] = { '"', letter, '\0', '\0' };
+					fg->AddText(ImVec2(m.p.x - m.radius - 18.0f, m.p.y - 7.0f), IM_COL32(120, 220, 255, 255), badge);
+				}
+			}
+		}
+	}
+}
+
 static struct prop *imguiOverlayPickPropAtMouse(const ImVec2 &mouse)
 {
 	imguiOverlayPickShape shapes[256];
@@ -5961,6 +6817,7 @@ static void imguiOverlayProbeModelFileTexture(u16 fileNum)
 // its model's first texture.
 static void imguiOverlayLatchPropEverywhere(struct prop *prop)
 {
+	imguiOverlayRegSetProp(kFojoRegUnnamed, prop);
 	g_ImGuiOverlayFocusProp = prop;
 	g_ImGuiOverlayShowEntities = true;
 	imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowEntities);
@@ -6043,6 +6900,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
 	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
+	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL },
 };
 
 // The change mask below is one bit per row, so the table has a ceiling of 32.
@@ -6382,6 +7240,14 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 			g_ImGuiPropLoreScale = fvalue;
 		}
 	}
+
+	{
+		int flag;
+
+		if (sscanf(line, "ShowProps=%d", &flag) == 1) g_ImGuiOverlayShowPropMarkers = flag != 0;
+		if (sscanf(line, "ShowPads=%d", &flag) == 1) g_ImGuiOverlayShowPadMarkers = flag != 0;
+		if (sscanf(line, "ShowPadsAllRooms=%d", &flag) == 1) g_ImGuiOverlayPadMarkersAllRooms = flag != 0;
+	}
 }
 
 static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *handler, ImGuiTextBuffer *buffer)
@@ -6403,7 +7269,10 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	}
 
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
-	buffer->appendf("LoreScale=%.5f\n\n", g_ImGuiPropLoreScale);
+	buffer->appendf("LoreScale=%.5f\n", g_ImGuiPropLoreScale);
+	buffer->appendf("ShowProps=%d\n", g_ImGuiOverlayShowPropMarkers);
+	buffer->appendf("ShowPads=%d\n", g_ImGuiOverlayShowPadMarkers);
+	buffer->appendf("ShowPadsAllRooms=%d\n\n", g_ImGuiOverlayPadMarkersAllRooms);
 }
 
 /**
@@ -6522,7 +7391,13 @@ static void imguiOverlayDrawWindowContextMenu(void)
 //
 // Type and it searches everything, ranked. A leading sigil forces one corpus:
 //   @  entities -- props and chrs        >  commands
-//   `  windows and panels
+//   `  windows and panels                _  pads of the running stage (or the
+//                                           coffee cup U+2615: Doak's coasters)
+//   !  teleport: a pad, a chr, a prop or a room number; enter goes there
+//   "  registers: " lists them, "a shows a, "a<query> yanks the top hit into
+//      a. A verb with an argument (Teleport to) stops after enter and asks:
+//      registers first, then every target, "a picks one outright, esc backs
+//      out to the verb line.
 // A bare sigil is a mode: ` on its own lists every window, which is the window
 // switcher with no query. \ at position 0 escapes the next character, for the
 // one corpus whose names are mod-supplied and so not guaranteed sigil-free.
@@ -6549,6 +7424,10 @@ enum {
 	kFojoBarFileSlot,
 	kFojoBarStage,
 	kFojoBarTexture,
+	kFojoBarPad,
+	kFojoBarTeleport,   // ! sigil / argument stage: a pad, an entity or a room, activated = go there
+	kFojoBarRegister,   // a register, index = slot
+	kFojoBarYankHere,   // "a with nothing after it: copy "" into a
 };
 
 struct imguiOverlayBarHit {
@@ -6556,6 +7435,8 @@ struct imguiOverlayBarHit {
 	s32 index;              // window row, or command row
 	struct prop *prop;      // entity
 	struct assetref ref;    // file slot, stage, texture
+	struct coord where;     // teleport target
+	bool whereIsEye;        // teleport: pos is the eye (a prop) rather than the feet (a pad)
 	s32 score;
 	char label[80];
 	char detail[32];
@@ -6568,10 +7449,20 @@ static char g_ImGuiOverlayBarQuery[128];
 static s32 g_ImGuiOverlayBarSel = 0;
 static struct imguiOverlayBarHit g_ImGuiOverlayBarHits[kFojoBarMaxHits];
 static s32 g_ImGuiOverlayBarHitCount = 0;
+static s32 g_ImGuiOverlayBarVerb = -1;      // command row waiting for its argument, or -1
+static s32 g_ImGuiOverlayBarYankInto = -1;  // "a prefix: the top hit is yanked here instead of acted on
+
+// Commands. argKind says whether the bar stops to ask for something after
+// the verb: kFojoArgNone runs at once, kFojoArgAnchor switches the bar into
+// the argument stage (registers first, then every valid target) and runs
+// runArg with what was picked.
+enum { kFojoArgNone, kFojoArgAnchor };
 
 struct imguiOverlayCommandDef {
 	const char *name;
 	void (*run)(void);
+	s32 argKind;
+	void (*runArg)(const struct coord *where, bool eye, const char *label);
 };
 
 static void imguiOverlayCmdFloor1(void) { g_ImGuiOverlayWorkspace = 0; }
@@ -6601,6 +7492,38 @@ static void imguiOverlayCmdResetPositions(void)
 static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
 static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
+// Noclip is DabDavis's spectator (modspectate.c): the player prop kept, not
+// collided with or noticed, rooms from the portal walk. Nothing else toggles
+// it live - --spectate and the ini only - so this is the way in.
+static void imguiOverlayCmdNoclip(void)      { modSpectateSetOn(!modSpectateIsOn()); }
+static void imguiOverlayCmdReloadStage(void) { g_ImGuiReloadStagePending = true; }
+// Teleport takes an anchor: a register or any pad / chr / prop / room
+static void imguiOverlayVerbTeleport(const struct coord *where, bool eye, const char *label)
+{
+	g_ImGuiTeleportPos = *where;
+	g_ImGuiTeleportEye = eye;
+	g_ImGuiTeleportPending = true;
+	sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", label, where->x, where->y, where->z);
+}
+static void imguiOverlayCmdTeleport(void) { /* argument stage does the work */ }
+// "" takes where jo stands; "a then enter on it copies it up
+static void imguiOverlayCmdYankPos(void)
+{
+	if (g_Vars.currentplayer && g_Vars.currentplayer->prop) {
+		char label[48];
+		const struct coord *p = &g_Vars.currentplayer->prop->pos;
+		snprintf(label, sizeof(label), "pos %.0f %.0f %.0f", p->x, p->y, p->z);
+		imguiOverlayRegSetPos(kFojoRegUnnamed, p, true, label);
+	}
+}
+static void imguiOverlayCmdImport(void)
+{
+	g_ImGuiOverlayShowImport = true;
+	imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowImport);
+}
+static void imguiOverlayCmdShowProps(void)   { g_ImGuiOverlayShowPropMarkers = !g_ImGuiOverlayShowPropMarkers; imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdShowPads(void)    { g_ImGuiOverlayShowPadMarkers = !g_ImGuiOverlayShowPadMarkers; imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdShowPadsAll(void) { g_ImGuiOverlayPadMarkersAllRooms = !g_ImGuiOverlayPadMarkersAllRooms; imguiOverlaySaveWindowState(); }
 
 // Hot join: a friend walks into or out of a running team mission. Both go
 // through hotjoin.c and run after the overlay renders (imguiOverlayRunPlayerRequests).
@@ -6622,6 +7545,14 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },
+	{ "Show props",               imguiOverlayCmdShowProps },
+	{ "Show pads",                imguiOverlayCmdShowPads },
+	{ "Show pads: every room",    imguiOverlayCmdShowPadsAll },
+	{ "Noclip",                   imguiOverlayCmdNoclip },
+	{ "Import geometry",          imguiOverlayCmdImport },
+	{ "Reload stage geometry",    imguiOverlayCmdReloadStage },
+	{ "Teleport to",              imguiOverlayCmdTeleport, kFojoArgAnchor, imguiOverlayVerbTeleport },
+	{ "Yank position",            imguiOverlayCmdYankPos },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
 };
@@ -6737,6 +7668,8 @@ static void imguiOverlayBarPush(s32 kind, s32 index, struct prop *prop, s32 scor
 		hit.ref.sub = -1;
 		hit.ref.via = -1;
 	}
+	hit.where.x = hit.where.y = hit.where.z = 0.0f;
+	hit.whereIsEye = false;
 	snprintf(hit.label, sizeof(hit.label), "%s", label);
 	snprintf(hit.detail, sizeof(hit.detail), "%s", detail ? detail : "");
 }
@@ -6753,7 +7686,7 @@ static const char *imguiOverlayBarOwnerLabel(s8 owner)
 }
 
 // One visitor for the three asset corpora. The bar's sigils map onto drives
-// (# file:, / stage:, % tex:) before this is ever called; the drive layer
+// (# file:, / stage:, % tex:, _ pad:) before this is ever called; the drive layer
 // never sees a sigil.
 static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *name, void *vctx)
 {
@@ -6762,7 +7695,7 @@ static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *nam
 	s32 score;
 
 	if (ctx->wanted >= 0) {
-		const s32 number = ctx->kind == kFojoBarTexture ? ref->sub : ref->id;
+		const s32 number = (ctx->kind == kFojoBarTexture || ctx->kind == kFojoBarPad) ? ref->sub : ref->id;
 
 		if (number != ctx->wanted) {
 			return 1;
@@ -6787,6 +7720,15 @@ static s32 imguiOverlayBarAssetVisit(const struct assetref *ref, const char *nam
 			snprintf(detail, sizeof(detail), "port %d  %s", ref->sub, imguiOverlayBarOwnerLabel(ref->owner));
 		}
 		break;
+	case kFojoBarPad: {
+		struct pad pad;
+		if (assetPadUnpack(ref, &pad) == ASSET_OK) {
+			snprintf(detail, sizeof(detail), "pad 0x%04x  room %d", ref->sub, pad.room);
+		} else {
+			snprintf(detail, sizeof(detail), "pad 0x%04x", ref->sub);
+		}
+		break;
+	}
 	default:
 		detail[0] = '\0';
 		break;
@@ -6815,6 +7757,208 @@ static void imguiOverlayBarSearchAssets(const char *q, s32 kind, const char *dri
 	assetEnumerate(drivePath, imguiOverlayBarAssetVisit, &ctx);
 }
 
+// ! : one corpus for going places. Pads by name or number (live stage),
+// chrs and props by their entity label, rooms by number. Every hit carries
+// its world position, and activating one hands it to modSpectateTeleport
+// after the frame. Turn noclip on first if there are walls in the way.
+static s32 imguiOverlayBarTeleportPadVisit(const struct assetref *ref, const char *name, void *vctx)
+{
+	const struct imguiOverlayBarAssetCtx *ctx = (const struct imguiOverlayBarAssetCtx *)vctx;
+	struct pad pad;
+	s32 score;
+
+	if (ctx->wanted >= 0) {
+		if (ref->sub != ctx->wanted) return 1;
+		score = 1000;
+	} else if (!imguiOverlayBarFuzzy(name, ctx->q, &score)) {
+		return 1;
+	}
+
+	if (assetPadUnpack(ref, &pad) != ASSET_OK) {
+		return 1;
+	}
+
+	char detail[32];
+	snprintf(detail, sizeof(detail), "go: pad 0x%04x  room %d", ref->sub, pad.room);
+	imguiOverlayBarPush(kFojoBarTeleport, -1, NULL, score, name, detail, ref);
+
+	// the push copies the ref; the position rides on the newest hit for it
+	for (s32 i = 0; i < g_ImGuiOverlayBarHitCount; ++i) {
+		struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[i];
+		if (hit.kind == kFojoBarTeleport && hit.ref.drive == ASSET_DRIVE_PAD && hit.ref.sub == ref->sub && hit.ref.id == ref->id) {
+			hit.where = pad.pos;
+			hit.whereIsEye = false;
+		}
+	}
+
+	return 1;
+}
+
+static void imguiOverlayBarSearchTeleport(const char *q)
+{
+	bool numeric = q[0] != '\0';
+	s32 score;
+
+	for (const char *c = q; *c; ++c) {
+		if (*c < '0' || *c > '9') { numeric = false; break; }
+	}
+
+	// pads
+	{
+		struct imguiOverlayBarAssetCtx ctx;
+		ctx.q = q;
+		ctx.kind = kFojoBarTeleport;
+		ctx.wanted = numeric ? atoi(q) : -1;
+		assetEnumerate("pad:/", imguiOverlayBarTeleportPadVisit, &ctx);
+	}
+
+	// rooms, by number only
+	if (numeric && g_Rooms) {
+		const s32 room = atoi(q);
+		if (room > 0 && room < g_Vars.roomcount) {
+			char label[32];
+			snprintf(label, sizeof(label), "room 0x%03x", room);
+			imguiOverlayBarPush(kFojoBarTeleport, room, NULL, 900, label, "go: room centre");
+			for (s32 i = 0; i < g_ImGuiOverlayBarHitCount; ++i) {
+				struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[i];
+				if (hit.kind == kFojoBarTeleport && hit.prop == NULL && hit.index == room && hit.ref.drive != ASSET_DRIVE_PAD) {
+					hit.where = g_Rooms[room].centre;
+					hit.whereIsEye = true;
+				}
+			}
+		}
+	}
+
+	// entities, the same walk the @ corpus does
+	if (q[0]) {
+		char label[80];
+
+		if (g_ChrSlots && g_NumChrSlots) {
+			for (s32 i = 0; i < g_NumChrSlots; ++i) {
+				struct chrdata *chr = &g_ChrSlots[i];
+				if (chr->chrnum < 0 || !chr->prop) continue;
+				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
+				if (imguiOverlayBarFuzzy(label, q, &score)) {
+					char detail[32];
+					snprintf(detail, sizeof(detail), "go: chr 0x%04x", (u16)chr->chrnum);
+					imguiOverlayBarPush(kFojoBarTeleport, i, chr->prop, score, label, detail);
+					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
+						struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
+						if (hit.kind == kFojoBarTeleport && hit.prop == chr->prop) {
+							hit.where = chr->prop->pos;
+							hit.whereIsEye = true;
+						}
+					}
+				}
+			}
+		}
+
+		struct prop *prop = g_Vars.activeprops;
+		for (s32 i = 0; prop && prop != g_Vars.pausedprops && i <= g_Vars.maxprops; ++i) {
+			struct prop *next = prop->next;
+			if (!imguiOverlayPropIsCurrent(prop)) break;
+			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
+				snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(prop->type));
+				if (imguiOverlayBarFuzzy(label, q, &score)) {
+					imguiOverlayBarPush(kFojoBarTeleport, i, prop, score - 6, label, "go: prop");
+					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
+						struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
+						if (hit.kind == kFojoBarTeleport && hit.prop == prop) {
+							hit.where = prop->pos;
+							hit.whereIsEye = true;
+						}
+					}
+				}
+			}
+			prop = next;
+		}
+	}
+}
+
+// the argument stage: registers that can anchor, then every target
+static void imguiOverlayBarSearchAnchor(const char *q)
+{
+	s32 score;
+
+	for (s32 i = 0; i < kFojoRegCount; ++i) {
+		const imguiOverlayRegister &r = g_ImGuiRegs[i];
+		struct coord where;
+		bool eye;
+		char label[96];
+
+		if (r.kind == kFojoRegNone) continue;
+		snprintf(label, sizeof(label), "%s  %s", imguiOverlayRegName(i), r.label);
+
+		// "a typed in the stage picks a outright; anything else fuzzes the label
+		if (q[0] == '"' && q[1]) {
+			if (imguiOverlayRegIndex(q[1]) != i) continue;
+			score = 9000;
+		} else if (!imguiOverlayBarFuzzy(label, q, &score)) {
+			continue;
+		}
+
+		if (!imguiOverlayRegAnchor(&r, &where, &eye)) {
+			imguiOverlayBarPush(kFojoBarRegister, i, NULL, score + 4000, label, "register  stale");
+			continue;
+		}
+
+		imguiOverlayBarPush(kFojoBarRegister, i, NULL, score + 5000, label, "register");
+		for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
+			struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
+			if (hit.kind == kFojoBarRegister && hit.index == i) { hit.where = where; hit.whereIsEye = eye; }
+		}
+	}
+
+	if (!(q[0] == '"' && q[1])) {
+		imguiOverlayBarSearchTeleport(q);
+	}
+}
+
+// " sigil: registers. `"` lists them, `"a` shows a and offers to copy ""
+// into it, `"a<query>` runs the ordinary search and yanks the top hit.
+static bool imguiOverlayBarSearchRegisters(const char *q)
+{
+	const s32 idx = imguiOverlayRegIndex(q[0]);
+
+	g_ImGuiOverlayBarYankInto = -1;
+
+	if (q[0] == '\0') {
+		for (s32 i = 0; i < kFojoRegCount; ++i) {
+			const imguiOverlayRegister &r = g_ImGuiRegs[i];
+			if (r.kind == kFojoRegNone) continue;
+			char label[96];
+			snprintf(label, sizeof(label), "%s  %s", imguiOverlayRegName(i), r.label);
+			imguiOverlayBarPush(kFojoBarRegister, i, NULL, 100 - i, label,
+					imguiOverlayRegIsLive(&r) ? "register" : "register  stale");
+		}
+		return true;
+	}
+
+	if (idx < 0) {
+		return true; // not a register letter: nothing
+	}
+
+	if (q[1] == '\0') {
+		const imguiOverlayRegister &r = g_ImGuiRegs[idx];
+		if (r.kind != kFojoRegNone) {
+			char label[96];
+			snprintf(label, sizeof(label), "%s  %s", imguiOverlayRegName(idx), r.label);
+			imguiOverlayBarPush(kFojoBarRegister, idx, NULL, 200, label,
+					imguiOverlayRegIsLive(&r) ? "register" : "register  stale");
+		}
+		if (idx != kFojoRegUnnamed && g_ImGuiRegs[kFojoRegUnnamed].kind != kFojoRegNone) {
+			char label[96];
+			snprintf(label, sizeof(label), "yank \"\" into %s  (%s)", imguiOverlayRegName(idx), g_ImGuiRegs[kFojoRegUnnamed].label);
+			imguiOverlayBarPush(kFojoBarYankHere, idx, NULL, 150, label, "yank");
+		}
+		return true;
+	}
+
+	// "a<query>: fall through to the ordinary search on the rest, yank on enter
+	g_ImGuiOverlayBarYankInto = idx;
+	return false;
+}
+
 static void imguiOverlayBarSearch(void)
 {
 	const char *q = g_ImGuiOverlayBarQuery;
@@ -6824,9 +7968,28 @@ static void imguiOverlayBarSearch(void)
 	bool wantFiles = false;   // opt-in: thousands of rows would swamp a bare query
 	bool wantStages = false;
 	bool wantTextures = false;
+	bool wantPads = false;
+	bool wantTeleport = false;
 	s32 score;
 
 	g_ImGuiOverlayBarHitCount = 0;
+
+	// a verb is waiting for its argument: registers first, then targets
+	if (g_ImGuiOverlayBarVerb >= 0) {
+		imguiOverlayBarSearchAnchor(q);
+		goto sort;
+	}
+
+	// " : registers. May fall through with a yank target armed.
+	if (q[0] == '"') {
+		if (imguiOverlayBarSearchRegisters(q + 1)) {
+			goto sort;
+		}
+		q += 2;
+		while (*q == ' ') q++;
+	} else {
+		g_ImGuiOverlayBarYankInto = -1;
+	}
 
 	// sigils bind at position 0 only
 	if (q[0] == '`')      { wantEntities = wantCommands = false; q++; }
@@ -6835,6 +7998,14 @@ static void imguiOverlayBarSearch(void)
 	else if (q[0] == '#') { wantWindows = wantEntities = wantCommands = false; wantFiles = true; q++; }
 	else if (q[0] == '/') { wantWindows = wantEntities = wantCommands = false; wantStages = true; q++; }
 	else if (q[0] == '%') { wantWindows = wantEntities = wantCommands = false; wantTextures = true; q++; }
+	else if (q[0] == '_') { wantWindows = wantEntities = wantCommands = false; wantPads = true; q++; }
+	else if (q[0] == '!') { wantWindows = wantEntities = wantCommands = false; wantTeleport = true; q++; }
+	else if (!strncmp(q, "\xE2\x98\x95", 3)) {
+		// the coffee cup, U+2615, alias for pad: - Doak's coasters. Some
+		// keyboards append the emoji variation selector U+FE0F; eat it too.
+		wantWindows = wantEntities = wantCommands = false; wantPads = true; q += 3;
+		if (!strncmp(q, "\xEF\xB8\x8F", 3)) { q += 3; }
+	}
 	else if (q[0] == '\\') { q++; }
 
 	while (*q == ' ') {
@@ -6933,6 +8104,17 @@ static void imguiOverlayBarSearch(void)
 		imguiOverlayBarSearchAssets(q, kFojoBarTexture, "tex:/");
 	}
 
+	if (wantPads) {
+		// live only: the drive walks the running stage's pad file
+		imguiOverlayBarSearchAssets(q, kFojoBarPad, "pad:/");
+	}
+
+	if (wantTeleport) {
+		// ! is a shortcut into the teleport argument stage
+		imguiOverlayBarSearchAnchor(q);
+	}
+
+sort:
 	// insertion sort: at most kFojoBarMaxHits, and almost always far fewer
 	for (s32 i = 1; i < g_ImGuiOverlayBarHitCount; ++i) {
 		const struct imguiOverlayBarHit key = g_ImGuiOverlayBarHits[i];
@@ -6951,9 +8133,117 @@ static void imguiOverlayBarSearch(void)
 	}
 }
 
+// what a hit is, as a register value; false for hits that are not things
+static bool imguiOverlayRegFromHit(const struct imguiOverlayBarHit *hit, imguiOverlayRegister *out)
+{
+	memset(out, 0, sizeof(*out));
+	out->chrnum = -1;
+	out->ref.owner = -1; out->ref.id = -1; out->ref.sub = -1; out->ref.via = -1;
+
+	switch (hit->kind) {
+	case kFojoBarEntity:
+	case kFojoBarTeleport:
+		if (hit->prop && imguiOverlayPropIsCurrent(hit->prop)) {
+			imguiOverlayRegSetProp(kFojoRegLastYank, hit->prop);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			imguiOverlayRegSetPad(kFojoRegLastYank, hit->ref.sub);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		if (hit->kind == kFojoBarTeleport && hit->index > 0 && hit->index < g_Vars.roomcount) {
+			imguiOverlayRegSetRoom(kFojoRegLastYank, hit->index);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		return false;
+	case kFojoBarPad:
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			imguiOverlayRegSetPad(kFojoRegLastYank, hit->ref.sub);
+			*out = g_ImGuiRegs[kFojoRegLastYank];
+			return true;
+		}
+		return false;
+	case kFojoBarRegister:
+		*out = g_ImGuiRegs[hit->index];
+		return out->kind != kFojoRegNone;
+	default:
+		return false;
+	}
+}
+
 static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 {
+	// "a<query> + enter: yank the hit, do not act on it
+	if (g_ImGuiOverlayBarYankInto >= 0) {
+		imguiOverlayRegister r;
+		if (imguiOverlayRegFromHit(hit, &r)) {
+			imguiOverlayRegYank(g_ImGuiOverlayBarYankInto, &r);
+		} else {
+			sysLogPrintf(LOG_NOTE, "IMGUI: %s: nothing to yank from that hit", imguiOverlayRegName(g_ImGuiOverlayBarYankInto));
+		}
+		g_ImGuiOverlayBarYankInto = -1;
+		g_ImGuiOverlayBarOpen = false;
+		return;
+	}
+
+	// the argument stage: hand the anchor to the waiting verb
+	if (g_ImGuiOverlayBarVerb >= 0) {
+		const struct imguiOverlayCommandDef *def = &g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb];
+		struct coord where = hit->where;
+		bool eye = hit->whereIsEye;
+		bool ok = hit->kind == kFojoBarTeleport;
+
+		if (hit->kind == kFojoBarRegister) {
+			ok = imguiOverlayRegAnchor(&g_ImGuiRegs[hit->index], &where, &eye);
+		}
+
+		if (ok && def->runArg) {
+			def->runArg(&where, eye, hit->label);
+			if (hit->ref.drive == ASSET_DRIVE_PAD) g_ImGuiOverlayPadSel = hit->ref.sub;
+		} else {
+			sysLogPrintf(LOG_NOTE, "IMGUI: %s: that is not somewhere to go", def->name);
+		}
+
+		g_ImGuiOverlayBarVerb = -1;
+		g_ImGuiOverlayBarOpen = false;
+		return;
+	}
+
 	switch (hit->kind) {
+	case kFojoBarRegister: {
+		// put "": the register becomes the latch
+		const imguiOverlayRegister &r = g_ImGuiRegs[hit->index];
+		if (!imguiOverlayRegIsLive(&r)) {
+			sysLogPrintf(LOG_NOTE, "IMGUI: %s is stale (%s)", imguiOverlayRegName(hit->index), r.label);
+			break;
+		}
+		if (hit->index != kFojoRegUnnamed) g_ImGuiRegs[kFojoRegUnnamed] = r;
+		switch (r.kind) {
+		case kFojoRegProp:
+			imguiOverlayLatchPropEverywhere(r.prop);
+			break;
+		case kFojoRegPad:
+			g_ImGuiOverlayPadSel = r.ref.sub;
+			g_ImGuiOverlayPadFilter.Clear();
+			g_ImGuiOverlayOpenPads = true;
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+			break;
+		case kFojoRegRoom:
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+	case kFojoBarYankHere:
+		imguiOverlayRegYank(hit->index, &g_ImGuiRegs[kFojoRegUnnamed]);
+		break;
 	case kFojoBarWindow:
 		if (*g_ImGuiOverlayWindowDefs[hit->index].open) {
 			// focusing an open window takes you to its floor; opening one
@@ -6975,6 +8265,14 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		}
 		break;
 	case kFojoBarCommand:
+		if (g_ImGuiOverlayCommandDefs[hit->index].argKind != kFojoArgNone) {
+			// stay open, ask for the argument
+			g_ImGuiOverlayBarVerb = hit->index;
+			g_ImGuiOverlayBarQuery[0] = '\0';
+			g_ImGuiOverlayBarSel = 0;
+			g_ImGuiOverlayBarJustOpened = true;
+			return;
+		}
 		g_ImGuiOverlayCommandDefs[hit->index].run();
 		break;
 	case kFojoBarStage:
@@ -6994,6 +8292,28 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		if (hit->ref.drive == ASSET_DRIVE_TEX) {
 			imguiOverlayFocusTextureId(hit->ref.sub);
 			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowTextures);
+		}
+		break;
+	case kFojoBarTeleport:
+		// the ! shortcut lands here with no verb pending
+		imguiOverlayVerbTeleport(&hit->where, hit->whereIsEye, hit->label);
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			g_ImGuiOverlayPadSel = hit->ref.sub;
+		}
+		break;
+	case kFojoBarPad:
+		// Stage panel, Pads node open, the table filtered to the symbol and
+		// the row selected. The overlay marker for it is c-overlay-toggles.
+		if (hit->ref.drive == ASSET_DRIVE_PAD) {
+			imguiOverlayRegSetPad(kFojoRegUnnamed, hit->ref.sub);
+			// the row is found by number, the filter just narrows the table to it
+			snprintf(g_ImGuiOverlayPadFilter.InputBuf,
+					sizeof(g_ImGuiOverlayPadFilter.InputBuf), "%s", hit->label);
+			g_ImGuiOverlayPadFilter.Build();
+			g_ImGuiOverlayPadSel = hit->ref.sub;
+			g_ImGuiOverlayOpenPads = true;
+			g_ImGuiOverlayShowStage = true;
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
 		}
 		break;
 	case kFojoBarFileSlot:
@@ -7043,8 +8363,14 @@ static void imguiOverlayDrawAwesomeBar(void)
 		g_ImGuiOverlayBarJustOpened = false;
 	}
 
+	if (g_ImGuiOverlayBarVerb >= 0) {
+		ImGui::TextDisabled("%s \u2026", g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb].name);
+	}
+
 	ImGui::SetNextItemWidth(-1.0f);
-	ImGui::InputTextWithHint("##fojofind", "find a window, an entity, a command, #a file slot",
+	ImGui::InputTextWithHint("##fojofind",
+			g_ImGuiOverlayBarVerb >= 0 ? "a register (\"a), or a pad, chr, prop or room number"
+			: "find a window, an entity, a command, #a file slot, _a pad, !go somewhere, \"registers",
 			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
 
 	imguiOverlayBarSearch();
@@ -7059,7 +8385,14 @@ static void imguiOverlayDrawAwesomeBar(void)
 	}
 
 	if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-		g_ImGuiOverlayBarOpen = false;
+		if (g_ImGuiOverlayBarVerb >= 0) {
+			// back to the verb line, not out of the bar
+			g_ImGuiOverlayBarVerb = -1;
+			g_ImGuiOverlayBarQuery[0] = '\0';
+			g_ImGuiOverlayBarSel = 0;
+		} else {
+			g_ImGuiOverlayBarOpen = false;
+		}
 	}
 
 	const bool enter = ImGui::IsKeyPressed(ImGuiKey_Enter, false)
@@ -7103,6 +8436,8 @@ static void imguiOverlayDrawAwesomeBar(void)
 
 static void imguiOverlayOpenAwesomeBar(void)
 {
+	g_ImGuiOverlayBarVerb = -1;
+	g_ImGuiOverlayBarYankInto = -1;
 	g_ImGuiOverlayBarOpen = true;
 	g_ImGuiOverlayBarJustOpened = true;
 	g_ImGuiOverlayBarSel = 0;
@@ -7129,6 +8464,12 @@ static void imguiOverlayDrawWindowMenu(void)
 			g_ImGuiOverlayWorkspace = ws;
 		}
 	}
+
+	ImGui::SeparatorText("Markers");
+
+	if (ImGui::MenuItem("Show props", NULL, &g_ImGuiOverlayShowPropMarkers)) imguiOverlaySaveWindowState();
+	if (ImGui::MenuItem("Show pads", NULL, &g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+	if (ImGui::MenuItem("  every room", NULL, &g_ImGuiOverlayPadMarkersAllRooms, g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
 
 	ImGui::SeparatorText("Fojo Windows");
 
@@ -7216,6 +8557,17 @@ void imguiOverlayProcessEvent(const SDL_Event *event)
 		imguiOverlaySetVisible(!g_ImGuiOverlayVisible);
 	}
 
+	// a file dropped on the game window lands in the Import panel
+	if (event->type == SDL_DROPFILE && event->drop.file) {
+		snprintf(g_ImGuiImportPath, sizeof(g_ImGuiImportPath), "%s", event->drop.file);
+		g_ImGuiImportKind = 0;
+		g_ImGuiImportResult[0] = '\0';
+		SDL_free(event->drop.file);
+		g_ImGuiOverlayShowImport = true;
+		imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowImport);
+		imguiOverlaySetVisible(true);
+	}
+
 	// Ctrl+P has to be caught HERE as well as in the frame, or it only works
 	// once the overlay is already up: imguiOverlayCapturesKeyboard returns false
 	// while hidden, so input.c hands the keyboard to the game and ImGui's own
@@ -7289,31 +8641,22 @@ void imguiOverlayRender(void)
 
 		{
 			const ImGuiIO &io = ImGui::GetIO();
-			if (io.KeyCtrl) {
-				// show where the picker thinks everything is while ctrl is held
-				imguiOverlayPickShape shapes[256];
-				const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
-				ImDrawList *fg = ImGui::GetForegroundDrawList();
-				for (s32 i = 0; i < n; i++) {
-					const imguiOverlayPickShape &sh = shapes[i];
-					const bool ischr = sh.prop->type == PROPTYPE_CHR || sh.prop->type == PROPTYPE_PLAYER;
-					const ImU32 col = ischr ? IM_COL32(79, 216, 255, 220) : IM_COL32(255, 210, 79, 200);
-					if (ischr) {
-						fg->AddLine(sh.a, sh.b, col, 2.0f);
-						fg->AddCircle(sh.b, 6.0f, col);
-					} else {
-						fg->AddCircle(sh.a, sh.radius, col, 0, 1.0f);
-					}
-					char label[32];
-					if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
-					else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
-					fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
-				}
-			}
+			// ctrl-click still latches; the marker draw itself is a toggle now
+			// (imguiOverlayDrawWorldMarkers, below the panels)
 			if (!io.WantCaptureMouse && io.KeyCtrl && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 				struct prop *picked = imguiOverlayPickPropAtMouse(io.MousePos);
 				if (picked) {
 					imguiOverlayLatchPropEverywhere(picked);
+				} else {
+					const s32 padnum = imguiOverlayPickPadAtMouse(io.MousePos);
+					if (padnum >= 0) {
+						imguiOverlayRegSetPad(kFojoRegUnnamed, padnum);
+						g_ImGuiOverlayPadSel = padnum;
+						g_ImGuiOverlayPadFilter.Clear();
+						g_ImGuiOverlayOpenPads = true;
+						g_ImGuiOverlayShowStage = true;
+						imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+					}
 				}
 			}
 		}
@@ -7354,8 +8697,10 @@ void imguiOverlayRender(void)
 	}
 
 	// pd.texlabels: name tags on the textures nearest the screen centre,
-	// drawn whether or not the overlay is up. Same recipe as the ctrl-held
-	// prop labels above: a thin circle and small white text beside it, in
+	imguiOverlayDrawWorldMarkers();
+
+	// drawn whether or not the overlay is up. Same recipe as the prop
+	// markers above: a thin circle and small white text beside it, in
 	// window space (the collector's fractions times DisplaySize, which is how
 	// imguiOverlayProjectToWindow scales the prop positions).
 	if (gfx_texlabels_max > 0) {
