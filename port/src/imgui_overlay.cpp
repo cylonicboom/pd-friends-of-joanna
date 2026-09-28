@@ -363,6 +363,7 @@ static bool g_ImGuiReloadStagePending = false;
 static bool g_ImGuiTeleportPending = false;
 static bool g_ImGuiTeleportEye = false;
 static struct coord g_ImGuiTeleportPos;
+static struct prop *g_ImGuiTeleportProp = NULL;  // set: land beside it, not on it
 static struct fileguid g_ImGuiAddPlayerGuid;
 static bool g_ImGuiPlayersFocusPicker = false;
 static s32 g_ImGuiPlayersPick = -1;
@@ -385,6 +386,7 @@ extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
 extern "C" void modSpectateSetOn(bool on);
 extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
+extern "C" bool modSpectateTeleportNear(struct prop *target);
 extern "C" void chraiSetPaused(s32 paused);   // src/game/chrai.c, port only
 extern "C" s32 chraiIsPaused(void);
 extern "C" void tilesRenderSetMode(s32 mode);   // src/game/tilesrender.c, port only
@@ -6200,8 +6202,15 @@ static void imguiOverlayRunPlayerRequests(void)
 		g_ImGuiTeleportPending = false;
 
 		if (g_MainChangeToStageNum < 0 && g_Vars.currentplayer && g_Vars.currentplayer->prop) {
-			modSpectateTeleport(&g_ImGuiTeleportPos, g_ImGuiTeleportEye);
+			// A prop is a thing to stand beside; modSpectateTeleportNear
+			// finds the clear spot (the pd.teleport_to_chr recipe). Only when
+			// nothing around it is clear do we land on the bare position.
+			if (!(g_ImGuiTeleportProp && imguiOverlayPropIsCurrent(g_ImGuiTeleportProp)
+					&& modSpectateTeleportNear(g_ImGuiTeleportProp))) {
+				modSpectateTeleport(&g_ImGuiTeleportPos, g_ImGuiTeleportEye);
+			}
 		}
+		g_ImGuiTeleportProp = NULL;
 	}
 
 	if (g_ImGuiAddPlayerPending) {
@@ -7649,11 +7658,17 @@ static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
 // it live - --spectate and the ini only - so this is the way in.
 static void imguiOverlayCmdNoclip(void)      { modSpectateSetOn(!modSpectateIsOn()); }
 static void imguiOverlayCmdReloadStage(void) { g_ImGuiReloadStagePending = true; }
+// The prop behind the anchor a verb is about to receive, when there is one.
+// Set beside where/eye in both activation paths and cleared after the verb
+// runs, so a verb that wants the thing rather than the point can have it.
+static struct prop *g_ImGuiOverlayAnchorProp = NULL;
+
 // Teleport takes an anchor: a register or any pad / chr / prop / room
 static void imguiOverlayVerbTeleport(const struct coord *where, bool eye, const char *label)
 {
 	g_ImGuiTeleportPos = *where;
 	g_ImGuiTeleportEye = eye;
+	g_ImGuiTeleportProp = g_ImGuiOverlayAnchorProp;
 	g_ImGuiTeleportPending = true;
 	sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", label, where->x, where->y, where->z);
 }
@@ -8357,8 +8372,12 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		bool eye = hit->whereIsEye;
 		bool ok = hit->kind == kFojoBarTeleport;
 
+		g_ImGuiOverlayAnchorProp = hit->prop;
+
 		if (hit->kind == kFojoBarRegister) {
-			ok = imguiOverlayRegAnchor(&g_ImGuiRegs[hit->index], &where, &eye);
+			const imguiOverlayRegister &r = g_ImGuiRegs[hit->index];
+			ok = imguiOverlayRegAnchor(&r, &where, &eye);
+			g_ImGuiOverlayAnchorProp = (ok && r.kind == kFojoRegProp) ? r.prop : NULL;
 		}
 
 		if (ok && def->runArg) {
@@ -8367,6 +8386,8 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		} else {
 			sysLogPrintf(LOG_NOTE, "IMGUI: %s: that is not somewhere to go", def->name);
 		}
+
+		g_ImGuiOverlayAnchorProp = NULL;
 
 		g_ImGuiOverlayBarVerb = -1;
 		g_ImGuiOverlayBarOpen = false;
@@ -8461,7 +8482,9 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		break;
 	case kFojoBarTeleport:
 		// the ! shortcut lands here with no verb pending
+		g_ImGuiOverlayAnchorProp = hit->prop;
 		imguiOverlayVerbTeleport(&hit->where, hit->whereIsEye, hit->label);
+		g_ImGuiOverlayAnchorProp = NULL;
 		if (hit->ref.drive == ASSET_DRIVE_PAD) {
 			g_ImGuiOverlayPadSel = hit->ref.sub;
 		}
