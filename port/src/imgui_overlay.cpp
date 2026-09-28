@@ -6970,15 +6970,12 @@ static void imguiOverlayLatchPropEverywhere(struct prop *prop)
 		g_ImGuiOverlayShowSkinMatch = true;
 		imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowSkinMatch);
 		imguiOverlayFocusChr(chr);
-		if (chr->bodynum >= 0) {
-			imguiOverlayProbeModelFileTexture((u16)(g_HeadsAndBodies[chr->bodynum].filenum & 0xffff));
-		}
 		return;
 	}
 
-	if (prop->obj && prop->obj->modelnum >= 0 && prop->obj->modelnum < NUM_MODELS) {
-		imguiOverlayProbeModelFileTexture((u16)(g_ModelStates[prop->obj->modelnum].fileid & 0xffff));
-	}
+	// Her rule (2026-09-27): latching a prop does not open Textures. The
+	// probe follows a click on a texture tag, nothing else; the model's
+	// textures are still reachable from the Textures panel's model search.
 }
 
 // ---------------------------------------------------------------------------
