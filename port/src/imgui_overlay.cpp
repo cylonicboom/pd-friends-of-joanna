@@ -22,6 +22,7 @@
 #include "imgui_overlay.h"
 #include "imgui_flagnames.h"
 #include "imgui_modelnames.h"
+#include "imgui_ailistnames.h"
 #include "imgui_skinmatch.h"
 #include "input.h"
 #include "mod.h"
@@ -790,13 +791,62 @@ static void imguiOverlayFlagWord8(const char *label, u8 *word, const struct imgu
 
 // combo over every ailist id the stage can run: the setup's table first,
 // then the globals. Returns the picked id or -1.
+// The current stage's setup source basename ("setupame", "mp_setupame"),
+// the key the generated ailist names are filed under: the stage's setup
+// file is "UsetupameZ", so strip the U and the Z. Empty for a setup the
+// tree does not know, in which case its lists show as hex, as before.
+static const char *imguiOverlayStageSetupKey(void)
+{
+	static char key[48];
+	static s32 keyStage = -1;
+
+	if (keyStage == g_StageIndex) {
+		return key;
+	}
+
+	keyStage = g_StageIndex;
+	key[0] = '\0';
+
+	if (g_StageIndex >= 0 && g_StageIndex < kFojoStageTableLen) {
+		const s32 setupId = (s32)g_Stages[g_StageIndex].setupfileid;
+		const s32 setupOwner = MOD_FILEID_MOD(setupId);
+		const char *name = romdataFileGetSlotName(setupOwner >= 0 ? setupOwner : g_ModNum, MOD_FILEID_RAW(setupId));
+		if (name && name[0] == 'U') {
+			size_t n = strlen(name + 1);
+			if (n > 0 && name[n] == 'Z') n--;
+			if (n >= sizeof(key)) n = sizeof(key) - 1;
+			memcpy(key, name + 1, n);
+			key[n] = '\0';
+		}
+	}
+
+	return key;
+}
+
+// "0x0404 INIT_HOVERCAR" for a list with a name, "0x0404" without. A stage
+// list is looked up under the stage's setup, a global one under "".
+static void imguiOverlayAilistLabel(s32 id, bool global, char *buf, size_t len)
+{
+	const char *name = id >= 0 ? imguiAilistName(global ? "" : imguiOverlayStageSetupKey(), (unsigned int)id) : NULL;
+	if (name) snprintf(buf, len, "0x%04x %s", id, name);
+	else if (id >= 0) snprintf(buf, len, "0x%04x", id);
+	else snprintf(buf, len, "none");
+}
+
 static s32 imguiOverlayAilistPicker(const char *label, s32 currentId)
 {
-	char current[32];
+	char current[96];
 	s32 picked = -1;
 
-	if (currentId >= 0) snprintf(current, sizeof(current), "0x%04x", currentId);
-	else snprintf(current, sizeof(current), "none");
+	// stage ids live at 0x0400 and up, globals below; a list the setup
+	// does not have is looked up as a global
+	bool currentGlobal = true;
+	if (g_StageSetup.ailists) {
+		for (s32 i = 0; g_StageSetup.ailists[i].list != NULL; ++i) {
+			if (g_StageSetup.ailists[i].id == currentId) { currentGlobal = false; break; }
+		}
+	}
+	imguiOverlayAilistLabel(currentId, currentGlobal, current, sizeof(current));
 
 	if (!ImGui::BeginCombo(label, current)) {
 		return -1;
@@ -804,15 +854,16 @@ static s32 imguiOverlayAilistPicker(const char *label, s32 currentId)
 
 	if (g_StageSetup.ailists) {
 		for (s32 i = 0; g_StageSetup.ailists[i].list != NULL; ++i) {
-			char item[32];
-			snprintf(item, sizeof(item), "0x%04x  stage", g_StageSetup.ailists[i].id);
+			char item[96];
+			imguiOverlayAilistLabel(g_StageSetup.ailists[i].id, false, item, sizeof(item));
 			if (ImGui::Selectable(item, g_StageSetup.ailists[i].id == currentId)) picked = g_StageSetup.ailists[i].id;
 		}
+		ImGui::Separator();
 	}
 
 	for (s32 i = 0; g_GlobalAilists[i].list != NULL; ++i) {
-		char item[32];
-		snprintf(item, sizeof(item), "0x%04x  global", g_GlobalAilists[i].id);
+		char item[96];
+		imguiOverlayAilistLabel(g_GlobalAilists[i].id, true, item, sizeof(item));
 		if (ImGui::Selectable(item, g_GlobalAilists[i].id == currentId)) picked = g_GlobalAilists[i].id;
 	}
 
