@@ -7753,6 +7753,38 @@ static char imguiOverlayBarLower(char c)
  * score, so it cannot rank. Ranking is the whole difference between a filter
  * box and a bar you can type three letters into and hit enter.
  */
+// A query that is a number - decimal, or 0x-prefixed hex - names a thing by
+// its number: a chrnum, an object's tag or pad, a prop index. The fuzzy
+// matcher sees the label's hex spelling, so `0x42` already finds `chr 0x0042`;
+// this is what lets `66` find it too, and makes an exact number a top hit
+// instead of a subsequence somewhere in the label.
+static bool imguiOverlayBarQueryNumber(const char *query, s32 *out)
+{
+	char *end = NULL;
+	long v;
+
+	if (!query[0]) return false;
+	v = strtol(query, &end, 0);
+	if (end == query || *end != '\0') return false;
+	*out = (s32)v;
+	return true;
+}
+
+// the number match for a chr: chrnum; for an object: tag, then pad
+static bool imguiOverlayBarNumberHitsProp(struct prop *prop, s32 n)
+{
+	if (!prop) return false;
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr) {
+		return (u16)prop->chr->chrnum == (u16)n;
+	}
+	if ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
+		const s32 tag = objGetTagNum(prop->obj);
+		if (tag >= 0 && tag == n) return true;
+		if (prop->obj->pad >= 0 && (u16)prop->obj->pad == (u16)n) return true;
+	}
+	return false;
+}
+
 static bool imguiOverlayBarFuzzy(const char *cand, const char *query, s32 *outScore)
 {
 	s32 score = 0;
@@ -8012,13 +8044,16 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 	// entities, the same walk the @ corpus does
 	if (q[0]) {
 		char label[80];
+		s32 qn = 0;
+		const bool qnum = imguiOverlayBarQueryNumber(q, &qn);
 
 		if (g_ChrSlots && g_NumChrSlots) {
 			for (s32 i = 0; i < g_NumChrSlots; ++i) {
 				struct chrdata *chr = &g_ChrSlots[i];
 				if (chr->chrnum < 0 || !chr->prop) continue;
 				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if ((qnum && imguiOverlayBarNumberHitsProp(chr->prop, qn) && (score = 3000))
+						|| imguiOverlayBarFuzzy(label, q, &score)) {
 					char detail[32];
 					snprintf(detail, sizeof(detail), "go: chr 0x%04x", (u16)chr->chrnum);
 					imguiOverlayBarPush(kFojoBarTeleport, i, chr->prop, score, label, detail);
@@ -8039,7 +8074,8 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 			if (!imguiOverlayPropIsCurrent(prop)) break;
 			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
 				imguiOverlayEntityLabel(prop, label, sizeof(label));
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if ((qnum && imguiOverlayBarNumberHitsProp(prop, qn) && (score = 2996))
+						|| imguiOverlayBarFuzzy(label, q, &score)) {
 					imguiOverlayBarPush(kFojoBarTeleport, i, prop, score - 6, label, "go: prop");
 					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
 						struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
@@ -8232,6 +8268,8 @@ static void imguiOverlayBarSearch(void)
 	// walks once a frame.
 	if (wantEntities && q[0]) {
 		char label[80];
+		s32 qn = 0;
+		const bool qnum = imguiOverlayBarQueryNumber(q, &qn);
 
 		if (g_ChrSlots && g_NumChrSlots) {
 			for (s32 i = 0; i < g_NumChrSlots; ++i) {
@@ -8243,7 +8281,9 @@ static void imguiOverlayBarSearch(void)
 
 				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
 
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if (qnum && imguiOverlayBarNumberHitsProp(chr->prop, qn)) {
+					imguiOverlayBarPush(kFojoBarEntity, i, chr->prop, 3000, label, "chr by number");
+				} else if (imguiOverlayBarFuzzy(label, q, &score)) {
 					char detail[32];
 					snprintf(detail, sizeof(detail), "chr 0x%04x", (u16)chr->chrnum);
 					imguiOverlayBarPush(kFojoBarEntity, i, chr->prop, score, label, detail);
@@ -8263,7 +8303,9 @@ static void imguiOverlayBarSearch(void)
 			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
 				imguiOverlayEntityLabel(prop, label, sizeof(label));
 
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if (qnum && imguiOverlayBarNumberHitsProp(prop, qn)) {
+					imguiOverlayBarPush(kFojoBarEntity, i, prop, 2990, label, "prop by number");
+				} else if (imguiOverlayBarFuzzy(label, q, &score)) {
 					imguiOverlayBarPush(kFojoBarEntity, i, prop, score - 6, label, imguiOverlayPropTypeName(prop->type));
 				}
 			}
