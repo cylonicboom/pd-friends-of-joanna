@@ -384,6 +384,7 @@ extern "C" s32 objGetTagNum(struct defaultobj *obj); // src/game/objectives.c
 extern "C" s32 chraiGetListIdByList(u8 *ailist, bool *is_global);
 extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
+extern "C" s32 playermgrGetPlayerNumByProp(struct prop *prop); // src/game/playermgr.c
 extern "C" void modSpectateSetOn(bool on);
 extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
 extern "C" bool modSpectateTeleportNear(struct prop *target);
@@ -610,8 +611,15 @@ static const char *imguiOverlayEntityLabel(struct prop *prop, char *buf, size_t 
 		// body, then the head when its slot has a name: two chrs in the same
 		// suit are told apart by who is wearing it
 		const char *head = modGetNameForHeadBodyIndex(prop->chr->headnum);
-		if (head) snprintf(buf, len, "chr 0x%04x %s / %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum), head);
-		else snprintf(buf, len, "chr 0x%04x %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
+		char who[16];
+
+		// a player chr is jo, whoever is wearing the suit: "jo" in the bar
+		// finds her, and in co-op each player is her own jo
+		if (prop->type == PROPTYPE_PLAYER) snprintf(who, sizeof(who), "jo P%d", playermgrGetPlayerNumByProp(prop) + 1);
+		else snprintf(who, sizeof(who), "chr");
+
+		if (head) snprintf(buf, len, "%s 0x%04x %s / %s", who, (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum), head);
+		else snprintf(buf, len, "%s 0x%04x %s", who, (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
 		return buf;
 	}
 
@@ -6512,8 +6520,17 @@ static s32 imguiOverlayCollectPickShapes(imguiOverlayPickShape *out, s32 max)
 		}
 		struct prop *next = prop->next;
 
-		if ((prop->flags & PROPFLAG_ONTHISSCREENTHISTICK)
-				&& (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER
+		// the renderer's on-screen flag decides for everything but a player:
+		// her body is never drawn, so it never earns the flag, and in
+		// noclip the body you left behind is exactly the thing you want a
+		// marker on. your own body in first person is the camera and stays
+		// out; projection handles the rest
+		const bool isplayer = prop->type == PROPTYPE_PLAYER;
+		const bool ownbody = isplayer && !modSpectateIsOn()
+			&& playermgrGetPlayerNumByProp(prop) == g_Vars.currentplayernum;
+
+		if (!ownbody && ((prop->flags & PROPFLAG_ONTHISSCREENTHISTICK) || isplayer)
+				&& (prop->type == PROPTYPE_CHR || isplayer
 					|| prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON)) {
 			imguiOverlayPickShape sh;
 			sh.prop = prop;
