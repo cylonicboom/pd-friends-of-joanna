@@ -3,13 +3,20 @@
 
 CC      ?= cc
 CFLAGS  ?= -O2 -Wall -Wextra -std=c99
-CFLAGS  += -Ivendor/parson -I../../port/include
+CFLAGS  += -Ivendor/parson -I../../port/include -I../../include
 
 # zlib: the data segment of a ROM a mod sources bytes from is 1173-compressed,
 # which is raw deflate behind a five byte header.
 LDLIBS  ?= -lz
 
-OBJS    = mkfiletable.o pdft_write.o vendor/parson/parson.o
+# rompatch: a patched romSource is built here the same way the engine builds
+# it, from the same decoder, so the offsets this tool writes are offsets into
+# the image the engine will mount. ultratypes wants -D_LANGUAGE_C outside a
+# port build.
+OBJS    = mkfiletable.o pdft_write.o rompatch.o vendor/parson/parson.o
+
+rompatch.o: ../../port/src/rompatch.c ../../port/include/rompatch.h
+	$(CC) $(CFLAGS) -D_LANGUAGE_C -c -o $@ ../../port/src/rompatch.c
 
 all: mkfiletable slugmod
 
@@ -36,6 +43,6 @@ test: mkfiletable pdft_reencode pdftrules_test
 	python3 pdft_test.py ./pdft_reencode
 
 clean:
-	rm -f mkfiletable slugmod pdft_reencode pdftrules_test $(OBJS) slugmod.o pdft_reencode.o
+	rm -f mkfiletable slugmod pdft_reencode pdftrules_test $(OBJS) slugmod.o pdft_reencode.o pdft_read.o
 
 .PHONY: all test clean

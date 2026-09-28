@@ -72,9 +72,14 @@ def decode(data):
         flags = r.u8()
         fallback = r.u8()
         r.take(2)
+        patched = None
+        if flags & 4:
+            if version < 5:
+                raise ValueError('patched romSource in a v%u table: the reader would desync here' % version)
+            patched = dict(base=r.s8(), patch=r.s8(), crc=r.u32())
         sources.append(dict(id=sid, filename=fn, expected=expected,
                             required=bool(flags & 1), strict=bool(flags & 2),
-                            fallback=fallback))
+                            fallback=fallback, patched=patched))
 
     files = []
     for _ in range(num_files):
@@ -90,8 +95,18 @@ def decode(data):
                 raise ValueError('alt tail in a v1 table: the reader would desync here')
             romidx = r.u8()
             alt = dict(rom=romidx, offset=r.u32(), size=r.u32(), compression=r.u8())
+        alias = None
+        if flags & 0x10:
+            if version < 4:
+                raise ValueError('alias tail in a v%u table: the reader would desync here' % version)
+            alias = r.s16()
+        patch = None
+        if flags & 0x20:
+            if version < 5:
+                raise ValueError('patch tail in a v%u table: the reader would desync here' % version)
+            patch = r.s16()
         files.append(dict(id=fid, flags=flags, offset=offset, size=size,
-                          name=name, path=path, alt=alt))
+                          name=name, path=path, alt=alt, alias=alias, patch=patch))
 
     texmap = []
     if version >= 3:
@@ -111,8 +126,12 @@ def hx(s):
 def to_spec(t):
     out = []
     for s in t['sources']:
-        out.append("S %s %s %u %u %u %u" % (hx(s['id']), hx(s['filename']), s['expected'],
-                                            int(s['required']), int(s['strict']), s['fallback']))
+        line = "S %s %s %u %u %u %u" % (hx(s['id']), hx(s['filename']), s['expected'],
+                                        int(s['required']), int(s['strict']), s['fallback'])
+        if s['patched']:
+            p = s['patched']
+            line += " %s %s %u" % (hx(p['base']), hx(p['patch']), p['crc'])
+        out.append(line)
     for f in t['files']:
         a = f['alt']
         out.append("F %u %u %u %u %s %s %d %u %u %u %u" % (
@@ -120,7 +139,9 @@ def to_spec(t):
             hx(f['name']), hx(f['path']),
             a['rom'] if a else -1, a['offset'] if a else 0,
             a['size'] if a else 0, a['compression'] if a else 0,
-            1 if f['flags'] & 8 else 0))
+            1 if f['flags'] & 8 else 0)
+            + (" %s" % hx(f['alias']) if (f['alias'] or f['patch']) else "")
+            + (" %s" % hx(f['patch']) if f['patch'] else ""))
     for local, slot in t['texmap']:
         out.append("T %u %u" % (local, slot))
     return "\n".join(out) + "\n"

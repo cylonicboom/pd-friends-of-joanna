@@ -42,6 +42,11 @@ struct pdftRomSource {
 	bool required;
 	bool strict;
 	uint8_t fallback;
+	/* PDFT_RS_PATCHED: the image is `base` patched with `patch`. Both NULL for
+	 * a plain source. Setting them forces the table to v5. */
+	const char *base;
+	const char *patch;
+	uint32_t expectedCrc32;
 };
 
 struct pdftAlt {
@@ -81,6 +86,11 @@ struct pdftFile {
 	bool selfSource;
 	uint32_t offset;
 	uint32_t size;
+
+	/* PDFT_F_PATCH: an xdelta, at this path inside the mod directory, applied
+	 * to the file's inflated bytes on first load. NULL for most entries.
+	 * Setting it forces the table to v5. */
+	const char *patch;
 };
 
 struct pdftTexMap {

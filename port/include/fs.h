@@ -20,6 +20,10 @@ s32 fsPathIsCwdRelative(const char *path);
 void *fsFileLoad(const char *name, u32 *outSize);
 s32 fsFileLoadTo(const char *name, void *dst, u32 dstSize);
 s32 fsFileSize(const char *name);
+// copy-on-write mapping of a whole file (falls back to fsFileLoad); see fs.c
+void *fsFileMap(const char *name, u32 *outSize);
+void fsFileUnmap(void *p, u32 size);
+void fsFileMapRelease(void *p, u32 size);
 
 FILE *fsFileOpenWrite(const char *name);
 FILE *fsFileOpenRead(const char *name);

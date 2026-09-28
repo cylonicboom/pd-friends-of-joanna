@@ -33,6 +33,7 @@
 #define _IN_PDFTRULES_H
 
 #include <stddef.h>
+#include <string.h>
 
 /* Per-entry flags, as romdataParseFileTable() reads them. The field is a u32
  * and the reader tests individual bits, so an unknown bit is ignored rather
@@ -56,6 +57,32 @@
                                  * which is a clean failure rather than the
                                  * silent desync a tail behind an ignored bit
                                  * would have produced. */
+#define PDFT_F_PATCH       0x20 /* a patch tail follows the alias tail: u16 len
+                                 * + path, inside the owning mod's directory,
+                                 * of an xdelta applied to this file's bytes
+                                 * AFTER inflate on first load (and the result
+                                 * re-deflated, so the 1173 header carries the
+                                 * patched size). Orthogonal to where the
+                                 * bytes come from - the vanilla rom, a rom
+                                 * source or a self source. MOVES BYTES, so it
+                                 * needs v5. */
+#define PDFT_PATCH_MAX 128      /* the reader's patch path buffer */
+
+/* A romSource record's own flags byte (bit0 required, bit1 strict). These are
+ * NOT the PDFT_F_ file-entry bits above; the two bytes share nothing but the
+ * word. */
+#define PDFT_RS_REQUIRED   0x1
+#define PDFT_RS_STRICT     0x2
+#define PDFT_RS_PATCHED    0x4  /* the source is a BASE rom plus a PATCH, not
+                                 * a file on disk: a tail follows the two
+                                 * reserved bytes - u8 len + base id, u8 len +
+                                 * patch path (inside the owning mod's dir),
+                                 * u32 crc32 of the patched image. The base is
+                                 * another declared source's id, or "base" for
+                                 * the rom the engine booted from. MOVES BYTES,
+                                 * so it needs v5; the writer refuses to emit
+                                 * it below that. */
+#define PDFT_ROMSOURCE_BASE "base"
 
 /**
  * The longest name that survives the whole round trip.
@@ -69,6 +96,31 @@
  * over this length fails as "missing file" rather than as "name too long".
  */
 #define PDFT_NAME_MAX 128
+
+/* The mod's name IS its folder's name: the engine reads it off modDirs[]
+ * (fs.c, the text after the last '/'), and every tool that names
+ * <mod>_filetable.json must agree. This is that one rule, for the tools:
+ * the basename of a directory path, trailing slashes ignored, copied into
+ * `out` (which must hold PDFT_NAME_MAX). Returns 0 on an empty result. */
+static inline int pdftModNameFromDir(const char *dir, char *out, size_t outLen)
+{
+	size_t end = dir ? strlen(dir) : 0;
+	size_t start;
+
+	while (end > 0 && (dir[end - 1] == '/' || dir[end - 1] == '\\')) {
+		--end;
+	}
+	start = end;
+	while (start > 0 && dir[start - 1] != '/' && dir[start - 1] != '\\') {
+		--start;
+	}
+	if (end == start || end - start + 1 > outLen) {
+		return 0;
+	}
+	memcpy(out, dir + start, end - start);
+	out[end - start] = '\0';
+	return 1;
+}
 
 /** Why a name would not be found at runtime. PDFT_NAME_OK is zero. */
 enum pdftNameVerdict {

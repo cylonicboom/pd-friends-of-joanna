@@ -1,3 +1,8 @@
+// madvise() is a BSD/Linux extension that glibc hides behind a strict -std;
+// this has to precede the first system header.
+#if !defined(_WIN32) && !defined(_DEFAULT_SOURCE)
+#define _DEFAULT_SOURCE 1
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -17,6 +22,11 @@
 #include "romdata.h"
 #ifdef PLATFORM_WIN32
 #include <direct.h>
+#include <io.h>
+#include <windows.h>
+#else
+#include <fcntl.h>
+#include <sys/mman.h>
 #endif
 
 #define DEFAULT_BASEDIR_NAME "data"
@@ -441,6 +451,117 @@ void *fsFileLoad(const char *name, u32 *outSize)
 	}
 
 	return buf;
+}
+
+// A private, copy-on-write view of a whole file, for the ROM images.
+//
+// fsFileLoad() copies a file into the heap; for a 32 MiB ROM image that is a
+// read of the whole thing at boot, once per image, before the first byte is
+// wanted. The loader never needs the image as a buffer, only as a backing
+// store: romdataFileLoad() hands out pointers into it and copies ranges out
+// of it, which is the port's DMA. So the image is mapped instead, and pages
+// arrive on first touch and stay shared with the page cache.
+//
+// The view is COPY-ON-WRITE, not read-only, on purpose: preprocessTexturesList
+// rewrites the textureslist segment in place inside g_RomFile, and file
+// preprocessors run over data that may alias the image. A written page is
+// copied for this process; untouched pages are never copied. Nothing that
+// relies on fsFileLoad()'s trailing NUL byte may use this - a mapping is
+// exactly the file's length.
+//
+// Falls back to fsFileLoad() when the platform refuses the mapping, so a
+// caller sees the same bytes either way; fsFileUnmap() tells the two apart.
+void *fsFileMap(const char *name, u32 *outSize)
+{
+	const char *fullName = fsFullPath(name);
+	void *view = NULL;
+	u32 size = 0;
+
+#ifdef PLATFORM_WIN32
+	HANDLE f = CreateFileA(fullName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (f == INVALID_HANDLE_VALUE) {
+		sysLogPrintf(LOG_ERROR, "fsFileMap: could not find file: %s", fullName);
+		return NULL;
+	}
+	LARGE_INTEGER li;
+	if (!GetFileSizeEx(f, &li) || li.QuadPart <= 0 || li.QuadPart > 0x7fffffff) {
+		CloseHandle(f);
+		sysLogPrintf(LOG_ERROR, "fsFileMap: empty file or invalid size: %s", fullName);
+		return NULL;
+	}
+	size = (u32)li.QuadPart;
+	HANDLE m = CreateFileMappingA(f, NULL, PAGE_WRITECOPY, 0, 0, NULL);
+	if (m) {
+		view = MapViewOfFile(m, FILE_MAP_COPY, 0, 0, 0);
+		CloseHandle(m); // the view keeps the mapping alive
+	}
+	CloseHandle(f);
+#else
+	int fd = open(fullName, O_RDONLY);
+	if (fd < 0) {
+		sysLogPrintf(LOG_ERROR, "fsFileMap: could not find file: %s", fullName);
+		return NULL;
+	}
+	struct stat st;
+	if (fstat(fd, &st) < 0 || st.st_size <= 0 || st.st_size > 0x7fffffff) {
+		close(fd);
+		sysLogPrintf(LOG_ERROR, "fsFileMap: empty file or invalid size: %s", fullName);
+		return NULL;
+	}
+	size = (u32)st.st_size;
+	view = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+	if (view == MAP_FAILED) {
+		view = NULL;
+	}
+	close(fd); // the mapping keeps the file alive
+#endif
+
+	if (!view) {
+		sysLogPrintf(LOG_WARNING, "fsFileMap: could not map %s, reading it instead", fullName);
+		return fsFileLoad(name, outSize);
+	}
+
+	if (outSize) {
+		*outSize = size;
+	}
+
+	return view;
+}
+
+// Give a mapping's resident pages back without unmapping it: the next touch
+// pages them in from the file again. For a view that was walked once (a
+// patch's checksum pass over its base) and will be read sparsely after.
+// Only meaningful for a mapping; harmless on the fsFileLoad() fallback.
+void fsFileMapRelease(void *p, u32 size)
+{
+	if (!p) {
+		return;
+	}
+#ifdef PLATFORM_WIN32
+	(void)size; // no equivalent worth having; the working set trims itself
+#else
+	// MAP_PRIVATE pages this process never wrote are discarded, not lost;
+	// written (COW) pages are reset to the file's, which a caller that
+	// releases must be fine with. On a heap fallback this fails EINVAL.
+	madvise(p, size, MADV_DONTNEED);
+#endif
+}
+
+void fsFileUnmap(void *p, u32 size)
+{
+	if (!p) {
+		return;
+	}
+#ifdef PLATFORM_WIN32
+	(void)size;
+	if (!UnmapViewOfFile(p)) {
+		sysMemFree(p); // it was the fsFileLoad() fallback
+	}
+#else
+	if (munmap(p, size) < 0) {
+		sysMemFree(p); // it was the fsFileLoad() fallback
+	}
+#endif
 }
 
 s32 fsFileSize(const char *name)

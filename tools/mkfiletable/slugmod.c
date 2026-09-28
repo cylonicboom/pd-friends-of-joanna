@@ -37,6 +37,7 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include "vendor/parson/parson.h"
+#include "pdftrules.h"
 
 #define PATHMAX 4096
 #define SLUGMAX 64
@@ -62,15 +63,17 @@ static void die(const char *fmt, ...)
 static void usage(FILE *out)
 {
 	fprintf(out,
-		"usage: slugmod <mod-name> [--workspace <dir>] [--output <dir>]\n"
+		"usage: slugmod <mod-dir> [--workspace <dir>] [--output <dir>]\n"
 		"               [--slug <s>] [--apply] [--help]\n"
 		"\n"
 		"Rewrites a mod so every file entry declares where its bytes come from\n"
 		"and no two mods can claim the same path.\n"
 		"\n"
-		"  --workspace  where <mod-name>_filetable.json lives (default: .)\n"
-		"  --output     the mod directory the files live in (default: the\n"
-		"               workspace, as mkfiletable defaults it)\n"
+		"  <mod-dir>    the mod's directory; its basename is the mod name, as the\n"
+		"               engine reads it. A bare name is accepted only when it\n"
+		"               agrees with the basename of --output.\n"
+		"  --workspace  where <mod-name>_filetable.json lives (default: <mod-dir>)\n"
+		"  --output     the mod directory the files live in (default: <mod-dir>)\n"
 		"  --slug       the marker injected into each basename. Defaults to the\n"
 		"               mod name without its leading 'mod_', which cannot\n"
 		"               collide because mod directory names cannot. Shorter is\n"
@@ -217,6 +220,32 @@ int main(int argc, char **argv)
 	if (!modName) {
 		usage(stderr);
 		return 2;
+	}
+
+	/* same rule as mkfiletable: the positional is the mod directory */
+	{
+		static char nameBuf[PDFT_NAME_MAX];
+		struct stat st;
+		const bool isDir = strchr(modName, '/') || (stat(modName, &st) == 0 && S_ISDIR(st.st_mode));
+
+		if (isDir) {
+			if (!pdftModNameFromDir(modName, nameBuf, sizeof(nameBuf))) {
+				die("could not take a mod name from '%s'", modName);
+			}
+			if (!strcmp(workspace, ".")) {
+				workspace = modName;
+			}
+			if (!output) {
+				output = modName;
+			}
+			modName = nameBuf;
+		} else if (output) {
+			char fromOut[PDFT_NAME_MAX];
+			if (pdftModNameFromDir(output, fromOut, sizeof(fromOut)) && strcmp(fromOut, modName)) {
+				die("mod name '%s' but --output is the folder '%s'; the folder name is the mod name",
+						modName, fromOut);
+			}
+		}
 	}
 
 	JOIN(manifestPath, "%s/%s_filetable.json", workspace, modName);

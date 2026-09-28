@@ -6,8 +6,8 @@
  * so nothing has to be quoted — because its only job is to let the test drive
  * the encoder from a table it decoded elsewhere.
  *
- *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback>
- *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource]
+ *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback> [<hex base> <hex patch> <crc32>]
+ *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource] [<hex alias> [<hex patch>]]
  *   T <localTexId> <slotIdx>
  *
  * A hex field of "-" is an absent string; altRom of -1 is no alt-ROM tail.
@@ -90,7 +90,11 @@ int main(int argc, char **argv)
 		int alt;
 
 		if (line[0] == 'S') {
-			if (sscanf(line, "S %s %s %u %u %u %u", hexA, hexB, &a, &b, &c, &d) != 6) continue;
+			char hexC[MAXLINE], hexD[MAXLINE];
+			unsigned crc = 0;
+			int got = sscanf(line, "S %s %s %u %u %u %u %s %s %u", hexA, hexB, &a, &b, &c, &d, hexC, hexD, &crc);
+
+			if (got != 6 && got != 9) continue;
 
 			if (numSources == capSources) {
 				capSources = capSources ? capSources * 2 : 8;
@@ -103,13 +107,17 @@ int main(int argc, char **argv)
 			sources[numSources].required = !!b;
 			sources[numSources].strict = !!c;
 			sources[numSources].fallback = (uint8_t)d;
+			sources[numSources].base = got == 9 ? unhex(hexC) : NULL;
+			sources[numSources].patch = got == 9 ? unhex(hexD) : NULL;
+			sources[numSources].expectedCrc32 = got == 9 ? crc : 0;
 			++numSources;
 		} else if (line[0] == 'F') {
 			unsigned altOfs, altSize, altComp, self = 0;
-			int got = sscanf(line, "F %u %u %u %u %s %s %d %u %u %u %u",
-					&a, &b, &c, &d, hexA, hexB, &alt, &altOfs, &altSize, &altComp, &self);
+			char hexC[MAXLINE], hexD[MAXLINE];
+			int got = sscanf(line, "F %u %u %u %u %s %s %d %u %u %u %u %s %s",
+					&a, &b, &c, &d, hexA, hexB, &alt, &altOfs, &altSize, &altComp, &self, hexC, hexD);
 
-			if (got != 10 && got != 11) continue;
+			if (got < 10 || got > 13) continue;
 
 			if (got == 10) self = 0;
 
@@ -130,6 +138,8 @@ int main(int argc, char **argv)
 			files[numFiles].alt.size = altSize;
 			files[numFiles].alt.compression = (uint8_t)altComp;
 			files[numFiles].selfSource = !!self;
+			files[numFiles].alias = got >= 12 ? unhex(hexC) : NULL;
+			files[numFiles].patch = got >= 13 ? unhex(hexD) : NULL;
 			++numFiles;
 		} else if (line[0] == 'T') {
 			if (sscanf(line, "T %u %u", &e, &f) != 2) continue;

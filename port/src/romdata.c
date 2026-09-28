@@ -8,11 +8,13 @@
 #include <PR/ultratypes.h>
 #include "gbiex.h"
 #include "lib/rzip.h"
+#include <zlib.h>
 #include "romdata.h"
 // The flag bits below, and the per-file name rules, shared verbatim with
 // tools/mkfiletable so the builder cannot certify a table this reader
 // mis-parses. Freestanding on purpose; see the header.
 #include "pdftrules.h"
+#include "rompatch.h"
 #include "fs.h"
 #include "system.h"
 #include "preprocess.h"
@@ -197,6 +199,19 @@ struct romsource {
 	                  // with a file entry's flags but the word.
 	u8   fallback;    // 0=skip, 1=vanilla, 2=error
 	u8   mounted;
+
+	// PDFT_RS_PATCHED: a base rom plus an xdelta, mounted as an OVERLAY over
+	// the base's mapping rather than as an image of its own. data stays
+	// NULL; ov answers reads. base is another source's id or
+	// PDFT_ROMSOURCE_BASE for g_RomFile; patch is a path inside the owning
+	// mod's directory, resolved like a self source; expectedCrc32 is what
+	// the builder measured over the patched image, carried for tooling (the
+	// patch's own per-window adler32 is what proves the bytes at mount).
+	char base[16];
+	char patch[64];
+	u32  expectedCrc32;
+	s32  ownerMod;
+	struct romoverlay *ov;
 };
 
 // A declared source that is NOT a mounted image: the file at this entry's
@@ -253,6 +268,31 @@ static s32 g_RomFileOffsetCount = 0;
 // carries both mod 0's fragment entries and the global table's, so the two
 // overwrite each other for any file id they share.
 static struct romaltsource g_FileAltSource[MOD_TEX_MAP_MAX_MODS][ROMDATA_MAX_FILES];
+
+// PDFT_F_PATCH: an xdelta applied to a file's INFLATED bytes the first time
+// its slot is resolved, whatever lane the bytes came from, and the result
+// re-deflated into a fresh 1173 buffer so every reader downstream - which
+// sizes its destination off the header - sees the patched size. A few
+// entries per mod at most, so a flat list and a linear find; not a column in
+// the [65][8192] table.
+#define FILEPATCHES_MAX 256
+struct romfilepatchdecl {
+	u8  mod;
+	u16 id;
+	char path[PDFT_PATCH_MAX];
+};
+static struct romfilepatchdecl g_FilePatchDecls[FILEPATCHES_MAX];
+static u32 g_NumFilePatchDecls;
+
+static const struct romfilepatchdecl *filePatchFind(s32 modNum, s32 fileNum)
+{
+	for (u32 i = 0; i < g_NumFilePatchDecls; i++) {
+		if (g_FilePatchDecls[i].mod == modNum && g_FilePatchDecls[i].id == fileNum) {
+			return &g_FilePatchDecls[i];
+		}
+	}
+	return NULL;
+}
 
 struct modTexMapEntry {
 	u16 localTexId;
@@ -435,22 +475,132 @@ u8 romsourceIsMounted(const char *id) {
     return g_RomSources[i].mounted;
 }
 
+// A patched source: find its base, read the patch out of the owning mod's
+// directory, and decode it as an overlay over the base's mapping. The base
+// must already be mounted as an image (g_RomFile, or a plain source) - an
+// overlay over an overlay is refused, one layer is the design.
+static void romSourceMountPatched(struct romsource *rs)
+{
+	const u8 *baseData = NULL;
+	u32 baseSize = 0;
+	char tmp[FS_MAXPATH];
+	u8 *patch = NULL;
+	u32 patchLen = 0;
+	char err[256] = { 0 };
+
+	if (!strcmp(rs->base, PDFT_ROMSOURCE_BASE)) {
+		// NOT g_RomFile: by the time a fragment is parsed the engine has
+		// rewritten segments of it in place (preprocessTexturesList and the
+		// segment preprocessors), so its bytes are no longer the file's and
+		// the patch's window checksums would refuse it. A second private
+		// mapping of the same file is pristine, and its untouched pages are
+		// the same page-cache pages as the first mapping's.
+		static u8 *pristine;
+		static u32 pristineSize;
+		if (!pristine) {
+			pristine = fsFileMap(romName, &pristineSize);
+		}
+		baseData = pristine;
+		baseSize = pristineSize;
+	} else {
+		const s32 b = romSourceFind(rs->base);
+		if (b < 0) {
+			sysLogPrintf(LOG_WARNING, "romSource '%s': base '%s' is not a declared source", rs->id, rs->base);
+			return;
+		}
+		if (!g_RomSources[b].mounted) {
+			return; // not yet; a later fragment may mount it, and we are called again
+		}
+		if (!g_RomSources[b].data) {
+			sysLogPrintf(LOG_WARNING, "romSource '%s': base '%s' is itself patched; one layer only", rs->id, rs->base);
+			return;
+		}
+		baseData = g_RomSources[b].data;
+		baseSize = g_RomSources[b].size;
+	}
+
+	if (!baseData) {
+		sysLogPrintf(LOG_WARNING, "romSource '%s': base '%s' is not available", rs->id, rs->base);
+		return;
+	}
+
+	if (rs->ownerMod < 0 || rs->ownerMod >= (s32)g_NumModDirs || !modDirs[rs->ownerMod][0]) {
+		sysLogPrintf(LOG_WARNING, "romSource '%s': no owning mod directory for patch '%s'", rs->id, rs->patch);
+		return;
+	}
+
+	snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[rs->ownerMod], rs->patch);
+	if (fsFileSize(tmp) <= 0) {
+		snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[rs->ownerMod], rs->patch);
+	}
+	patch = fsFileLoad(tmp, &patchLen);
+	if (!patch) {
+		sysLogPrintf(LOG_WARNING, "romSource '%s': patch '%s' not found in %s", rs->id, rs->patch, modDirs[rs->ownerMod]);
+		if (rs->flags & PDFT_RS_REQUIRED) {
+			sysFatalError("Required ROM source '%s' is missing its patch (%s)", rs->id, rs->patch);
+		}
+		return;
+	}
+
+	if (rompatchOverlay(baseData, baseSize, patch, patchLen, &rs->ov, err, sizeof(err)) < 0) {
+		sysLogPrintf(LOG_WARNING, "romSource '%s': patch '%s' does not apply to '%s': %s", rs->id, rs->patch, rs->base, err);
+		sysMemFree(patch);
+		if (rs->flags & PDFT_RS_REQUIRED) {
+			sysFatalError("Required ROM source '%s': %s", rs->id, err);
+		}
+		return;
+	}
+	sysMemFree(patch);
+
+	rs->data = NULL;
+	rs->size = rs->ov->size;
+
+	// The decode verified every window, which walked the whole base once.
+	// Hand those pages back; files read through the overlay fault in only
+	// the ranges they cover. Only for the pristine map, which nothing writes
+	// - a plain source's mapping may carry COW pages and is left alone.
+	if (!strcmp(rs->base, PDFT_ROMSOURCE_BASE)) {
+		fsFileMapRelease((void *)baseData, baseSize);
+	}
+
+	if (rs->expectedSize && rs->size != rs->expectedSize) {
+		sysLogPrintf(LOG_WARNING, "romSource '%s': patched size %u != expected %u", rs->id, rs->size, rs->expectedSize);
+		if (rs->flags & PDFT_RS_STRICT) {
+			sysFatalError("Strict ROM source '%s' size mismatch (%u != %u)", rs->id, rs->size, rs->expectedSize);
+		}
+	}
+
+	rs->mounted = 1;
+	sysLogPrintf(LOG_NOTE, "romSource '%s' overlaid on '%s' with '%s' (%u bytes; %u segments, %u literal, %u held; crc32 %08x expected)",
+	             rs->id, rs->base, rs->patch, rs->size, rs->ov->numsegs, rs->ov->litlen,
+	             rompatchOverlayCost(rs->ov), rs->expectedCrc32);
+}
+
 static void romSourcesMount(void)
 {
+	// plain images first, then overlays, so a patch whose base is declared
+	// later in the same table still finds it mounted
 	for (u32 i = 0; i < g_NumRomSources; i++) {
 		struct romsource *rs = &g_RomSources[i];
-		if (rs->mounted || !rs->filename[0]) continue;
+		if (rs->mounted || !(rs->flags & PDFT_RS_PATCHED)) continue;
+		romSourceMountPatched(rs);
+	}
 
-		rs->data = fsFileLoad(rs->filename, &rs->size);
-		if (!rs->data) {
-			char tmp[FS_MAXPATH];
-			snprintf(tmp, sizeof(tmp), "$B/roms/%s", rs->filename);
-			rs->data = fsFileLoad(tmp, &rs->size);
-		}
-		if (!rs->data) {
-			char tmp[FS_MAXPATH];
-			snprintf(tmp, sizeof(tmp), "$B/%s", rs->filename);
-			rs->data = fsFileLoad(tmp, &rs->size);
+	for (u32 i = 0; i < g_NumRomSources; i++) {
+		struct romsource *rs = &g_RomSources[i];
+		if (rs->mounted || (rs->flags & PDFT_RS_PATCHED) || !rs->filename[0]) continue;
+
+		// Probe with fsFileSize so a miss does not log an error per
+		// candidate; the image itself is mapped, not read (see fsFileMap).
+		const char *cands[3];
+		char tmp1[FS_MAXPATH], tmp2[FS_MAXPATH];
+		snprintf(tmp1, sizeof(tmp1), "$B/roms/%s", rs->filename);
+		snprintf(tmp2, sizeof(tmp2), "$B/%s", rs->filename);
+		cands[0] = rs->filename; cands[1] = tmp1; cands[2] = tmp2;
+		for (u32 c = 0; c < 3 && !rs->data; c++) {
+			if (fsFileSize(cands[c]) > 0) {
+				rs->data = fsFileMap(cands[c], &rs->size);
+			}
 		}
 
 		if (!rs->data) {
@@ -613,7 +763,7 @@ static inline void romdataLoadRom(void)
 {
 	sysLogPrintf(LOG_NOTE, "ROM file: %s", romName);
 
-	g_RomFile = fsFileLoad(romName, &g_RomFileSize);
+	g_RomFile = fsFileMap(romName, &g_RomFileSize);
 
 	if (!g_RomFile) {
 		sysFatalError("Could not open ROM file %s.\nEnsure that it is in the %s directory.", romName, fsFullPath(""));
@@ -824,6 +974,30 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			u8 rsFallback = *p++;
 			p += 2; // reserved
 
+			// PDFT_RS_PATCHED moves bytes, so it needs v5; below that the
+			// writer never emits it, and a table claiming otherwise is
+			// refused here rather than misread.
+			char *rsBase = NULL, *rsPatch = NULL;
+			u32 rsCrc = 0;
+			if (rsFlags & PDFT_RS_PATCHED) {
+				if (version < 5) {
+					sysLogPrintf(LOG_ERROR, "PDFT v%u table declares a patched romSource; that needs v5", version);
+					break;
+				}
+				if (p + 1 > dataEnd) break;
+				u8 bLen = *p++;
+				if (p + bLen > dataEnd) break;
+				rsBase = (char*)p;
+				p += bLen;
+				if (p + 1 > dataEnd) break;
+				u8 pLen = *p++;
+				if (p + pLen > dataEnd) break;
+				rsPatch = (char*)p;
+				p += pLen;
+				if (p + 4 > dataEnd) break;
+				rsCrc = PD_BE32(*(u32*)p); p += 4;
+			}
+
 			s32 existing = -1;
 			for (u32 k = 0; k < g_NumRomSources; ++k) {
 				if (!strcmp(g_RomSources[k].id, rsId)) {
@@ -843,6 +1017,12 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				rs->expectedSize = expectedSize;
 				rs->flags = rsFlags;
 				rs->fallback = rsFallback;
+				rs->ownerMod = ownerModIdx;
+				if (rsFlags & PDFT_RS_PATCHED) {
+					strncpy(rs->base, rsBase ? rsBase : "", sizeof(rs->base) - 1);
+					strncpy(rs->patch, rsPatch ? rsPatch : "", sizeof(rs->patch) - 1);
+					rs->expectedCrc32 = rsCrc;
+				}
 				g_NumRomSources++;
 			} else {
 				sysLogPrintf(LOG_WARNING, "Too many romSources (max %d), dropping '%s'",
@@ -959,6 +1139,36 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 				}
 				aliasName = (const char *)p;
 				p += aliasLen;
+			}
+
+			// flag 0x20: a patch tail, after the alias tail. v5 only.
+			if (flags & PDFT_F_PATCH) {
+				if (version < 5) {
+					sysLogPrintf(LOG_ERROR, "PDFT v%u entry %u (mod=%d) carries a patch tail; that needs v5", version, id, ownerModIdx);
+					return 0;
+				}
+				if (p + 2 > dataEnd) {
+					sysLogPrintf(LOG_ERROR, "PDFT patch tail truncated for id %u (mod=%d)", id, ownerModIdx);
+					return 0;
+				}
+				u16 patchLen = PD_BE16(*(u16*)p); p += 2;
+				if (p + patchLen > dataEnd) {
+					sysLogPrintf(LOG_ERROR, "PDFT patch string truncated for id %u (mod=%d)", id, ownerModIdx);
+					return 0;
+				}
+				if (isGlobal) {
+					sysLogPrintf(LOG_WARNING, "PDFT: id %u carries a patch in the global table, which has no owning mod; ignoring it", id);
+				} else if (g_NumFilePatchDecls >= FILEPATCHES_MAX) {
+					sysLogPrintf(LOG_WARNING, "PDFT: too many patched files (max %d); dropping the patch on id %u (mod=%d)", FILEPATCHES_MAX, id, ownerModIdx);
+				} else if (id < ROMDATA_MAX_FILES && patchLen > 1) {
+					struct romfilepatchdecl *d = &g_FilePatchDecls[g_NumFilePatchDecls++];
+					d->mod = (u8)ownerModIdx;
+					d->id = (u16)id;
+					strncpy(d->path, (const char *)p, sizeof(d->path) - 1);
+					d->path[sizeof(d->path) - 1] = 0;
+					PDFT("patch mod=%d id=%u path='%s'", ownerModIdx, id, d->path);
+				}
+				p += patchLen;
 			}
 
 			// flag 0x8: the bytes are the loose file at `path`, inside the
@@ -2426,7 +2636,7 @@ static u8 *romdataFileLoadAltSource(s32 modNum, s32 fileNum,
 
 	// Declared, but the image is not mounted or the extent does not fit inside
 	// it. Nothing is claimed; the caller falls back exactly as before.
-	if (!rs->mounted || !rs->data
+	if (!rs->mounted || (!rs->data && !rs->ov)
 			|| (u64)as->offset + (u64)as->size > (u64)rs->size) {
 		return NULL;
 	}
@@ -2441,9 +2651,32 @@ static u8 *romdataFileLoadAltSource(s32 modNum, s32 fileNum,
 		return NULL;
 	}
 
-	fileSlots[modNum][fileNum].data = rs->data + as->offset;
+	if (rs->ov) {
+		// An overlay: a pointer when one segment covers the whole extent -
+		// into the base mapping for a file the patch left alone, into the
+		// literal pool for one it wrote whole - and a composed copy, owned
+		// like any external load, only when the extent crosses an edit.
+		const u8 *direct = rompatchOverlayPeek(rs->ov, as->offset, as->size);
+		if (direct) {
+			fileSlots[modNum][fileNum].data = (u8 *)direct;
+			fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
+		} else {
+			u8 *buf = sysMemAlloc(as->size);
+			if (!buf || !rompatchOverlayRead(rs->ov, as->offset, as->size, buf)) {
+				sysMemFree(buf);
+				if (outUnreadable) {
+					*outUnreadable = true;
+				}
+				return NULL;
+			}
+			fileSlots[modNum][fileNum].data = buf;
+			fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
+		}
+	} else {
+		fileSlots[modNum][fileNum].data = rs->data + as->offset;
+		fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
+	}
 	fileSlots[modNum][fileNum].size = as->size;
-	fileSlots[modNum][fileNum].source = SRC_ALT_ROM;
 	fileSlots[modNum][fileNum].numpatches = 0;
 
 	// sysLogPrintf(LOG_NOTE, "romdataFileLoad: file %d (%s) loaded from altRom '%s' at 0x%x (size=%u)",
@@ -2546,6 +2779,116 @@ static u8 *romdataFileLoadSelfSource(s32 modNum, s32 fileNum, u32 *outLoadedSize
 
 	*outLoadedSize = loadedSize;
 	return out;
+}
+
+// Inflate -> rompatchApply -> re-deflate, into a buffer the slot then owns
+// (SRC_EXTERNAL). Returns the new bytes, or NULL with the slot untouched when
+// anything fails - the patch missing, not applying, or the deflate refusing -
+// so a broken patch degrades to the unpatched file and says so.
+static u8 *romdataFileApplyPatch(s32 modNum, s32 fileNum, const struct romfilepatchdecl *d,
+		const u8 *src, u32 srcSize)
+{
+	char tmp[FS_MAXPATH];
+	u8 *patch = NULL;
+	u32 patchLen = 0;
+	u8 *inflated = NULL, *applied = NULL, *packed = NULL;
+	u32 inflatedLen = 0, appliedLen = 0, packedLen = 0;
+	char err[256] = { 0 };
+	const bool is1173 = srcSize >= 5 && rzipIs1173((void *)src);
+	const char *name = fileSlots[modNum][fileNum].name ? fileSlots[modNum][fileNum].name : "?";
+
+	if (modNum < 0 || modNum >= (s32)g_NumModDirs || !modDirs[modNum][0]) {
+		return NULL;
+	}
+
+	snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[modNum], d->path);
+	if (fsFileSize(tmp) <= 0) {
+		snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[modNum], d->path);
+	}
+	patch = fsFileLoad(tmp, &patchLen);
+	if (!patch) {
+		sysLogPrintf(LOG_WARNING, "file %d (%s): patch '%s' not found in %s; loading unpatched", fileNum, name, d->path, modDirs[modNum]);
+		return NULL;
+	}
+
+	if (is1173) {
+		// the 1173 header declares the inflated length; rzipInflate wants a
+		// 5K scratch like fileLoad gives it
+		static u8 scratch[5 * 1024];
+		inflatedLen = ((u32)src[2] << 16) | ((u32)src[3] << 8) | src[4];
+		inflated = sysMemAlloc(inflatedLen + 16);
+		if (!inflated || rzipInflate((void *)src, inflated, scratch) < 0) {
+			sysLogPrintf(LOG_WARNING, "file %d (%s): could not inflate it to patch it; loading unpatched", fileNum, name);
+			sysMemFree(inflated);
+			sysMemFree(patch);
+			return NULL;
+		}
+	} else {
+		inflated = (u8 *)src;
+		inflatedLen = srcSize;
+	}
+
+	if (rompatchApply(inflated, inflatedLen, patch, patchLen, &applied, &appliedLen, err, sizeof(err)) < 0) {
+		sysLogPrintf(LOG_WARNING, "file %d (%s): patch '%s' does not apply: %s; loading unpatched", fileNum, name, d->path, err);
+		if (is1173) sysMemFree(inflated);
+		sysMemFree(patch);
+		return NULL;
+	}
+	sysMemFree(patch);
+	if (is1173) {
+		sysMemFree(inflated);
+	}
+
+	if (is1173) {
+		// raw deflate behind a 1173 header, which is what rzipInflate reads
+		// (mksetups ships setups packed exactly this way)
+		z_stream zs;
+		uLong bound;
+		memset(&zs, 0, sizeof(zs));
+		if (deflateInit2(&zs, Z_BEST_COMPRESSION, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+			free(applied);
+			return NULL;
+		}
+		bound = deflateBound(&zs, appliedLen);
+		packed = sysMemAlloc((u32)bound + 5);
+		if (!packed) {
+			deflateEnd(&zs);
+			free(applied);
+			return NULL;
+		}
+		packed[0] = 0x11; packed[1] = 0x73;
+		packed[2] = (appliedLen >> 16) & 0xff; packed[3] = (appliedLen >> 8) & 0xff; packed[4] = appliedLen & 0xff;
+		zs.next_in = applied;
+		zs.avail_in = appliedLen;
+		zs.next_out = packed + 5;
+		zs.avail_out = (uInt)bound;
+		if (deflate(&zs, Z_FINISH) != Z_STREAM_END) {
+			deflateEnd(&zs);
+			sysMemFree(packed);
+			free(applied);
+			sysLogPrintf(LOG_WARNING, "file %d (%s): could not re-pack the patched file; loading unpatched", fileNum, name);
+			return NULL;
+		}
+		packedLen = (u32)zs.total_out + 5;
+		deflateEnd(&zs);
+		free(applied);
+	} else {
+		packed = sysMemAlloc(appliedLen);
+		memcpy(packed, applied, appliedLen);
+		packedLen = appliedLen;
+		free(applied);
+	}
+
+	if (fileSlots[modNum][fileNum].source == SRC_EXTERNAL) {
+		sysMemFree(fileSlots[modNum][fileNum].data);
+	}
+	fileSlots[modNum][fileNum].data = packed;
+	fileSlots[modNum][fileNum].size = packedLen;
+	fileSlots[modNum][fileNum].source = SRC_EXTERNAL;
+
+	sysLogPrintf(LOG_NOTE, "file %d (%s) patched with '%s': %u -> %u bytes inflated, %u packed (%u byte patch)",
+		fileNum, name, d->path, inflatedLen, appliedLen, packedLen, patchLen);
+	return packed;
 }
 
 u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
@@ -2798,6 +3141,22 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 			fileSlots[modNum][fileNum].source = SRC_ROM;
 			DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d)",
 				fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), allowMod);
+		}
+
+		// A declared patch, whatever lane the bytes came from. Done once,
+		// here, because this block runs once per slot; the patched buffer is
+		// then the slot's bytes for the life of the process.
+		if (!out) {
+			out = fileSlots[modNum][fileNum].data;
+		}
+		if (out && fileSlots[modNum][fileNum].size) {
+			const struct romfilepatchdecl *d = filePatchFind(modNum, fileNum);
+			if (d) {
+				u8 *patched = romdataFileApplyPatch(modNum, fileNum, d, out, fileSlots[modNum][fileNum].size);
+				if (patched) {
+					out = patched;
+				}
+			}
 		}
 	}
 
@@ -3161,7 +3520,19 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 				if (p + 1 > dataEnd) goto extDone;
 				u8 fnLen = *p++;
 				if (p + fnLen + 4 + 1 + 1 + 2 > dataEnd) goto extDone;
-				p += fnLen + 4 + 1 + 1 + 2; // size, flags, fallback, reserved
+				p += fnLen + 4;
+				u8 rsFlags = *p++;
+				p += 1 + 2; // fallback, reserved
+				if (rsFlags & PDFT_RS_PATCHED) {
+					// v5 tail: str8 base, str8 patch, u32 crc
+					if (p + 1 > dataEnd) goto extDone;
+					u8 bLen = *p++;
+					if (p + bLen + 1 > dataEnd) goto extDone;
+					p += bLen;
+					u8 pLen = *p++;
+					if (p + pLen + 4 > dataEnd) goto extDone;
+					p += pLen + 4;
+				}
 			}
 		}
 
@@ -3192,6 +3563,14 @@ s32 romdataFileGetNumForNameInMod(const char *name, s32 modNum)
 				u16 aliasSkip = PD_BE16(*(u16*)p); p += 2;
 				if (p + aliasSkip > dataEnd) break;
 				p += aliasSkip;
+			}
+
+			// v5 patch tail: step over it the same way
+			if (flags & PDFT_F_PATCH) {
+				if (p + 2 > dataEnd) break;
+				u16 patchSkip = PD_BE16(*(u16*)p); p += 2;
+				if (p + patchSkip > dataEnd) break;
+				p += patchSkip;
 			}
 
 			// nameLen on the wire includes the trailing null terminator;

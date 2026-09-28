@@ -120,6 +120,18 @@ uint32_t pdftVersionFor(const struct pdftInput *in)
 {
 	uint32_t i;
 
+	for (i = 0; i < in->numSources; ++i) {
+		if (in->sources[i].patch && in->sources[i].patch[0]) {
+			return 5;
+		}
+	}
+
+	for (i = 0; i < in->numFiles; ++i) {
+		if (in->files[i].patch && in->files[i].patch[0]) {
+			return 5;
+		}
+	}
+
 	for (i = 0; i < in->numFiles; ++i) {
 		if (in->files[i].alias && in->files[i].alias[0]) {
 			return 4;
@@ -164,19 +176,72 @@ static bool checkInput(const struct pdftInput *in, uint32_t version, char *err, 
 					rs->id, strlen(rs->id) + 1, PDFT_ROMSOURCE_ID);
 		}
 
-		if (!rs->filename || !rs->filename[0]) {
-			return fail(err, errLen, "romSource '%s' has no filename", rs->id);
-		}
+		if (rs->patch && rs->patch[0]) {
+			uint32_t k;
 
-		if (strlen(rs->filename) + 1 > PDFT_ROMSOURCE_FILE) {
-			return fail(err, errLen, "romSource '%s': filename is %zu bytes, the reader's buffer is %d",
-					rs->id, strlen(rs->filename) + 1, PDFT_ROMSOURCE_FILE);
+			if (rs->filename && rs->filename[0]) {
+				return fail(err, errLen, "romSource '%s' has both a filename and a patch", rs->id);
+			}
+
+			if (!rs->base || !rs->base[0]) {
+				return fail(err, errLen, "romSource '%s' has a patch but no base", rs->id);
+			}
+
+			if (strlen(rs->base) + 1 > PDFT_ROMSOURCE_ID) {
+				return fail(err, errLen, "romSource '%s': base id is %zu bytes, the reader's buffer is %d",
+						rs->id, strlen(rs->base) + 1, PDFT_ROMSOURCE_ID);
+			}
+
+			if (strlen(rs->patch) + 1 > PDFT_ROMSOURCE_FILE) {
+				return fail(err, errLen, "romSource '%s': patch path is %zu bytes, the reader's buffer is %d",
+						rs->id, strlen(rs->patch) + 1, PDFT_ROMSOURCE_FILE);
+			}
+
+			/* The base must be declared EARLIER in this table, or be the
+			 * engine's own rom; the reader mounts in one forward pass per
+			 * table and a later or self reference would never resolve. */
+			if (strcmp(rs->base, PDFT_ROMSOURCE_BASE)) {
+				for (k = 0; k < i; ++k) {
+					if (!strcmp(in->sources[k].id, rs->base)) {
+						break;
+					}
+				}
+				if (k == i) {
+					return fail(err, errLen, "romSource '%s': base '%s' is not a source declared before it",
+							rs->id, rs->base);
+				}
+			}
+
+			if (version < 5) {
+				return fail(err, errLen, "romSource '%s' is patched, which needs v5, but the table is v%u",
+						rs->id, version);
+			}
+		} else {
+			if (!rs->filename || !rs->filename[0]) {
+				return fail(err, errLen, "romSource '%s' has no filename", rs->id);
+			}
+
+			if (strlen(rs->filename) + 1 > PDFT_ROMSOURCE_FILE) {
+				return fail(err, errLen, "romSource '%s': filename is %zu bytes, the reader's buffer is %d",
+						rs->id, strlen(rs->filename) + 1, PDFT_ROMSOURCE_FILE);
+			}
 		}
 	}
 
 	for (i = 0; i < in->numFiles; ++i) {
 		const struct pdftFile *f = &in->files[i];
 		size_t n;
+
+		if (f->patch && f->patch[0]) {
+			if (strlen(f->patch) + 1 > PDFT_PATCH_MAX) {
+				return fail(err, errLen, "'%s': patch path is %zu bytes, the reader's buffer is %d",
+						f->name, strlen(f->patch) + 1, PDFT_PATCH_MAX);
+			}
+			if (version < 5) {
+				return fail(err, errLen, "'%s' carries a patch, which needs v5, but the table is v%u",
+						f->name, version);
+			}
+		}
 
 		if (!f->name || !f->name[0]) {
 			return fail(err, errLen, "file entry %u (id %u) has no name", i, f->id);
@@ -302,13 +367,23 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 		for (i = 0; i < in->numSources; ++i) {
 			const struct pdftRomSource *rs = &in->sources[i];
 
+			const bool patched = rs->patch && rs->patch[0];
+
 			putStr8(&b, rs->id);
-			putStr8(&b, rs->filename);
+			putStr8(&b, patched ? "" : rs->filename);
 			put32(&b, rs->expectedSize);
-			put8(&b, (uint8_t)((rs->required ? 1 : 0) | (rs->strict ? 2 : 0)));
+			put8(&b, (uint8_t)((rs->required ? PDFT_RS_REQUIRED : 0)
+					| (rs->strict ? PDFT_RS_STRICT : 0)
+					| (patched ? PDFT_RS_PATCHED : 0)));
 			put8(&b, rs->fallback);
 			put8(&b, 0);
 			put8(&b, 0);
+
+			if (patched) {
+				putStr8(&b, rs->base);
+				putStr8(&b, rs->patch);
+				put32(&b, rs->expectedCrc32);
+			}
 		}
 	}
 
@@ -340,6 +415,10 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 
 		/* Unlike every flag above, this one has a tail, so it is the one that
 		 * costs a version. */
+		if (f->patch && f->patch[0]) {
+			flags |= PDFT_F_PATCH;
+		}
+
 		if (f->alias && f->alias[0]) {
 			flags |= PDFT_F_ALIAS;
 		}
@@ -362,6 +441,11 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 		 * walks the alt tail correctly before it gives up on the version. */
 		if (f->alias && f->alias[0]) {
 			putStr16(&b, f->alias);
+		}
+
+		/* After the alias tail, for the same reason it sits after alt. */
+		if (f->patch && f->patch[0]) {
+			putStr16(&b, f->patch);
 		}
 	}
 
