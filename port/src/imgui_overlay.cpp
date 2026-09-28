@@ -383,6 +383,8 @@ extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
 extern "C" void modSpectateSetOn(bool on);
 extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
+extern "C" void chraiSetPaused(s32 paused);   // src/game/chrai.c, port only
+extern "C" s32 chraiIsPaused(void);
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -1604,6 +1606,22 @@ static void imguiOverlayDrawRuntimePanel(void)
 		}
 	}
 	ImGui::Text("Framebuffers: %s", gfx_framebuffers_enabled ? "enabled" : "disabled");
+	{
+		bool paused = chraiIsPaused() != 0;
+		if (paused) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.35f, 1.0f));
+		}
+		if (ImGui::Checkbox("Ailists paused", &paused)) {
+			chraiSetPaused(paused ? 1 : 0);
+		}
+		if (chraiIsPaused()) {
+			ImGui::PopStyleColor();
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("No chr or object advances its ailist while set (chraiExecute).\n"
+					"Everything else ticks. A chr mid-action finishes the action.");
+		}
+	}
 	ImGui::SeparatorText("Time");
 	ImGui::Text("Level frame: %d", g_Vars.lvframenum);
 	ImGui::Text("Level tick: %d (60 Hz), %d (240 Hz)",
@@ -7535,6 +7553,11 @@ static void imguiOverlayCmdAddPlayer(void)
 	g_ImGuiPlayersFocusPicker = true;
 }
 
+// Editor pause: every ailist stops advancing at chraiExecute, the rest of
+// the tick runs. A chr mid-action finishes the action; that is c-ai-pause.
+static void imguiOverlayCmdPauseAi(void)     { chraiSetPaused(1); }
+static void imguiOverlayCmdResumeAi(void)    { chraiSetPaused(0); }
+
 static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Go to floor 1",            imguiOverlayCmdFloor1 },
 	{ "Go to floor 2",            imguiOverlayCmdFloor2 },
@@ -7555,6 +7578,8 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Yank position",            imguiOverlayCmdYankPos },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
+	{ "Pause ailists",            imguiOverlayCmdPauseAi },
+	{ "Resume ailists",           imguiOverlayCmdResumeAi },
 };
 
 static const s32 kFojoCommandCount =
