@@ -6539,6 +6539,7 @@ enum {
 	kFojoRegPad,
 	kFojoRegRoom,
 	kFojoRegPos,
+	kFojoRegTex,
 };
 
 struct imguiOverlayRegister {
@@ -6547,6 +6548,7 @@ struct imguiOverlayRegister {
 	s32 chrnum;             // for a chr: re-found by number after a reload
 	struct assetref ref;    // pad
 	s32 room;
+	s32 tex;                // texture: the number the probe wants (port id / texnum)
 	struct coord pos;       // pos, and the cached anchor for the others
 	bool eye;
 	s32 stagenum;
@@ -6590,9 +6592,24 @@ static bool imguiOverlayRegIsLive(const imguiOverlayRegister *r)
 		return r->room > 0 && r->room < g_Vars.roomcount;
 	case kFojoRegPos:
 		return true;
+	case kFojoRegTex:
+		return r->tex >= 0;
 	default:
 		return false;
 	}
+}
+
+static void imguiOverlayRegSetTex(s32 idx, s32 texnum, s32 modelFile)
+{
+	imguiOverlayRegister &r = g_ImGuiRegs[idx];
+	memset(&r, 0, sizeof(r));
+	r.kind = kFojoRegTex;
+	r.chrnum = -1;
+	r.tex = texnum;
+	r.stagenum = g_Vars.stagenum;
+	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
+	if (modelFile) snprintf(r.label, sizeof(r.label), "tex 0x%04x m:0x%03x", texnum, modelFile);
+	else snprintf(r.label, sizeof(r.label), "tex 0x%04x", texnum);
 }
 
 // where the register points right now, for a verb that takes an anchor
@@ -6762,8 +6779,10 @@ static s32 imguiOverlayCollectPadMarks(imguiOverlayPadMark *out, s32 max)
 	return n;
 }
 
-static s32 imguiOverlayPickPadAtMouse(const ImVec2 &mouse)
+static s32 imguiOverlayPickPadAtMouse(const ImVec2 &mouse, f32 *outScore)
 {
+	if (outScore) *outScore = 2.0f;
+
 	if (!g_ImGuiOverlayShowPadMarkers) {
 		return -1;
 	}
@@ -6771,20 +6790,22 @@ static s32 imguiOverlayPickPadAtMouse(const ImVec2 &mouse)
 	imguiOverlayPadMark marks[512];
 	const s32 n = imguiOverlayCollectPadMarks(marks, 512);
 	s32 best = -1;
-	float bestd = 1e9f;
+	float bestscore = 1.0f;
 
 	for (s32 i = 0; i < n; i++) {
 		const float dx = mouse.x - marks[i].p.x;
 		const float dy = mouse.y - marks[i].p.y;
 		const float d = sqrtf(dx * dx + dy * dy);
 		const float reach = marks[i].radius < 12.0f ? 12.0f : marks[i].radius;
+		const float score = d / reach;
 
-		if (d <= reach && d < bestd) {
-			bestd = d;
+		if (score <= bestscore) {
+			bestscore = score;
 			best = marks[i].padnum;
 		}
 	}
 
+	if (best >= 0 && outScore) *outScore = bestscore;
 	return best;
 }
 
@@ -6855,12 +6876,23 @@ static void imguiOverlayDrawWorldMarkers(void)
 	}
 }
 
-static struct prop *imguiOverlayPickPropAtMouse(const ImVec2 &mouse)
+// Picking is gated on the marker being SHOWN (her rule): ctrl-click latches
+// only kinds whose markers are on, so what you can grab is what you can see.
+// Each picker reports a normalised distance (0 = dead centre, 1 = edge of
+// its reach) so the kinds can be compared against each other.
+static struct prop *imguiOverlayPickPropAtMouse(const ImVec2 &mouse, f32 *outScore)
 {
 	imguiOverlayPickShape shapes[256];
-	const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
 	struct prop *best = NULL;
 	f32 bestscore = 1.0f; // distance / radius, must be inside
+
+	if (outScore) *outScore = 2.0f;
+
+	if (!g_ImGuiOverlayShowPropMarkers) {
+		return NULL;
+	}
+
+	const s32 n = imguiOverlayCollectPickShapes(shapes, 256);
 
 	for (s32 i = 0; i < n; i++) {
 		const imguiOverlayPickShape &sh = shapes[i];
@@ -6877,6 +6909,36 @@ static struct prop *imguiOverlayPickPropAtMouse(const ImVec2 &mouse)
 		}
 	}
 
+	if (best && outScore) *outScore = bestscore;
+	return best;
+}
+
+// texture tags (Lua pd.texlabels / the Lua panel slider): pick the nearest
+// tag within a few pixels. Returns the texnum the probe wants, or -1.
+static s32 imguiOverlayPickTexLabelAtMouse(const ImVec2 &mouse, f32 *outScore, s32 *outModelFile)
+{
+	if (outScore) *outScore = 2.0f;
+	if (gfx_texlabels_max <= 0) return -1;
+
+	struct GfxTexLabel labels[64];
+	const s32 n = gfx_texlabels_collect(labels, gfx_texlabels_max > 64 ? 64 : gfx_texlabels_max);
+	const ImVec2 disp = ImGui::GetIO().DisplaySize;
+	const f32 reach = 14.0f;
+	s32 best = -1;
+	f32 bestd = reach;
+
+	for (s32 i = 0; i < n; i++) {
+		const ImVec2 p(labels[i].x * disp.x, labels[i].y * disp.y);
+		const f32 dx = mouse.x - p.x, dy = mouse.y - p.y;
+		const f32 d = sqrtf(dx * dx + dy * dy);
+		if (d <= bestd) {
+			bestd = d;
+			best = (s32)labels[i].texnum;
+			if (outModelFile) *outModelFile = labels[i].id;
+		}
+	}
+
+	if (best >= 0 && outScore) *outScore = bestd / reach;
 	return best;
 }
 
@@ -8338,6 +8400,10 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 			g_ImGuiOverlayShowStage = true;
 			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
 			break;
+		case kFojoRegTex:
+			imguiOverlayFocusTextureId(r.tex);
+			imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowTextures);
+			break;
 		default:
 			break;
 		}
@@ -8746,19 +8812,28 @@ void imguiOverlayRender(void)
 			// ctrl-click still latches; the marker draw itself is a toggle now
 			// (imguiOverlayDrawWorldMarkers, below the panels)
 			if (!io.WantCaptureMouse && io.KeyCtrl && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-				struct prop *picked = imguiOverlayPickPropAtMouse(io.MousePos);
-				if (picked) {
+				// ctrl-click latches to "" whichever shown marker is nearest:
+				// props when Show props, pads when Show pads, texture tags
+				// when the Lua panel has them on. Hidden kinds are not pickable.
+				f32 propScore, padScore, texScore;
+				s32 texModel = 0;
+				struct prop *picked = imguiOverlayPickPropAtMouse(io.MousePos, &propScore);
+				const s32 padnum = imguiOverlayPickPadAtMouse(io.MousePos, &padScore);
+				const s32 texnum = imguiOverlayPickTexLabelAtMouse(io.MousePos, &texScore, &texModel);
+
+				if (picked && propScore <= padScore && propScore <= texScore) {
 					imguiOverlayLatchPropEverywhere(picked);
-				} else {
-					const s32 padnum = imguiOverlayPickPadAtMouse(io.MousePos);
-					if (padnum >= 0) {
-						imguiOverlayRegSetPad(kFojoRegUnnamed, padnum);
-						g_ImGuiOverlayPadSel = padnum;
-						g_ImGuiOverlayPadFilter.Clear();
-						g_ImGuiOverlayOpenPads = true;
-						g_ImGuiOverlayShowStage = true;
-						imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
-					}
+				} else if (padnum >= 0 && padScore <= texScore) {
+					imguiOverlayRegSetPad(kFojoRegUnnamed, padnum);
+					g_ImGuiOverlayPadSel = padnum;
+					g_ImGuiOverlayPadFilter.Clear();
+					g_ImGuiOverlayOpenPads = true;
+					g_ImGuiOverlayShowStage = true;
+					imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowStage);
+				} else if (texnum >= 0) {
+					imguiOverlayRegSetTex(kFojoRegUnnamed, texnum, texModel);
+					imguiOverlayFocusTextureId(texnum);
+					imguiOverlayBringFlagToCurrentWorkspace(&g_ImGuiOverlayShowTextures);
 				}
 			}
 		}
