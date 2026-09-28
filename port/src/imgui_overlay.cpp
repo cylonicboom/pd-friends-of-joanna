@@ -8610,12 +8610,44 @@ static void imguiOverlayDrawAwesomeBar(void)
 	ImGui::SetNextWindowSize(ImVec2(width, 0.0f), ImGuiCond_Always);
 	ImGui::SetNextWindowFocus();
 
-	if (!ImGui::Begin("Fojo Find", &g_ImGuiOverlayBarOpen,
+	// a long list fades out instead of running off the screen: past the
+	// fold the window's own background thins to nothing and the rows go
+	// with it, so the list reads as continuing rather than ending. the
+	// hit count is last frame's, which is what the size is anyway
+	const s32 fadeFrom = 12;
+	const bool fading = g_ImGuiOverlayBarHitCount > fadeFrom;
+	const ImVec4 bgcol = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+
+	if (fading) {
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+		ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
+	}
+
+	const bool begun = ImGui::Begin("Fojo Find", &g_ImGuiOverlayBarOpen,
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize
 			| ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-			| ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse)) {
+			| ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+
+	if (fading) {
+		ImGui::PopStyleColor(2);
+	}
+
+	if (!begun) {
 		ImGui::End();
 		return;
+	}
+
+	if (fading) {
+		const ImVec2 p0 = ImGui::GetWindowPos();
+		const ImVec2 p1 = ImVec2(p0.x + ImGui::GetWindowSize().x, p0.y + ImGui::GetWindowSize().y);
+		const ImU32 top = ImGui::GetColorU32(bgcol);
+		const ImU32 mid = ImGui::GetColorU32(ImVec4(bgcol.x, bgcol.y, bgcol.z, bgcol.w * 0.85f));
+		const ImU32 bottom = ImGui::GetColorU32(ImVec4(bgcol.x, bgcol.y, bgcol.z, 0.0f));
+		// solid through the query and the first rows, then out
+		const float fold = p0.y + (p1.y - p0.y) * 0.35f;
+		ImDrawList *dl = ImGui::GetWindowDrawList();
+		dl->AddRectFilled(p0, ImVec2(p1.x, fold), top, ImGui::GetStyle().WindowRounding, ImDrawFlags_RoundCornersTop);
+		dl->AddRectFilledMultiColor(ImVec2(p0.x, fold), p1, mid, mid, bottom, bottom);
 	}
 
 	if (g_ImGuiOverlayBarJustOpened) {
@@ -8670,14 +8702,27 @@ static void imguiOverlayDrawAwesomeBar(void)
 
 		snprintf(row, sizeof(row), "%s##fojohit%d", hit->label, i);
 
-		if (ImGui::Selectable(row, i == g_ImGuiOverlayBarSel)) {
-			imguiOverlayBarActivate(hit);
-			break;
+		// rows past the fold thin out with the background; the one you are
+		// on stays readable so arrowing down through them still works
+		float alpha = 1.0f;
+		if (fading && i >= fadeFrom) {
+			alpha = 1.0f - 0.85f * (float)(i - fadeFrom + 1) / (float)(g_ImGuiOverlayBarHitCount - fadeFrom);
+			if (i == g_ImGuiOverlayBarSel && alpha < 0.9f) alpha = 0.9f;
 		}
+		ImGui::PushStyleVar(ImGuiStyleVar_Alpha, alpha);
 
-		if (hit->detail[0]) {
+		const bool picked = ImGui::Selectable(row, i == g_ImGuiOverlayBarSel);
+
+		if (!picked && hit->detail[0]) {
 			ImGui::SameLine();
 			ImGui::TextDisabled("  %s", hit->detail);
+		}
+
+		ImGui::PopStyleVar();
+
+		if (picked) {
+			imguiOverlayBarActivate(hit);
+			break;
 		}
 
 		if (i == g_ImGuiOverlayBarSel && (ImGui::IsKeyPressed(ImGuiKey_DownArrow, false)
