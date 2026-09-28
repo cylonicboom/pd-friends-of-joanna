@@ -363,6 +363,7 @@ static bool g_ImGuiReloadStagePending = false;
 static bool g_ImGuiTeleportPending = false;
 static bool g_ImGuiTeleportEye = false;
 static struct coord g_ImGuiTeleportPos;
+static struct prop *g_ImGuiTeleportProp = NULL;  // set: land beside it, not on it
 static struct fileguid g_ImGuiAddPlayerGuid;
 static bool g_ImGuiPlayersFocusPicker = false;
 static s32 g_ImGuiPlayersPick = -1;
@@ -385,6 +386,7 @@ extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
 extern "C" void modSpectateSetOn(bool on);
 extern "C" void modSpectateTeleport(const struct coord *pos, bool eye);
+extern "C" bool modSpectateTeleportNear(struct prop *target);
 extern "C" void chraiSetPaused(s32 paused);   // src/game/chrai.c, port only
 extern "C" s32 chraiIsPaused(void);
 extern "C" void tilesRenderSetMode(s32 mode);   // src/game/tilesrender.c, port only
@@ -596,7 +598,11 @@ static const char *imguiOverlayEntityLabel(struct prop *prop, char *buf, size_t 
 	}
 
 	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr) {
-		snprintf(buf, len, "chr 0x%04x %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
+		// body, then the head when its slot has a name: two chrs in the same
+		// suit are told apart by who is wearing it
+		const char *head = modGetNameForHeadBodyIndex(prop->chr->headnum);
+		if (head) snprintf(buf, len, "chr 0x%04x %s / %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum), head);
+		else snprintf(buf, len, "chr 0x%04x %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
 		return buf;
 	}
 
@@ -6200,8 +6206,15 @@ static void imguiOverlayRunPlayerRequests(void)
 		g_ImGuiTeleportPending = false;
 
 		if (g_MainChangeToStageNum < 0 && g_Vars.currentplayer && g_Vars.currentplayer->prop) {
-			modSpectateTeleport(&g_ImGuiTeleportPos, g_ImGuiTeleportEye);
+			// A prop is a thing to stand beside; modSpectateTeleportNear
+			// finds the clear spot (the pd.teleport_to_chr recipe). Only when
+			// nothing around it is clear do we land on the bare position.
+			if (!(g_ImGuiTeleportProp && imguiOverlayPropIsCurrent(g_ImGuiTeleportProp)
+					&& modSpectateTeleportNear(g_ImGuiTeleportProp))) {
+				modSpectateTeleport(&g_ImGuiTeleportPos, g_ImGuiTeleportEye);
+			}
 		}
+		g_ImGuiTeleportProp = NULL;
 	}
 
 	if (g_ImGuiAddPlayerPending) {
@@ -7649,11 +7662,17 @@ static void imguiOverlayCmdHide(void)        { imguiOverlaySetVisible(false); }
 // it live - --spectate and the ini only - so this is the way in.
 static void imguiOverlayCmdNoclip(void)      { modSpectateSetOn(!modSpectateIsOn()); }
 static void imguiOverlayCmdReloadStage(void) { g_ImGuiReloadStagePending = true; }
+// The prop behind the anchor a verb is about to receive, when there is one.
+// Set beside where/eye in both activation paths and cleared after the verb
+// runs, so a verb that wants the thing rather than the point can have it.
+static struct prop *g_ImGuiOverlayAnchorProp = NULL;
+
 // Teleport takes an anchor: a register or any pad / chr / prop / room
 static void imguiOverlayVerbTeleport(const struct coord *where, bool eye, const char *label)
 {
 	g_ImGuiTeleportPos = *where;
 	g_ImGuiTeleportEye = eye;
+	g_ImGuiTeleportProp = g_ImGuiOverlayAnchorProp;
 	g_ImGuiTeleportPending = true;
 	sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", label, where->x, where->y, where->z);
 }
@@ -7734,6 +7753,38 @@ static char imguiOverlayBarLower(char c)
  * score, so it cannot rank. Ranking is the whole difference between a filter
  * box and a bar you can type three letters into and hit enter.
  */
+// A query that is a number - decimal, or 0x-prefixed hex - names a thing by
+// its number: a chrnum, an object's tag or pad, a prop index. The fuzzy
+// matcher sees the label's hex spelling, so `0x42` already finds `chr 0x0042`;
+// this is what lets `66` find it too, and makes an exact number a top hit
+// instead of a subsequence somewhere in the label.
+static bool imguiOverlayBarQueryNumber(const char *query, s32 *out)
+{
+	char *end = NULL;
+	long v;
+
+	if (!query[0]) return false;
+	v = strtol(query, &end, 0);
+	if (end == query || *end != '\0') return false;
+	*out = (s32)v;
+	return true;
+}
+
+// the number match for a chr: chrnum; for an object: tag, then pad
+static bool imguiOverlayBarNumberHitsProp(struct prop *prop, s32 n)
+{
+	if (!prop) return false;
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr) {
+		return (u16)prop->chr->chrnum == (u16)n;
+	}
+	if ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
+		const s32 tag = objGetTagNum(prop->obj);
+		if (tag >= 0 && tag == n) return true;
+		if (prop->obj->pad >= 0 && (u16)prop->obj->pad == (u16)n) return true;
+	}
+	return false;
+}
+
 static bool imguiOverlayBarFuzzy(const char *cand, const char *query, s32 *outScore)
 {
 	s32 score = 0;
@@ -7993,13 +8044,16 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 	// entities, the same walk the @ corpus does
 	if (q[0]) {
 		char label[80];
+		s32 qn = 0;
+		const bool qnum = imguiOverlayBarQueryNumber(q, &qn);
 
 		if (g_ChrSlots && g_NumChrSlots) {
 			for (s32 i = 0; i < g_NumChrSlots; ++i) {
 				struct chrdata *chr = &g_ChrSlots[i];
 				if (chr->chrnum < 0 || !chr->prop) continue;
-				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
+				if ((qnum && imguiOverlayBarNumberHitsProp(chr->prop, qn) && (score = 3000))
+						|| imguiOverlayBarFuzzy(label, q, &score)) {
 					char detail[32];
 					snprintf(detail, sizeof(detail), "go: chr 0x%04x", (u16)chr->chrnum);
 					imguiOverlayBarPush(kFojoBarTeleport, i, chr->prop, score, label, detail);
@@ -8020,7 +8074,8 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 			if (!imguiOverlayPropIsCurrent(prop)) break;
 			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
 				imguiOverlayEntityLabel(prop, label, sizeof(label));
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if ((qnum && imguiOverlayBarNumberHitsProp(prop, qn) && (score = 2996))
+						|| imguiOverlayBarFuzzy(label, q, &score)) {
 					imguiOverlayBarPush(kFojoBarTeleport, i, prop, score - 6, label, "go: prop");
 					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
 						struct imguiOverlayBarHit &hit = g_ImGuiOverlayBarHits[h];
@@ -8213,6 +8268,8 @@ static void imguiOverlayBarSearch(void)
 	// walks once a frame.
 	if (wantEntities && q[0]) {
 		char label[80];
+		s32 qn = 0;
+		const bool qnum = imguiOverlayBarQueryNumber(q, &qn);
 
 		if (g_ChrSlots && g_NumChrSlots) {
 			for (s32 i = 0; i < g_NumChrSlots; ++i) {
@@ -8222,9 +8279,11 @@ static void imguiOverlayBarSearch(void)
 					continue;
 				}
 
-				snprintf(label, sizeof(label), "%s", imguiOverlayHeadBodyName(chr->bodynum));
+				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
 
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if (qnum && imguiOverlayBarNumberHitsProp(chr->prop, qn)) {
+					imguiOverlayBarPush(kFojoBarEntity, i, chr->prop, 3000, label, "chr by number");
+				} else if (imguiOverlayBarFuzzy(label, q, &score)) {
 					char detail[32];
 					snprintf(detail, sizeof(detail), "chr 0x%04x", (u16)chr->chrnum);
 					imguiOverlayBarPush(kFojoBarEntity, i, chr->prop, score, label, detail);
@@ -8244,7 +8303,9 @@ static void imguiOverlayBarSearch(void)
 			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
 				imguiOverlayEntityLabel(prop, label, sizeof(label));
 
-				if (imguiOverlayBarFuzzy(label, q, &score)) {
+				if (qnum && imguiOverlayBarNumberHitsProp(prop, qn)) {
+					imguiOverlayBarPush(kFojoBarEntity, i, prop, 2990, label, "prop by number");
+				} else if (imguiOverlayBarFuzzy(label, q, &score)) {
 					imguiOverlayBarPush(kFojoBarEntity, i, prop, score - 6, label, imguiOverlayPropTypeName(prop->type));
 				}
 			}
@@ -8357,8 +8418,12 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		bool eye = hit->whereIsEye;
 		bool ok = hit->kind == kFojoBarTeleport;
 
+		g_ImGuiOverlayAnchorProp = hit->prop;
+
 		if (hit->kind == kFojoBarRegister) {
-			ok = imguiOverlayRegAnchor(&g_ImGuiRegs[hit->index], &where, &eye);
+			const imguiOverlayRegister &r = g_ImGuiRegs[hit->index];
+			ok = imguiOverlayRegAnchor(&r, &where, &eye);
+			g_ImGuiOverlayAnchorProp = (ok && r.kind == kFojoRegProp) ? r.prop : NULL;
 		}
 
 		if (ok && def->runArg) {
@@ -8367,6 +8432,8 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		} else {
 			sysLogPrintf(LOG_NOTE, "IMGUI: %s: that is not somewhere to go", def->name);
 		}
+
+		g_ImGuiOverlayAnchorProp = NULL;
 
 		g_ImGuiOverlayBarVerb = -1;
 		g_ImGuiOverlayBarOpen = false;
@@ -8461,7 +8528,9 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		break;
 	case kFojoBarTeleport:
 		// the ! shortcut lands here with no verb pending
+		g_ImGuiOverlayAnchorProp = hit->prop;
 		imguiOverlayVerbTeleport(&hit->where, hit->whereIsEye, hit->label);
+		g_ImGuiOverlayAnchorProp = NULL;
 		if (hit->ref.drive == ASSET_DRIVE_PAD) {
 			g_ImGuiOverlayPadSel = hit->ref.sub;
 		}

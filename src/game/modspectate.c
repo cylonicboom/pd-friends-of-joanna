@@ -1,8 +1,12 @@
 #include <ultra64.h>
+#include <math.h>
 #include "constants.h"
 #include "game/bondmove.h"
 #include "game/bondwalk.h"
 #include "game/body.h"
+#include "game/atan2f.h"
+#include "game/chraction.h"
+#include "lib/collision.h"
 #include "game/modspectate.h"
 #include "game/prop.h"
 #include "bss.h"
@@ -403,4 +407,85 @@ void modSpectateTeleport(const struct coord *pos, bool eye)
 
 	bmove0f0cc654(0, 0, 0);
 	bmove0f0cc19c(&prop->pos);
+}
+
+/**
+ * Teleport to a prop the way pd.teleport_to_chr does (chraiLuaTeleportToChr,
+ * luaai_bridge_player.c): beside it, not inside it. The landing spot is the
+ * target offset horizontally by the two radii plus a margin, along the
+ * direction the player is coming from, then chrAdjustPosForSpawn walks a
+ * ring of 8 directions if that point collides with a wall or a physics
+ * object, then a floor probe rejects a spot over void. Landing exactly on a
+ * chr's position put the eye inside a desk whenever the chr was sitting at
+ * one; a prop with no chr (a door, a crate) gets a fixed radius.
+ *
+ * Returns false and moves nothing when no clear spot is found; the caller
+ * decides whether to fall back to the bare position.
+ */
+bool modSpectateTeleportNear(struct prop *target)
+{
+	struct prop *pl;
+	struct coord dst;
+	RoomNum rooms[8];
+	f32 dx, dz, len, dist, angle;
+	f32 plradius, tradius;
+
+	if (g_Vars.currentplayer == NULL || g_Vars.currentplayer->prop == NULL || target == NULL) {
+		return false;
+	}
+
+	pl = g_Vars.currentplayer->prop;
+
+	if (target == pl) {
+		return false;
+	}
+
+	plradius = pl->chr ? pl->chr->radius : 30.0f;
+	tradius = target->chr ? target->chr->radius : 50.0f;
+
+	dst = target->pos;
+	dx = pl->pos.x - target->pos.x;
+	dz = pl->pos.z - target->pos.z;
+	len = sqrtf(dx * dx + dz * dz);
+	dist = plradius + tradius + 30.0f;
+
+	if (len > 0.001f) {
+		dst.x += dx / len * dist;
+		dst.z += dz / len * dist;
+		angle = atan2f(dx, dz);
+	} else {
+		dst.x += dist;
+		angle = 0;
+	}
+
+	roomsCopy(target->rooms, rooms);
+
+#if VERSION >= VERSION_NTSC_1_0
+	if (!chrAdjustPosForSpawn(plradius, &dst, rooms, angle, true, false, false)) {
+#else
+	if (!chrAdjustPosForSpawn(plradius, &dst, rooms, angle, true, false)) {
+#endif
+		return false;
+	}
+
+	{
+		struct coord probe = dst;
+		RoomNum proberooms[8];
+		f32 floory;
+		u16 floorcol;
+
+		roomsCopy(rooms, proberooms);
+#if VERSION >= VERSION_NTSC_1_0
+		if (cdFindFloorRoomYColourFlagsAtPos(&probe, proberooms, &floory, &floorcol, NULL) <= 0) {
+#else
+		if (cdFindFloorRoomYColourFlagsAtPos(&probe, proberooms, &floory, &floorcol) <= 0) {
+#endif
+			return false;
+		}
+	}
+
+	// A prop's pos is at eye height for a chr and at the centre for an
+	// object; either way it is where the eye goes, like the bare teleport.
+	modSpectateTeleport(&dst, true);
+	return true;
 }

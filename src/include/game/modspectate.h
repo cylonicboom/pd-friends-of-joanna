@@ -18,5 +18,6 @@ void modSpectateApplyStart(void);
 void modSpectateTick(void);
 void modSpectateReset(void);
 void modSpectateTeleport(const struct coord *pos, bool eye);
+bool modSpectateTeleportNear(struct prop *target);
 
 #endif
