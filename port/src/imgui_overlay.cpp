@@ -21,6 +21,7 @@
 #include "game/modeldef.h"
 #include "imgui_overlay.h"
 #include "imgui_flagnames.h"
+#include "imgui_modelnames.h"
 #include "imgui_skinmatch.h"
 #include "input.h"
 #include "mod.h"
@@ -378,6 +379,7 @@ extern "C" u32 saveQueueDeadlineFrames(void);
 extern "C" u32 saveQueueFlushCount(void);
 extern "C" void saveQueueFlush(void);
 extern "C" u8 *ailistFindById(s32 ailistid);      // src/lib/ailist.c
+extern "C" s32 objGetTagNum(struct defaultobj *obj); // src/game/objectives.c
 extern "C" s32 chraiGetListIdByList(u8 *ailist, bool *is_global);
 extern "C" void mainChangeToStage(s32 stagenum);   // port/src/pdmain.c
 extern "C" bool modSpectateIsOn(void);           // src/game/modspectate.c (DabDavis's spectator)
@@ -579,6 +581,43 @@ static const char *imguiOverlayRoomListString(RoomNum *rooms, s32 maxRooms)
 }
 
 static void imguiOverlayDescribeProp(struct prop *prop);
+
+static const char *imguiOverlayHeadBodyName(s32 index);
+// What to call a prop wherever it is listed - markers, the bar, registers,
+// the Entities tree. A chr is its number and body. An object is its MODEL
+// (the thing you see) and then whichever of a tag (the OBJ_* number an
+// ailist addresses it by) or its pad tells it apart from the twenty other
+// doors. PROPTYPE_* alone, which this replaced, told you nothing.
+static const char *imguiOverlayEntityLabel(struct prop *prop, char *buf, size_t len)
+{
+	if (!prop) {
+		snprintf(buf, len, "?");
+		return buf;
+	}
+
+	if ((prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr) {
+		snprintf(buf, len, "chr 0x%04x %s", (u16)prop->chr->chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
+		return buf;
+	}
+
+	if ((prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_WEAPON) && prop->obj) {
+		struct defaultobj *obj = prop->obj;
+		const char *model = imguiModelName((u16)obj->modelnum);
+		const s32 tag = objGetTagNum(obj);
+		char who[40];
+
+		if (model) snprintf(who, sizeof(who), "%s", model);
+		else snprintf(who, sizeof(who), "model 0x%04x", (u16)obj->modelnum);
+
+		if (tag >= 0) snprintf(buf, len, "%s tag 0x%02x", who, tag);
+		else if (obj->pad >= 0) snprintf(buf, len, "%s pad 0x%04x", who, (u16)obj->pad);
+		else snprintf(buf, len, "%s", who);
+		return buf;
+	}
+
+	snprintf(buf, len, "%s", imguiOverlayPropTypeName(prop->type));
+	return buf;
+}
 
 static const char *imguiOverlayHeadBodyName(s32 index)
 {
@@ -1147,8 +1186,9 @@ static void imguiOverlayDrawPropNode(struct prop *prop, s32 index)
 		ImGui::SetNextItemOpen(focus ? true : g_ImGuiOverlayExpandValue);
 	}
 
-	const bool open = ImGui::TreeNode(prop, "%s %d (%p)",
-			imguiOverlayPropTypeName(prop->type), index, prop);
+	char nodeLabel[80];
+	imguiOverlayEntityLabel(prop, nodeLabel, sizeof(nodeLabel));
+	const bool open = ImGui::TreeNode(prop, "%s  #%d (%p)", nodeLabel, index, prop);
 
 	imguiOverlayDrawEntityContextMenu(prop, NULL);
 
@@ -6585,8 +6625,7 @@ static void imguiOverlayRegSetProp(s32 idx, struct prop *prop)
 	r.chrnum = (prop->type == PROPTYPE_CHR || prop->type == PROPTYPE_PLAYER) && prop->chr ? prop->chr->chrnum : -1;
 	r.stagenum = g_Vars.stagenum;
 	r.ref.owner = -1; r.ref.id = -1; r.ref.sub = -1; r.ref.via = -1;
-	if (r.chrnum >= 0) snprintf(r.label, sizeof(r.label), "chr 0x%04x %s", (u16)r.chrnum, imguiOverlayHeadBodyName(prop->chr->bodynum));
-	else snprintf(r.label, sizeof(r.label), "%s prop", imguiOverlayPropTypeName(prop->type));
+	imguiOverlayEntityLabel(prop, r.label, sizeof(r.label));
 }
 
 static void imguiOverlayRegSetPad(s32 idx, s32 padnum)
@@ -6768,9 +6807,8 @@ static void imguiOverlayDrawWorldMarkers(void)
 			} else {
 				fg->AddCircle(sh.a, sh.radius, col, 0, 1.0f);
 			}
-			char label[32];
-			if (ischr && sh.prop->chr) snprintf(label, sizeof(label), "chr %d", sh.prop->chr->chrnum);
-			else snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(sh.prop->type));
+			char label[80];
+			imguiOverlayEntityLabel(sh.prop, label, sizeof(label));
 			fg->AddText(ImVec2(sh.b.x + 8.0f, sh.b.y - 8.0f), IM_COL32(255, 255, 255, 255), label);
 			{
 				const char letter = imguiOverlayRegLetterForProp(sh.prop);
@@ -7922,7 +7960,7 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 			struct prop *next = prop->next;
 			if (!imguiOverlayPropIsCurrent(prop)) break;
 			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
-				snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(prop->type));
+				imguiOverlayEntityLabel(prop, label, sizeof(label));
 				if (imguiOverlayBarFuzzy(label, q, &score)) {
 					imguiOverlayBarPush(kFojoBarTeleport, i, prop, score - 6, label, "go: prop");
 					for (s32 h = 0; h < g_ImGuiOverlayBarHitCount; ++h) {
@@ -8145,10 +8183,10 @@ static void imguiOverlayBarSearch(void)
 			}
 
 			if (prop->type != PROPTYPE_CHR && prop->type != PROPTYPE_PLAYER) {
-				snprintf(label, sizeof(label), "%s", imguiOverlayPropTypeName(prop->type));
+				imguiOverlayEntityLabel(prop, label, sizeof(label));
 
 				if (imguiOverlayBarFuzzy(label, q, &score)) {
-					imguiOverlayBarPush(kFojoBarEntity, i, prop, score - 6, label, "prop");
+					imguiOverlayBarPush(kFojoBarEntity, i, prop, score - 6, label, imguiOverlayPropTypeName(prop->type));
 				}
 			}
 
