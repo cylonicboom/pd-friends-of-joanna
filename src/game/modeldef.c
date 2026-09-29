@@ -143,7 +143,20 @@ void modeldefEditorWorkspaceUnload(void)
 	g_ModeldefEditorWorkspace.fileid = -1;
 }
 
+static bool modeldefEditorWorkspaceLoadInner(s32 fileid, u32 texturecapacity);
+
+// Same bookkeeping rule as modeldefInspectTextureUsage: the workspace copy
+// is private, the file's loadedsize/allocsize belong to the live game.
 bool modeldefEditorWorkspaceLoad(s32 fileid, u32 texturecapacity)
+{
+	const s32 raw = fileid & 0xffff;
+	struct fileinfo saved = g_FileInfo[raw];
+	const bool ok = modeldefEditorWorkspaceLoadInner(fileid, texturecapacity);
+	g_FileInfo[raw] = saved;
+	return ok;
+}
+
+static bool modeldefEditorWorkspaceLoadInner(s32 fileid, u32 texturecapacity)
 {
 	const u32 inflatedSize = fileGetInflatedSize(fileid, LOADTYPE_MODEL);
 	const u32 modelcapacity = ALIGN64(inflatedSize) + 0x8000;
@@ -580,7 +593,42 @@ static bool modeldefRecordTextureTriangle(struct modeldef *modeldef, s32 loadedS
 	return true;
 }
 
+static s32 modeldefInspectTextureUsageInner(s32 fileid, u16 textureid1, u16 textureid2,
+		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
+		struct modeldefTextureTriangle *triangles, s32 maxtriangles,
+		s32 *capturedtriangles, s32 *totaltriangles);
+
+/**
+ * A private, read-only load of a model file must leave the file's
+ * bookkeeping as it found it.
+ *
+ * fileLoadToAddr writes g_FileInfo[raw].loadedsize and allocsize, and
+ * fileLoadToNew reuses a non-zero loadedsize instead of recomputing
+ * "inflated + 0x8000" - the headroom modeldef0f1a7560 expands the model's
+ * display lists into. A debugger scan of an OFF-SCREEN head (the skin match
+ * panel, 2026-09-28) left loadedsize at the bare inflated size; the next
+ * modeldefLoadToNew of that head - the third-person switch rebuilds the
+ * body and reloads the head - allocated too small, the expanded lists ran
+ * past the allocation, and the renderer walked a list with no ENDDL into
+ * vertex data ('Unknown GBI opcode', lldb). Head on screen first, no reload,
+ * no crash: exactly her repro. The model-swap code zeroes loadedsize before
+ * its reloads for the same reason.
+ */
 s32 modeldefInspectTextureUsage(s32 fileid, u16 textureid1, u16 textureid2,
+		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
+		struct modeldefTextureTriangle *triangles, s32 maxtriangles,
+		s32 *capturedtriangles, s32 *totaltriangles)
+{
+	const s32 raw = fileid & 0xffff;
+	struct fileinfo saved = g_FileInfo[raw];
+	const s32 count = modeldefInspectTextureUsageInner(fileid, textureid1, textureid2,
+			entries, maxentries, totalmatches, triangles, maxtriangles,
+			capturedtriangles, totaltriangles);
+	g_FileInfo[raw] = saved;
+	return count;
+}
+
+static s32 modeldefInspectTextureUsageInner(s32 fileid, u16 textureid1, u16 textureid2,
 		struct modeldefTextureUsage *entries, s32 maxentries, s32 *totalmatches,
 		struct modeldefTextureTriangle *triangles, s32 maxtriangles,
 		s32 *capturedtriangles, s32 *totaltriangles)
