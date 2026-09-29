@@ -3644,7 +3644,14 @@ s32 imguiOverlayModelTextureIds(s32 fileid, u16 *out, s32 max)
 
 	for (s32 i = 0; i < count && n < max; i++) {
 		u16 id = usages[i].textureid;
-		if (textureMod >= 0) {
+		// the renderer's gate (modeldefRemapOneTexnumSlot): a model that
+		// ships its own PNG for this id is served by ext_tex and is never
+		// sent to the mod-wide port slot for it. Without the gate here the
+		// panel listed Catherine's 0db5/0db6 as port 0x1012/0x1013, which
+		// is where mod_fojo's texmap parks the Mikado heads' JPN textures,
+		// and probed a frock. Her ruling (2026-09-28): Mikado's textures are
+		// not associated with Catherine's head in any way.
+		if (textureMod >= 0 && !extTexModelHasEntryForTexid((s16)MOD_FILEID_RAW(fileid), (s32)id)) {
 			const u16 port = modTexMapLookup(textureMod, id);
 			if (port != 0xffff && port != 0) id = port;
 		}
