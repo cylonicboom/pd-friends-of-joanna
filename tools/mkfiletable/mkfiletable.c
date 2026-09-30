@@ -329,22 +329,30 @@ static bool altOpen(struct altRom *rom, const char *const *dirs, int numDirs)
 		return altOpenPatched(rom, dirs, numDirs);
 	}
 
+	/* Where the engine looks (romdata.c romSourcesMount): <dir>/roms/<file>
+	 * first, then <dir>/<file>, so a --rom-dir is the same folder the game is
+	 * pointed at and a rom in its roms/ subfolder is found from both sides. */
 	for (i = 0; i < numDirs; ++i) {
-		char candidate[PATHMAX];
+		static const char *const subs[] = { "/roms/", "/" };
+		size_t k;
 
 		if (!dirs[i]) {
 			continue;
 		}
 
-		if (snprintf(candidate, sizeof(candidate), "%s/%s", dirs[i], rom->filename) >= (int)sizeof(candidate)) {
-			continue;
-		}
+		for (k = 0; k < sizeof(subs) / sizeof(subs[0]); ++k) {
+			char candidate[PATHMAX];
 
-		rom->fp = fopen(candidate, "rb");
+			if (snprintf(candidate, sizeof(candidate), "%s%s%s", dirs[i], subs[k], rom->filename) >= (int)sizeof(candidate)) {
+				continue;
+			}
 
-		if (rom->fp) {
-			snprintf(rom->path, sizeof(rom->path), "%s", candidate);
-			return true;
+			rom->fp = fopen(candidate, "rb");
+
+			if (rom->fp) {
+				snprintf(rom->path, sizeof(rom->path), "%s", candidate);
+				return true;
+			}
 		}
 	}
 
