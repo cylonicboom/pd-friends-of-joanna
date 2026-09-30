@@ -339,16 +339,20 @@ s32 fsInit(void)
 	// above them, so their position is not load-bearing the way kakariko's is.
 	// They declare their stages BY NAME and take whatever free STAGE_EXTRA row
 	// the allocator gives them, so they contest no rows either.
+	//
+	// 2026-09-29: the shipped roster is mod_fojo + mod_gex_characters. That is
+	// what the basedir in pd-fojo/basedir carries and the only two that ship no
+	// third-party bytes - gex_characters is a manifest over the player's own
+	// gex.z64. The six others (aio_characters, gex_stages, aio_stages,
+	// kakariko_stages, darknoon_stages, goldfinger_stages) are loose AIO
+	// payload and stay out of the default until they come back either from the
+	// rom or through a prepare step over the player's own AIO download; the
+	// ordering notes above still hold for that day. Until then a basedir that
+	// has them mounts them with --moddir.
 	if (numModDirs == 0) {
-		numModDirs = 8;
+		numModDirs = 2;
 		strcpy(modDirs[0], "$B/mods/mod_fojo");
 		strcpy(modDirs[1], "$B/mods/mod_gex_characters");
-		strcpy(modDirs[2], "$B/mods/mod_aio_characters");
-		strcpy(modDirs[3], "$B/mods/mod_gex_stages");
-		strcpy(modDirs[4], "$B/mods/mod_aio_stages");
-		strcpy(modDirs[5], "$B/mods/mod_kakariko_stages");
-		strcpy(modDirs[6], "$B/mods/mod_darknoon_stages");
-		strcpy(modDirs[7], "$B/mods/mod_goldfinger_stages");
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
