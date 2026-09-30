@@ -6,159 +6,159 @@
   "files": [
     {
       "name": "UsetupstatZ",
-      "path": "context:SOLO::files/UsetupstatZ|context:COOP::files/UsetupstatZ|context:TEAM::files/UsetupstatZ|context:ANTI::files/UsetupstatZ",
-      "description": "",
+      "description": "UsetupstatZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupstatZ",
       "stageId": "0x16",
       "stageName": "extra spawns for coop characters",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupstatZ.xdelta"
     },
     {
       "name": "UsetupearZ",
-      "path": "context:SOLO::files/UsetupearZ|context:COOP::files/UsetupearZ|context:TEAM::files/UsetupearZ|context:ANTI::files/UsetupearZ",
-      "description": "",
+      "description": "UsetupearZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupearZ",
       "stageId": "0x33",
       "stageName": "investigation",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupearZ.xdelta"
     },
     {
       "name": "UsetuppamZ",
-      "path": "context:SOLO::files/UsetuppamZ|context:COOP::files/UsetuppamZ|context:TEAM::files/UsetuppamZ|context:ANTI::files/UsetuppamZ",
-      "description": "",
+      "description": "UsetuppamZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetuppamZ",
       "stageId": "0x38",
       "stageName": "deep sea",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetuppamZ.xdelta"
     },
     {
       "name": "UsetupdishZ",
-      "path": "context:CI::files/UsetupdishZ|context:SOLO::files/UsetupdishZ|context:COOP::files/UsetupdishZ|context:TEAM::files/UsetupdishZ|context:ANTI::files/UsetupdishZ",
-      "description": "",
+      "description": "UsetupdishZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupdishZ",
       "stageId": "0x26",
       "stageName": "pre-load Mikado Dark as a hidden character",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupdishZ.xdelta"
     },
     {
       "name": "UsetupameZ",
-      "path": "context:SOLO::files/UsetupameZ|context:COOP::files/UsetupameZ|context:TEAM::files/UsetupameZ|context:ANTI::files/UsetupameZ",
-      "description": "",
+      "description": "UsetupameZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupameZ",
       "stageId": "0x30",
       "stageName": "defection",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupameZ.xdelta"
     },
     {
       "name": "UsetuplueZ",
-      "path": "context:SOLO::files/UsetuplueZ|context:COOP::files/UsetuplueZ|context:TEAM::files/UsetuplueZ|context:ANTI::files/UsetuplueZ",
-      "description": "",
+      "description": "UsetuplueZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetuplueZ",
       "stageId": "0x2f",
       "stageName": "infiltration",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetuplueZ.xdelta"
     },
     {
       "name": "UsetuppeteZ",
-      "path": "context:SOLO::files/UsetuppeteZ|context:COOP::files/UsetuppeteZ|context:TEAM::files/UsetuppeteZ|context:ANTI::files/UsetuppeteZ",
-      "description": "",
+      "description": "UsetuppeteZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetuppeteZ",
       "stageId": "0x1d",
       "stageName": "chicago",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetuppeteZ.xdelta"
     },
     {
       "name": "UsetupeldZ",
-      "path": "context:SOLO::files/UsetupeldZ|context:COOP::files/UsetupeldZ|context:TEAM::files/UsetupeldZ|context:ANTI::files/UsetupeldZ",
-      "description": "",
+      "description": "UsetupeldZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupeldZ",
       "stageId": "0x2c",
       "stageName": "villa",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupeldZ.xdelta"
     },
     {
       "name": "UsetupleeZ",
-      "path": "context:SOLO::files/UsetupleeZ|context:COOP::files/UsetupleeZ|context:TEAM::files/UsetupleeZ|context:ANTI::files/UsetupleeZ",
-      "description": "",
+      "description": "UsetupleeZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupleeZ",
       "stageId": "0x34",
       "stageName": "hangar elevator fixes",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupleeZ.xdelta"
     },
     {
       "name": "UsetupimpZ",
-      "path": "context:SOLO::files/UsetupimpZ|context:COOP::files/UsetupimpZ|context:TEAM::files/UsetupimpZ|context:ANTI::files/UsetupimpZ",
-      "description": "",
+      "description": "UsetupimpZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupimpZ",
       "stageId": "0x2d",
       "stageName": "extra spawns, QOL changes for coop mode",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupimpZ.xdelta"
     },
     {
       "name": "UsetupritZ",
-      "path": "context:SOLO::files/UsetupritZ|context:COOP::files/UsetupritZ|context:TEAM::files/UsetupritZ|context:ANTI::files/UsetupritZ",
-      "description": "",
+      "description": "UsetupritZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupritZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupritZ.xdelta"
     },
     {
       "name": "UsetupsevZ",
-      "path": "context:SOLO::files/UsetupsevZ|context:COOP::files/UsetupsevZ|context:TEAM::files/UsetupsevZ|context:ANTI::files/UsetupsevZ",
-      "description": "",
+      "description": "UsetupsevZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupsevZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupsevZ.xdelta"
     },
     {
       "name": "UsetupshoZ",
-      "path": "context:SOLO::files/UsetupshoZ|context:COOP::files/UsetupshoZ|context:TEAM::files/UsetupshoZ|context:ANTI::files/UsetupshoZ",
-      "description": "",
+      "description": "UsetupshoZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupshoZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupshoZ.xdelta"
     },
     {
       "name": "UsetupwaxZ",
-      "path": "context:SOLO::files/UsetupwaxZ|context:COOP::files/UsetupwaxZ|context:TEAM::files/UsetupwaxZ|context:ANTI::files/UsetupwaxZ",
-      "description": "",
+      "description": "UsetupwaxZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupwaxZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupwaxZ.xdelta"
     },
     {
       "name": "UsetupaztZ",
-      "path": "context:SOLO::files/UsetupaztZ|context:COOP::files/UsetupaztZ|context:TEAM::files/UsetupaztZ|context:ANTI::files/UsetupaztZ",
-      "description": "",
+      "description": "UsetupaztZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupaztZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupaztZ.xdelta"
     },
     {
       "name": "UsetupcaveZ",
-      "path": "context:SOLO::files/UsetupcaveZ|context:COOP::files/UsetupcaveZ|context:TEAM::files/UsetupcaveZ|context:ANTI::files/UsetupcaveZ",
-      "description": "",
+      "description": "UsetupcaveZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupcaveZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupcaveZ.xdelta"
     },
     {
       "name": "UsetupdamZ",
-      "path": "context:SOLO::files/UsetupdamZ|context:COOP::files/UsetupdamZ|context:TEAM::files/UsetupdamZ|context:ANTI::files/UsetupdamZ",
-      "description": "",
+      "description": "UsetupdamZ, patched after inflate against the player's own ROM",
       "type": "setup",
       "replaces": "UsetupdamZ",
-      "prefix": "solo / team missions"
+      "prefix": "solo / team missions",
+      "patch": "patches/UsetupdamZ.xdelta"
     },
     {
       "name": "bgdata",
