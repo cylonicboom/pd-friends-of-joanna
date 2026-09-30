@@ -18,7 +18,7 @@ fi
 
 export PD="$_fojo_pd_root"
 
-_fojo_pd_basedir_rom="$_fojo_pd_root/../pd-fojo-basedir/data/pd.ntsc-final.z64"
+_fojo_pd_basedir_rom="$_fojo_pd_root/basedir/data/pd.ntsc-final.z64"
 if [ -z "${PD_ROMFILE:-}" ] && [ -f "$_fojo_pd_basedir_rom" ]; then
     export PD_ROMFILE="$(cd "$(dirname "$_fojo_pd_basedir_rom")" && pwd)/$(basename "$_fojo_pd_basedir_rom")"
 fi

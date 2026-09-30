@@ -12,4 +12,8 @@ CheadgreyZ
 CheadMikadoZ
 data/mods-*
 pd.arm64
-#TODO: add other pd executable names
+pd.x86_64
+pd.*.arm64
+pd.*.x86_64
+*.exe
+pd.log
