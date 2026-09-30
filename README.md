@@ -1,7 +1,4 @@
-# MOD: Friends of Joanna
-
-Fork / Mod of the Perfect Dark PC Port, with extra cheese.
-## 4-Player Counter + Co Operative
+# Friends of Joanna
 
 Re-experience the magic of Rare's Perfect Dark, vicariously through your friends, in 4-player split screen.
                                            
@@ -207,10 +204,10 @@ concurrent 4-player counter-op effort I borrowed some patches from
 Poplin Dark likeness
 
 #### Johnny Thunder
-Poplin Dark model / imported from Silvo
+Poplin, Willow, Calico model / imported from Silvo
 
 #### DabDavis
-third person camera / the camera rig on top of it / the stance system / jump, roll, flinch, melee / damage reactions / hit locations / letting a corpse be a corpse — Dab's Mod: https://github.com/DabDavis/perfect-dark-dabs-mod
+third person camera / the camera rig on top of it / the stance system / jump, roll, flinch, melee / damage reactions / hit locations  — Dab's Mod: https://github.com/DabDavis/perfect-dark-dabs-mod
 
 #### Murk
 light glare occlusion, by way of perfect_dark_netplay
@@ -219,9 +216,9 @@ light glare occlusion, by way of perfect_dark_netplay
 modloader base / gex model scale table / arena names / AIO, with Atari-Dude
 
 #### JillyJane
-raw asset files
+Willow Dark model
 
-#### Wreck / Paradox / TimEh
+#### Wreck
 GoldenEye X
 
 #### Lua
