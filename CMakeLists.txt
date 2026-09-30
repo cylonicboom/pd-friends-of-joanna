@@ -468,8 +468,11 @@ find_program(FOJO_CLANG NAMES clang HINTS /opt/homebrew/opt/llvm/bin /usr/local/
 find_program(FOJO_LLD NAMES ld.lld HINTS /opt/homebrew/opt/lld/bin /usr/local/opt/lld/bin)
 find_program(FOJO_OBJCOPY NAMES llvm-objcopy HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
 find_program(FOJO_XDELTA3 NAMES xdelta3)
+# activate.sh exports PD_ROMFILE whether or not the file is there (a fresh
+# clone, a buildq worktree), so the file has to exist, not just the name.
 set(FOJO_BASE_ROM "$ENV{PD_ROMFILE}")
-if(NOT FOJO_BASE_ROM)
+if(NOT FOJO_BASE_ROM OR NOT EXISTS "${FOJO_BASE_ROM}")
+  set(FOJO_BASE_ROM "")
   foreach(c "${CMAKE_SOURCE_DIR}/basedir/data/pd.ntsc-final.z64" "${CMAKE_SOURCE_DIR}/basedir/data/roms/pd.ntsc-final.z64")
     if(EXISTS "${c}")
       set(FOJO_BASE_ROM "${c}")

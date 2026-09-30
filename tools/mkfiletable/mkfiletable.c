@@ -73,7 +73,7 @@ static bool numberOf(const JSON_Value *v, long *out)
 	if (json_value_get_type(v) == JSONString) {
 		const char *s = json_value_get_string(v);
 		char *end = NULL;
-		long n;
+		long n = 0;
 
 		if (!s || !s[0]) {
 			return false;
@@ -230,7 +230,7 @@ static bool altOpenPatched(struct altRom *rom, const char *const *dirs, int numD
 	uint32_t patchLen, outLen;
 	char err[256];
 	FILE *pf;
-	long n;
+	long n = 0;
 	int i;
 
 	if (!strcmp(rom->base, PDFT_ROMSOURCE_BASE)) {
@@ -1657,7 +1657,7 @@ int main(int argc, char **argv)
 		struct altRom *srcRom = NULL;
 		char err[256];
 		FILE *pf;
-		long pn;
+		long pn = 0;
 
 		if (!f->patch) {
 			continue;
