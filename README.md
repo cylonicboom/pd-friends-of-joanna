@@ -170,15 +170,16 @@ pdt build-port --root $(realpath .) --clean
 
 ### Setup files
 
-The stage setups (`src/setups/*.c`, ailists included) are data, and they build here:
+The stage setups (`src/setups/*.c`, ailists included) are data, and they build here. A modified setup doesn't ship as a setup — that's Rare's data with my edits in it — it ships as an xdelta of the change, a few hundred bytes in `basedir/data/mods/mod_fojo/patches/`, applied against the file inflated out of your own rom.
+
+`cmake --build` (or `pdt build-port`) does it: the `pd_setups` target rebuilds the patches for any setup you touched and rewrites `filetable.dat`. By hand:
 
 ```
-# every setup, or name the ones you touched
-tools/mksetups
-tools/mksetups setupame mp_setupame
+tools/mksetups --patches --mod-dir basedir/data/mods/mod_fojo setupame
+tools/mkfiletable/mkfiletable mod_fojo --workspace basedir/data/mods/mod_fojo --output basedir/data/mods/mod_fojo --rom-dir basedir/data
 ```
 
-That's `brew install llvm lld` (or your distro's clang + lld) and nothing else — no MIPS gcc, no docker, no N64 tree. Output is byte-identical to what the old gcc pipeline made. `pdt build-setups` wraps the same script, and `--patches --mod-dir basedir/data/mods/mod_fojo` turns the result into per-file xdeltas against the vanilla rom instead of shipping whole files.
+Needs `brew install llvm lld xdelta` (or your distro's clang, lld, xdelta3) and your `pd.ntsc-final.z64` in `basedir/data`. No MIPS gcc, no docker, no N64 tree; the compiled setup is byte-identical to what the old gcc pipeline made, and mkfiletable proves every patch applies before it writes the table. Without those tools the game builds against the committed patches, which is what you want on a machine that isn't editing setups.
 
 There is no N64 rom to build anymore.
 

@@ -440,52 +440,99 @@ else()
   message(STATUS "python not found: using committed docs/aicommands.md + scripts/ai.lua + port/src/imgui_ailistnames.h")
 endif()
 
-# Stage setups. The Usetup*Z files mod_fojo ships are src/setups/<name>.c
-# compiled for MIPS by tools/mksetups (clang + lld + llvm-objcopy, no MIPS
-# gcc, no N64 tree). Same arrangement as the generated headers above: rebuilt
-# when a setup source or the tool changes, written straight into the basedir
-# so the committed copy is the shipped one, and a machine without python,
-# clang or lld builds the game against the committed copies and says so.
+# Stage setups. A modified setup ships as a per-file xdelta of its inflated
+# bytes against the vanilla file (basedir/data/mods/mod_fojo/patches/
+# U<name>Z.xdelta), never as the setup itself. tools/mksetups --patches
+# compiles src/setups/<name>.c for MIPS (clang + lld + llvm-objcopy, no MIPS
+# gcc, no N64 tree), diffs it against the vanilla file inflated out of the base
+# ROM with xdelta3, and upserts the manifest row; tools/mkfiletable then
+# rewrites filetable.dat, proving every patch applies as it goes. Same
+# arrangement as the generated headers above: rebuilt when a setup source or a
+# tool changes, written straight into the basedir so the committed copies are
+# the shipped ones, and a machine without the tools builds the game against
+# the committed copies and says so.
 #
-# Which setups get rebuilt is decided by what the mod ships: every
-# basedir/data/mods/mod_fojo/files/Usetup*Z becomes one output. A setup the
-# mod does not carry is not built, because an unmodified setup is what is in
-# the ROM already. Ship a new one by dropping its U<name>Z in that folder once
-# (mksetups --out does that) and reconfiguring; the glob is read at configure.
+# Which setups are built is decided by which patches the mod ships: every
+# patches/U<name>Z.xdelta is one output, its source src/setups/<name>.c. A
+# setup that is not modified has no patch and is not built - it is already in
+# the ROM. Ship a new one by running `tools/mksetups --patches --mod-dir
+# basedir/data/mods/mod_fojo <name>` once and reconfiguring; the glob is read
+# at configure. One mksetups run for the whole set, not one per file: it
+# regenerates src/generated/<romid> on every run and parallel runs would race.
 #
-# One invocation for the whole set rather than one per file: mksetups
-# regenerates src/generated/<romid> on every run and parallel runs would race
-# on it.
-set(FOJO_SETUPS_DIR "${CMAKE_SOURCE_DIR}/basedir/data/mods/mod_fojo/files")
-file(GLOB FOJO_SETUP_OUTPUTS "${FOJO_SETUPS_DIR}/Usetup*Z" "${FOJO_SETUPS_DIR}/Ump_setup*Z")
+# The base ROM is $PD_ROMFILE, else pd.ntsc-final.z64 in basedir/data or
+# basedir/data/roms - the same places the game looks. No ROM, no target.
+set(FOJO_MOD_DIR "${CMAKE_SOURCE_DIR}/basedir/data/mods/mod_fojo")
+file(GLOB FOJO_SETUP_PATCHES "${FOJO_MOD_DIR}/patches/Usetup*Z.xdelta" "${FOJO_MOD_DIR}/patches/Ump_setup*Z.xdelta")
 find_program(FOJO_CLANG NAMES clang HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
 find_program(FOJO_LLD NAMES ld.lld HINTS /opt/homebrew/opt/lld/bin /usr/local/opt/lld/bin)
 find_program(FOJO_OBJCOPY NAMES llvm-objcopy HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
-if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_SETUP_OUTPUTS)
+find_program(FOJO_XDELTA3 NAMES xdelta3)
+set(FOJO_BASE_ROM "$ENV{PD_ROMFILE}")
+if(NOT FOJO_BASE_ROM)
+  foreach(c "${CMAKE_SOURCE_DIR}/basedir/data/pd.ntsc-final.z64" "${CMAKE_SOURCE_DIR}/basedir/data/roms/pd.ntsc-final.z64")
+    if(EXISTS "${c}")
+      set(FOJO_BASE_ROM "${c}")
+      break()
+    endif()
+  endforeach()
+endif()
+
+# mkfiletable as a host tool, built the way its Makefile builds it: the engine's
+# own rompatch decoder, parson for the json, zlib for the 1173 segments.
+find_package(ZLIB QUIET)
+if(ZLIB_FOUND)
+  add_executable(mkfiletable
+    "${CMAKE_SOURCE_DIR}/tools/mkfiletable/mkfiletable.c"
+    "${CMAKE_SOURCE_DIR}/tools/mkfiletable/pdft_write.c"
+    "${CMAKE_SOURCE_DIR}/port/src/rompatch.c"
+    "${CMAKE_SOURCE_DIR}/tools/mkfiletable/vendor/parson/parson.c")
+  target_include_directories(mkfiletable PRIVATE
+    "${CMAKE_SOURCE_DIR}/tools/mkfiletable/vendor/parson"
+    "${CMAKE_SOURCE_DIR}/port/include"
+    "${CMAKE_SOURCE_DIR}/include")
+  target_compile_definitions(mkfiletable PRIVATE _LANGUAGE_C)
+  target_compile_options(mkfiletable PRIVATE -std=c99 -Wall)
+  target_link_libraries(mkfiletable PRIVATE ZLIB::ZLIB)
+  set_target_properties(mkfiletable PROPERTIES EXCLUDE_FROM_ALL FALSE)
+endif()
+
+if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDELTA3
+   AND FOJO_BASE_ROM AND FOJO_SETUP_PATCHES AND TARGET mkfiletable)
   set(FOJO_SETUP_NAMES "")
   set(FOJO_SETUP_SOURCES "")
-  foreach(out ${FOJO_SETUP_OUTPUTS})
+  foreach(out ${FOJO_SETUP_PATCHES})
     get_filename_component(fn "${out}" NAME)
-    string(REGEX REPLACE "^U(.*)Z$" "\\1" name "${fn}")
+    string(REGEX REPLACE "^U(.*)Z\\.xdelta$" "\\1" name "${fn}")
     list(APPEND FOJO_SETUP_NAMES "${name}")
     list(APPEND FOJO_SETUP_SOURCES "${CMAKE_SOURCE_DIR}/src/setups/${name}.c")
   endforeach()
   get_filename_component(FOJO_LLVM_BIN "${FOJO_CLANG}" DIRECTORY)
   get_filename_component(FOJO_LLD_BIN "${FOJO_LLD}" DIRECTORY)
+  get_filename_component(FOJO_ROM_DIR "${FOJO_BASE_ROM}" DIRECTORY)
   add_custom_command(
-    OUTPUT ${FOJO_SETUP_OUTPUTS}
+    OUTPUT ${FOJO_SETUP_PATCHES}
     COMMAND "${CMAKE_COMMAND}" -E env "LLVM_BIN=${FOJO_LLVM_BIN}" "LLD_BIN=${FOJO_LLD_BIN}"
             "${PYTHON3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/mksetups"
-            --out "${FOJO_SETUPS_DIR}" ${FOJO_SETUP_NAMES}
+            --patches --mod-dir "${FOJO_MOD_DIR}" --rom "${FOJO_BASE_ROM}" --xdelta3 "${FOJO_XDELTA3}"
+            ${FOJO_SETUP_NAMES}
     DEPENDS "${CMAKE_SOURCE_DIR}/tools/mksetups"
             "${CMAKE_SOURCE_DIR}/ld/zero-lld.ld"
             ${FOJO_SETUP_SOURCES}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Building stage setups into basedir/data/mods/mod_fojo/files"
+    COMMENT "Building stage setup patches into basedir/data/mods/mod_fojo/patches"
     VERBATIM)
-  add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_OUTPUTS})
+  add_custom_command(
+    OUTPUT "${FOJO_MOD_DIR}/filetable.dat"
+    COMMAND mkfiletable mod_fojo --workspace "${FOJO_MOD_DIR}" --output "${FOJO_MOD_DIR}"
+            --rom-dir "${FOJO_ROM_DIR}" --rom-dir "${FOJO_MOD_DIR}" --allow-orphans
+    DEPENDS mkfiletable ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/mod_fojo_filetable.json"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Rebuilding mod_fojo/filetable.dat"
+    VERBATIM)
+  add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/filetable.dat")
 else()
-  message(STATUS "setups: clang/lld/llvm-objcopy or python not found; using the committed basedir/data/mods/mod_fojo/files/Usetup*Z")
+  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM ($PD_ROMFILE or basedir/data/pd.ntsc-final.z64); using the committed basedir/data/mods/mod_fojo/patches + filetable.dat")
 endif()
 
 # Game target

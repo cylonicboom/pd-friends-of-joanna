@@ -36,7 +36,21 @@ Usage, from the tree root:
 
     tools/mksetups                          # every setup, ROMID from env or ntsc-final
     tools/mksetups setupame mp_setupame     # just these
-    tools/mksetups --out ../pd-fojo-basedir/data/mods/mod_fojo/files setupame
+    tools/mksetups --patches --mod-dir basedir/data/mods/mod_fojo setupame
+                                            # and ship it as a per-file xdelta
+--patches is how a modified setup SHIPS: not the setup (which is Rare's data
+with the edits inside) but an xdelta of the inflated bytes against the vanilla
+file inflated out of the player's own ROM, applied by the engine after inflate
+(PDFT v5 patch rows, port/src/romdata.c romdataFileApplyPatch). It writes
+<mod-dir>/patches/U<name>Z.xdelta and upserts the manifest row
+    { "name": "U<name>Z", "replaces": "U<name>Z", "patch": "patches/U<name>Z.xdelta" }
+in <mod-dir>/<modname>_filetable.json. A build identical to the vanilla file
+gets no patch and no row (--skip-unchanged is the default with --patches; a
+setup nobody modified is already in the ROM). Run tools/mkfiletable afterwards,
+or let cmake's pd_setups target do both. The ROM is --rom, else $PD_ROMFILE,
+else pd.<romid>.z64 beside the mod's data dir or in its roms/.
+AUTHORING DEPENDENCY: xdelta3 (brew install xdelta / apt install xdelta3),
+dev-side only, never a player dependency. The engine carries its own decoder.
 
 Outputs land like the Makefile's: build/<romid>/files/setup/<name>.bin (raw)
 and build/<romid>/assets/files/U<name>Z (1173-compressed). --out copies the
@@ -255,7 +269,17 @@ def main():
     ap.add_argument('--out', help='also copy the compressed U<name>Z files into this dir (eg a moddir files/)')
     ap.add_argument('--no-headers', action='store_true', help='skip regenerating src/generated/<romid>')
     ap.add_argument('-v', '--verbose', action='store_true')
+    ap.add_argument('--patches', action='store_true',
+                    help='write <mod-dir>/patches/U<name>Z.xdelta against the vanilla file and upsert the manifest rows')
+    ap.add_argument('--mod-dir', help='the mod directory (data/mods/<name>); its folder name is the mod name')
+    ap.add_argument('--rom', default=os.environ.get('PD_ROMFILE'), help='the base ROM to diff against (default: $PD_ROMFILE, then beside the mod)')
+    ap.add_argument('--xdelta3', default=os.environ.get('XDELTA3', 'xdelta3'))
+    ap.add_argument('--keep-unchanged', action='store_true',
+                    help='with --patches: write an (empty) patch and a row even for a build identical to vanilla')
     args = ap.parse_args()
+
+    if args.patches and not args.mod_dir:
+        sys.exit('mksetups: --patches needs --mod-dir')
 
     if not os.path.isdir('src/setups'):
         sys.exit('mksetups: run from the pd-fojo-n64 root (no src/setups here)')
@@ -267,6 +291,7 @@ def main():
     if args.out:
         os.makedirs(args.out, exist_ok=True)
     failed = 0
+    built = []
     for name in names:
         try:
             binp, zipp, size = build_one(llvm, args.romid, name, args.verbose)
@@ -280,7 +305,96 @@ def main():
             shutil.copyfile(zipp, dst)
             line += ' -> ' + dst
         print(line)
-    sys.exit(1 if failed else 0)
+        built.append((name, binp))
+    if failed:
+        sys.exit(1)
+    if args.patches:
+        write_patches(args, built)
+
+
+def find_rom(args):
+    """The base ROM: --rom / $PD_ROMFILE, else pd.<romid>.z64 beside the mod's
+    data dir (data/, data/roms/) - the same places the engine looks."""
+    if args.rom:
+        if not os.path.isfile(args.rom):
+            sys.exit('mksetups: --rom %s: no such file' % args.rom)
+        return args.rom
+    data = os.path.abspath(os.path.join(args.mod_dir, '..', '..'))
+    fn = 'pd.%s.z64' % args.romid
+    for c in (os.path.join(data, fn), os.path.join(data, 'roms', fn)):
+        if os.path.isfile(c):
+            return c
+    sys.exit('mksetups: no base ROM: pass --rom, set PD_ROMFILE, or put %s in %s' % (fn, data))
+
+
+def write_patches(args, built):
+    import tempfile
+    xd = shutil.which(args.xdelta3)
+    if not xd:
+        sys.exit('mksetups: no xdelta3 on PATH (brew install xdelta / apt install xdelta3), or pass --xdelta3')
+    here = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, os.path.join(here, 'lib', 'packages', 'python'))
+    from leylinelib.pd_rom_driver import PDROMDriver
+    rom_path = find_rom(args)
+    rom = open(rom_path, 'rb').read()
+    driver = PDROMDriver(rom_path=rom_path)
+    vanilla = {f['name']: f for f in driver.get_files()}
+
+    def inflate1173(b):
+        if len(b) < 5 or b[:2] != b'\x11\x73':
+            return bytes(b)
+        return zlib.decompress(b[5:], -15)
+
+    mod_dir = os.path.abspath(args.mod_dir)
+    mod_name = os.path.basename(mod_dir)
+    patches_dir = os.path.join(mod_dir, 'patches')
+    os.makedirs(patches_dir, exist_ok=True)
+    rows = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for name, binp in built:
+            romname = 'U%sZ' % name
+            if romname not in vanilla:
+                sys.exit('mksetups: %s is not a file in %s' % (romname, os.path.basename(rom_path)))
+            f = vanilla[romname]
+            van = inflate1173(rom[f['offset']:f['end_offset']])
+            raw = open(binp, 'rb').read()
+            if raw == van and not args.keep_unchanged:
+                print('%s: identical to the vanilla file, no patch' % romname)
+                continue
+            van_path = os.path.join(tmp, romname + '.vanilla.bin')
+            open(van_path, 'wb').write(van)
+            out = os.path.join(patches_dir, romname + '.xdelta')
+            subprocess.check_call([xd, '-e', '-S', 'none', '-f', '-s', van_path, binp, out])
+            print('%s: %d -> %d bytes, patch %d B -> patches/%s.xdelta' % (
+                romname, len(van), len(raw), os.path.getsize(out), romname))
+            rows.append((romname, 'patches/%s.xdelta' % romname))
+    if not rows:
+        return
+    manifest_path = os.path.join(mod_dir, '%s_filetable.json' % mod_name)
+    if os.path.isfile(manifest_path):
+        with open(manifest_path) as fd:
+            manifest = json.load(fd)
+    else:
+        manifest = {'modName': mod_name, 'files': []}
+    files = manifest.setdefault('files', [])
+    by_name = dict((e.get('name'), e) for e in files if isinstance(e, dict))
+    for romname, rel in rows:
+        row = by_name.get(romname)
+        if row is None:
+            row = {'name': romname}
+            files.append(row)
+            by_name[romname] = row
+        row['replaces'] = romname
+        row['patch'] = rel
+        row.pop('path', None)
+        row.pop('prefix', None)
+        row.setdefault('description', "%s, patched after inflate against the player's own ROM" % romname)
+    with open(manifest_path, 'w') as fd:
+        json.dump(manifest, fd, indent=2, ensure_ascii=False)
+        fd.write('\n')
+    print('updated %s (%d patched rows); now rebuild filetable.dat:' % (manifest_path, len(rows)))
+    print('    tools/mkfiletable/mkfiletable %s --workspace %s --output %s --rom-dir %s' % (
+        mod_name, mod_dir, mod_dir, os.path.dirname(rom_path)))
 
 
 if __name__ == '__main__':
