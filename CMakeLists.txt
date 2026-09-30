@@ -440,6 +440,54 @@ else()
   message(STATUS "python not found: using committed docs/aicommands.md + scripts/ai.lua + port/src/imgui_ailistnames.h")
 endif()
 
+# Stage setups. The Usetup*Z files mod_fojo ships are src/setups/<name>.c
+# compiled for MIPS by tools/mksetups (clang + lld + llvm-objcopy, no MIPS
+# gcc, no N64 tree). Same arrangement as the generated headers above: rebuilt
+# when a setup source or the tool changes, written straight into the basedir
+# so the committed copy is the shipped one, and a machine without python,
+# clang or lld builds the game against the committed copies and says so.
+#
+# Which setups get rebuilt is decided by what the mod ships: every
+# basedir/data/mods/mod_fojo/files/Usetup*Z becomes one output. A setup the
+# mod does not carry is not built, because an unmodified setup is what is in
+# the ROM already. Ship a new one by dropping its U<name>Z in that folder once
+# (mksetups --out does that) and reconfiguring; the glob is read at configure.
+#
+# One invocation for the whole set rather than one per file: mksetups
+# regenerates src/generated/<romid> on every run and parallel runs would race
+# on it.
+set(FOJO_SETUPS_DIR "${CMAKE_SOURCE_DIR}/basedir/data/mods/mod_fojo/files")
+file(GLOB FOJO_SETUP_OUTPUTS "${FOJO_SETUPS_DIR}/Usetup*Z" "${FOJO_SETUPS_DIR}/Ump_setup*Z")
+find_program(FOJO_CLANG NAMES clang HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
+find_program(FOJO_LLD NAMES ld.lld HINTS /opt/homebrew/opt/lld/bin /usr/local/opt/lld/bin)
+find_program(FOJO_OBJCOPY NAMES llvm-objcopy HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
+if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_SETUP_OUTPUTS)
+  set(FOJO_SETUP_NAMES "")
+  set(FOJO_SETUP_SOURCES "")
+  foreach(out ${FOJO_SETUP_OUTPUTS})
+    get_filename_component(fn "${out}" NAME)
+    string(REGEX REPLACE "^U(.*)Z$" "\\1" name "${fn}")
+    list(APPEND FOJO_SETUP_NAMES "${name}")
+    list(APPEND FOJO_SETUP_SOURCES "${CMAKE_SOURCE_DIR}/src/setups/${name}.c")
+  endforeach()
+  get_filename_component(FOJO_LLVM_BIN "${FOJO_CLANG}" DIRECTORY)
+  get_filename_component(FOJO_LLD_BIN "${FOJO_LLD}" DIRECTORY)
+  add_custom_command(
+    OUTPUT ${FOJO_SETUP_OUTPUTS}
+    COMMAND "${CMAKE_COMMAND}" -E env "LLVM_BIN=${FOJO_LLVM_BIN}" "LLD_BIN=${FOJO_LLD_BIN}"
+            "${PYTHON3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/mksetups"
+            --out "${FOJO_SETUPS_DIR}" ${FOJO_SETUP_NAMES}
+    DEPENDS "${CMAKE_SOURCE_DIR}/tools/mksetups"
+            "${CMAKE_SOURCE_DIR}/ld/zero-lld.ld"
+            ${FOJO_SETUP_SOURCES}
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMENT "Building stage setups into basedir/data/mods/mod_fojo/files"
+    VERBATIM)
+  add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_OUTPUTS})
+else()
+  message(STATUS "setups: clang/lld/llvm-objcopy or python not found; using the committed basedir/data/mods/mod_fojo/files/Usetup*Z")
+endif()
+
 # Game target
 
 set(BIN_NAME "pd${BIN_REGION}.${TARGET_ARCH}")
@@ -447,6 +495,9 @@ add_executable(pd ${SRC})
 add_dependencies(pd pd_headers versioninfo)
 if(PYTHON3_EXECUTABLE)
   add_dependencies(pd pd_ailistnames)
+endif()
+if(TARGET pd_setups)
+  add_dependencies(pd pd_setups)
 endif()
 # Vendored Lua 5.4 (MIT, lua.org/PUC-Rio), carried for the KAI script layer.
 # Nothing calls it yet - this builds and links it so the intake that does can
