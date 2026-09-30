@@ -1443,6 +1443,7 @@ struct modconfigslotinfo {
 	s32 bodyHeadNum;
 	u8 requireFeature;
 	char handName[64];
+	char bodyHeadName[64];
 };
 
 // Returns updated p. Sets *skipEntry=1 if the entry should be discarded
@@ -1484,6 +1485,15 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 		} else if (!strcmp(token, "bodyheadnum")) {
 			PARSE_INT("HeadsAndBodies", "bodyheadnum", tmp, 0, 0xFFFF, NULL);
 			if (slotInfo) slotInfo->bodyHeadNum = tmp;
+		} else if (!strcmp(token, "bodyheadname")) {
+			// bodyheadnum by name: the head this body pairs with in the
+			// simulator, for a head a mod registered and so has no HEAD_
+			// constant. The head's block must come earlier in the roster.
+			p = modConfigParseStringValue(p, token, tmps);
+			if (p && slotInfo) {
+				strncpy(slotInfo->bodyHeadName, tmps, 63);
+				slotInfo->bodyHeadName[63] = '\0';
+			}
 		} else if (!strcmp(token, "hasownhead") || !strcmp(token, "unk00_01")) {
 			// `unk00_01` is the legacy field name kept for back-compat.
 			PARSE_INT("HeadsAndBodies", "hasownhead", tmp, 0, 1, NULL);
@@ -2034,7 +2044,7 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 	memset(&tempItem, 0, sizeof(tempItem));
 	char name[64] = "";
 
-	struct modconfigslotinfo slotInfo = { -1, -1, -1, -1, 0, "" };
+	struct modconfigslotinfo slotInfo = { -1, -1, -1, -1, 0, "", "" };
 
 	// Save the position right before the opening '{' so we can recover by
 	// skipping the entire block if a non-fatal parse error occurs.
@@ -2264,6 +2274,15 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 				}
 				if (slotInfo.bodyHeadNum >= 0) {
 					g_MpBodies[bodySlot].headnum = slotInfo.bodyHeadNum;
+				}
+				if (slotInfo.bodyHeadName[0]) {
+					s32 pairedHead = modLookupHeadnumByName(slotInfo.bodyHeadName);
+					if (pairedHead >= 0) {
+						g_MpBodies[bodySlot].headnum = pairedHead;
+					} else {
+						sysLogPrintf(LOG_WARNING, "modconfig: HeadsAndBodies '%s': bodyheadname '%s' is not a registered head, keeping bodyheadnum",
+						             name, slotInfo.bodyHeadName);
+					}
 				}
 			}
 		}
