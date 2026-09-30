@@ -4337,12 +4337,25 @@ void *fileLoadToNew(s32 filenum, u32 method, u32 loadtype)
 	void *ptr;
 
 	if (method == FILELOADMETHOD_EXTRAMEM || method == FILELOADMETHOD_DEFAULT) {
+#ifndef PLATFORM_N64
+		// A cached size is only good for the file that computed it. Raw ids
+		// are mod-local, so another mod's file with the same raw id may have
+		// left a smaller loadedsize here; reusing it under-allocates, and the
+		// display-list expansion that the 0x8000 headroom exists for then
+		// runs off the end of the block.
+		if (info->loadedsize != 0 && info->sizedfor != filenum) {
+			info->loadedsize = 0;
+		}
+#endif
 		if (info->loadedsize == 0) {
 			info->loadedsize = (fileGetInflatedSize(filenum, loadtype) + 0x20) & 0xfffffff0;
 
 			if (method == FILELOADMETHOD_EXTRAMEM) {
 				info->loadedsize += 0x8000;
 			}
+#ifndef PLATFORM_N64
+			info->sizedfor = filenum;
+#endif
 		}
 
 		ptr = mempAlloc(info->loadedsize, MEMPOOL_STAGE);

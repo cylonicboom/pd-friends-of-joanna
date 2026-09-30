@@ -2471,6 +2471,13 @@ struct texpool {
 struct fileinfo {
   u32 loadedsize;
   u32 allocsize;
+#ifndef PLATFORM_N64
+  // The encoded (mod-tagged) filenum whose inflated size loadedsize holds.
+  // g_FileInfo is indexed by the RAW id, and raw ids are mod-local, so
+  // mod_fojo's 2019 and mod_aio_characters' 2019 share this row: a cached
+  // size from one is not the size of the other.
+  s32 sizedfor;
+#endif
 };
 
 struct gunctrl {
