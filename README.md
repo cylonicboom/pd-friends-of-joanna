@@ -45,12 +45,13 @@ There are minor graphics- and gameplay-related issues, and possibly occasional c
 #
 
 ### 4-player co-op / counter-op mode: `Team Missions`
-### 4 playable CI Combat agents in Team Missions / Solo Missions: 
+### 6 playable CI Combat agents in Team Missions / Solo Missions: 
 #### `Joanna Dark`
 #### `Velvet Dark`
-#### `Mikado Dark`
+#### `Mikado Dark` (needs your JPN rom, see below)
 #### `Poplin Dark`
 #### `Calico Dark`
+#### `Willow Dark`
 ### Play as Combat Simulator character in Team Missions / Solo Missions [*](#sometimes-the-best-man-for-the-job-is-a-woman-and-her-friends)
 ### Eyelid toggling (`BACK`)
 ### Classic sights are first-class citizens and can be color-themed
@@ -68,11 +69,20 @@ Other platforms may work but are not tested or guaranteed to work.
 ## Running
 
 
-Drop rom in data dir
+Drop your rom in the data dir as `pd.ntsc-final.z64`. The data dir this repo ships is `basedir/data`; a release zip has it next to the exe.
+
+Friends of Joanna doesn't ship anyone else's assets. Instead the modloader mounts them straight out of roms you already own, when it finds them in `data/` (or `data/roms/`):
+
+- `pd.jpn-final.z64` — Mikado Dark. no JPN rom, no Mikado; the carousel just skips her.
+- `gex.z64` — the GoldenEye X cast (`mod_gex_characters`). same deal.
 
 Optionally, you can also put your Perfect Dark for GameBoy Color ROM named `pd.gbc` in the `data` directory if you want to emulate having the Nintendo 64's Transfer Pak and unlock some cheats automatically.
 
-Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna-v0.3` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna-v0.3` on MacOS.
+Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna` on MacOS.
+
+### Mods
+
+`data/mods/` is the mod layout. Two mods ship and load by default: `mod_fojo` (the mod) and `mod_gex_characters` (a cue sheet over your gex.z64 — no bytes of its own). Anything else in there gets mounted with `--moddir`. The AIO stage packs are on the bench until they can be sourced the same way.
 
 Additional information can be found in the [wiki](https://github.com/fgsfdsfgs/perfect_dark/wiki).
 
@@ -118,17 +128,16 @@ or missing, the normal selection menu for that step is shown.
 ## Building / Setup Friends of Joanna
 
 
-Because Friends of Joanna requires setup file changes, the n64 rom must also be built (`fojo-ailists`) For the sake of convinience, these instructions have you clone two work trees, one for the PC port and one for the N64 version.
+Everything builds out of this tree now. Setup files (`src/setups`, ailists included) are compiled here with clang + lld by `tools/mksetups` / `pdt build-setups` and land in `mod_fojo/files` — no N64 build, no docker.
 
-This project has two main branches:
+This project has two branches:
 
 #### `fojo`
-Based on `port`, this is where all the engine changes, aicmd changes, other mod code goes.
+Based on `port`. engine changes, aicmd changes, setups, mod code, the modloader — all of it.
 #### `fojo-ailists`
-Based on `master`, this is where setup / ailist changes for stages go
+Based on `master`. Where the setup / ailist changes used to live. Reference only now; the setups were ported into `fojo` and that's where they're edited.
 #### [`docker-caroll`](https://github.com/cylonicboom/docker-caroll/tree/fojo)
-
-The two must be built seperately and the setup files copied to the data directory.
+build helpers. optional.
 
 For my own sanity, I cobbled together some helper build scripts for building Perfect Dark projects.
 
@@ -207,7 +216,7 @@ Poplin Dark likeness
 Poplin, Willow, Calico model / imported from Silvo
 
 #### DabDavis
-third person camera / the camera rig on top of it / the stance system / jump, roll, flinch, melee / damage reactions / hit locations  — Dab's Mod: https://github.com/DabDavis/perfect-dark-dabs-mod
+third person camera / the camera rig on top of it / the stance system / jump, roll, flinch, melee / damage reactions / hit locations / the console-patch importer the rom patcher grew out of  — Dab's Mod: https://github.com/DabDavis/perfect-dark-dabs-mod
 
 #### Murk
 light glare occlusion, by way of perfect_dark_netplay
@@ -221,8 +230,20 @@ Willow Dark model
 #### Wreck
 GoldenEye X
 
-#### Lua
-PUC-Rio: https://www.lua.org
+#### Lua 5.4
+PUC-Rio, MIT: https://www.lua.org — `port/lua`
+
+#### Dear ImGui 1.92
+Omar Cornut, MIT: https://github.com/ocornut/imgui — `port/third_party/imgui`. the fojo debugger / level editor lives on it
+
+#### parson 1.5.3
+Krzysztof Gabis, MIT: https://github.com/kgabis/parson — `tools/mkfiletable/vendor`. the json reader behind `mkfiletable`
+
+#### stb_image / stb_image_write
+Sean Barrett, public domain: https://github.com/nothings/stb — `port/include/external`. png texture overrides (`ext_tex`) and the skin match panel
+
+#### minimp3
+lieff, CC0 — `port/include/external`, inherited from upstream
 
 #### fgsfdsfgs
 Upstream Perfect Dark PC Port: https://github.com/fgsfdsfgs/perfect_dark
