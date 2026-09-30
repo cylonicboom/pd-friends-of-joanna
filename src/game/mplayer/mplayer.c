@@ -3265,7 +3265,10 @@ s32 mpGetMpheadnumByMpbodynum(s32 mpbodynum) {
   s32 index = 0;
   s32 i;
 
-  if (mpbodynum >= HEAD_VD) {
+  // Bound on the body list, not on HEAD_VD. Stock's 0x3e happened to sit one
+  // past its 61 bodies; with mod bodies appended past it, every one of them
+  // was answered with body 0's pairing here.
+  if (mpbodynum < 0 || mpbodynum >= g_NumMpBodies) {
     mpbodynum = 0;
   }
 
