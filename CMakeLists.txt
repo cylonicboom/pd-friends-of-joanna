@@ -512,7 +512,16 @@ if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDEL
   endforeach()
   get_filename_component(FOJO_LLVM_BIN "${FOJO_CLANG}" DIRECTORY)
   get_filename_component(FOJO_LLD_BIN "${FOJO_LLD}" DIRECTORY)
+  # Every ROM the manifest names has to be openable at build time - the jpn
+  # rom for the byName body rows, not just the base - so hand mkfiletable the
+  # base ROM's folder plus the places the game itself mounts ROMs from.
   get_filename_component(FOJO_ROM_DIR "${FOJO_BASE_ROM}" DIRECTORY)
+  set(FOJO_ROM_DIRS --rom-dir "${FOJO_ROM_DIR}")
+  foreach(d "${CMAKE_SOURCE_DIR}/basedir/data" "${CMAKE_SOURCE_DIR}/basedir/data/roms")
+    if(IS_DIRECTORY "${d}" AND NOT d STREQUAL FOJO_ROM_DIR)
+      list(APPEND FOJO_ROM_DIRS --rom-dir "${d}")
+    endif()
+  endforeach()
   add_custom_command(
     OUTPUT ${FOJO_SETUP_PATCHES}
     COMMAND "${CMAKE_COMMAND}" -E env "LLVM_BIN=${FOJO_LLVM_BIN}" "LLD_BIN=${FOJO_LLD_BIN}"
@@ -528,14 +537,14 @@ if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDEL
   add_custom_command(
     OUTPUT "${FOJO_MOD_DIR}/filetable.dat"
     COMMAND mkfiletable mod_fojo --workspace "${FOJO_MOD_DIR}" --output "${FOJO_MOD_DIR}"
-            --rom-dir "${FOJO_ROM_DIR}" --rom-dir "${FOJO_MOD_DIR}" --allow-orphans
+            ${FOJO_ROM_DIRS} --rom-dir "${FOJO_MOD_DIR}" --allow-orphans
     DEPENDS mkfiletable ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/mod_fojo_filetable.json"
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     COMMENT "Rebuilding mod_fojo/filetable.dat"
     VERBATIM)
   add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/filetable.dat")
 else()
-  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM ($PD_ROMFILE or basedir/data/pd.ntsc-final.z64); using the committed basedir/data/mods/mod_fojo/patches + filetable.dat")
+  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM ($PD_ROMFILE or basedir/data/pd.ntsc-final.z64; the jpn rom in one of those folders too); using the committed basedir/data/mods/mod_fojo/patches + filetable.dat")
 endif()
 
 # Game target

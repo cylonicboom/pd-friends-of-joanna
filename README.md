@@ -179,7 +179,7 @@ tools/mksetups --patches --mod-dir basedir/data/mods/mod_fojo setupame
 tools/mkfiletable/mkfiletable mod_fojo --workspace basedir/data/mods/mod_fojo --output basedir/data/mods/mod_fojo --rom-dir basedir/data
 ```
 
-Needs `brew install llvm lld xdelta` (or your distro's clang, lld, xdelta3) and your `pd.ntsc-final.z64` in `basedir/data`. No MIPS gcc, no docker, no N64 tree; the compiled setup is byte-identical to what the old gcc pipeline made, and mkfiletable proves every patch applies before it writes the table. Without those tools the game builds against the committed patches, which is what you want on a machine that isn't editing setups.
+Needs `brew install llvm lld xdelta` (or your distro's clang, lld, xdelta3) and your roms where the game looks for them (`basedir/data`, `basedir/data/roms`, or wherever `PD_ROMFILE` points) — the ntsc rom for the setups, and the jpn rom too, because Mikado's rows are looked up by name in it when the table is written. No MIPS gcc, no docker, no N64 tree; the compiled setup is byte-identical to what the old gcc pipeline made, and mkfiletable proves every patch applies before it writes the table. Without those tools the game builds against the committed patches, which is what you want on a machine that isn't editing setups.
 
 There is no N64 rom to build anymore.
 
