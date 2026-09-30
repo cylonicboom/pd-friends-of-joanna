@@ -146,17 +146,7 @@ You'll want to adjust for your platform. This is my MacOS setup:
 ````
 # perfect-dark is forever
 
-# ryan dwyer's pdtools
-# technically only needed for mouse-injector pipelines but 
-# docker-caroll will yell at you if these aren't defined
-export PATH="$PATH:$HOME/src/pd/pdtools/bin"
-#define PDTOOLS for docker-caroll scripts
-export PDTOOLS="$HOME/src/pd/pdtools"
-
-# reference n64 decomp workspace
-export PD="$HOME/src/pd/perfect-dark"
 export PATH=$PATH:${HOME}/src/pd/tools/docker-caroll
-
 
 # docker-caroll / pc-port uses these to setup Friends of Joanna mods
 export PD_MODDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/mods"
@@ -178,24 +168,25 @@ pdt build-port --root $(realpath .)
 pdt build-port --root $(realpath .) --clean
 ```
 
-You can use this oneliner to rebuild Friends of Joanna, the setup files, and a mod layout
+### Setup files
 
-`pd build-port --clean --root $FRIENDSOFJOANNA && pd psake --tasklist foj --root $FRIENDSOFJOANNA64`
+The stage setups (`src/setups/*.c`, ailists included) are data, and they build here:
 
+```
+# every setup, or name the ones you touched
+tools/mksetups
+tools/mksetups setupame mp_setupame
+```
 
+That's `brew install llvm lld` (or your distro's clang + lld) and nothing else — no MIPS gcc, no docker, no N64 tree. Output is byte-identical to what the old gcc pipeline made. `pdt build-setups` wraps the same script, and `--patches --mod-dir basedir/data/mods/mod_fojo` turns the result into per-file xdeltas against the vanilla rom instead of shipping whole files.
+
+There is no N64 rom to build anymore.
 
 ### Build Friends of Joanna PC Port without `docker-caroll`
 
 Follow PC port instructions as below.
 
 #### [`fgsfdsfgs/perfect_dark@port`](https://github.com/fgsfdsfgs/perfect_dark) vanilla pc port build instructions
-#### [`ryandwyer/perfect_dark@master`](https://gitlab.com/ryandwyer/perfect-dark) n64 decomp build instructions
-### Build Friends of Joanna N64 Rom
-
-- Clone the N64 repo: `https://github.com/cylonicboom/pd-friends-of-joanna -b fojo-ailists fojo-ailists`
-- [Setup and build the PD tree as you'd normally setup an N64 rom](https://github.com/N64decomp/port/tree/n64-friends-of-joanna?tab=readme-ov-file#installation-requirements)
-- Copy the built rom to your data dir.
-- Copy built setup files into `mod/files` and copy to your data dir
 
 
 ## Friends of Joanna Credits
