@@ -460,26 +460,26 @@ endif()
 # at configure. One mksetups run for the whole set, not one per file: it
 # regenerates src/generated/<romid> on every run and parallel runs would race.
 #
-# The base ROM is $PD_ROMFILE, else pd.ntsc-final.z64 in basedir/data or
-# basedir/data/roms - the same places the game looks. No ROM, no target.
+# The ROMs come from this tree only - basedir/data or basedir/data/roms, the
+# same folders the game mounts from - never from PD_ROMFILE or wherever the
+# installed game keeps its copy; a build should not depend on anything
+# outside its own checkout. The base ROM is the ntsc one, and every ROM a
+# manifest names (the jpn one for Mikado's byName rows) has to be there too.
+# No base ROM, no target.
 set(FOJO_MOD_DIR "${CMAKE_SOURCE_DIR}/basedir/data/mods/mod_fojo")
 file(GLOB FOJO_SETUP_PATCHES "${FOJO_MOD_DIR}/patches/Usetup*Z.xdelta" "${FOJO_MOD_DIR}/patches/Ump_setup*Z.xdelta")
 find_program(FOJO_CLANG NAMES clang HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
 find_program(FOJO_LLD NAMES ld.lld HINTS /opt/homebrew/opt/lld/bin /usr/local/opt/lld/bin)
 find_program(FOJO_OBJCOPY NAMES llvm-objcopy HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
 find_program(FOJO_XDELTA3 NAMES xdelta3)
-# activate.sh exports PD_ROMFILE whether or not the file is there (a fresh
-# clone, a buildq worktree), so the file has to exist, not just the name.
-set(FOJO_BASE_ROM "$ENV{PD_ROMFILE}")
-if(NOT FOJO_BASE_ROM OR NOT EXISTS "${FOJO_BASE_ROM}")
-  set(FOJO_BASE_ROM "")
-  foreach(c "${CMAKE_SOURCE_DIR}/basedir/data/pd.ntsc-final.z64" "${CMAKE_SOURCE_DIR}/basedir/data/roms/pd.ntsc-final.z64")
-    if(EXISTS "${c}")
-      set(FOJO_BASE_ROM "${c}")
-      break()
-    endif()
-  endforeach()
-endif()
+set(FOJO_ROM_DIR "${CMAKE_SOURCE_DIR}/basedir/data")
+set(FOJO_BASE_ROM "")
+foreach(c "${FOJO_ROM_DIR}/pd.ntsc-final.z64" "${FOJO_ROM_DIR}/roms/pd.ntsc-final.z64")
+  if(EXISTS "${c}")
+    set(FOJO_BASE_ROM "${c}")
+    break()
+  endif()
+endforeach()
 
 # mkfiletable as a host tool, built the way its Makefile builds it: the engine's
 # own rompatch decoder, parson for the json, zlib for the 1173 segments.
@@ -512,16 +512,8 @@ if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDEL
   endforeach()
   get_filename_component(FOJO_LLVM_BIN "${FOJO_CLANG}" DIRECTORY)
   get_filename_component(FOJO_LLD_BIN "${FOJO_LLD}" DIRECTORY)
-  # Every ROM the manifest names has to be openable at build time - the jpn
-  # rom for the byName body rows, not just the base - so hand mkfiletable the
-  # base ROM's folder plus the places the game itself mounts ROMs from.
-  get_filename_component(FOJO_ROM_DIR "${FOJO_BASE_ROM}" DIRECTORY)
+  # mkfiletable tries <dir>/roms/<file> then <dir>/<file>, as the game does.
   set(FOJO_ROM_DIRS --rom-dir "${FOJO_ROM_DIR}")
-  foreach(d "${CMAKE_SOURCE_DIR}/basedir/data" "${CMAKE_SOURCE_DIR}/basedir/data/roms")
-    if(IS_DIRECTORY "${d}" AND NOT d STREQUAL FOJO_ROM_DIR)
-      list(APPEND FOJO_ROM_DIRS --rom-dir "${d}")
-    endif()
-  endforeach()
   add_custom_command(
     OUTPUT ${FOJO_SETUP_PATCHES}
     COMMAND "${CMAKE_COMMAND}" -E env "LLVM_BIN=${FOJO_LLVM_BIN}" "LLD_BIN=${FOJO_LLD_BIN}"
@@ -544,7 +536,7 @@ if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDEL
     VERBATIM)
   add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/filetable.dat")
 else()
-  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM ($PD_ROMFILE or basedir/data/pd.ntsc-final.z64; the jpn rom in one of those folders too); using the committed basedir/data/mods/mod_fojo/patches + filetable.dat")
+  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM (basedir/data/pd.ntsc-final.z64 or basedir/data/roms/, and the jpn rom beside it); using the committed basedir/data/mods/mod_fojo/patches + filetable.dat")
 endif()
 
 # Game target

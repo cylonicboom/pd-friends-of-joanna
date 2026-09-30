@@ -47,8 +47,8 @@ file inflated out of the player's own ROM, applied by the engine after inflate
 in <mod-dir>/<modname>_filetable.json. A build identical to the vanilla file
 gets no patch and no row (--skip-unchanged is the default with --patches; a
 setup nobody modified is already in the ROM). Run tools/mkfiletable afterwards,
-or let cmake's pd_setups target do both. The ROM is --rom, else $PD_ROMFILE,
-else pd.<romid>.z64 beside the mod's data dir or in its roms/.
+or let cmake's pd_setups target do both. The ROM is --rom, else
+pd.<romid>.z64 in the mod's basedir data dir or its roms/ - never $PD_ROMFILE.
 AUTHORING DEPENDENCY: xdelta3 (brew install xdelta / apt install xdelta3),
 dev-side only, never a player dependency. The engine carries its own decoder.
 
@@ -272,7 +272,7 @@ def main():
     ap.add_argument('--patches', action='store_true',
                     help='write <mod-dir>/patches/U<name>Z.xdelta against the vanilla file and upsert the manifest rows')
     ap.add_argument('--mod-dir', help='the mod directory (data/mods/<name>); its folder name is the mod name')
-    ap.add_argument('--rom', default=os.environ.get('PD_ROMFILE'), help='the base ROM to diff against (default: $PD_ROMFILE, then beside the mod)')
+    ap.add_argument('--rom', help='the base ROM to diff against (default: pd.<romid>.z64 in the mod\'s basedir data/ or data/roms/)')
     ap.add_argument('--xdelta3', default=os.environ.get('XDELTA3', 'xdelta3'))
     ap.add_argument('--keep-unchanged', action='store_true',
                     help='with --patches: write an (empty) patch and a row even for a build identical to vanilla')
@@ -313,8 +313,9 @@ def main():
 
 
 def find_rom(args):
-    """The base ROM: --rom / $PD_ROMFILE, else pd.<romid>.z64 beside the mod's
-    data dir (data/, data/roms/) - the same places the engine looks."""
+    """The base ROM: --rom, else pd.<romid>.z64 in the mod's basedir data dir
+    (data/, data/roms/) - the same places the engine looks. Not $PD_ROMFILE:
+    that is the installed game's rom, and a build reads only its own tree."""
     if args.rom:
         if not os.path.isfile(args.rom):
             sys.exit('mksetups: --rom %s: no such file' % args.rom)
@@ -324,7 +325,7 @@ def find_rom(args):
     for c in (os.path.join(data, fn), os.path.join(data, 'roms', fn)):
         if os.path.isfile(c):
             return c
-    sys.exit('mksetups: no base ROM: pass --rom, set PD_ROMFILE, or put %s in %s' % (fn, data))
+    sys.exit('mksetups: no base ROM: put %s in %s (or %s/roms), or pass --rom' % (fn, data, data))
 
 
 def write_patches(args, built):
