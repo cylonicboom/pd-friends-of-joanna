@@ -1,0 +1,1575 @@
+modname "GoldenEye:X Characters"
+modversion "1.0.0"
+
+# GoldenEye character expansions for pd-modloader
+# Generated from AIO March 2026 mod_allinone character data
+# All entries are expansions (new slots, no vanilla replacements)
+
+
+HeadsAndBodies {
+    name "head_alan"
+    filenum "CheadalanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_balaclava"
+    filenum "CheadbalaclavaZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+# TODO: check: is this right?
+HeadsAndBodies {
+    name "head_bandoverflow"
+    filenum "CheadbandoverflowZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_baronsamedi2"
+    filenum "Cheadbaronsamedi2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_baronsamedi"
+    filenum "CheadbaronsamediZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+
+HeadsAndBodies {
+   name "head_boris"
+   filenum "CheadborisZ"
+   requiresrom "gex"
+   type 6
+   ismale 1
+   hasownhead 1
+   height 13
+   scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_chris2"
+    filenum "Cheadchris2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_chris"
+    filenum "CheadchrisZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_connery"
+    filenum "CheadconneryZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_dalton"
+    filenum "CheaddaltonZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_daved2"
+    filenum "Cheaddaved2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_daved"
+    filenum "CheaddavedZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_des"
+    filenum "CheaddesZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+#
+HeadsAndBodies {
+    name "head_duncan01"
+    filenum "Cheadduncan01Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_duncan0"
+    filenum "Cheadduncan0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_dwayne"
+    filenum "CheaddwayneZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_elf"
+    filenum "CheadelfZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+#
+HeadsAndBodies {
+    name "head_graeme2"
+    filenum "Cheadgraeme2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_graeme"
+    filenum "CheadgraemeZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_grant0"
+    filenum "Cheadgrant0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_jaws"
+    filenum "CheadjawsZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_jim2"
+    filenum "Cheadjim2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_jim"
+    filenum "CheadjimZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_joe2"
+    filenum "Cheadjoe2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_joe"
+    filenum "CheadjoeZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_joel0"
+    filenum "Cheadjoel0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_jones0"
+    filenum "Cheadjones0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_karl2"
+    filenum "Cheadkarl2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_karl"
+    filenum "CheadkarlZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+
+HeadsAndBodies {
+    name "head_ken0"
+    filenum "Cheadken0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_lazenby"
+    filenum "CheadlazenbyZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_lee"
+    filenum "CheadleeZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_mandy"
+    filenum "CheadmandyZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_marion"
+    filenum "CheadmarionZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_mark0"
+    filenum "Cheadmark0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_martin"
+    filenum "CheadmartinZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_mayday"
+    filenum "CheadmaydayZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_mishkin"
+    filenum "CheadmishkinZ"
+    type 6
+    requiresrom "gex"
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_natalya"
+    filenum "CheadnatalyaZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+   name "head_neil0"
+   filenum "Cheadneil0Z"
+    requiresrom "gex"
+   type 6
+   ismale 1
+   hasownhead 1
+   height 13
+   scale 1.0
+}
+
+HeadsAndBodies {
+    name "head_oddjob"
+    filenum "CheadoddjobZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_ourumov"
+    filenum "CheadourumovZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+#
+HeadsAndBodies {
+    name "head_pete"
+    filenum "CheadpeteZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_pilot"
+    filenum "CheadpilotZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_robin0"
+    filenum "Cheadrobin0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+
+
+#HeadsAndBodies {
+#    name "head_gexdark_combatZ"
+#    filenum "Cheadgexdark_combatZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexelvisZ"
+#    filenum "CheadgexelvisZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+
+# Brosnan or Brosnan2
+HeadsAndBodies {
+    name "head_gexbrosnanZ"
+    filenum "CheadgexcarringtonZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+
+# samedi without the hat
+HeadsAndBodies {
+    name "head_gexduncan2Z"
+    filenum "Cheadgexduncan2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+# this looks like a goldeneye head
+HeadsAndBodies {
+    name "head_gexddsniperZ"
+    filenum "CheadgexddsniperZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+# brosnandisguise
+HeadsAndBodies {
+    name "head_gexmotoZ"
+    filenum "CheadgexmotoZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+
+# These entries are commented out because the slots are vanilla
+#HeadsAndBodies {
+#    name "head_gexddshockZ"
+#    filenum "CheadgexddshockZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexrussZ"
+#    filenum "CheadgexrussZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexgreyZ"
+#    filenum "CheadgexgreyZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexdarlingZ"
+#    filenum "CheadgexdarlingZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexbeauZ"
+#    filenum "CheadgexbeauZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexedmcgZ"
+#    filenum "CheadgexedmcgZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexmatt_cZ"
+#    filenum "Cheadgexmatt_cZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexjonathanZ"
+#    filenum "CheadgexjonathanZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexmaian_sZ"
+#    filenum "Cheadgexmaian_sZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexshaunZ"
+#    filenum "CheadgexshaunZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+#HeadsAndBodies {
+#    name "head_gexdarkaquaZ"
+#    filenum "CheadgexdarkaquaZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+# orumov
+#HeadsAndBodies {
+#    name "head_gexstevemZ"
+#    filenum "CheadgexstevemZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+
+# dalton or lazenby?
+# todo: extract, identify textures used
+# HACK: commented out bc textures are broken rn
+#HeadsAndBodies {
+#    name "head_gexpennyZ"
+#    filenum "CheadgexpennyZ"
+#    requiresrom "gex"
+#    type 6
+#    ismale 1
+#    hasownhead 1
+#    height 13
+#    scale 1.0
+#}
+
+#
+HeadsAndBodies {
+    name "head_sally"
+    filenum "CheadsallyZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_santa"
+    filenum "CheadsantaZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_scott_h0"
+    filenum "Cheadscott_h0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_shaun0"
+    filenum "Cheadshaun0Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_adzy"
+    filenum "CheadsnowguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+#
+HeadsAndBodies {
+    name "head_steve_e"
+    filenum "Cheadsteve_eZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_steveh"
+    filenum "CheadstevehZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_subdrag"
+    filenum "CheadsubdragZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_trevelyan"
+    filenum "CheadtrevelyanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_valentin"
+    filenum "CheadvalentinZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_vivien"
+    filenum "CheadvivienZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_wreck"
+    requiresrom "gex"
+    filenum "CheadwreckZ"
+    type 6
+    ismale 1
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+HeadsAndBodies {
+    name "head_xenia"
+    filenum "CheadxeniaZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    hasownhead 1
+    height 13
+    scale 1.0
+}
+#
+#
+# ============================================================
+# BODIES (60 entries)
+# bodyslotnum is a boolean flag; merge-heads auto-assigns slots
+# bodyheadnum 1000 = random head association
+# Vanilla hands: Ghand_jofrockZ, Ghand_mrblondeZ, Ghand_elvisZ
+#   resolve from base filetable.dat by name
+# ============================================================
+#
+
+HeadsAndBodies {
+    name "body_armourguard"
+    filenum "CarmourguardZ"
+    handfilenum "Ghand_greymanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_baronsamedi2"
+    filenum "Cbaronsamedi2Z"
+    handfilenum "Ghand_samedi2Z"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_baronsamedi"
+    filenum "CbaronsamediZ"
+    handfilenum "Ghand_samediZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_bluecamguard"
+    filenum "CbluecamguardZ"
+    handfilenum "Ghand_bluecamguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_blueman"
+    filenum "CbluemanZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_bluewoman"
+    filenum "CbluewomanZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_boilerbond"
+    filenum "CboilerbondZ"
+    handfilenum "Ghand_blackstealthZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_boilertrev"
+    filenum "CboilertrevZ"
+    handfilenum "Ghand_blackstealthZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+#
+#
+HeadsAndBodies {
+    name "body_boris"
+    filenum "CborisZ"
+    handfilenum "Ghand_borisZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_camguard"
+    filenum "CcamguardZ"
+    handfilenum "Ghand_camguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_cardiman"
+    filenum "CcardimanZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+#
+#
+HeadsAndBodies {
+    name "body_checkman"
+    filenum "CcheckmanZ"
+    handfilenum "Ghand_checkmanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_commguard"
+    filenum "CcommguardZ"
+    handfilenum "Ghand_commguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_connery2"
+    filenum "Cconnery2Z"
+    handfilenum "Ghand_bondwhiteZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_dalton2"
+    filenum "Cdalton2Z"
+    handfilenum "Ghand_bondZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_djbond2"
+    filenum "Cdjbond2Z"
+    handfilenum "Ghand_bondZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_elf"
+    filenum "CelfZ"
+    handfilenum "Ghand_elfZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_eltonwaistcoat"
+    filenum "CeltonwaistcoatZ"
+    requiresrom "gex"
+    handfilenum "Ghand_elvisZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_fattechwoman"
+    filenum "CfattechwomanZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_greatguard2"
+    filenum "Cgreatguard2Z"
+    handfilenum "Ghand_brownZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_greatguard"
+    filenum "CgreatguardZ"
+    handfilenum "Ghand_mishkinZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_greyguard"
+    filenum "CgreyguardZ"
+    handfilenum "Ghand_stpguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_greyman"
+    filenum "CgreymanZ"
+    handfilenum "Ghand_greymanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_jaws"
+    filenum "CjawsZ"
+    handfilenum "Ghand_mrblondeZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_jeanwoman"
+    filenum "CjeanwomanZ"
+    handfilenum "Ghand_mrblondeZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_lazenby"
+    filenum "ClazenbyZ"
+    handfilenum "Ghand_bondZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_mayday"
+    filenum "CmaydayZ"
+    handfilenum "Ghand_maydayZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_moonrakerfoid"
+    filenum "CmoonfemaleZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_moonrakermoid"
+    filenum "CmoonguardZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_moore2"
+    filenum "Cmoore2Z"
+    handfilenum "Ghand_bondZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_natalya"
+    filenum "CnatalyaZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+HeadsAndBodies {
+    name "body_navyguard"
+    filenum "CnavyguardZ"
+    handfilenum "Ghand_navyguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_oddjob"
+    filenum "CoddjobZ"
+    handfilenum "Ghand_oddjobZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_oliveguard"
+    filenum "ColiveguardZ"
+    handfilenum "Ghand_oliveguardZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_ourumov"
+    filenum "CourumovZ"
+    handfilenum "Ghand_ourumovZ"
+    type 6
+    requiresrom "gex"
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_pilot"
+    filenum "CpilotZ"
+    handfilenum "Ghand_pilotZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+# red flannel body. I think Brett's GE64 body
+HeadsAndBodies {
+    name "body_cheeseman"
+    filenum "CredmanZ"
+    handfilenum "Ghand_redmanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_rusguard"
+    filenum "CrusguardZ"
+    requiresrom "gex"
+    handfilenum "Ghand_rusguardZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_santa"
+    filenum "CsantaZ"
+    requiresrom "gex"
+    handfilenum "Ghand_santaZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+#
+HeadsAndBodies {
+    name "body_snowbond"
+    filenum "CsnowbondZ"
+    requiresrom "gex"
+    handfilenum "Ghand_snowguardZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_snowguard"
+    filenum "CsnowguardZ"
+    requiresrom "gex"
+    handfilenum "Ghand_snowguardZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+#
+HeadsAndBodies {
+    name "body_spicebond"
+    filenum "CspicebondZ"
+    requiresrom "gex"
+    handfilenum "Ghand_jofrockZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_suitbond"
+    filenum "CsuitbondZ"
+    requiresrom "gex"
+    handfilenum "Ghand_blue_suitZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+# TODO: probably a better choice for handfile
+HeadsAndBodies {
+    name "body_techman"
+    filenum "CtechmanZ"
+    requiresrom "gex"
+    handfilenum "Ghand_mrblondeZ"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+# TODO: probably a better choice for handfile
+HeadsAndBodies {
+    name "body_techwoman"
+    filenum "CtechwomanZ"
+    handfilenum "Ghand_mrblondeZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+# TODO: probably a better choice for handfile
+HeadsAndBodies {
+    name "body_timberbond"
+    filenum "CtimberbondZ"
+    handfilenum "Ghand_jofrockZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_trevelyan"
+    filenum "CtrevelyanZ"
+    handfilenum "Ghand_trevelyanZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_trevguard"
+    filenum "CtrevguardZ"
+    handfilenum "Ghand_mishkinZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_valentin"
+    filenum "CvalentinZ"
+    handfilenum "Ghand_oddjobZ"
+    requiresrom "gex"
+    type 6
+    ismale 1
+    height 159
+    scale 0.94
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}
+#
+HeadsAndBodies {
+    name "body_xenia"
+    filenum "CxeniaZ"
+    handfilenum "Ghand_xeniaZ"
+    requiresrom "gex"
+    type 7
+    ismale 0
+    height 155
+    scale 0.95
+    animscale 1.0
+    bodyslotnum 1
+    bodyheadnum 1000
+}

@@ -1,0 +1,366 @@
+modname "mod_fojo"
+modversion "0.4.0"
+
+# Mod: Friends of Joanna
+# stage fixes for Friends of Joanna
+# new heads for Friends of Joanna:
+# Mikado Dark (combat, snow, aqua, frock)
+# Poplin Dark
+# Calico Dark
+
+# Author: Catherine Reprobate
+
+# Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)
+
+
+# Mikado Dark, Poplin Dark, and Calico Dark friends all live here now.
+# Mikado's four heads (combat/frock/snow/aqua) are mounted from the JPN
+# ROM at runtime; their textures use the per-model naming convention
+# (`CheadMikado_XZ/<texid>.bin`) so they don't collide with the PNG
+# overrides Catherine/Foslerfer use for the same source texture IDs.
+
+# Mikado Dark (combat) — canonical name for the MP carousel + training bio.
+HeadsAndBodies {
+    name "head_mikado"
+    requiresrom "jpn"
+    filenum "CheadMikado_combatZ"
+    ismale 0
+    yoffset -12
+    type 1
+}
+
+HeadsAndBodies {
+    name "head_mikado_frock"
+    requiresrom "jpn"
+    filenum "CheadMikado_frockZ"
+    yoffset -12
+    ismale 0
+    type 1
+}
+
+HeadsAndBodies {
+    name "head_mikado_snow"
+    requiresrom "jpn"
+    filenum "CheadMikado_snowZ"
+    yoffset -12
+    ismale 0
+    type 1
+}
+
+HeadsAndBodies {
+    name "head_mikado_aqua"
+    requiresrom "jpn"
+    filenum "CheadMikadoaquaZ"
+    yoffset -12
+    ismale 0
+    type 1
+}
+
+# Mikado's bodies: the JPN rom's Cdark_*Z mounted by name, the way her heads
+# are. Each differs from the ntsc body in exactly one texture (0x0db2, 0x0db3
+# for snow), carried as a per-model texture row in the filetable. Row values
+# are the vanilla Joanna rows'. bodyslotnum 1 puts them in the CS body list;
+# the spawn chooser picks them by name when Mikado is the operative.
+HeadsAndBodies {
+    name "body_mikado_combat"
+    requiresrom "jpn"
+    filenum "CMikado_combatZ"
+    handfilenum "GcombathandslodZ"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+HeadsAndBodies {
+    name "body_mikado_frock"
+    requiresrom "jpn"
+    filenum "CMikado_frockZ"
+    handfilenum "Ghand_jofrockZ"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+HeadsAndBodies {
+    name "body_mikado_leather"
+    requiresrom "jpn"
+    filenum "CMikado_leatherZ"
+    handfilenum "Ghand_jofrockZ"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+HeadsAndBodies {
+    name "body_mikado_negotiator"
+    requiresrom "jpn"
+    filenum "CMikado_negotiatorZ"
+    handfilenum "Ghand_joaf1Z"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+HeadsAndBodies {
+    name "body_mikado_ripped"
+    requiresrom "jpn"
+    filenum "CMikado_rippedZ"
+    handfilenum "Ghand_jofrockZ"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+HeadsAndBodies {
+    name "body_mikado_snow"
+    requiresrom "jpn"
+    filenum "CMikado_snowZ"
+    handfilenum "Ghand_josnowZ"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+HeadsAndBodies {
+    name "body_mikado_af1"
+    requiresrom "jpn"
+    filenum "CMikado_af1Z"
+    handfilenum "Ghand_jopilotZ"
+    ismale 0
+    type 1
+    height 159
+    scale 1.0
+    animscale 0.95305162668228
+    bodyslotnum 1
+    bodyheadname "head_mikado"
+}
+
+
+# HACK: Fosler/Catherine's heads are imported from a goldeneye mod, so we need adjust their yoffset -54 and their scale
+
+# setup Poplin Dark
+#slotnum 0x4c
+HeadsAndBodies {
+    name "head_foslerfer"
+    filenum "CheadFoslerferZ"
+    scale .88
+    ismale 0
+    type 1
+    yoffset -54
+}
+
+# setup Calico Dark
+#slotnum 0x4d
+HeadsAndBodies {
+    name "head_catherine"
+    filenum "CheadCatherineZ"
+    scale .88
+    ismale 0
+    type 1
+    yoffset -50
+}
+
+# Willow — authored from FBX, textures 0x0db9-0x0dbc as PNG overrides
+# under ext_tex/CheadWillowZ/. scale/yoffset are starting values.
+HeadsAndBodies {
+    name "head_willow"
+    filenum "CheadWillowZ"
+    scale .88
+    ismale 0
+    type 1
+    yoffset -50
+}
+
+# Ace — CS character only, not a Friend of Joanna. Model lifted from the
+# editor template; it references textures 0x0daf-0x0db2 and ships no
+# ext_tex/CheadAceZ/ overrides of its own yet.
+HeadsAndBodies {
+    name "head_ace"
+    filenum "CheadAceZ"
+    scale .88
+    ismale 1
+    type 1
+    yoffset -54
+}
+
+# 0.0
+# CI Training
+# pre-load Mikado Dark as a hidden character
+stage "STAGE_CITRAINING" {
+    setupfile "UsetupdishZ"
+    # CI Training is reached by its own menu entry (mainChangeToStage in
+    # src/game/menu.c), not by a mission-list row. Already reachable.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 1.1
+# defection
+# ⏰
+stage "STAGE_DEFECTION" {
+    setupfile "UsetupameZ"
+    # STAGE_DEFECTION is already row 0 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 1.2
+# investigation
+# extra spawn
+stage "STAGE_INVESTIGATION" {
+    setupfile "UsetupearZ"
+    # STAGE_INVESTIGATION is already row 1 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 2.1
+# villa
+stage "STAGE_VILLA" {
+    setupFile "UsetupeldZ"
+    # STAGE_VILLA is already row 3 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 3.1
+# chicago
+stage "STAGE_CHICAGO" {
+    setupfile "UsetuppeteZ"
+    # STAGE_CHICAGO is already row 4 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 4.2
+# infiltration
+stage "STAGE_INFILTRATION" {
+    setupfile "UsetuplueZ"
+    # STAGE_INFILTRATION is already row 6 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 5.1
+# Air Base
+stage "STAGE_AIRBASE" {
+    setupfile "UsetupcaveZ"
+    # STAGE_AIRBASE is already row 9 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 5.2
+# af1
+stage "STAGE_AIRFORCEONE" {
+    setupfile "UsetupritZ"
+    # STAGE_AIRFORCEONE is already row 10 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 5.3
+# crash site
+stage "STAGE_CRASHSITE" {
+    setupfile "UsetupaztZ"
+    # STAGE_CRASHSITE is already row 11 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 6.1
+# Pelagic II
+stage "STAGE_PELAGIC" {
+    setupfile "UsetupdamZ"
+    # STAGE_PELAGIC is already row 12 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 6.2
+# deep sea
+# teleportal fixes
+stage "STAGE_DEEPSEA" {
+    setupfile "UsetuppamZ"
+    # STAGE_DEEPSEA is already row 13 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 7.1
+# ci defense
+# extra spawns, QOL changes for coop mode
+stage "STAGE_DEFENSE" {
+    setupfile "UsetupimpZ"
+    # STAGE_DEFENSE is already row 14 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# 8.1
+# attack ship
+# hangar elevator fixes
+stage "STAGE_ATTACKSHIP" {
+    setupfile "UsetupleeZ"
+    # STAGE_ATTACKSHIP is already row 15 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# Skedar Ruins
+stage "STAGE_SKEDARRUINS" {
+    setupfile "UsetupshoZ"
+    # STAGE_SKEDARRUINS is already row 16 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# Mr. Blonde's Revenge
+stage "STAGE_MBR" {
+    setupfile "UsetupwaxZ"
+    # STAGE_MBR is already row 17 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# war
+# extra spawns for coop characters
+stage "STAGE_WAR" {
+    setupfile "UsetupstatZ"
+    # STAGE_WAR is already row 19 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+
+# Maian SOS
+stage "STAGE_MAIANSOS" {
+    setupfile "UsetupsevZ"
+    # STAGE_MAIANSOS is already row 18 of g_SoloStages.
+    # This block only swaps the setup file; it adds no new list entry.
+    kind none
+}
+

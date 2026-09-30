@@ -1,0 +1,15 @@
+#ignore everything but a modconfig
+!modconfig.txt
+!.gitignore
+!readme.md
+*.z64
+mpsetups.bin
+pd.ini
+fojo-imgui.ini
+.DS_STORE
+eeprom.bin
+CheadgreyZ
+CheadMikadoZ
+data/mods-*
+pd.arm64
+#TODO: add other pd executable names

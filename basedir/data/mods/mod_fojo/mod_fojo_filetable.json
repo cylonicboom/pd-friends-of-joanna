@@ -1,0 +1,909 @@
+{
+  "modName": "Friends of Joanna",
+  "modVersion": "1.0",
+  "description": "Mod: Friends of Joanna stage fixes for Friends of Joanna Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)",
+  "author": "Catherine Reprobate",
+  "files": [
+    {
+      "name": "UsetupstatZ",
+      "path": "context:SOLO::files/UsetupstatZ|context:COOP::files/UsetupstatZ|context:TEAM::files/UsetupstatZ|context:ANTI::files/UsetupstatZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupstatZ",
+      "stageId": "0x16",
+      "stageName": "extra spawns for coop characters",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupearZ",
+      "path": "context:SOLO::files/UsetupearZ|context:COOP::files/UsetupearZ|context:TEAM::files/UsetupearZ|context:ANTI::files/UsetupearZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupearZ",
+      "stageId": "0x33",
+      "stageName": "investigation",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetuppamZ",
+      "path": "context:SOLO::files/UsetuppamZ|context:COOP::files/UsetuppamZ|context:TEAM::files/UsetuppamZ|context:ANTI::files/UsetuppamZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetuppamZ",
+      "stageId": "0x38",
+      "stageName": "deep sea",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupdishZ",
+      "path": "context:CI::files/UsetupdishZ|context:SOLO::files/UsetupdishZ|context:COOP::files/UsetupdishZ|context:TEAM::files/UsetupdishZ|context:ANTI::files/UsetupdishZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupdishZ",
+      "stageId": "0x26",
+      "stageName": "pre-load Mikado Dark as a hidden character",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupameZ",
+      "path": "context:SOLO::files/UsetupameZ|context:COOP::files/UsetupameZ|context:TEAM::files/UsetupameZ|context:ANTI::files/UsetupameZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupameZ",
+      "stageId": "0x30",
+      "stageName": "defection",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetuplueZ",
+      "path": "context:SOLO::files/UsetuplueZ|context:COOP::files/UsetuplueZ|context:TEAM::files/UsetuplueZ|context:ANTI::files/UsetuplueZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetuplueZ",
+      "stageId": "0x2f",
+      "stageName": "infiltration",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetuppeteZ",
+      "path": "context:SOLO::files/UsetuppeteZ|context:COOP::files/UsetuppeteZ|context:TEAM::files/UsetuppeteZ|context:ANTI::files/UsetuppeteZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetuppeteZ",
+      "stageId": "0x1d",
+      "stageName": "chicago",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupeldZ",
+      "path": "context:SOLO::files/UsetupeldZ|context:COOP::files/UsetupeldZ|context:TEAM::files/UsetupeldZ|context:ANTI::files/UsetupeldZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupeldZ",
+      "stageId": "0x2c",
+      "stageName": "villa",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupleeZ",
+      "path": "context:SOLO::files/UsetupleeZ|context:COOP::files/UsetupleeZ|context:TEAM::files/UsetupleeZ|context:ANTI::files/UsetupleeZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupleeZ",
+      "stageId": "0x34",
+      "stageName": "hangar elevator fixes",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupimpZ",
+      "path": "context:SOLO::files/UsetupimpZ|context:COOP::files/UsetupimpZ|context:TEAM::files/UsetupimpZ|context:ANTI::files/UsetupimpZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupimpZ",
+      "stageId": "0x2d",
+      "stageName": "extra spawns, QOL changes for coop mode",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupritZ",
+      "path": "context:SOLO::files/UsetupritZ|context:COOP::files/UsetupritZ|context:TEAM::files/UsetupritZ|context:ANTI::files/UsetupritZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupritZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupsevZ",
+      "path": "context:SOLO::files/UsetupsevZ|context:COOP::files/UsetupsevZ|context:TEAM::files/UsetupsevZ|context:ANTI::files/UsetupsevZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupsevZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupshoZ",
+      "path": "context:SOLO::files/UsetupshoZ|context:COOP::files/UsetupshoZ|context:TEAM::files/UsetupshoZ|context:ANTI::files/UsetupshoZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupshoZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupwaxZ",
+      "path": "context:SOLO::files/UsetupwaxZ|context:COOP::files/UsetupwaxZ|context:TEAM::files/UsetupwaxZ|context:ANTI::files/UsetupwaxZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupwaxZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupaztZ",
+      "path": "context:SOLO::files/UsetupaztZ|context:COOP::files/UsetupaztZ|context:TEAM::files/UsetupaztZ|context:ANTI::files/UsetupaztZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupaztZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupcaveZ",
+      "path": "context:SOLO::files/UsetupcaveZ|context:COOP::files/UsetupcaveZ|context:TEAM::files/UsetupcaveZ|context:ANTI::files/UsetupcaveZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupcaveZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "UsetupdamZ",
+      "path": "context:SOLO::files/UsetupdamZ|context:COOP::files/UsetupdamZ|context:TEAM::files/UsetupdamZ|context:ANTI::files/UsetupdamZ",
+      "description": "",
+      "type": "setup",
+      "replaces": "UsetupdamZ",
+      "prefix": "solo / team missions"
+    },
+    {
+      "name": "bgdata",
+      "path": "files/bgdata",
+      "description": "Background data",
+      "replaces": "bgdata",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadFoslerferZ",
+      "path": "files/CheadFoslerferZ",
+      "description": "Poplin Dark head model",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadCatherineZ",
+      "path": "files/CheadCatherineZ",
+      "description": "Calico Dark head model",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadWillowZ",
+      "path": "files/CheadWillowZ",
+      "description": "Willow head model",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadAceZ",
+      "path": "files/CheadAceZ",
+      "description": "Ace head model (CS character)",
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ",
+      "description": "Mikado Dark (combat) - JPN-mounted Cheaddark_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cheaddark_combatZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ",
+      "description": "Mikado Dark (frock) - JPN-mounted Cheaddark_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cheaddark_frockZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ",
+      "description": "Mikado Dark (snow) - JPN-mounted Cheaddark_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cheaddark_snowZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ",
+      "description": "Mikado Dark (aqua) - JPN-mounted CheaddarkaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "CheaddarkaquaZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0116.bin",
+      "type": "texture",
+      "textureId": "0x0116",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0116"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0246.bin",
+      "type": "texture",
+      "textureId": "0x0246",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0246"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/02f2.bin",
+      "type": "texture",
+      "textureId": "0x02f2",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x02f2"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/03cb.bin",
+      "type": "texture",
+      "textureId": "0x03cb",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x03cb"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/05ff.bin",
+      "type": "texture",
+      "textureId": "0x05ff",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x05ff"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0602.bin",
+      "type": "texture",
+      "textureId": "0x0602",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0602"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0daf.bin",
+      "type": "texture",
+      "textureId": "0x0daf",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0daf"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0db0.bin",
+      "type": "texture",
+      "textureId": "0x0db0",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db0"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0db1.bin",
+      "type": "texture",
+      "textureId": "0x0db1",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db1"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0db4.bin",
+      "type": "texture",
+      "textureId": "0x0db4",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db4"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_combatZ/0db6.bin",
+      "type": "texture",
+      "textureId": "0x0db6",
+      "model": "CheadMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db6"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0116.bin",
+      "type": "texture",
+      "textureId": "0x0116",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0116"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0246.bin",
+      "type": "texture",
+      "textureId": "0x0246",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0246"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/03cb.bin",
+      "type": "texture",
+      "textureId": "0x03cb",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x03cb"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/047b.bin",
+      "type": "texture",
+      "textureId": "0x047b",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x047b"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/05ff.bin",
+      "type": "texture",
+      "textureId": "0x05ff",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x05ff"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0602.bin",
+      "type": "texture",
+      "textureId": "0x0602",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0602"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0db0.bin",
+      "type": "texture",
+      "textureId": "0x0db0",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db0"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0db1.bin",
+      "type": "texture",
+      "textureId": "0x0db1",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db1"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0db4.bin",
+      "type": "texture",
+      "textureId": "0x0db4",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db4"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0db5.bin",
+      "type": "texture",
+      "textureId": "0x0db5",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db5"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_frockZ/0db6.bin",
+      "type": "texture",
+      "textureId": "0x0db6",
+      "model": "CheadMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db6"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ/0a7f.bin",
+      "type": "texture",
+      "textureId": "0x0a7f",
+      "model": "CheadMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0a7f"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ/0a80.bin",
+      "type": "texture",
+      "textureId": "0x0a80",
+      "model": "CheadMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0a80"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ/0a81.bin",
+      "type": "texture",
+      "textureId": "0x0a81",
+      "model": "CheadMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0a81"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ/0daf.bin",
+      "type": "texture",
+      "textureId": "0x0daf",
+      "model": "CheadMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0daf"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ/0db0.bin",
+      "type": "texture",
+      "textureId": "0x0db0",
+      "model": "CheadMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db0"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikado_snowZ/0db1.bin",
+      "type": "texture",
+      "textureId": "0x0db1",
+      "model": "CheadMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db1"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0116.bin",
+      "type": "texture",
+      "textureId": "0x0116",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0116"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0246.bin",
+      "type": "texture",
+      "textureId": "0x0246",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0246"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/03cb.bin",
+      "type": "texture",
+      "textureId": "0x03cb",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x03cb"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/05ff.bin",
+      "type": "texture",
+      "textureId": "0x05ff",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x05ff"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0602.bin",
+      "type": "texture",
+      "textureId": "0x0602",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0602"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/07b7.bin",
+      "type": "texture",
+      "textureId": "0x07b7",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x07b7"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/07ba.bin",
+      "type": "texture",
+      "textureId": "0x07ba",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x07ba"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/07c5.bin",
+      "type": "texture",
+      "textureId": "0x07c5",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x07c5"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/07c7.bin",
+      "type": "texture",
+      "textureId": "0x07c7",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x07c7"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0daf.bin",
+      "type": "texture",
+      "textureId": "0x0daf",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0daf"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0db0.bin",
+      "type": "texture",
+      "textureId": "0x0db0",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db0"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0db1.bin",
+      "type": "texture",
+      "textureId": "0x0db1",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db1"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0db4.bin",
+      "type": "texture",
+      "textureId": "0x0db4",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db4"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CheadMikadoaquaZ/0db6.bin",
+      "type": "texture",
+      "textureId": "0x0db6",
+      "model": "CheadMikadoaquaZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db6"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_combatZ",
+      "description": "Mikado Dark (combat) body - JPN-mounted Cdark_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cdark_combatZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_combatZ/0db2.bin",
+      "type": "texture",
+      "textureId": "0x0db2",
+      "model": "CMikado_combatZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db2"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_frockZ",
+      "description": "Mikado Dark (frock) body - JPN-mounted Cdark_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cdark_frockZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_frockZ/0db2.bin",
+      "type": "texture",
+      "textureId": "0x0db2",
+      "model": "CMikado_frockZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db2"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_leatherZ",
+      "description": "Mikado Dark (leather) body - JPN-mounted Cdark_leatherZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cdark_leatherZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_leatherZ/0db2.bin",
+      "type": "texture",
+      "textureId": "0x0db2",
+      "model": "CMikado_leatherZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db2"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_negotiatorZ",
+      "description": "Mikado Dark (negotiator) body - JPN-mounted Cdark_negotiatorZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cdark_negotiatorZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_negotiatorZ/0db2.bin",
+      "type": "texture",
+      "textureId": "0x0db2",
+      "model": "CMikado_negotiatorZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db2"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_rippedZ",
+      "description": "Mikado Dark (ripped) body - JPN-mounted Cdark_rippedZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cdark_rippedZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_rippedZ/0db2.bin",
+      "type": "texture",
+      "textureId": "0x0db2",
+      "model": "CMikado_rippedZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db2"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_snowZ",
+      "description": "Mikado Dark (snow) body - JPN-mounted CdarksnowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "CdarksnowZ"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_snowZ/0db3.bin",
+      "type": "texture",
+      "textureId": "0x0db3",
+      "model": "CMikado_snowZ",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db3"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_af1Z",
+      "description": "Mikado Dark (af1) body - JPN-mounted Cdark_af1Z",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byName",
+        "alias": "Cdark_af1Z"
+      },
+      "prefix": "always"
+    },
+    {
+      "name": "CMikado_af1Z/0db2.bin",
+      "type": "texture",
+      "textureId": "0x0db2",
+      "model": "CMikado_af1Z",
+      "source": {
+        "rom": "jpn",
+        "lookup": "byId",
+        "id": "0x0db2"
+      },
+      "prefix": "always"
+    }
+  ],
+  "imports": [],
+  "romSources": [
+    {
+      "id": "jpn",
+      "filename": "pd.jpn-final.z64",
+      "displayName": "Perfect Dark JPN Final",
+      "expectedSize": 33554432,
+      "required": false,
+      "fallbackBehavior": "skip",
+      "textures": {
+        "tlistOffset": "0x1ff68f0",
+        "tlistCount": 3511,
+        "texdataOffset": "0x1d61f90"
+      }
+    }
+  ]
+}

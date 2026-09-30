@@ -1,0 +1,23 @@
+0.2.0 - Private Friends of Joanna Playtest. 
+0.2.1 - Fix for Windows launcher
+0.2.2 - Private playtest fixes / vanity update:
+  added bat launcher
+  moonjump cheat
+  credits sequence, 
+  fixup eyelid toggling
+  deschedule classic sight 
+  legal screen
+  AIO cleanup
+  throwables fix (thank you Morrigan for the report)
+0.2.3 - Private Playtest update
+  - PD stage lifecycle fixes
+  - PD AI character lifecycle fix (remove ref from ai character on death)
+  - add lives display hud
+  - add classic sight / show lives toggle
+0.2.5 - Private Playtest update
+  - add fosler as playable CS character
+0.3.0 - Initial public release
+0.3.1 - 1st Service release
+  - Add Calico Dark as playable character
+  - remove need for launcher
+  - default local app directory name is now perfectdark-friends-of-joanna-v0.3
