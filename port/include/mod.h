@@ -290,6 +290,7 @@ s32 modLookupHandFileByName(const char *name);
 s32 modHandNameCount(void);
 const char *modHandName(s32 index, u32 *filenum);
 s32 modLookupHeadnumByName(const char *name);
+s32 modLookupBodynumByName(const char *name);
 const char *modGetNameForHeadBodyIndex(s32 headBodyIndex);
 
 #ifdef __cplusplus

@@ -1947,6 +1947,29 @@ s32 modLookupHeadnumByName(const char *name)
 	return -1;
 }
 
+// The HeadsAndBodies index for a body name, vanilla or mod-registered. The
+// body twin of modLookupHeadnumByName: modLookupBodyByName answers with the
+// MpBodies slot, which is the wrong currency for anything that sets a chr's
+// bodynum directly.
+s32 modLookupBodynumByName(const char *name)
+{
+	if (!name || !name[0]) return -1;
+
+	for (s32 i = 0; g_VanillaBodyNames[i].name; ++i) {
+		if (!strcmp(name, g_VanillaBodyNames[i].name)) {
+			return g_VanillaBodyNames[i].id;
+		}
+	}
+
+	for (s32 i = 0; i < g_NumModHeadNames; ++i) {
+		if (!strcmp(name, g_ModHeadNames[i].name)) {
+			return g_ModHeadNames[i].id;
+		}
+	}
+
+	return -1;
+}
+
 s32 modLookupBodyByName(const char *name)
 {
 	if (!name || !name[0]) return -1;

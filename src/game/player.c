@@ -27,6 +27,7 @@
 #include "game/camera.h"
 #include "game/player.h"
 #include "game/stancetuning.h"
+#include "game/fojofriends.h"
 #include "game/modeldef.h"
 #include "game/healthbar.h"
 #include "game/hudmsg.h"
@@ -1519,6 +1520,11 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 		*headnum = solo ? HEAD_MAIAN_S : HEAD_MAIAN_S;
 		break;
 	}
+
+	// The operative's own body for that outfit, if she has one. Only the
+	// Joanna outfits have words, so Elvis, Trent and the disguises above are
+	// untouched.
+	*bodynum = fojoFriendWardrobeBody(fojoFriendForMpIndex(g_Vars.currentplayerstats->mpindex), *bodynum);
 }
 
 /**

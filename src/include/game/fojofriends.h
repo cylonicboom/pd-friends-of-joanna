@@ -10,6 +10,7 @@
 extern u32 g_FojoFriendColours[NUM_FOJO_FRIENDS];
 
 s32 fojoFriendForMpIndex(s32 mpindex);
+s32 fojoFriendWardrobeBody(s32 friendnum, s32 bodynum);
 void fojoFriendsInit(void);
 
 #endif

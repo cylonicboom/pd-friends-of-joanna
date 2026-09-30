@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include <stdio.h>
 #include "constants.h"
 #include "game/fojofriends.h"
 #include "game/hudtint.h"
@@ -94,6 +95,57 @@ s32 fojoFriendForMpIndex(s32 mpindex)
 	}
 
 	return -1;
+}
+
+/**
+ * A friend's wardrobe: the bodies she wears in place of Joanna's, registered
+ * by a mod under "<prefix>_<outfit>" - body_mikado_combat, body_mikado_snow.
+ * NULL means she wears the vanilla body. The outfit words are the vanilla
+ * Joanna rows the stage asks for, so a friend with a wardrobe needs one body
+ * per word she covers and the rest fall through to Joanna's.
+ */
+static const char *g_FojoFriendWardrobe[NUM_FOJO_FRIENDS] = {
+	NULL, NULL, NULL, NULL, NULL, NULL,
+};
+
+static const struct {
+	u16 bodynum;
+	const char *outfit;
+} g_FojoOutfitWords[] = {
+	{ BODY_DARK_COMBAT,     "combat"     },
+	{ BODY_DARK_FROCK,      "frock"      },
+	{ BODY_DARK_LEATHER,    "leather"    },
+	{ BODY_DARK_NEGOTIATOR, "negotiator" },
+	{ BODY_DARK_RIPPED,     "ripped"     },
+	{ BODY_DARKSNOW,        "snow"       },
+	{ BODY_DARK_AF1,        "af1"        },
+};
+
+/**
+ * The body a friend spawns in for the outfit the stage chose. Answers the
+ * vanilla bodynum unchanged when the friend has no wardrobe, the outfit has no
+ * word, or the mod set did not register that body (no jpn rom, say) - so a
+ * missing body degrades to Joanna's and never to nothing.
+ */
+s32 fojoFriendWardrobeBody(s32 friendnum, s32 bodynum)
+{
+	char name[64];
+	s32 i;
+	s32 found;
+
+	if (friendnum < 0 || friendnum >= NUM_FOJO_FRIENDS || !g_FojoFriendWardrobe[friendnum]) {
+		return bodynum;
+	}
+
+	for (i = 0; i < ARRAYCOUNT(g_FojoOutfitWords); i++) {
+		if (g_FojoOutfitWords[i].bodynum == bodynum) {
+			snprintf(name, sizeof(name), "%s_%s", g_FojoFriendWardrobe[friendnum], g_FojoOutfitWords[i].outfit);
+			found = modLookupBodynumByName(name);
+			return found >= 0 ? found : bodynum;
+		}
+	}
+
+	return bodynum;
 }
 
 /**
