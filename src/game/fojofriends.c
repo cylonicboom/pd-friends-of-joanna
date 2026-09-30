@@ -105,7 +105,7 @@ s32 fojoFriendForMpIndex(s32 mpindex)
  * per word she covers and the rest fall through to Joanna's.
  */
 static const char *g_FojoFriendWardrobe[NUM_FOJO_FRIENDS] = {
-	NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, "body_mikado", NULL, NULL, NULL,
 };
 
 static const struct {
