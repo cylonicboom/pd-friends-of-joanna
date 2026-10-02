@@ -80,16 +80,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "CheadcarringtonZ",
-      "description": "gex slot CheadcarringtonZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadcarringtonZ"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "Cheadchris2Z",
       "description": "chris2; gex slot Cheadben_rZ",
       "source": {
@@ -130,16 +120,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "Cheaddark_combatZ",
-      "description": "gex slot Cheaddark_combatZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cheaddark_combatZ"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "Cheaddaved2Z",
       "description": "daved2; gex slot Cheadandy_rZ",
       "source": {
@@ -156,26 +136,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadjoelZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheadddshockZ",
-      "description": "gex slot CheadddshockZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadddshockZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheadddsniperZ",
-      "description": "gex slot CheadddsniperZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadddsniperZ"
       },
       "prefix": "cs only"
     },
@@ -210,16 +170,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "Cheadduncan2Z",
-      "description": "gex slot Cheadduncan2Z",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "Cheadduncan2Z"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "CheaddwayneZ",
       "description": "dwayne; gex slot CheadmuntonZ",
       "source": {
@@ -236,16 +186,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadbrianZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheadelvisZ",
-      "description": "gex slot CheadelvisZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadelvisZ"
       },
       "prefix": "cs only"
     },
@@ -336,16 +276,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadsanchezZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheadjonathanZ",
-      "description": "gex slot CheadjonathanZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadjonathanZ"
       },
       "prefix": "cs only"
     },
@@ -460,16 +390,6 @@
       "prefix": "cs only"
     },
     {
-      "name": "CheadmotoZ",
-      "description": "gex slot CheadmotoZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadmotoZ"
-      },
-      "prefix": "cs only"
-    },
-    {
       "name": "CheadnatalyaZ",
       "description": "natalya; gex slot Chead_vdZ",
       "source": {
@@ -506,16 +426,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadthekingZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheadpennyZ",
-      "description": "gex slot CheadpennyZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadpennyZ"
       },
       "prefix": "cs only"
     },
@@ -616,16 +526,6 @@
         "rom": "gex",
         "lookup": "byName",
         "alias": "CheadmurchieZ"
-      },
-      "prefix": "cs only"
-    },
-    {
-      "name": "CheadstevemZ",
-      "description": "gex slot CheadstevemZ",
-      "source": {
-        "rom": "gex",
-        "lookup": "byName",
-        "alias": "CheadstevemZ"
       },
       "prefix": "cs only"
     },
@@ -830,8 +730,8 @@
       "prefix": "cs only"
     },
     {
-      "name": "CcisoldierZ",
-      "description": "gex slot CcisoldierZ",
+      "name": "CgexcisoldierZ",
+      "description": "cisoldier; gex slot CcisoldierZ",
       "source": {
         "rom": "gex",
         "lookup": "byName",
@@ -870,8 +770,8 @@
       "prefix": "cs only"
     },
     {
-      "name": "Cdark_combatZ",
-      "description": "gex slot Cdark_combatZ",
+      "name": "Cgexdark_combatZ",
+      "description": "dark_combat; gex slot Cdark_combatZ",
       "source": {
         "rom": "gex",
         "lookup": "byName",
@@ -880,8 +780,8 @@
       "prefix": "cs only"
     },
     {
-      "name": "Cdark_leatherZ",
-      "description": "gex slot Cdark_leatherZ",
+      "name": "Cgexdark_leatherZ",
+      "description": "dark_leather; gex slot Cdark_leatherZ",
       "source": {
         "rom": "gex",
         "lookup": "byName",
@@ -890,8 +790,8 @@
       "prefix": "cs only"
     },
     {
-      "name": "CddshockZ",
-      "description": "gex slot CddshockZ",
+      "name": "CgexddshockZ",
+      "description": "ddshock; gex slot CddshockZ",
       "source": {
         "rom": "gex",
         "lookup": "byName",
@@ -930,8 +830,8 @@
       "prefix": "cs only"
     },
     {
-      "name": "CelvisZ",
-      "description": "gex slot CelvisZ",
+      "name": "CgexelvisZ",
+      "description": "elvis; gex slot CelvisZ",
       "source": {
         "rom": "gex",
         "lookup": "byName",
@@ -1789,117 +1689,116 @@
       },
       "prefix": "cs only"
     },
-
-  {
-    "name": "CheadgexpennyZ/0c33.bin",
-    "description": "per-model alias for gexpenny legacy probe 055d",
-    "prefix": "cs only",
-    "textureId": "0x0c33",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c33"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/055e.bin",
-    "description": "per-model alias for gexpenny legacy probe 055e",
-    "prefix": "cs only",
-    "textureId": "0x0c47",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c47"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/055f.bin",
-    "description": "per-model alias for gexpenny legacy probe 055f",
-    "prefix": "cs only",
-    "textureId": "0x0c34",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c34"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/0560.bin",
-    "description": "per-model alias for gexpenny legacy probe 0560",
-    "prefix": "cs only",
-    "textureId": "0x0c37",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c37"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/098f.bin",
-    "description": "per-model alias for gexpenny legacy probe 098f",
-    "prefix": "cs only",
-    "textureId": "0x0c46",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c46"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/0c33.bin",
-    "description": "per-model alias for gexpenny local probe 0c33",
-    "prefix": "cs only",
-    "textureId": "0x0c33",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c33"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/0c34.bin",
-    "description": "per-model alias for gexpenny local probe 0c34",
-    "prefix": "cs only",
-    "textureId": "0x0c34",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c34"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/0c37.bin",
-    "description": "per-model alias for gexpenny local probe 0c37",
-    "prefix": "cs only",
-    "textureId": "0x0c37",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c37"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/0c46.bin",
-    "description": "per-model alias for gexpenny local probe 0c46",
-    "prefix": "cs only",
-    "textureId": "0x0c46",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c46"
-    }
-  },
-  {
-    "name": "CheadgexpennyZ/0c47.bin",
-    "description": "per-model alias for gexpenny local probe 0c47",
-    "prefix": "cs only",
-    "textureId": "0x0c47",
-    "source": {
-      "rom": "gex",
-      "lookup": "byId",
-      "id": "0x0c47"
-    }
-  },
+    {
+      "name": "CheadgexpennyZ/0c33.bin",
+      "description": "per-model alias for gexpenny legacy probe 055d",
+      "prefix": "cs only",
+      "textureId": "0x0c33",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c33"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/055e.bin",
+      "description": "per-model alias for gexpenny legacy probe 055e",
+      "prefix": "cs only",
+      "textureId": "0x0c47",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c47"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/055f.bin",
+      "description": "per-model alias for gexpenny legacy probe 055f",
+      "prefix": "cs only",
+      "textureId": "0x0c34",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c34"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/0560.bin",
+      "description": "per-model alias for gexpenny legacy probe 0560",
+      "prefix": "cs only",
+      "textureId": "0x0c37",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c37"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/098f.bin",
+      "description": "per-model alias for gexpenny legacy probe 098f",
+      "prefix": "cs only",
+      "textureId": "0x0c46",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c46"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/0c33.bin",
+      "description": "per-model alias for gexpenny local probe 0c33",
+      "prefix": "cs only",
+      "textureId": "0x0c33",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c33"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/0c34.bin",
+      "description": "per-model alias for gexpenny local probe 0c34",
+      "prefix": "cs only",
+      "textureId": "0x0c34",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c34"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/0c37.bin",
+      "description": "per-model alias for gexpenny local probe 0c37",
+      "prefix": "cs only",
+      "textureId": "0x0c37",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c37"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/0c46.bin",
+      "description": "per-model alias for gexpenny local probe 0c46",
+      "prefix": "cs only",
+      "textureId": "0x0c46",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c46"
+      }
+    },
+    {
+      "name": "CheadgexpennyZ/0c47.bin",
+      "description": "per-model alias for gexpenny local probe 0c47",
+      "prefix": "cs only",
+      "textureId": "0x0c47",
+      "source": {
+        "rom": "gex",
+        "lookup": "byId",
+        "id": "0x0c47"
+      }
+    },
     {
       "description": "used by chris2, duncan01",
       "type": "texture",
