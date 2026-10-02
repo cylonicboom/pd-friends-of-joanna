@@ -36,6 +36,7 @@
 extern "C" {
 #include "ext_tex.h"
 #include "skinmatch.h"
+#include "textrace.h"
 }
 
 uintptr_t gfxFramebuffer;
@@ -1153,6 +1154,11 @@ static void import_texture(int i, int tile, bool is_rect) {
     // see them: decode again onto the same texture id.
     const bool skin_wants = skinmatchWantsPixels(loaded_texture.type, loaded_texture.id, loaded_texture.texnum);
     if (cache_hit && !skin_wants) {
+        // textrace: served from the address-keyed cache, nothing uploaded
+        TEXTRACE(TEXTRACE_IMPORT, loaded_texture.texnum, loaded_texture.id,
+                 (fmt << 24) | (siz << 16) | (1 << 8) | loaded_texture.type,
+                 (rendering_state.textures[i]->second.width << 16) | (rendering_state.textures[i]->second.height & 0xffff),
+                 rendering_state.textures[i]->second.texture_id);
         loaded_texture.id_mask = 0;
         return;
     }
@@ -1230,6 +1236,25 @@ static void import_texture(int i, int tile, bool is_rect) {
     }
     rendering_state.textures[i]->second.width = dims.width;
     rendering_state.textures[i]->second.height = dims.height;
+
+    // textrace: what actually went to the GPU for this binding. The decoded
+    // RGBA is still in tex_upload_buffer after the import_* above; summing it
+    // (capped) is the probe the overlay would do by hand, without the hand.
+    if (g_TexTraceEnabled) {
+        uint32_t n = dims.width * dims.height * 4;
+        if (n > 65536) n = 65536;
+        uint32_t sum = 0;
+        for (uint32_t k = 0; k < n; k++) sum = sum * 31 + tex_upload_buffer[k];
+        TEXTRACE(TEXTRACE_IMPORT, loaded_texture.texnum, loaded_texture.id,
+                 (fmt << 24) | (siz << 16) | ((cache_hit ? 1 : 0) << 8) | loaded_texture.type,
+                 (dims.width << 16) | (dims.height & 0xffff), sum);
+        if (fmt == G_IM_FMT_CI) {
+            uint32_t psum = 0;
+            for (uint32_t k = 0; k < 256; k++) psum = psum * 31 + rdp.palette[k];
+            TEXTRACE(TEXTRACE_IMPORTPAL, loaded_texture.texnum, loaded_texture.id, palette_index, psum,
+                     rendering_state.textures[i]->second.texture_id);
+        }
+    }
 }
 
 static void gfx_normalize_vector(float v[3]) {

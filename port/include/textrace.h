@@ -23,6 +23,8 @@ enum textracekind {
 	TEXTRACE_CACHECLR,     // videoResetTextureCache: -, -, -, -, -
 	TEXTRACE_MENUMODEL,    // menu model loaded: alloclen, totalfilelen, bodyfinal, headfinal, poolused
 	TEXTRACE_MENUPOOL,     // menu model pool after load: poolstart-allocstart, leftpos-poolstart, rightpos-poolstart, end-poolstart, -
+	TEXTRACE_IMPORT,       // gfx import_texture upload: texnum, id, (fmt<<24|siz<<16|hit<<8|type), (w<<16|h), rgba checksum
+	TEXTRACE_IMPORTPAL,    // same upload, CI only: texnum, id, palette_index, palette checksum, texture_id
 };
 
 // lanes reported by TEXTRACE_MODTEX
