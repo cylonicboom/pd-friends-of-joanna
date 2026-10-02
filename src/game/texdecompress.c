@@ -2468,6 +2468,26 @@ haveCompBytes:
 
 			pool->leftpos += bytesout;
 
+#ifndef PLATFORM_N64
+			// Keep the next texture's data on an 8-byte boundary. bytesout is
+			// the exact decoded size and a multi-LOD 4-bit texture's is odd
+			// (a 2x3 mip is 3 bytes), so the texture allocated after it in a
+			// private pool started at an odd address. fast3d's seg_addr reads
+			// an odd pointer as a SEGMENTED address - seg from bits 24-27, the
+			// rest an offset into segmentPointers[seg] - so the next texture's
+			// gDPSetTextureImage resolved into whatever that segment held
+			// (the per-frame matrix buffer, during a chr draw) whenever ASLR
+			// put the pool under a live segment nibble. The shared pool never
+			// hit this: its data is copied out to a 16-aligned block below.
+			// On N64 the DMA needed this alignment and Rare's textures kept
+			// it; JPN-mounted heads do not. Measured on the CS Character box
+			// with CheadMikadoaquaZ: 0x100e at 0x32fef361, read through
+			// segment 3 as 0x32dea870 / 0x32e03070 on alternating frames.
+			if (!usingsharedpool) {
+				pool->leftpos = (u8 *)(((uintptr_t)pool->leftpos + 7) & ~(uintptr_t)7);
+			}
+#endif
+
 			if (!usingsharedpool) {
 				texGetPoolFreeBytes(pool);
 			}
