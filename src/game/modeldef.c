@@ -30,6 +30,7 @@
 #ifndef PLATFORM_N64
 #include "mod.h"
 #include "romdata.h"
+#include "textrace.h"
 #include "ext_tex.h"
 #endif
 
@@ -953,9 +954,11 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 		s32 modIdx = MOD_FILEID_MOD(fileid);
 		s32 prevModelFN = g_TexCurrentModelFileNum;
 		g_TexCurrentModelFileNum = MOD_FILEID_RAW(fileid);
+		TEXTRACE(TEXTRACE_MODELDEF, fileid, modIdx, g_TexCurrentModelFileNum, 0, 0);
 		modeldefRemapTexconfigsForMod(modeldef, modIdx);
 		modeldefRemapGdlTexnumsForMod(modeldef, modIdx, fileid);
 		modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
+		TEXTRACE(TEXTRACE_MODELDEF_END, fileid, fileGetLoadedSize(fileid), 0, 0, 0);
 		g_TexCurrentModelFileNum = prevModelFN;
 	}
 #else

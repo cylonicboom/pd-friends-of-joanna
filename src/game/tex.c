@@ -14,6 +14,7 @@
 #include "ext_tex.h"
 #include "system.h"
 #include "mod.h"
+#include "textrace.h"
 #include <string.h>
 #endif
 
@@ -910,6 +911,17 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 				spf4 = tex1->unk0c_03;
 			} else {
 				spf4 = 0;
+#ifndef PLATFORM_N64
+				// The whole C0 is skipped below when tex1 is NULL: nothing is
+				// emitted for this binding and the mesh after it draws with
+				// whatever texture state the previous command left, which for
+				// the first binding in a gdl is none - flat black. Record it.
+				{
+					extern s32 g_TexModNum;
+					extern s32 g_TexCurrentModelFileNum;
+					TEXTRACE(TEXTRACE_DROP, texturenum, 0, g_TexModNum, g_TexCurrentModelFileNum, 0);
+				}
+#endif
 			}
 
 			if (tex1 != NULL) {
@@ -959,6 +971,13 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 					}
 #endif
 
+#ifndef PLATFORM_N64
+					if (tex2 == NULL) {
+						extern s32 g_TexModNum;
+						extern s32 g_TexCurrentModelFileNum;
+						TEXTRACE(TEXTRACE_DROP, texturenum2, 1, g_TexModNum, g_TexCurrentModelFileNum, 0);
+					}
+#endif
 					if (tex2 != NULL) {
 						min = (ingdl->words.w1 >> 24) & 0xff;
 						smode = (ingdl->words.w0 >> 22) & 3;

@@ -8,6 +8,7 @@
 #include "config.h"
 #include "system.h"
 #include "video.h"
+#include "textrace.h"
 
 #include "../fast3d/gfx_api.h"
 #include "../fast3d/gfx_sdl.h"
@@ -567,6 +568,7 @@ void videoCopyFramebuffer(s32 dst, s32 src, s32 left, s32 top)
 
 void videoResetTextureCache(void)
 {
+	TEXTRACE(TEXTRACE_CACHECLR, 0, 0, 0, 0, 0);
 	gfx_texture_cache_clear();
 }
 

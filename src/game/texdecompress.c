@@ -15,6 +15,7 @@
 #include "platform.h"
 #include "romdata.h"
 #include "system.h"
+#include "textrace.h"
 #endif
 
 struct texture *g_Textures;
@@ -2279,6 +2280,10 @@ void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg)
 					compptr = alignedcompbuffer;
 					goto haveCompBytes;
 				}
+				{
+					extern s32 g_TexModNum;
+					TEXTRACE(TEXTRACE_PORTMISS, g_TexNumToLoad, g_TexModNum, usingsharedpool, 0, 0);
+				}
 				// static u32 s_oobLogged = 0;
 				// if (s_oobLogged < 16) {
 				// 	sysLogPrintf(LOG_WARNING, "texDecompress: g_TexNumToLoad=0x%x >= NUM_TEXTURES=%d and no mod provider, returning empty", g_TexNumToLoad, NUM_TEXTURES);
@@ -2381,6 +2386,9 @@ haveCompBytes:
 			}
 
 			if ((!iszlib && freebytes < 4300) || (iszlib && freebytes < 2600)) {
+#ifndef PLATFORM_N64
+				TEXTRACE(TEXTRACE_POOLFULL, g_TexNumToLoad, freebytes, iszlib, 0, 0);
+#endif
 				*updateword = osVirtualToPhysical(pool->start);
 				return;
 			}

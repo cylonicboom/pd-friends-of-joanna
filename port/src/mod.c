@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "romdata.h"
 #include "mod.h"
+#include "textrace.h"
 #include "config.h"
 #include "data.h"
 #include "bss.h"
@@ -3849,6 +3850,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 				}
 			}
 		}
+		TEXTRACE(TEXTRACE_MODTEX, num, -1, g_TexCurrentModelFileNum, 0, TEXTRACE_LANE_NOMODCTX);
 		return 0;
 	}
 
@@ -3923,6 +3925,7 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 				if (num >= 0x1010 && num <= 0x1023) {
 					/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x ROM-pointer, returning 0 (DMA fallback)", num); */
 				}
+				TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_BASEROM);
 				return 0;
 			}
 
@@ -3934,16 +3937,19 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 			if (size <= dstSize) {
 				memcpy(dst, data, size);
 				romdataFileFree(encodedFileNum);
+				TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_BYTES);
 				return size;
 			} else {
 				sysLogPrintf(LOG_ERROR, "mod: texture %04x (file %d) too large for buffer (%d > %d)", num, fileNum, size, dstSize);
 				romdataFileFree(encodedFileNum);
+				TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_TOOLARGE);
 				return 0;
 			}
 		} else {
 			if (num >= 0x1010 && num <= 0x1023) {
 				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x fileNum=0x%x romdataFileLoad returned NULL", num, fileNum); */
 			}
+			TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_LOADNULL);
 			return 0;
 		}
 	}
@@ -3960,10 +3966,12 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 		const s32 ret = fsFileLoadTo(path, dst, dstSize);
 		if (ret > 0) {
 			sysLogPrintf(LOG_NOTE, "mod: loaded external texture %04x from mod %d", num, modNum);
+			TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_LOOSE);
 			return ret;
 		}
 	}
 
+	TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, fileNum > 0 ? TEXTRACE_LANE_MISS : TEXTRACE_LANE_NOFILE);
 	return 0;
 }void *modSequenceLoad(u16 num, u32 *outSize)
 {

@@ -61,6 +61,7 @@
 #include "input.h"
 #include "platform.h"
 #include "mod.h"
+#include "textrace.h"
 #include "system.h"
 #define BLUR_OFS 10
 #else
@@ -2114,6 +2115,22 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 					menumodel->bodymodel.anim = &menumodel->bodyanim;
 
 					body0f02ce8c(bodynum, headnum, menumodel->bodymodeldef, menumodel->headmodeldef, totalfilelen * 0, &menumodel->bodymodel, false, 1);
+
+#ifndef PLATFORM_N64
+					// The body's expanded gdl, the head's expanded gdl and the
+					// private texpool all live in this one gunmem block. The pool
+					// starts at allocstart + totalfilelen and the head was given
+					// totalfilelen - bodyfilelen2 to expand into; if the head's
+					// final size runs past that, its gdl and the pool overlap.
+					TEXTRACE(TEXTRACE_MENUMODEL, menumodel->alloclen, totalfilelen, bodyfilelen2,
+							headnum < 0 ? 0 : fileGetLoadedSize(headfilenum),
+							(s32)((uintptr_t)texpool.leftpos - (uintptr_t)texpool.start));
+					TEXTRACE(TEXTRACE_MENUPOOL,
+							(s32)((uintptr_t)texpool.start - (uintptr_t)menumodel->allocstart),
+							(s32)((uintptr_t)texpool.leftpos - (uintptr_t)texpool.start),
+							(s32)((uintptr_t)texpool.rightpos - (uintptr_t)texpool.start),
+							(s32)((uintptr_t)texpool.end - (uintptr_t)texpool.start), 0);
+#endif
 				} else {
 					totalfilelen = ALIGN64(fileGetInflatedSize(menumodel->newparams, LOADTYPE_MODEL)) + 0x4000;
 					if (1);

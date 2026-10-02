@@ -30,6 +30,7 @@
 #include "game/mplayer/setup.h"
 #include "ext_tex.h"
 #include "skinmatch.h"
+#include "textrace.h"
 #include "game/luaai.h"
 
 u32 g_OsMemSize = 0;
@@ -117,6 +118,7 @@ static void gameInit(void)
 static void cleanup(void)
 {
 	sysLogPrintf(LOG_NOTE, "shutdown");
+	texTraceDump();
 	inputSaveBinds();
 	// inputSaveBinds only refreshes the in-memory bind strings the config
 	// table points at, so nothing has marked pd.ini dirty. Shutdown has
@@ -150,6 +152,7 @@ int main(int argc, const char **argv)
 
 	sysInit();
 	fsInit();
+	texTraceInit();
 	romdataInit();
 
 	// NOTE: dynamic mod staging loading disabled for now
