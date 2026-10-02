@@ -2351,6 +2351,9 @@ static void gfx_dp_set_tile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t t
     rdp.texture_tile[tile].shiftt = shiftt;
     rdp.texture_tile[tile].line_size_bytes = line * 8;
     rdp.texture_tile[tile].tmem = tmem;
+    if (tile == 6) {
+        TEXTRACE(TEXTRACE_SETTILE6, tmem, (fmt << 8) | siz, line, rdp.texture_to_load.texnum, rdp.texture_to_load.id);
+    }
 
     rdp.textures_changed[0] = true;
     rdp.textures_changed[1] = true;
@@ -2368,6 +2371,7 @@ static void gfx_dp_set_tile_size(uint8_t tile, uint16_t uls, uint16_t ult, uint1
 }
 
 static void load_tlut(const uint16_t* base, uint8_t tile, uint32_t count) {
+	TEXTRACE(TEXTRACE_TLUT, rdp.texture_to_load.texnum, tile, rdp.texture_tile[tile].tmem, count, (uint32_t)(uintptr_t)base);
 	if (rdp.texture_tile[tile].tmem == 256) {
 		rdp.palette_addrs[0] = (const uint8_t *)base;
 		if (count >= 256) {
