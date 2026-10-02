@@ -2142,6 +2142,20 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 					menumodel->bodymodeldef = modeldefLoad(menumodel->newparams, menumodel->allocstart, totalfilelen, &texpool);
 
 					fileGetLoadedSize(menumodel->newparams);
+#ifndef PLATFORM_N64
+					// Single-file branch - this is the one the CS Character box
+					// takes (a head alone, no body). Same layout question as the
+					// head+body branch below: the file expands into totalfilelen
+					// (inflated estimate + 0x4000) and the pool starts right after.
+					TEXTRACE(TEXTRACE_MENUMODEL, menumodel->alloclen, totalfilelen, 0,
+							fileGetLoadedSize(menumodel->newparams),
+							(s32)((uintptr_t)texpool.leftpos - (uintptr_t)texpool.start));
+					TEXTRACE(TEXTRACE_MENUPOOL,
+							(s32)((uintptr_t)texpool.start - (uintptr_t)menumodel->allocstart),
+							(s32)((uintptr_t)texpool.leftpos - (uintptr_t)texpool.start),
+							(s32)((uintptr_t)texpool.rightpos - (uintptr_t)texpool.start),
+							(s32)((uintptr_t)texpool.end - (uintptr_t)texpool.start), 0);
+#endif
 					modelAllocateRwData(menumodel->bodymodeldef);
 					modelInit(&menumodel->bodymodel, menumodel->bodymodeldef, menumodel->rwdata, true);
 					animInit(&menumodel->bodyanim);
