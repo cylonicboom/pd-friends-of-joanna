@@ -15,7 +15,7 @@
  * When the ring wraps, the oldest records are lost and the dump says so.
  */
 
-#define TEXTRACE_RING 8192
+#define TEXTRACE_RING 131072
 
 struct textracerec {
 	s32 frame;
@@ -30,7 +30,7 @@ static u32 s_Count = 0;
 
 static const char *s_KindNames[] = {
 	"modeldef", "modeldef_end", "modtex", "portmiss", "poolfull", "drop", "cacheclr", "menumodel", "menupool",
-	"import", "importpal",
+	"import", "importpal", "stamp", "tri",
 };
 
 static const char *s_LaneNames[] = {
@@ -111,6 +111,12 @@ void texTraceDump(void)
 			break;
 		case TEXTRACE_IMPORTPAL:
 			fprintf(f, "%6d %-12s tex=0x%04x id=0x%04x palidx=%d palsum=0x%08x glid=%d\n", r->frame, kn, r->v[0], r->v[1], r->v[2], (u32)r->v[3], r->v[4]);
+			break;
+		case TEXTRACE_STAMP:
+			fprintf(f, "%6d %-12s tex=0x%04x id=0x%04x type=%d tile=%d lod=%d addr=0x%08x\n", r->frame, kn, r->v[0], r->v[1], r->v[2], (r->v[3] >> 8) & 0xff, r->v[3] & 0xff, (u32)r->v[4]);
+			break;
+		case TEXTRACE_TRI:
+			fprintf(f, "%6d %-12s tex0=0x%04x id0=0x%04x used=%d/%d changed=%d/%d glid0=%d\n", r->frame, kn, r->v[0], r->v[1], (r->v[2] >> 8) & 1, r->v[2] & 1, (r->v[3] >> 8) & 1, r->v[3] & 1, r->v[4]);
 			break;
 		case TEXTRACE_MENUPOOL:
 			fprintf(f, "%6d %-12s poolofs=0x%x left=0x%x right=0x%x end=0x%x\n", r->frame, kn, r->v[0], r->v[1], r->v[2], r->v[3]);

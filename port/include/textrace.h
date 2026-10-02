@@ -25,6 +25,8 @@ enum textracekind {
 	TEXTRACE_MENUPOOL,     // menu model pool after load: poolstart-allocstart, leftpos-poolstart, rightpos-poolstart, end-poolstart, -
 	TEXTRACE_IMPORT,       // gfx import_texture upload: texnum, id, (fmt<<24|siz<<16|hit<<8|type), (w<<16|h), rgba checksum
 	TEXTRACE_IMPORTPAL,    // same upload, CI only: texnum, id, palette_index, palette checksum, texture_id
+	TEXTRACE_STAMP,        // gfx load_block/load_tile received a binding: texnum, id, type, (tile<<8 | tex_lod), addr low 32
+	TEXTRACE_TRI,          // gfx drew a textured tri batch: texnum0, id0, (used0<<8|used1), changed0<<8|changed1, texture_id0
 };
 
 // lanes reported by TEXTRACE_MODTEX

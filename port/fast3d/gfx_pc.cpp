@@ -1821,6 +1821,18 @@ static void gfx_sp_tri1(uint8_t vtx1_idx, uint8_t vtx2_idx, uint8_t vtx3_idx, bo
     uint32_t tm = 0;
     uint32_t tex_width[2], tex_height[2], tex_width2[2], tex_height2[2];
 
+    if (g_TexTraceEnabled && !is_rect) {
+        // what this batch samples, before any import below: the texture
+        // image fast3d currently holds for unit 0's tile, and whether the
+        // combiner reads either unit at all
+        const uint32_t t0 = rdp.first_tile_index + gfx_lod_tile_offset(0);
+        const LoadedTexture& lt0 = rdp.loaded_texture[rdp.texture_tile[t0].tmem];
+        TEXTRACE(TEXTRACE_TRI, lt0.texnum, lt0.id,
+                 ((comb->used_textures[0] ? 1 : 0) << 8) | (comb->used_textures[1] ? 1 : 0),
+                 ((rdp.textures_changed[0] ? 1 : 0) << 8) | (rdp.textures_changed[1] ? 1 : 0),
+                 rendering_state.textures[0] ? (int)rendering_state.textures[0]->second.texture_id : -1);
+    }
+
     for (int i = 0; i < 2; i++) {
         // TODO: fix this; for now just ignore smaller mips
         const uint32_t tile = rdp.first_tile_index + gfx_lod_tile_offset(i);
@@ -2413,6 +2425,9 @@ static void gfx_stamp_loaded_texture(LoadedTexture& loaded_texture) {
     loaded_texture.texnum = tag.texnum;
     loaded_texture.skin_body =
         skinmatchNumSidecars() > 0 ? skinmatchBodyFor(tag.type, tag.id, tag.texnum, true) : nullptr;
+    TEXTRACE(TEXTRACE_STAMP, tag.texnum, tag.id, tag.type,
+             ((&loaded_texture - rdp.loaded_texture) << 8) | (rdp.tex_lod ? 1 : 0),
+             (uint32_t)(uintptr_t)loaded_texture.addr);
 
     tag.type = G_TEXTYPE_NONE;
     tag.id = 0;
