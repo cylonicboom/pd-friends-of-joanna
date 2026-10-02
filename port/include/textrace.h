@@ -27,6 +27,7 @@ enum textracekind {
 	TEXTRACE_IMPORTPAL,    // same upload, CI only: texnum, id, palette_index, palette checksum, texture_id
 	TEXTRACE_STAMP,        // gfx load_block/load_tile received a binding: texnum, id, type, (tile<<8 | tex_lod), addr low 32
 	TEXTRACE_TRI,          // gfx drew a textured tri batch: texnum0, id0, (used0<<8|used1), changed0<<8|changed1, texture_id0
+	TEXTRACE_TILE,         // import_texture tile view: texnum, (unit<<24|tile<<16|first<<8|maxlod), (fmt<<24|siz<<16|lod<<8|detail), tmem<<16|line, loaded_texture texnum
 };
 
 // lanes reported by TEXTRACE_MODTEX

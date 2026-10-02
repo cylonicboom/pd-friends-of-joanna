@@ -30,7 +30,7 @@ static u32 s_Count = 0;
 
 static const char *s_KindNames[] = {
 	"modeldef", "modeldef_end", "modtex", "portmiss", "poolfull", "drop", "cacheclr", "menumodel", "menupool",
-	"import", "importpal", "stamp", "tri",
+	"import", "importpal", "stamp", "tri", "tile",
 };
 
 static const char *s_LaneNames[] = {
@@ -117,6 +117,12 @@ void texTraceDump(void)
 			break;
 		case TEXTRACE_TRI:
 			fprintf(f, "%6d %-12s tex0=0x%04x id0=0x%04x used=%d/%d changed=%d/%d glid0=%d\n", r->frame, kn, r->v[0], r->v[1], (r->v[2] >> 8) & 1, r->v[2] & 1, (r->v[3] >> 8) & 1, r->v[3] & 1, r->v[4]);
+			break;
+		case TEXTRACE_TILE:
+			fprintf(f, "%6d %-12s tex=0x%04x unit=%d tile=%d first=%d maxlod=%d fmt=%d siz=%d lod=%d detail=%d tmem=%d line=%d loadedtex=0x%04x\n", r->frame, kn,
+					r->v[0], (r->v[1] >> 24) & 0xff, (r->v[1] >> 16) & 0xff, (r->v[1] >> 8) & 0xff, r->v[1] & 0xff,
+					(r->v[2] >> 24) & 0xff, (r->v[2] >> 16) & 0xff, (r->v[2] >> 8) & 0xff, r->v[2] & 0xff,
+					(r->v[3] >> 16) & 0xffff, r->v[3] & 0xffff, r->v[4]);
 			break;
 		case TEXTRACE_MENUPOOL:
 			fprintf(f, "%6d %-12s poolofs=0x%x left=0x%x right=0x%x end=0x%x\n", r->frame, kn, r->v[0], r->v[1], r->v[2], r->v[3]);

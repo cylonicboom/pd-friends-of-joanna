@@ -1112,6 +1112,14 @@ static void import_texture(int i, int tile, bool is_rect) {
     const uint32_t tex_flags = loaded_texture.tex_flags;
     const uint8_t palette_index = rdp.texture_tile[tile].palette;
 
+    // textrace: which tile this unit resolved to and what that tile says,
+    // before anything below trusts it
+    TEXTRACE(TEXTRACE_TILE, rdp.texture_to_load.texnum ? rdp.texture_to_load.texnum : loaded_texture.texnum,
+             (i << 24) | ((tile & 0xff) << 16) | ((rdp.first_tile_index & 0xff) << 8) | rdp.tex_max_lod,
+             (fmt << 24) | (siz << 16) | ((rdp.tex_lod ? 1 : 0) << 8) | (rdp.tex_detail ? 1 : 0),
+             ((rdp.texture_tile[tile].tmem & 0xffff) << 16) | (rdp.texture_tile[tile].line_size_bytes & 0xffff),
+             loaded_texture.texnum);
+
     if ((rdp.tex_lod && tile >= rdp.first_tile_index + rdp.tex_detail) || !loaded_texture.addr) {
         // set up miplevel 0; also acts as a catch-all for when .addr is NULL because my texture loader sucks
         loaded_texture.addr = rdp.texture_to_load.addr;
