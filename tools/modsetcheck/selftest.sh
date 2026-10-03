@@ -229,7 +229,7 @@ expect "\[MpStageSlots\] 'shared_level' (declared by mod_selftest) is reserved a
 expect "\[MpStageSlots\] 'gone_level' holds row 90 (STAGE_EXTRA25) and nothing in this set declares it"
 expect "\[MpStageSlots\] 'far_level' holds row 200, past the 127 the save field can store"
 expect 'stage "lost_level" has no \[MpStageSlots\] entry yet'
-expect '\[MpStageSlots\]: 3 reservations, 2 orphaned, highest row 200 of 127'
+expect '\[MpStageSlots\]: 3 allocations, 2 orphaned, 0 stale claim keys, highest row 200 of 127'
 
 [ -s "$work/stages.json" ] || { echo "selftest: no stage table was written"; exit 1; }
 python3 - "$work/stages.json" <<'PY' 2>/dev/null || echo "selftest: (no python3, stage table not parsed)"

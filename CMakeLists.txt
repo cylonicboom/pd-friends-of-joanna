@@ -233,6 +233,18 @@ add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wno-pointer-sign>)
 
 # C++ specific flags
 add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-function>)
+# types.h is a C header with members named after the types they hold
+# (struct filedataptr { u8 *u8; u32 *u32; }, audioparam, a union). Valid C;
+# C++ says the member changes what the name means in the struct's scope, and
+# GCC 13+ makes that an error by default. The debugger (imgui_overlay.cpp,
+# imgui_skinmatch.cpp) includes it through bss.h, so Linux CI died there
+# while clang, which does not diagnose it, built the same files on the mac.
+# Renaming vanilla struct members is not worth it; the flag is.
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wno-changes-meaning CXX_HAS_WNO_CHANGES_MEANING)
+if(CXX_HAS_WNO_CHANGES_MEANING)
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-changes-meaning>)
+endif()
 
 # Platform-specific flags
 if (APPLE)
