@@ -21,3 +21,13 @@
   - Add Calico Dark as playable character
   - remove need for launcher
   - default local app directory name is now perfectdark-friends-of-joanna-v0.3
+0.3.9.0 - Public test (pre-release of 0.4)
+  - third person camera, roll/flinch/melee, damage reactions for sims and players (thank you DabDavis)
+  - drop-in / drop-out team missions
+  - mikado dark wears her own outfits (needs the jpn rom)
+  - lua scripting (from Perfect Dark Kai, thank you Murk)
+  - debugger overlay grows into a level editor
+  - setups ship as patches against your own rom
+  - mipmaps and anisotropic filtering
+  - save folder is now perfectdark-friends-of-joanna-v0.4
+  - launchers removed; run the exe next to data/
