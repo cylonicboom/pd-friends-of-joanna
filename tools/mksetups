@@ -365,7 +365,11 @@ def write_patches(args, built):
             van_path = os.path.join(tmp, romname + '.vanilla.bin')
             open(van_path, 'wb').write(van)
             out = os.path.join(patches_dir, romname + '.xdelta')
-            subprocess.check_call([xd, '-e', '-S', 'none', '-f', '-s', van_path, binp, out])
+            # -A drops the application header: it carries the source and
+            # target FILENAMES, i.e. a tempdir path, so without it the same
+            # bytes patched twice gave two different xdeltas and every
+            # cmake run churned 17 binaries in git. The engine never reads it.
+            subprocess.check_call([xd, '-e', '-A', '-S', 'none', '-f', '-s', van_path, binp, out])
             print('%s: %d -> %d bytes, patch %d B -> patches/%s.xdelta' % (
                 romname, len(van), len(raw), os.path.getsize(out), romname))
             rows.append((romname, 'patches/%s.xdelta' % romname))
