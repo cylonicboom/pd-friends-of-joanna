@@ -243,7 +243,5 @@ Upstream Perfect Dark PC Port: https://github.com/fgsfdsfgs/perfect_dark
 #### Ryan Dwyer
 Perfect Dark Decomp: https://gitlab.com/ryandwyer/perfect-dark
 
-###### GoldenEye X and AIO assets aren't redistributed here. Support for them loads from your own copies, when they're detected.
-
 #
 ###### * Sometimes, the best man for the job is a woman... and her friends.
