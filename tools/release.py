@@ -7,7 +7,7 @@ Supports two input modes:
 2) CI artifact download from a GitHub Actions run (--run)
 
 Packaging model is basedir-first (portable layout):
-- Copy prepared basedir into a staging release root
+- Copy the repo's basedir/ (git-tracked files only) into a staging release root
 - Copy target binary into release root
 - Merge optional runtime files (frameworks/DLLs/etc)
 - Zip one archive per target + SHA256 checksums
@@ -46,8 +46,8 @@ DEFAULT_CONFIG_PATH = SCRIPT_DIR / "release.config.json"
 RELEASE_EXTRAS = ["CHANGELOG.md"]
 
 # Files that must never appear in release zips.
-BLACKLISTED_NAMES = {"eeprom.bin", "mpsetups.bin", "pd.ini"}
-BLACKLISTED_EXTENSIONS = {".z64", ".pak"}
+BLACKLISTED_NAMES = {"eeprom.bin", "mpsetups.bin", "pd.ini", "pd.log", "pd.crash.log", "fojo-imgui.ini", "textrace.txt"}
+BLACKLISTED_EXTENSIONS = {".z64", ".pak", ".log"}
 REGION_BINARY_TOKENS = {"jpn", "pal"}
 REGION_BINARY_EXTENSIONS = {".z64", ".n64", ".v64", ".bin", ".exe"}
 
@@ -111,8 +111,33 @@ def run_cmd(cmd: Iterable[str], **kwargs):
     return subprocess.run(list(cmd), check=True, **kwargs)
 
 
+def git_tracked_files(src: Path) -> Optional[Set[Path]]:
+    """The files git tracks under src, relative to src, or None if src is not in a repo.
+
+    The release basedir lives in the tree with roms, logs, saves and traces
+    sitting beside the tracked files, all gitignored. Shipping exactly what is
+    committed is the only rule that cannot be out of date: anything that
+    should not go out is already not tracked."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(src), "ls-files", "-z", "--", "."],
+            capture_output=True, check=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    names = [n for n in result.stdout.decode("utf-8", "replace").split("\0") if n]
+    return {Path(n) for n in names}
+
+
 def copy_tree_clean(src: Path, dest: Path) -> None:
-    """Copy src recursively into dest while filtering unsafe/unwanted files."""
+    """Copy src recursively into dest while filtering unsafe/unwanted files.
+
+    Inside a git checkout only tracked files are copied (see git_tracked_files);
+    the blacklist still applies on top, so a tracked rom or save would be
+    refused rather than shipped."""
+    tracked = git_tracked_files(src)
+    if tracked is not None:
+        print(f"    git-tracked files only: {len(tracked)} under {src}")
     for root, dirnames, filenames in os.walk(src, followlinks=False):
         root_path = Path(root)
 
@@ -144,6 +169,9 @@ def copy_tree_clean(src: Path, dest: Path) -> None:
                 continue
 
             rel = item.relative_to(src)
+            if tracked is not None and rel not in tracked:
+                print(f"    SKIP (untracked): {item}")
+                continue
             target = dest / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(item, target)
@@ -426,22 +454,22 @@ def main() -> None:
 
           Local packaging (single target):
             python3 tools/release.py \
-              --tag v0.3.1 \
-              --basedir ../pd-fojo-v.3.1-basedir \
+              --tag v0.4.0 \
               --linux64-bin ./build/pd.x86_64
 
           CI packaging (all supported artifacts found in run):
             python3 tools/release.py \
-              --tag v0.3.1 \
-              --run 30497971805 \
-              --basedir ../pd-fojo-v.3.1-basedir
+              --tag v0.4.0 \
+              --run 30497971805
 
           CI packaging with local override for one target:
             python3 tools/release.py \
-              --tag v0.3.1 \
+              --tag v0.4.0 \
               --run 30497971805 \
-              --basedir ../pd-fojo-v.3.1-basedir \
               --macos-arm64-bin ./build/pd.arm64
+
+          The basedir is the repo's own basedir/ unless --basedir says otherwise;
+          only its git-tracked files ship, so roms, saves and logs beside them never do.
         """
     ).strip()
 
@@ -462,7 +490,7 @@ def main() -> None:
         "--basedir",
         type=Path,
         default=None,
-        help="Portable basedir root (default: ../pd-fojo-v.3.1-basedir)",
+        help="Portable basedir root (default: the repo's own basedir/)",
     )
     parser.add_argument(
         "--output-dir",
@@ -508,10 +536,19 @@ def main() -> None:
         print(f"Config path: {config_path}")
         sys.exit(1)
 
-    basedir = path_value(args.basedir or config.get("basedir") or (REPO_ROOT.parent / "pd-fojo-v.3.1-basedir"))
+    if args.basedir:
+        basedir = path_value(args.basedir)
+    elif config.get("basedir"):
+        basedir = maybe_resolve(REPO_ROOT / config["basedir"])
+    else:
+        basedir = REPO_ROOT / "basedir"
     output_dir_raw = args.output_dir or config.get("output_dir")
     output_dir = path_value(output_dir_raw) if output_dir_raw else Path(f"release-{tag}").resolve()
-    run_id = args.run or config.get("run")
+    # The config's run is the LAST cut's run id, kept for the record. It only
+    # drives a CI download when nothing local was asked for; a --*-bin on the
+    # command line is a local packaging run and must not need gh.
+    cli_bins = any([args.win64_bin, args.linux64_bin, args.macos_x64_bin, args.macos_arm64_bin])
+    run_id = args.run or (None if cli_bins else config.get("run"))
     repo = args.repo or config.get("repo") or DEFAULT_REPO
     keep_work = bool(config.get("keep_work", False)) or args.keep_work
 

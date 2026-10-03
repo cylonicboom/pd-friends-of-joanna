@@ -2,7 +2,7 @@
   "tag": "v0.3.9.0",
   "run": "30585537489",
   "repo": "cylonicboom/pd-friends-of-joanna",
-  "basedir": "../pd-fojo-v.3.1-basedir",
+  "basedir": "basedir",
   "output_dir": "./release-v0.3.9",
   "keep_work": false,
   "win64_bin": null,
