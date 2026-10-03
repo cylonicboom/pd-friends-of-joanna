@@ -240,10 +240,20 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-function>)
 # imgui_skinmatch.cpp) includes it through bss.h, so Linux CI died there
 # while clang, which does not diagnose it, built the same files on the mac.
 # Renaming vanilla struct members is not worth it; the flag is.
-include(CheckCXXCompilerFlag)
-check_cxx_compiler_flag(-Wno-changes-meaning CXX_HAS_WNO_CHANGES_MEANING)
-if(CXX_HAS_WNO_CHANGES_MEANING)
-  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-changes-meaning>)
+# Before 13 the diagnostic is not a warning anybody can name - it is only
+# under -fpermissive - and gcc 11 swallows the unknown -Wno-changes-meaning
+# without a word, so a flag check passes and nothing changes (ubuntu-22.04,
+# the i686 job). Scope -fpermissive to the two files that include the
+# header rather than loosening every C++ file in the build.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+    set_source_files_properties(
+      "${CMAKE_SOURCE_DIR}/port/src/imgui_overlay.cpp"
+      "${CMAKE_SOURCE_DIR}/port/src/imgui_skinmatch.cpp"
+      PROPERTIES COMPILE_OPTIONS "-fpermissive")
+  else()
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-changes-meaning>)
+  endif()
 endif()
 
 # Platform-specific flags

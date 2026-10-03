@@ -45,7 +45,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-i686-windows
+          name: foj-i686-windows
           path: bin/
           retention-days: 0
 
@@ -75,7 +75,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-i686-linux
+          name: foj-i686-linux
           path: bin/
           retention-days: 0
 
@@ -117,7 +117,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-x86_64-windows
+          name: foj-x86_64-windows
           path: bin/
           retention-days: 0
 
@@ -176,7 +176,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-x86_64-linux
+          name: foj-x86_64-linux
           path: bin/
           retention-days: 0
 
@@ -214,7 +214,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-x86_64-osx
+          name: foj-x86_64-osx
           path: bin/
           retention-days: 0
 
@@ -252,7 +252,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-arm64-osx
+          name: foj-arm64-osx
           path: bin/
           retention-days: 0
 
@@ -288,7 +288,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pd-arm64-nswitch
+          name: foj-arm64-nswitch
           path: bin/
           retention-days: 0
 
@@ -303,7 +303,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/download-artifact@v4
       with:
-        name: pd-x86_64-linux
+        name: foj-x86_64-linux
         path: dist/linux/bin/
 
     - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
@@ -345,13 +345,13 @@ jobs:
         run: |
           mkdir ci-release
           pushd ci-artifacts
-          tar czf ../ci-release/pd-i686-linux.tar.gz pd-i686-linux
-          tar czf ../ci-release/pd-x86_64-linux.tar.gz pd-x86_64-linux
-          tar cJf ../ci-release/pd-x86_64-osx.tar.xz pd-x86_64-osx
-          tar cJf ../ci-release/pd-arm64-osx.tar.xz pd-arm64-osx
-          zip -r ../ci-release/pd-i686-windows.zip pd-i686-windows
-          zip -r ../ci-release/pd-x86_64-windows.zip pd-x86_64-windows
-          zip -r ../ci-release/pd-arm64-nswitch.zip pd-arm64-nswitch
+          tar czf ../ci-release/foj-i686-linux.tar.gz foj-i686-linux
+          tar czf ../ci-release/foj-x86_64-linux.tar.gz foj-x86_64-linux
+          tar cJf ../ci-release/foj-x86_64-osx.tar.xz foj-x86_64-osx
+          tar cJf ../ci-release/foj-arm64-osx.tar.xz foj-arm64-osx
+          zip -r ../ci-release/foj-i686-windows.zip foj-i686-windows
+          zip -r ../ci-release/foj-x86_64-windows.zip foj-x86_64-windows
+          zip -r ../ci-release/foj-arm64-nswitch.zip foj-arm64-nswitch
           mv io.github.fgsfdsfgs.perfect_dark.flatpak/io.github.fgsfdsfgs.perfect_dark.flatpak ../ci-release/
           popd
           git tag --force ci-dev-build port

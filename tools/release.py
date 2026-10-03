@@ -56,25 +56,25 @@ TARGETS = {
     "windows-x86_64": {
         "bin_arg": "win64_bin",
         "extra_arg": "win64_extra",
-        "ci_artifact": "pd-x86_64-windows",
+        "ci_artifact": "foj-x86_64-windows",
         "ci_primary_binary": "pd.x86_64.exe",
     },
     "linux-x86_64": {
         "bin_arg": "linux64_bin",
         "extra_arg": "linux64_extra",
-        "ci_artifact": "pd-x86_64-linux",
+        "ci_artifact": "foj-x86_64-linux",
         "ci_primary_binary": "pd.x86_64",
     },
     "macos-x86_64": {
         "bin_arg": "macos_x64_bin",
         "extra_arg": "macos_x64_extra",
-        "ci_artifact": "pd-x86_64-osx",
+        "ci_artifact": "foj-x86_64-osx",
         "ci_primary_binary": "pd.x86_64",
     },
     "macos-arm64": {
         "bin_arg": "macos_arm64_bin",
         "extra_arg": "macos_arm64_extra",
-        "ci_artifact": "pd-arm64-osx",
+        "ci_artifact": "foj-arm64-osx",
         "ci_primary_binary": "pd.arm64",
     },
 }
