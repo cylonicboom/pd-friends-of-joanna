@@ -1,10 +1,9 @@
 name: C/C++ CI
 
+# Builds run when you ask, not on every push: Actions > C/C++ CI > Run
+# workflow, pick the branch. A green run is what promote.yml turns into a
+# release.
 on:
-  push:
-    branches: [ "port", "port-friends-of-joanna", "fojo" ]
-  pull_request:
-    branches: [ "port" ]
   workflow_dispatch:
 
 jobs:
