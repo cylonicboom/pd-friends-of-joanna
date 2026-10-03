@@ -36,12 +36,15 @@ jobs:
         run: cmake -G"Unix Makefiles" -Bbuild_jpn -DROMID=jpn-final . && cmake --build build_jpn -j
       - name: Prepare artifact for packaging
         run: |
-          mkdir -p bin/data
+          mkdir -p bin
           cp build/pd.i686.exe bin/
           cp build_pal/pd.pal.i686.exe bin/
           cp build_jpn/pd.jpn.i686.exe bin/
           cp /mingw32/bin/{SDL2.dll,zlib1.dll,libgcc_s_dw2-1.dll,libwinpthread-1.dll} bin/
-          touch bin/data/put_your_rom_here.txt
+          # the mod itself: basedir/data is the shipped data dir, and a checkout
+          # holds only its tracked files, so this is the sanitized set by construction
+          cp -R basedir/data bin/data
+          cp basedir/readme.md basedir/CHANGELOG bin/
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -67,11 +70,14 @@ jobs:
         run: cmake -G"Unix Makefiles" -Bbuild_jpn -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32 -DROMID=jpn-final . && cmake --build build_jpn -j
       - name: Prepare artifact for packaging
         run: |
-          mkdir -p bin/data
+          mkdir -p bin
           cp build/pd.i686 bin/
           cp build_pal/pd.pal.i686 bin/
           cp build_jpn/pd.jpn.i686 bin/
-          touch bin/data/put_your_rom_here.txt
+          # the mod itself: basedir/data is the shipped data dir, and a checkout
+          # holds only its tracked files, so this is the sanitized set by construction
+          cp -R basedir/data bin/data
+          cp basedir/readme.md basedir/CHANGELOG bin/
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -108,12 +114,15 @@ jobs:
         run: cmake -G"Unix Makefiles" -Bbuild_jpn -DROMID=jpn-final . && cmake --build build_jpn -j
       - name: Prepare artifact for packaging
         run: |
-          mkdir -p bin/data
+          mkdir -p bin
           cp build/pd.x86_64.exe bin/
           cp build_pal/pd.pal.x86_64.exe bin/
           cp build_jpn/pd.jpn.x86_64.exe bin/
           cp /mingw64/bin/{SDL2.dll,zlib1.dll,libwinpthread-1.dll,libgcc_s_seh-1.dll} bin/
-          touch bin/data/put_your_rom_here.txt
+          # the mod itself: basedir/data is the shipped data dir, and a checkout
+          # holds only its tracked files, so this is the sanitized set by construction
+          cp -R basedir/data bin/data
+          cp basedir/readme.md basedir/CHANGELOG bin/
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -168,11 +177,14 @@ jobs:
         run: cmake -G"Unix Makefiles" -Bbuild_jpn -DROMID=jpn-final . && cmake --build build_jpn -j
       - name: Prepare artifact for packaging
         run: |
-          mkdir -p bin/data
+          mkdir -p bin
           cp build/pd.x86_64 bin/
           cp build_pal/pd.pal.x86_64 bin/
           cp build_jpn/pd.jpn.x86_64 bin/
-          touch bin/data/put_your_rom_here.txt
+          # the mod itself: basedir/data is the shipped data dir, and a checkout
+          # holds only its tracked files, so this is the sanitized set by construction
+          cp -R basedir/data bin/data
+          cp basedir/readme.md basedir/CHANGELOG bin/
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -205,12 +217,15 @@ jobs:
           cmake --build build_jpn --target pd -j4 --clean-first
       - name: Prepare artifact for packaging
         run: |
-          mkdir -p bin/data
+          mkdir -p bin
           cp build/pd.x86_64 bin/
           cp build_pal/pd.pal.x86_64 bin/
           cp build_jpn/pd.jpn.x86_64 bin/
           cp -vr /Library/Frameworks/SDL2.framework bin/
-          touch bin/data/put_your_rom_here.txt
+          # the mod itself: basedir/data is the shipped data dir, and a checkout
+          # holds only its tracked files, so this is the sanitized set by construction
+          cp -R basedir/data bin/data
+          cp basedir/readme.md basedir/CHANGELOG bin/
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -243,12 +258,15 @@ jobs:
           cmake --build build_jpn --target pd -j4 --clean-first
       - name: Prepare artifact for packaging
         run: |
-          mkdir -p bin/data
+          mkdir -p bin
           cp build/pd.arm64 bin/
           cp build_pal/pd.pal.arm64 bin/
           cp build_jpn/pd.jpn.arm64 bin/
           cp -vr /Library/Frameworks/SDL2.framework bin/
-          touch bin/data/put_your_rom_here.txt
+          # the mod itself: basedir/data is the shipped data dir, and a checkout
+          # holds only its tracked files, so this is the sanitized set by construction
+          cp -R basedir/data bin/data
+          cp basedir/readme.md basedir/CHANGELOG bin/
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -282,9 +300,7 @@ jobs:
           cp build/pd.arm64.nro bin/perfectdark/
           cp build_pal/pd.pal.arm64.nro bin/perfectdark_pal/
           cp build_jpn/pd.jpn.arm64.nro bin/perfectdark_jpn/
-          touch bin/perfectdark/data/put_your_rom_here.txt
-          touch bin/perfectdark_pal/data/put_your_rom_here.txt
-          touch bin/perfectdark_jpn/data/put_your_rom_here.txt
+          for d in perfectdark perfectdark_pal perfectdark_jpn; do rm -rf bin/$d/data && cp -R basedir/data bin/$d/data; done
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
