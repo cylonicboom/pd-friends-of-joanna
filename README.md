@@ -47,11 +47,91 @@ There are minor graphics- and gameplay-related issues, and possibly occasional c
 ### 4-player co-op / counter-op mode: `Team Missions`
 ### 6 playable CI Combat agents in Team Missions / Solo Missions: 
 #### `Joanna Dark`
+##### CI File #027
+
+| | |
+| --- | --- |
+| Training Status | Complete |
+| Training Grade | A++ |
+| Active Status | Assigned |
+| Manufacturer | Carrington |
+
+##### Profile
+
+Highly trained but inexperienced. Reactions superb. Proficient with a variety of weapons. Very competent all-round agent. Highest recorded training scores resulted in the creation of a new class of training grade. The embodiment of the Carrington Institute's ideal agent, hence the call sign 'Perfect Dark.'
+
 #### `Velvet Dark`
-#### `Mikado Dark` (needs your JPN rom, see below)
+##### CI File #042
+
+| | |
+| --- | --- |
+| Training Status | N/A |
+| Training Grade | N/A |
+| Active Status | Unassigned |
+| Manufacturer | Carrington |
+
+##### Profile
+
+Sister combat replicant to agent Perfect Dark. Experiences are transferred between locally active friend agents. Variation between agents may reduce psychological intrusions regarding their nature, but cause occasional glitches during memory transfer. More research must be conducted with experimental control agent 'Jonathan.' Couches at the institute are made with the highest quality velvet, hence the call sign 'Velvet Dark.'
+
+#### `Mikado Dark`
+
+##### CI File #101
+
+| | |
+| --- | --- |
+| Training Status | Complete |
+| Training Grade | A++ |
+| Active Status | Assigned |
+| Manufacturer | Carrington |
+
+##### Profile
+
+Tokyo's instantiation of the Perfect Dark combat agent but with localized experiential modules. Their likeness and personality is influenced by an amalgamation of Japanese cultural media training data collected from the years 1980-1990. Some of the agent's training data has been back ported to the other Perfect Dark agents to aid in better cooperation between friends. The perfect embodiment of Japanese corporate values, hence the call sign 'Mikado Dark.'
+
 #### `Poplin Dark`
+
+##### CI File #081
+
+| | |
+| --- | --- |
+| Training Status | N/A |
+| Training Grade | N/A |
+| Active Status | Unassigned |
+| Manufacturer | dataDyne |
+
+##### Profile
+
+First-generation dataDyne-produced autonomous combat agent. Pre-loaded with personality and skill models extracted from dataDyne DeathMatch(tm) user `darkZer0`. Mission to destroy the [redacted] in Africa was successful, but the agent was retired after found to have suffered from data contamination. Given this agent's inextricable moral compass, they can still can be repurposed for emergencies if their friends' lives are at risk, hence the call sign 'Poplin Dark.'
+
 #### `Calico Dark`
+
+##### CI File #141
+
+| | |
+| --- | --- |
+| Training Status | N/A |
+| Training Grade | N/A |
+| Active Status | Unassigned |
+| Manufacturer | dataDyne |
+
+##### Profile
+
+Experimental dataDyne protoype unit. A composite of experiential modules harvested from anonymous engramboards. It was fitted with self-replicating neurotic modules intended to render it docile and subservient. dataDyne records indicate this unit killed its handlers during a botched affinity calibration sequence. Caution is advised when interacting with this agent.
+
 #### `Willow Dark`
+##### CI File #197
+
+| | |
+| --- | --- |
+| Training Status | N/A |
+| Training Grade | N/A |
+| Active Status | Unassigned |
+| Manufacturer | Carrington |
+
+##### Profile
+
+First-generation Institute-produced combat replicant. Distilled from captured dataDyne unit designated 'Poplin'. Institute R&D was unable to allocate funding to pay dataDyne the astronomical royalties for its TruGinger(tm) technology, so an alternate likeness was chosen. Unit was placed in storage following its pilot deployment until the commencement of [redacted]. This skunkwork project's field data was the basis of further developments, hence the designation "Willow."
 ### Play as Combat Simulator character in Team Missions / Solo Missions [*](#sometimes-the-best-man-for-the-job-is-a-woman-and-her-friends)
 ### Eyelid toggling (`BACK`)
 ### Classic sights are first-class citizens and can be color-themed
@@ -78,7 +158,7 @@ Friends of Joanna doesn't ship anyone else's assets. Instead the modloader mount
 
 Optionally, you can also put your Perfect Dark for GameBoy Color ROM named `pd.gbc` in the `data` directory if you want to emulate having the Nintendo 64's Transfer Pak and unlock some cheats automatically.
 
-Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna` on MacOS.
+Optionally, you can move the data folder to `~/.local/share/perfectdark-friends-of-joanna-v0.4` on Linux or `~/Library/Application Support/perfectdark-friends-of-joanna-v0.4` on MacOS.
 
 ### Mods
 
@@ -149,10 +229,10 @@ You'll want to adjust for your platform. This is my MacOS setup:
 export PATH=$PATH:${HOME}/src/pd/tools/docker-caroll
 
 # docker-caroll / pc-port uses these to setup Friends of Joanna mods
-export PD_MODDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/mods"
-export PD_SAVEDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/"
-export PD_BASEDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna/"
-export PD_ROMFILE="$HOME/Library/Application Support/perfectdark-friends-of-joanna/pd.ntsc-final.z64"
+export PD_MODDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna-v0.4/mods"
+export PD_SAVEDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna-v0.4/"
+export PD_BASEDIR="$HOME/Library/Application Support/perfectdark-friends-of-joanna-v0.4/"
+export PD_ROMFILE="$HOME/Library/Application Support/perfectdark-friends-of-joanna-v0.4/pd.ntsc-final.z64"
 ````
 
 My invocation to rebuild looks like this:
@@ -179,9 +259,7 @@ tools/mksetups --patches --mod-dir basedir/data/mods/mod_fojo setupame
 tools/mkfiletable/mkfiletable mod_fojo --workspace basedir/data/mods/mod_fojo --output basedir/data/mods/mod_fojo --rom-dir basedir/data
 ```
 
-Needs `brew install llvm lld xdelta` (or your distro's clang, lld, xdelta3) and your roms in `basedir/data` (or `basedir/data/roms`) — the ntsc rom for the setups, and the jpn rom too, because Mikado's rows are looked up by name in it when the table is written. The build reads roms from its own tree and nowhere else; it doesn't care where your installed game keeps them. No MIPS gcc, no docker, no N64 tree; the compiled setup is byte-identical to what the old gcc pipeline made, and mkfiletable proves every patch applies before it writes the table. Without those tools the game builds against the committed patches, which is what you want on a machine that isn't editing setups.
-
-There is no N64 rom to build anymore.
+Needs `brew install llvm lld xdelta` (or your distro's clang, lld, xdelta3) and your roms in `basedir/data` (or `basedir/data/roms`) — the ntsc rom for the setups, and the jpn rom too, because Mikado's rows are looked up by name in it when the table is written. The build reads roms from its own tree and nowhere else
 
 ### Build Friends of Joanna PC Port without `docker-caroll`
 
