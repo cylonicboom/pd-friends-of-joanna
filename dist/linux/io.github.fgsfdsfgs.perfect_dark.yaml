@@ -20,10 +20,6 @@ modules:
       - type: file
         path: bin/pd.x86_64
       - type: file
-        path: bin/pd.jpn.x86_64
-      - type: file
-        path: bin/pd.pal.x86_64
-      - type: file
         path: io.github.fgsfdsfgs.perfect_dark.sh
       - type: file
         path: io.github.fgsfdsfgs.perfect_dark.png

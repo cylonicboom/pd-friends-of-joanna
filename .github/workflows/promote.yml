@@ -3,10 +3,15 @@
 # Every push builds the full set of foj-<arch>-<os> artifacts, each already a
 # playable folder (binary + the mod's data/). This takes one such run and
 # makes a GitHub release out of it: the artifacts are downloaded, bundled by
-# tools/ci/bundle.sh exactly as the rolling ci-dev-build is, and uploaded
-# under the tag in that commit's tools/release.config.json. No local packaging
-# step, no scripts to run offline: pick the run, press the button.
+# tools/ci/bundle.sh exactly as the rolling ci-dev-build is, and uploaded to
+# the GitHub release whose tag is in that commit's tools/release.config.json.
 #
+# It never creates a release. You make the release (tag, title, notes,
+# pre-release or not - all yours, in the GitHub UI, a draft is fine), then
+# press this to put the files on it. No local packaging step, no scripts to
+# run offline.
+#
+# Releases > Draft a new release > tag = the config's tag. Then
 # Actions > Promote a run > Run workflow > paste the run id (the number in
 # the run's URL).
 name: Promote a run
@@ -17,10 +22,6 @@ on:
       run_id:
         description: "the C/C++ CI run to promote (the number in its URL)"
         required: true
-      prerelease:
-        description: "mark the release as a pre-release"
-        type: boolean
-        default: true
 
 jobs:
   promote:
@@ -55,17 +56,14 @@ jobs:
       - name: Bundle
         run: sh tools/ci/bundle.sh "${{ steps.run.outputs.tag }}" ci-artifacts ci-release
 
-      - name: Release
+      - name: Put the files on the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.run.outputs.tag }}"
-          sha="${{ steps.run.outputs.sha }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "release $tag exists; replacing its files"
-            gh release upload --clobber "$tag" ci-release/*
-          else
-            gh release create "$tag" --target "$sha" --title "Friends of Joanna $tag" \
-              --notes "promoted from CI run ${{ inputs.run_id }} ($sha)" \
-              ${{ inputs.prerelease && '--prerelease' || '' }} ci-release/*
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            echo "no release tagged $tag. make it first (Releases > Draft a new release, tag $tag), then run this again."
+            exit 1
           fi
+          gh release upload --clobber "$tag" ci-release/*
+          echo "uploaded to release $tag:"; ls ci-release
