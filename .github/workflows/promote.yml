@@ -1,0 +1,71 @@
+# Promote a CI run to a release.
+#
+# Every push builds the full set of foj-<arch>-<os> artifacts, each already a
+# playable folder (binary + the mod's data/). This takes one such run and
+# makes a GitHub release out of it: the artifacts are downloaded, bundled by
+# tools/ci/bundle.sh exactly as the rolling ci-dev-build is, and uploaded
+# under the tag in that commit's tools/release.config.json. No local packaging
+# step, no scripts to run offline: pick the run, press the button.
+#
+# Actions > Promote a run > Run workflow > paste the run id (the number in
+# the run's URL).
+name: Promote a run
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "the C/C++ CI run to promote (the number in its URL)"
+        required: true
+      prerelease:
+        description: "mark the release as a pre-release"
+        type: boolean
+        default: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find the run's commit and tag
+        id: run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sha=$(gh run view "${{ inputs.run_id }}" --json headSha -q .headSha)
+          status=$(gh run view "${{ inputs.run_id }}" --json conclusion -q .conclusion)
+          [ "$status" = "success" ] || { echo "run ${{ inputs.run_id }} concluded '$status', not success"; exit 1; }
+          tag=$(git show "$sha:tools/release.config.json" | jq -r .tag)
+          [ -n "$tag" ] && [ "$tag" != "null" ] || { echo "no tag in tools/release.config.json at $sha"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "promoting run ${{ inputs.run_id }} ($sha) as $tag"
+
+      - name: Download the run's artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh run download "${{ inputs.run_id }}" -D ci-artifacts
+
+      - name: Bundle
+        run: sh tools/ci/bundle.sh "${{ steps.run.outputs.tag }}" ci-artifacts ci-release
+
+      - name: Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.run.outputs.tag }}"
+          sha="${{ steps.run.outputs.sha }}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag exists; replacing its files"
+            gh release upload --clobber "$tag" ci-release/*
+          else
+            gh release create "$tag" --target "$sha" --title "Friends of Joanna $tag" \
+              --notes "promoted from CI run ${{ inputs.run_id }} ($sha)" \
+              ${{ inputs.prerelease && '--prerelease' || '' }} ci-release/*
+          fi

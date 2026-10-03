@@ -303,21 +303,17 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: ci-artifacts
+      # The version is the tag in tools/release.config.json, nothing else:
+      # bump it there and every bundle from then on carries it. The bundles are
+      # the same files a promoted release gets (tools/ci/bundle.sh), under the
+      # rolling ci-dev-build tag. To make a real release out of a run, see
+      # promote.yml - nothing has to be packaged offline.
       - name: Publish latest dev-build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir ci-release
-          pushd ci-artifacts
-          tar czf ../ci-release/foj-i686-linux.tar.gz foj-i686-linux
-          tar czf ../ci-release/foj-x86_64-linux.tar.gz foj-x86_64-linux
-          tar cJf ../ci-release/foj-x86_64-osx.tar.xz foj-x86_64-osx
-          tar cJf ../ci-release/foj-arm64-osx.tar.xz foj-arm64-osx
-          zip -r ../ci-release/foj-i686-windows.zip foj-i686-windows
-          zip -r ../ci-release/foj-x86_64-windows.zip foj-x86_64-windows
-          zip -r ../ci-release/foj-arm64-nswitch.zip foj-arm64-nswitch
-          mv io.github.fgsfdsfgs.perfect_dark.flatpak/io.github.fgsfdsfgs.perfect_dark.flatpak ../ci-release/
-          popd
-          git tag --force ci-dev-build port
+          tag=$(jq -r .tag tools/release.config.json)
+          sh tools/ci/bundle.sh "$tag" ci-artifacts ci-release
+          git tag --force ci-dev-build ${{ github.sha }}
           git push --force origin ci-dev-build
           gh release upload --clobber ci-dev-build ci-release/*
