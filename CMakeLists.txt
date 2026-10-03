@@ -498,6 +498,12 @@ if(ZLIB_FOUND)
   target_compile_options(mkfiletable PRIVATE -std=c99 -Wall)
   target_link_libraries(mkfiletable PRIVATE ZLIB::ZLIB)
   set_target_properties(mkfiletable PROPERTIES EXCLUDE_FROM_ALL FALSE)
+  # Every C file in this project is compiled with -include versioninfo.h
+  # (the common CFLAGS above), and that header is written by the versioninfo
+  # target. pd says so with add_dependencies; a host tool compiled in the same
+  # build has to say so too, or a parallel fresh build (CI, -j) can compile
+  # it before the header exists.
+  add_dependencies(mkfiletable versioninfo)
 endif()
 
 if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDELTA3
@@ -557,6 +563,7 @@ endif()
 file(GLOB SRC_LUA "${CMAKE_SOURCE_DIR}/port/lua/*.c")
 list(FILTER SRC_LUA EXCLUDE REGEX "/(lua|luac|onelua)\\.c$")
 add_library(pd_lua STATIC ${SRC_LUA})
+add_dependencies(pd_lua versioninfo) # same -include versioninfo.h, same race
 target_include_directories(pd_lua PUBLIC "${CMAKE_SOURCE_DIR}/port/lua")
 
 target_link_libraries(pd ${LIBS} pd_lua)
