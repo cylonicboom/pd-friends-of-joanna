@@ -101,6 +101,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "system.h"
 #endif
 
 struct sndstate *g_MiscSfxAudioHandles[3];
@@ -1936,6 +1937,9 @@ Gfx *lvRender(Gfx *gdl)
 #endif
 		{
 			g_MissionConfig.iscoop = false;
+#ifndef PLATFORM_N64
+			if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
+#endif
 			g_MissionConfig.isteam = false;
 			g_MissionConfig.pdmode = false;
 			g_Vars.mplayerisrunning = false;

@@ -28,6 +28,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "input.h"
+#include "system.h"
 #endif
 
 /**
@@ -2018,6 +2019,9 @@ Gfx *creditsDraw(Gfx *gdl)
 		g_Vars.mplayerisrunning = false;
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = false;
+#ifndef PLATFORM_N64
+		if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
+#endif
 		g_MissionConfig.isteam = false;
 		g_MissionConfig.pdmode = false;
 		g_Vars.normmplayerisrunning = false;

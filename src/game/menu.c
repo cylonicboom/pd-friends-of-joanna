@@ -188,6 +188,7 @@ void menuResetToTraining(void) {
 		g_Vars.mplayerisrunning = false;
 		g_MissionConfig.iscoop = false;
 		g_MissionConfig.isanti = false;
+		if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
 		g_MissionConfig.isteam = false;
 		g_MissionConfig.pdmode = false;
 		g_Vars.normmplayerisrunning = false;
@@ -4307,6 +4308,7 @@ void menuReset(void)
 
 	if (g_Vars.stagenum == STAGE_CITRAINING) {
 		g_MissionConfig.iscoop = false;
+		if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
 		g_MissionConfig.isteam = false;
 		g_MissionConfig.isanti = false;
 		g_MissionConfig.pdmode = false;

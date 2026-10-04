@@ -59,6 +59,7 @@ MenuItemHandlerResult endscreenHandleDeclineMission(s32 operation, struct menuit
 			g_Vars.mplayerisrunning = false;
 			g_MissionConfig.iscoop = false;
 			g_MissionConfig.isanti = false;
+			if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
 			g_MissionConfig.isteam = false;
 			g_MissionConfig.pdmode = false;
 			g_Vars.normmplayerisrunning = false;
@@ -114,6 +115,7 @@ MenuDialogHandlerResult endscreenHandleRetryMission(s32 operation, struct menudi
 							g_Vars.mplayerisrunning = false;
 							g_MissionConfig.iscoop = false;
 							g_MissionConfig.isanti = false;
+							if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
 							g_MissionConfig.isteam = false;
 							g_MissionConfig.pdmode = false;
 							g_Vars.normmplayerisrunning = false;

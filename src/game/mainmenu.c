@@ -6775,6 +6775,7 @@ MenuItemHandlerResult menuhandlerMainMenuSoloMissions(s32 operation,
   if (operation == MENUOP_SET) {
     g_MissionConfig.iscoop = false;
     g_MissionConfig.isanti = false;
+    if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
     g_MissionConfig.isteam = false;
     menuPushDialog(&g_SelectMissionMenuDialog);
   }
@@ -6832,6 +6833,7 @@ menuhandlerMainMenuCounterOperative(s32 operation, struct menuitem *item,
   if (operation == MENUOP_SET) {
     g_MissionConfig.iscoop = false;
     g_MissionConfig.isanti = true;
+    if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
     g_MissionConfig.isteam = false;
     menuPushDialog(&g_SelectMissionMenuDialog);
   }
@@ -6872,6 +6874,7 @@ MenuDialogHandlerResult menudialogMainMenu(s32 operation,
     if (g_Menus[g_MpPlayerNum].curdialog &&
         g_Menus[g_MpPlayerNum].curdialog->definition == dialogdef) {
       g_MissionConfig.iscoop = false;
+      if (g_MissionConfig.isteam) sysLogPrintf(LOG_NOTE, "isteam cleared by %s (%s:%d) stagenum=0x%02x", __func__, __FILE__, __LINE__, g_Vars.stagenum);
       g_MissionConfig.isteam = false;
       g_MissionConfig.isanti = false;
       g_MissionConfig.pdmode = false;
