@@ -39,6 +39,10 @@
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "system.h"
+#ifndef PLATFORM_N64
+#include <stdio.h>
+#include <string.h>
+#endif
 #endif
 
 #ifdef PLATFORM_N64
@@ -2771,6 +2775,26 @@ void titleTickProfileSelect(void) {
 		return;
 	}
 	menuTick();
+#ifndef PLATFORM_N64
+	{
+		// NAMEDIAG (#352) - temporary probe: Player 1's name bytes, on change
+		static char last[15];
+		static s32 seen = 0;
+		if (!seen || memcmp(last, g_PlayerConfigsArray[0].base.name, sizeof(last)) != 0) {
+			char hex[15 * 3 + 1];
+			s32 h;
+			for (h = 0; h < 15; h++) {
+				sprintf(&hex[h * 3], "%02x ", (u8)g_PlayerConfigsArray[0].base.name[h]);
+			}
+			printf("NAMEDIAG: name0 changed depth=%d numdialogs=%d blockend=%d rowend=%d bytes=%s\n",
+					g_Menus[g_MpPlayerNum].depth, g_Menus[g_MpPlayerNum].numdialogs,
+					g_Menus[g_MpPlayerNum].blockend, g_Menus[g_MpPlayerNum].rowend, hex);
+			fflush(stdout);
+			memcpy(last, g_PlayerConfigsArray[0].base.name, sizeof(last));
+			seen = 1;
+		}
+	}
+#endif
 	if (g_Menus[g_MpPlayerNum].depth == 0) {
 		// If the player backed out without loading or saving a profile,
 		// re-push the hub dialog instead of advancing the title sequence.

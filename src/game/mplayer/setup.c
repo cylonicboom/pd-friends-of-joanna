@@ -30,6 +30,10 @@
 #include "types.h"
 #include <stdlib.h>
 #include <ultra64.h>
+#ifndef PLATFORM_N64
+#include <stdio.h>
+#include <string.h>
+#endif
 
 struct menuitem g_MpCharacterMenuItems[];
 struct menudialogdef g_MpAddSimulantMenuDialog;
@@ -2877,6 +2881,18 @@ MenuItemHandlerResult mpPlayerNameMenuHandler(s32 operation,
     }
     break;
   case MENUOP_SETTEXT:
+#ifndef PLATFORM_N64
+    {
+      // NAMEDIAG (#352) - temporary probe
+      char hex[18 * 3 + 1];
+      s32 h;
+      for (h = 0; h < 18; h++) {
+        sprintf(&hex[h * 3], "%02x ", (u8)name[h]);
+      }
+      printf("NAMEDIAG: settext player=%d kbstring=%p bytes=%s\n", g_MpPlayerNum, (void *)name, hex);
+      fflush(stdout);
+    }
+#endif
     i = 0;
 
     while (i < 11 && name[i] != '\0') {

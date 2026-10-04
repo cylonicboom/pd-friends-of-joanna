@@ -63,6 +63,22 @@
 #include "mod.h"
 #include "textrace.h"
 #include "system.h"
+
+#ifndef PLATFORM_N64
+// NAMEDIAG (#352) - temporary probe, drop before release. stdout, one
+// fflush per line, same convention as BRIEFDIAG.
+#include <stdio.h>
+extern struct menudialogdef g_FojoTitleProfileSelectMenu;
+extern struct menudialogdef g_MpPlayerNameMenuDialog;
+static const char *namediagDialogName(struct menudialogdef *d)
+{
+	if (d == &g_FojoTitleProfileSelectMenu) return "picker";
+	if (d == &g_MpPlayerNameMenuDialog) return "keyboard";
+	return "other";
+}
+#define NAMEDIAG(...) do { printf("NAMEDIAG: " __VA_ARGS__); printf("\n"); fflush(stdout); } while (0)
+#endif
+
 #define BLUR_OFS 10
 #else
 #define BLUR_OFS 30
@@ -1016,6 +1032,13 @@ void func0f0f1d6c(struct menudialogdef *dialogdef, struct menudialog *dialog, st
 	menu->colend = colindex + 1;
 	menu->rowend = rowindex;
 	menu->blockend = blockindex;
+
+#ifndef PLATFORM_N64
+	NAMEDIAG("assign %s(%p) dialog=%p colstart=%d numcols=%d rowstart=%d blockstart=%d -> colend=%d rowend=%d blockend=%d depth=%d numdialogs=%d",
+			namediagDialogName(dialogdef), (void *)dialogdef, (void *)dialog, dialog->colstart, dialog->numcols,
+			dialog->numcols ? menu->cols[dialog->colstart].rowstart : -1, dialog->blockstart,
+			menu->colend, menu->rowend, menu->blockend, g_Menus[g_MpPlayerNum].depth, g_Menus[g_MpPlayerNum].numdialogs);
+#endif
 }
 
 void dialog0f0f1ef4(struct menudialog *dialog)
@@ -1749,6 +1772,12 @@ void menuCloseDialog(void)
 		g_Menus[g_MpPlayerNum].colend = layer->siblings[0]->colstart;
 		g_Menus[g_MpPlayerNum].blockend = layer->siblings[0]->blockstart;
 		g_Menus[g_MpPlayerNum].depth--;
+#ifndef PLATFORM_N64
+		NAMEDIAG("close %s(%p) -> colend=%d rowend=%d blockend=%d depth=%d numdialogs=%d",
+				namediagDialogName(layer->siblings[0]->definition), (void *)layer->siblings[0]->definition,
+				g_Menus[g_MpPlayerNum].colend, g_Menus[g_MpPlayerNum].rowend, g_Menus[g_MpPlayerNum].blockend,
+				g_Menus[g_MpPlayerNum].depth, g_Menus[g_MpPlayerNum].numdialogs);
+#endif
 
 		menuPlaySound(MENUSOUND_0B);
 	}
@@ -3885,6 +3914,12 @@ void menuPushRootDialog(struct menudialogdef *dialogdef, s32 root)
 		root, g_MenuData.root, g_MenuData.prevmenuroot, g_MpPlayerNum);
 	DEBUG_MENU("menuPushRootDialog: current_bg=%d, nextbg=%d\n", g_MenuData.bg, g_MenuData.nextbg);
 	
+#ifndef PLATFORM_N64
+	NAMEDIAG("pushroot %s(%p) root=%d BEFORE colend=%d rowend=%d blockend=%d depth=%d numdialogs=%d",
+			namediagDialogName(dialogdef), (void *)dialogdef, root,
+			g_Menus[g_MpPlayerNum].colend, g_Menus[g_MpPlayerNum].rowend, g_Menus[g_MpPlayerNum].blockend,
+			g_Menus[g_MpPlayerNum].depth, g_Menus[g_MpPlayerNum].numdialogs);
+#endif
 	g_Menus[g_MpPlayerNum].numdialogs = 0;
 	g_Menus[g_MpPlayerNum].depth = 0;
 
