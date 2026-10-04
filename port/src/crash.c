@@ -24,6 +24,7 @@
 // report, or the fault reads like any other access violation.
 extern u8 *g_LangRoBase;
 extern u32 g_LangRoSize;
+s32 textFontRoContains(const void *addr);
 
 static const char *crashFaultRegion(const void *addr)
 {
@@ -32,6 +33,10 @@ static const char *crashFaultRegion(const void *addr)
 
 	if (base && a >= base && a < base + g_LangRoSize) {
 		return " -- inside the read-only text banks: PC / frame #00 is the stray writer (#352)";
+	}
+
+	if (textFontRoContains(addr)) {
+		return " -- inside a read-only font: PC / frame #00 is the stray writer (#352)";
 	}
 
 	return "";

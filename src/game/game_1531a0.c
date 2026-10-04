@@ -15,6 +15,9 @@
 #include "types.h"
 #include "platform.h"
 #include "ext_tex.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 
 #define SPACE_WIDTH 5
 
@@ -234,6 +237,52 @@ static s32 textDiagBadGlyph(struct fontchar *c, const char *site)
 }
 #endif
 
+#ifndef PLATFORM_N64
+/**
+ * fojo (#352): fonts live in pages of their own, read-only once loaded.
+ *
+ * They were MEMPOOL_STAGE allocations, reloaded every stage. A stray write
+ * landing in a glyph table wiped a fontchar's pixel pointer, and the fault
+ * surfaced a frame later in the GPU pass (import_texture_ci4) with nothing
+ * pointing back at the writer. Sealed, the write faults where it happens.
+ *
+ * Font data is ROM data plus a deterministic fix-up, so each (font, monospace)
+ * pair is loaded once per session and reused by every later textReset: no
+ * per-stage leak, and nothing to free. If pages cannot be mapped, falls back
+ * to the stage pool as before.
+ */
+struct fontcacheentry {
+	u8 *romstart;
+	bool monospace;
+	struct font *font;
+	u32 len;
+};
+
+static struct fontcacheentry g_FontCache[16];
+static s32 g_FontCacheCount = 0;
+
+struct font *g_FontRoLast = NULL; // for crash reports
+
+/**
+ * For the crash handler: is addr inside a sealed font? Reads only, no locks.
+ */
+s32 textFontRoContains(const void *addr)
+{
+	const uintptr_t a = (uintptr_t)addr;
+	s32 i;
+
+	for (i = 0; i < g_FontCacheCount; i++) {
+		const uintptr_t base = (uintptr_t)g_FontCache[i].font;
+
+		if (a >= base && a < base + g_FontCache[i].len) {
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif
+
 void textLoadFont(u8 *romstart, u8 *romend, struct font **fontptr, struct fontchar **charsptr, bool monospace)
 {
 	extern u8 EXT_SEG _fonthandelgothicsmSegmentRomStart;
@@ -263,7 +312,31 @@ void textLoadFont(u8 *romstart, u8 *romend, struct font **fontptr, struct fontch
 #endif
 
 	len = (romptr_t)romend - (romptr_t)romstart;
+
+#ifndef PLATFORM_N64
+	bool paged = false;
+
+	for (i = 0; i < g_FontCacheCount; i++) {
+		if (g_FontCache[i].romstart == romstart && g_FontCache[i].monospace == monospace) {
+			*fontptr = g_FontCache[i].font;
+			*charsptr = g_FontCache[i].font->chars;
+			return;
+		}
+	}
+
+	font = NULL;
+
+	if (g_FontCacheCount < ARRAYCOUNT(g_FontCache)) {
+		font = sysMemPagesAlloc(len);
+		paged = font != NULL;
+	}
+
+	if (font == NULL) {
+		font = mempAlloc(len, MEMPOOL_STAGE);
+	}
+#else
 	font = mempAlloc(len, MEMPOOL_STAGE);
+#endif
 	chars = font->chars;
 
 	dmaExec(font, (romptr_t) romstart, len);
@@ -310,6 +383,20 @@ void textLoadFont(u8 *romstart, u8 *romend, struct font **fontptr, struct fontch
 		// the size for all other text, so changing this increases the line
 		// height of these fonts.
 		(*charsptr)['|' - 0x21].baseline++;
+	}
+#endif
+
+#ifndef PLATFORM_N64
+	if (paged) {
+		const s32 sealed = sysMemPagesProtect(font, len, true);
+		g_FontCache[g_FontCacheCount].romstart = romstart;
+		g_FontCache[g_FontCacheCount].monospace = monospace;
+		g_FontCache[g_FontCacheCount].font = font;
+		g_FontCache[g_FontCacheCount].len = len;
+		g_FontCacheCount++;
+		g_FontRoLast = font;
+		sysLogPrintf(LOG_NOTE, "text: font %p (+0x%x)%s %s", (void *)font, len,
+				monospace ? " mono" : "", sealed ? "sealed read-only" : "NOT sealed (no page protection here)");
 	}
 #endif
 }
