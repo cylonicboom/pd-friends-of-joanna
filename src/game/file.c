@@ -4178,6 +4178,10 @@ void fileLoad(u8 *dst, u32 allocationlen, romptr_t *romaddrptr, struct fileinfo 
 
 	u8 buffer[5 * 1024];
 
+	if (dst == NULL || allocationlen == 0) {
+		BRIEFDIAG("fileLoad 0x%x (%u bytes) into dst=%p allocationlen=0x%x", filenum, romsize, (void *)dst, allocationlen);
+	}
+
 	if (allocationlen == 0) {
 		// DMA with no inflate
 		dmaExec(dst, *romaddrptr, romsize);

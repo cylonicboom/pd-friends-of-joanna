@@ -2004,6 +2004,8 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 			// stage, gone with it. memp has no free.
 			menumodel->alloclen = bgunCalculateGunMemCapacity();
 			menumodel->allocstart = mempAlloc(menumodel->alloclen, MEMPOOL_STAGE);
+			BRIEFDIAG("lazy menu model alloc %p len=0x%x -> %p (stagenum=0x%02x)",
+				(void *)menumodel, (u32)menumodel->alloclen, (void *)menumodel->allocstart, g_Vars.stagenum);
 
 			if (menumodel->allocstart == NULL) {
 				// Nothing to draw in, so draw nothing. Falling back to gunmem
@@ -4287,6 +4289,12 @@ void menuReset(void)
 		g_MenuData.hudpiece.isperfecthead = false;
 		g_MenuData.hudpiece.zoomtimer60 = 0;
 		g_MenuData.hudpiece.removingpiece = false;
+	}
+
+	BRIEFDIAG("menuReset stagenum=0x%02x mplayerisrunning=%d normmp=%d numplayers=%d isteam=%d perfectbuddy=%d lvmpbotlevel=%d mpplayernum=%d", g_Vars.stagenum, g_Vars.mplayerisrunning, g_Vars.normmplayerisrunning, getNumPlayers(), g_MissionConfig.isteam, g_Vars.perfectbuddynum, g_Vars.lvmpbotlevel, g_MpPlayerNum);
+	for (s32 bd_i = 0; bd_i < 4; bd_i++) {
+		BRIEFDIAG("  menu[%d] allocstart=%p alloclen=0x%x ownsalloc=%d", bd_i,
+			(void *)g_Menus[bd_i].menumodel.allocstart, (u32)g_Menus[bd_i].menumodel.alloclen, g_Menus[bd_i].menumodel.ownsalloc);
 	}
 
 	g_MenuData.unk5d4 = 0;

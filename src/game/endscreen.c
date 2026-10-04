@@ -34,6 +34,7 @@
 #include "lib/str.h"
 #include "data.h"
 #include "types.h"
+#include "system.h"
 
 #define DEBUG_ENDSCREEN(fmt, ...) \
 	do { if (g_DebugEndscreen) printf(fmt, ##__VA_ARGS__); } while (0)
@@ -557,6 +558,11 @@ void endscreenResetModels(void)
 
 	menuResetModel(&g_Menus[3].menumodel, bgunCalculateGunMemCapacity() - menugfxGetParticleArraySize(), false);
 	g_Menus[3].menumodel.allocstart = bgunGetGunMem() + menugfxGetParticleArraySize();
+	BRIEFDIAG("endscreenResetModels stagenum=0x%02x", g_Vars.stagenum);
+	for (s32 bd_i = 0; bd_i < 4; bd_i++) {
+		BRIEFDIAG("  menu[%d] allocstart=%p alloclen=0x%x ownsalloc=%d", bd_i,
+			(void *)g_Menus[bd_i].menumodel.allocstart, (u32)g_Menus[bd_i].menumodel.alloclen, g_Menus[bd_i].menumodel.ownsalloc);
+	}
 }
 
 #if VERSION >= VERSION_NTSC_1_0

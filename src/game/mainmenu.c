@@ -965,6 +965,14 @@ MenuDialogHandlerResult endscreenAcceptMissionHandleDialog(
   case MENUOP_OPEN:
     g_Menus[g_MpPlayerNum].menumodel.curparams = 0;
 
+    BRIEFDIAG("accept mission for 0x%02x into %p len=0x%x; stagenum=0x%02x mplayerisrunning=%d normmp=%d numplayers=%d isteam=%d perfectbuddy=%d lvmpbotlevel=%d mpplayernum=%d", g_MissionConfig.stagenum,
+              (void *)g_Menus[g_MpPlayerNum].menumodel.allocstart, (u32)g_Menus[g_MpPlayerNum].menumodel.alloclen,
+              g_Vars.stagenum, g_Vars.mplayerisrunning, g_Vars.normmplayerisrunning, getNumPlayers(), g_MissionConfig.isteam, g_Vars.perfectbuddynum, g_Vars.lvmpbotlevel, g_MpPlayerNum);
+    for (s32 bd_i = 0; bd_i < 4; bd_i++) {
+        BRIEFDIAG("  menu[%d] allocstart=%p alloclen=0x%x ownsalloc=%d", bd_i,
+            (void *)g_Menus[bd_i].menumodel.allocstart, (u32)g_Menus[bd_i].menumodel.alloclen, g_Menus[bd_i].menumodel.ownsalloc);
+    }
+
     setupLoadBriefing(g_MissionConfig.stagenum,
                       g_Menus[g_MpPlayerNum].menumodel.allocstart,
                       g_Menus[g_MpPlayerNum].menumodel.alloclen, &g_Briefing);

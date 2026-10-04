@@ -2554,6 +2554,9 @@ s32 getNumTeamPlayerRoleAssignments(void)
 
 void setNumPlayers(s32 numplayers)
 {
+	if (numplayers != g_NumPlayers) {
+		BRIEFDIAG("setNumPlayers %d -> %d (stagenum=0x%02x)", g_NumPlayers, numplayers, g_Vars.stagenum);
+	}
 	g_NumPlayers = numplayers;
 }
 

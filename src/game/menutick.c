@@ -752,6 +752,8 @@ void menuTick(void)
 			// next frame - memp has no free, so that is a leak per tick as
 			// well as the flicker this was fixing.
 			if (g_Menus[0].menumodel.allocstart && !g_Menus[0].menumodel.ownsalloc) {
+				BRIEFDIAG("menuTick drops borrowed menu[0] model buffer %p (stagenum=0x%02x)",
+					(void *)g_Menus[0].menumodel.allocstart, g_Vars.stagenum);
 				bgunFreeGunMem();
 				g_Menus[0].menumodel.allocstart = NULL;
 			}

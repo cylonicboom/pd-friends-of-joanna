@@ -1152,7 +1152,11 @@ void mainLoop(void) {
       playermgrAllocatePlayers(numplayers);
     }
 
+    BRIEFDIAG("stage load 0x%02x numplayers=%d isteam=%d perfectbuddy=%d lvmpbotlevel=%d mplayerisrunning=%d",
+              g_StageNum, numplayers, g_MissionConfig.isteam, g_Vars.perfectbuddynum, g_Vars.lvmpbotlevel, g_Vars.mplayerisrunning);
+
     if (g_MissionConfig.isteam || g_Vars.perfectbuddynum) {
+      BRIEFDIAG("mpReset via isteam/perfectbuddy");
       mpReset();
     } else if (g_Vars.mplayerisrunning == false &&
                (numplayers >= 2 || g_Vars.lvmpbotlevel)) {
@@ -1171,6 +1175,7 @@ void mainLoop(void) {
       }
 
       g_MpSetup.stagenum = g_StageNum;
+      BRIEFDIAG("mpReset via numplayers/lvmpbotlevel");
       mpReset();
     }
 

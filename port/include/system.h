@@ -29,6 +29,12 @@ void sysFatalError(const char *fmt, ...) __attribute__((noreturn));
 
 s32 sysLogIsOpen(void);
 void sysLogPrintf(s32 level, const char *fmt, ...);
+
+// BRIEFDIAG (temporary): the null-briefing-buffer probe, card #364.
+// Straight to stdout and flushed per line - no file open per call, and a
+// redirected stdout is fully buffered, so an unflushed line dies with the crash.
+#include <stdio.h>
+#define BRIEFDIAG(fmt, ...) do { printf("BRIEFDIAG: " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while (0)
 extern u8 g_SysLogToStderr;
 
 void sysGetExecutablePath(char *outPath, const u32 outLen);
