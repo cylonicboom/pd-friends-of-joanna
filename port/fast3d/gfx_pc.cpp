@@ -1059,6 +1059,17 @@ static inline void palette_to_rgba32(const uint16_t palentry, uint8_t *rgba32_bu
 
 static TexDims import_texture_ci4(int tile, const LoadedTexture& loaded_texture, bool is_rect, bool gen_mipmaps) {
     const uint8_t* addr = loaded_texture.addr;
+    // NAMEDIAG (#352) - temporary probe, drop before release
+    if (addr == NULL) {
+        static int s_logged = 0;
+        if (s_logged++ < 8) {
+            printf("NAMEDIAG: gfx ci4 NULL source tile=%d w=%u h=%u line=%u size_bytes=%u is_rect=%d\n", tile,
+                    (unsigned)rdp.texture_tile[tile].width, (unsigned)rdp.texture_tile[tile].height,
+                    (unsigned)rdp.texture_tile[tile].line_size_bytes, (unsigned)loaded_texture.size_bytes, (int)is_rect);
+            fflush(stdout);
+        }
+        return { 1, 1 };
+    }
     const uint32_t pal_idx = rdp.texture_tile[tile].palette; // 0-15
     const uint16_t* palette = (const uint16_t *)(rdp.palette + pal_idx * 16); // 16 pixel entries, 16 bits each
 

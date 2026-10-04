@@ -187,6 +187,53 @@ void text0f1531dc(bool arg0)
 #endif
 }
 
+#ifndef PLATFORM_N64
+// NAMEDIAG (#352) - temporary probe, drop before release. Which string put a
+// glyph with NULL pixel data into the display list.
+#include <stdio.h>
+static const char *g_TextDiagStr = NULL;
+static const char *g_TextDiagFn = "?";
+static struct fontchar *g_TextDiagChars = NULL;
+static const char *g_TextDiagLastStr = NULL;
+
+static void textDiagEnter(const char *fn, const char *text, struct fontchar *chars)
+{
+	g_TextDiagFn = fn;
+	g_TextDiagStr = text;
+	g_TextDiagChars = chars;
+}
+
+static s32 textDiagBadGlyph(struct fontchar *c, const char *site)
+{
+	if (c && c->pixeldata) {
+		return 0;
+	}
+
+	if (g_TextDiagStr != g_TextDiagLastStr) {
+		char hex[64 * 3 + 1];
+		char asc[64 + 1];
+		s32 n = 0;
+		g_TextDiagLastStr = g_TextDiagStr;
+		hex[0] = asc[0] = '\0';
+		if (g_TextDiagStr) {
+			for (n = 0; n < 64 && g_TextDiagStr[n]; n++) {
+				const u8 b = (u8)g_TextDiagStr[n];
+				sprintf(&hex[n * 3], "%02x ", b);
+				asc[n] = (b >= 0x20 && b < 0x7f) ? (char)b : '.';
+				asc[n + 1] = '\0';
+			}
+		}
+		printf("NAMEDIAG: badglyph site=%s fn=%s fontchar=%p chars=%p slot=%ld index=0x%02x str=%p len>=%d ascii='%s' hex=%s\n",
+				site, g_TextDiagFn, (void *)c, (void *)g_TextDiagChars,
+				g_TextDiagChars && c ? (long)(c - g_TextDiagChars) : -9999L,
+				c ? (u32)c->index : 0xffu, (void *)g_TextDiagStr, n, asc, hex);
+		fflush(stdout);
+	}
+
+	return 1;
+}
+#endif
+
 void textLoadFont(u8 *romstart, u8 *romend, struct font **fontptr, struct fontchar **charsptr, bool monospace)
 {
 	extern u8 EXT_SEG _fonthandelgothicsmSegmentRomStart;
@@ -1413,6 +1460,11 @@ Gfx *text0f154f38(Gfx *gdl, s32 *arg1, struct fontchar *curchar, struct fontchar
 	}
 #endif
 
+#ifndef PLATFORM_N64
+	if (textDiagBadGlyph(curchar, "text0f154f38")) {
+		return gdl;
+	}
+#endif
 	gDPSetTextureImage(gdl++, G_IM_FMT_CI, G_IM_SIZ_16b, 1, curchar->pixeldata);
 	gDPLoadSync(gdl++);
 	gDPLoadBlock(gdl++, G_TX_LOADTILE, 0, 0, ((curchar->height * 8 + 17) >> 1) - 1, 2048);
@@ -1478,6 +1530,9 @@ Gfx *text0f154f38(Gfx *gdl, s32 *arg1, struct fontchar *curchar, struct fontchar
 Gfx *text0f1552d4(Gfx *gdl, f32 x, f32 y, f32 widthscale, f32 heightscale,
 		char *text, struct fontchar *chars, struct font *font, u32 colour, s32 hdir, s32 vdir)
 {
+#ifndef PLATFORM_N64
+	textDiagEnter("text0f1552d4", text, chars);
+#endif
 	s32 totalheight;
 	u8 prevchar;
 	s32 textwidth;
@@ -1615,6 +1670,11 @@ Gfx *text0f1552d4(Gfx *gdl, f32 x, f32 y, f32 widthscale, f32 heightscale,
 Gfx *text0f15568c(Gfx *gdl, s32 *x, s32 *y, struct fontchar *curchar, struct fontchar *prevchar,
 		struct font *font, s32 savedx, s32 savedy, s32 width, s32 height, s32 arg10)
 {
+#if !defined(PLATFORM_N64) && VERSION < VERSION_JPN_FINAL
+	if (textDiagBadGlyph(curchar, "text0f15568c")) {
+		return gdl;
+	}
+#endif
 #if VERSION >= VERSION_JPN_FINAL
 	s32 tmp;
 	s32 sp90;
@@ -1891,6 +1951,9 @@ void text0f156030(u32 colour)
 Gfx *textRenderProjected(Gfx *gdl, s32 *x, s32 *y, char *text, struct fontchar *chars, struct font *font,
 		s32 colour, s32 width, s32 height, s32 arg9, s32 lineheight)
 {
+#ifndef PLATFORM_N64
+	textDiagEnter("textRenderProjected", text, chars);
+#endif
 	s32 savedx;
 	s32 savedy;
 	u8 prevchar;
@@ -2144,6 +2207,11 @@ Gfx *text0f1566cc(Gfx *gdl, u32 arg1, u32 arg2)
 Gfx *textRenderChar(Gfx *gdl, s32 *x, s32 *y, struct fontchar *char1, struct fontchar *char2,
 		struct font *font, s32 arg6, s32 arg7, s32 arg8, s32 arg9, s32 arg10)
 {
+#if !defined(PLATFORM_N64) && VERSION < VERSION_JPN_FINAL
+	if (textDiagBadGlyph(char1, "textRenderChar")) {
+		return gdl;
+	}
+#endif
 	s32 tmp;
 	s32 sp38;
 
@@ -2247,6 +2315,9 @@ Gfx *textRender(Gfx *gdl, s32 *x, s32 *y, char *text,
 		struct fontchar *chars, struct font *font, u32 arg6, u32 colour,
 		s32 width, s32 height, u32 arg10, s32 lineheight)
 {
+#ifndef PLATFORM_N64
+	textDiagEnter("textRender", text, chars);
+#endif
 	s32 savedx;
 	s32 savedy;
 #if VERSION >= VERSION_PAL_BETA
