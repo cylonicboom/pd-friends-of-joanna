@@ -2006,6 +2006,7 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 			menumodel->allocstart = mempAlloc(menumodel->alloclen, MEMPOOL_STAGE);
 			BRIEFDIAG("lazy menu model alloc %p len=0x%x -> %p (stagenum=0x%02x)",
 				(void *)menumodel, (u32)menumodel->alloclen, (void *)menumodel->allocstart, g_Vars.stagenum);
+			briefdiagCheck("lazyalloc");
 
 			if (menumodel->allocstart == NULL) {
 				// Nothing to draw in, so draw nothing. Falling back to gunmem
@@ -4141,6 +4142,31 @@ Gfx *menuRenderDialogs(Gfx *gdl)
 
 u32 var800714e8 = 0;
 
+// BRIEFDIAG (temporary, #364 / #352)
+void briefdiagCheck(const char *where)
+{
+	uintptr_t *mp = g_LangBanks[0x28]; // LANGBANK_MPMENU
+	uintptr_t *misc = g_LangBanks[0x2c]; // LANGBANK_MISC
+	bool okmp = (uintptr_t)mp > 1;
+
+	BRIEFDIAG("check@%s stagenum=0x%02x MPMENU=%p MISC=%p mpmenu[29]=0x%llx mpmenu[30]=0x%llx", where, g_Vars.stagenum,
+		(void *)mp, (void *)misc,
+		okmp ? (unsigned long long)mp[29] : 0ull, okmp ? (unsigned long long)mp[30] : 0ull);
+
+	for (s32 b = 0; b < (s32)ARRAYCOUNT(g_LangBanks); b++) {
+		uintptr_t p = (uintptr_t)g_LangBanks[b];
+		if (p <= 1) continue;
+		for (s32 m = 0; m < 5; m++) {
+			struct menumodel *mm = m < 4 ? &g_Menus[m].menumodel : &g_MenuData.hudpiece;
+			uintptr_t s = (uintptr_t)mm->allocstart;
+			if (s && p >= s && p < s + mm->alloclen) {
+				BRIEFDIAG("  OVERLAP lang bank 0x%02x at %p is inside %s%d model buffer %p+0x%x",
+					b, (void *)p, m < 4 ? "menu" : "hudpiece", m, (void *)s, (u32)mm->alloclen);
+			}
+		}
+	}
+}
+
 void menuResetModel(struct menumodel *menumodel, u32 allocationlen, bool allocate)
 {
 	menumodel->alloclen = allocationlen;
@@ -4296,6 +4322,7 @@ void menuReset(void)
 		BRIEFDIAG("  menu[%d] allocstart=%p alloclen=0x%x ownsalloc=%d", bd_i,
 			(void *)g_Menus[bd_i].menumodel.allocstart, (u32)g_Menus[bd_i].menumodel.alloclen, g_Menus[bd_i].menumodel.ownsalloc);
 	}
+	briefdiagCheck("menuReset");
 
 	g_MenuData.unk5d4 = 0;
 	g_MenuData.unk5d5_05 = false;

@@ -972,6 +972,7 @@ MenuDialogHandlerResult endscreenAcceptMissionHandleDialog(
         BRIEFDIAG("  menu[%d] allocstart=%p alloclen=0x%x ownsalloc=%d", bd_i,
             (void *)g_Menus[bd_i].menumodel.allocstart, (u32)g_Menus[bd_i].menumodel.alloclen, g_Menus[bd_i].menumodel.ownsalloc);
     }
+    briefdiagCheck("acceptmission");
 
     setupLoadBriefing(g_MissionConfig.stagenum,
                       g_Menus[g_MpPlayerNum].menumodel.allocstart,
@@ -1692,6 +1693,7 @@ menudialogTeamPlayerProfiles(s32 operation, struct menudialogdef *dialogdef,
   case MENUOP_OPEN:
     g_Menus[g_MpPlayerNum].fm.filetypeplusone = 0;
 
+    briefdiagCheck("profiles-open");
     filelistCreate(0, FILETYPE_MPPLAYER);
     mpInit(false);
 
@@ -1705,6 +1707,7 @@ menudialogTeamPlayerProfiles(s32 operation, struct menudialogdef *dialogdef,
     break;
   case MENUOP_CLOSE:
     // Persist pre-reality profile edits immediately when leaving this menu.
+    briefdiagCheck("profiles-close");
     saveQueueMarkConfig();
     fileListFreeAll();
     if (g_MenuData.root == MENUROOT_FILEMGR) {

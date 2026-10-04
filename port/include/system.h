@@ -34,6 +34,9 @@ void sysLogPrintf(s32 level, const char *fmt, ...);
 // Straight to stdout and flushed per line - no file open per call, and a
 // redirected stdout is fully buffered, so an unflushed line dies with the crash.
 #include <stdio.h>
+// The #352 question: does a menu model buffer ever cover a live lang bank,
+// and do the MPMENU offsets the picker reads move between calls.
+void briefdiagCheck(const char *where);
 #define BRIEFDIAG(fmt, ...) do { printf("BRIEFDIAG: " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while (0)
 extern u8 g_SysLogToStderr;
 
