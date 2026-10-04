@@ -17,6 +17,28 @@
 #define CRASH_MSG(...) \
 	if (msglen < CRASH_MAX_MSG) msglen += snprintf(msg + msglen, CRASH_MAX_MSG - msglen, __VA_ARGS__)
 
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_LINUX)
+
+// fojo (#352): the always-loaded text banks are kept read-only (game/lang.c),
+// so a stray write into them faults right where it happens. say so in the
+// report, or the fault reads like any other access violation.
+extern u8 *g_LangRoBase;
+extern u32 g_LangRoSize;
+
+static const char *crashFaultRegion(const void *addr)
+{
+	const uintptr_t a = (uintptr_t)addr;
+	const uintptr_t base = (uintptr_t)g_LangRoBase;
+
+	if (base && a >= base && a < base + g_LangRoSize) {
+		return " -- inside the read-only text banks: PC / frame #00 is the stray writer (#352)";
+	}
+
+	return "";
+}
+
+#endif
+
 #if defined(PLATFORM_WIN32)
 
 #include <windows.h>
@@ -80,7 +102,21 @@ static void crashStackTrace(char *msg, PEXCEPTION_POINTERS exinfo)
 	if (SymGetLineFromAddr64(process, (uintptr_t)exinfo->ExceptionRecord->ExceptionAddress, &disp, &line)) {
 		CRASH_MSG(": %s:%lu+%lu", line.FileName, line.LineNumber, disp);
 	}
-	CRASH_MSG("\nMODULE: [%p]\n", crashGetModuleBase(exinfo->ExceptionRecord->ExceptionAddress));
+	CRASH_MSG("\n");
+
+	if (exinfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION
+			&& exinfo->ExceptionRecord->NumberParameters >= 2) {
+		const ULONG_PTR access = exinfo->ExceptionRecord->ExceptionInformation[0];
+		const void *addr = (const void *)exinfo->ExceptionRecord->ExceptionInformation[1];
+		CRASH_MSG("FAULT: %s %p%s\n", access == 1 ? "write to" : access == 8 ? "execute at" : "read from",
+				addr, crashFaultRegion(addr));
+	}
+
+	if (g_LangRoBase) {
+		CRASH_MSG("LANGRO: [%p] +%08lx\n", (void *)g_LangRoBase, (unsigned long)g_LangRoSize);
+	}
+
+	CRASH_MSG("MODULE: [%p]\n", crashGetModuleBase(exinfo->ExceptionRecord->ExceptionAddress));
 	CRASH_MSG("MAIN MODULE: [%p]\n", crashGetModuleBase(crashInit));
 
 	// with no PDB the frames below are bare offsets, and offsets only tell
@@ -240,7 +276,7 @@ static void *crashGetModuleBase(const void *addr)
 	return NULL;
 }
 
-static void crashStackTrace(char *msg, s32 sig, void *pc)
+static void crashStackTrace(char *msg, s32 sig, void *pc, void *faultaddr)
 {
 	u32 msglen = 0;
 	void *frames[CRASH_MAX_FRAMES] = { NULL };
@@ -261,6 +297,14 @@ static void crashStackTrace(char *msg, s32 sig, void *pc)
 		CRASH_MSG("%s\n", strings[0]);
 	} else {
 		CRASH_MSG("%p\n", frames[0]);
+	}
+
+	if (sig == SIGSEGV || sig == SIGBUS) {
+		CRASH_MSG("FAULT: %p%s\n", faultaddr, crashFaultRegion(faultaddr));
+	}
+
+	if (g_LangRoBase) {
+		CRASH_MSG("LANGRO: %p +%08lx\n", (void *)g_LangRoBase, (unsigned long)g_LangRoSize);
 	}
 
 	CRASH_MSG("MODULE: %p\n", crashGetModuleBase(frames[0]));
@@ -313,7 +357,7 @@ static void crashHandler(s32 sig, siginfo_t *siginfo, void *ctx)
 	fflush(stderr);
 	fflush(stdout);
 
-	crashStackTrace(msg, sig, pc);
+	crashStackTrace(msg, sig, pc, siginfo ? siginfo->si_addr : NULL);
 
 	sysFatalError("Crash!\n\n%s", msg);
 }

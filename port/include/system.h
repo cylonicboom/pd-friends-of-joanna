@@ -39,6 +39,15 @@ void *sysMemZeroAlloc(const u32 size);
 void *sysMemRealloc(void *ptr, const u32 newSize);
 void sysMemFree(void *ptr);
 
+// whole pages of their own, outside every pool, that can be made read-only.
+// sysMemPagesAlloc rounds size up to the page size and returns zeroed,
+// writable, page-aligned memory (NULL on failure). sysMemPagesProtect returns
+// false where the platform cannot protect pages (the memory still works, it
+// just is not guarded). pass the same size to all three.
+void *sysMemPagesAlloc(const u32 size);
+void sysMemPagesFree(void *ptr, const u32 size);
+s32 sysMemPagesProtect(void *ptr, const u32 size, const s32 readonly);
+
 // hns is specified in 100ns units
 void sysSleep(const s64 hns);
 

@@ -331,6 +331,74 @@ void sysMemFree(void *ptr)
 	free(ptr);
 }
 
+#if defined(PLATFORM_POSIX) && !defined(PLATFORM_NSWITCH)
+#include <sys/mman.h>
+#endif
+
+static u32 sysMemPageRound(const u32 size)
+{
+	u32 page = 4096;
+#ifdef PLATFORM_WIN32
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	if (si.dwPageSize) {
+		page = si.dwPageSize;
+	}
+#elif defined(PLATFORM_POSIX) && !defined(PLATFORM_NSWITCH)
+	const long sc = sysconf(_SC_PAGESIZE);
+	if (sc > 0) {
+		page = (u32)sc;
+	}
+#endif
+	return (size + page - 1) / page * page;
+}
+
+void *sysMemPagesAlloc(const u32 size)
+{
+	const u32 len = sysMemPageRound(size);
+#ifdef PLATFORM_WIN32
+	return VirtualAlloc(NULL, len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+#elif defined(PLATFORM_POSIX) && !defined(PLATFORM_NSWITCH)
+	void *ptr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	return ptr == MAP_FAILED ? NULL : ptr;
+#else
+	return calloc(1, len);
+#endif
+}
+
+void sysMemPagesFree(void *ptr, const u32 size)
+{
+	if (!ptr) {
+		return;
+	}
+#ifdef PLATFORM_WIN32
+	(void)size;
+	VirtualFree(ptr, 0, MEM_RELEASE);
+#elif defined(PLATFORM_POSIX) && !defined(PLATFORM_NSWITCH)
+	munmap(ptr, sysMemPageRound(size));
+#else
+	(void)size;
+	free(ptr);
+#endif
+}
+
+s32 sysMemPagesProtect(void *ptr, const u32 size, const s32 readonly)
+{
+	if (!ptr) {
+		return 0;
+	}
+#ifdef PLATFORM_WIN32
+	DWORD old;
+	return VirtualProtect(ptr, sysMemPageRound(size), readonly ? PAGE_READONLY : PAGE_READWRITE, &old) != 0;
+#elif defined(PLATFORM_POSIX) && !defined(PLATFORM_NSWITCH)
+	return mprotect(ptr, sysMemPageRound(size), readonly ? PROT_READ : (PROT_READ | PROT_WRITE)) == 0;
+#else
+	(void)size;
+	(void)readonly;
+	return 0;
+#endif
+}
+
 void sysSleep(const s64 hns)
 {
 #ifdef PLATFORM_WIN32

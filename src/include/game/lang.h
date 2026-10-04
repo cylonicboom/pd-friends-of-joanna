@@ -23,6 +23,16 @@ void langSetEuropean(u32 arg0);
 void langSetJpnEnabled(bool enable);
 
 #ifndef PLATFORM_N64
+/* fojo (#352): the always-loaded text banks in their own read-only pages. */
+extern u8 *g_LangRoBase;
+extern u32 g_LangRoSize;
+u8 *langRoReserve(u32 size);
+void langRoSeal(void);
+void langRoUnseal(void);
+s32 langRoLoadFixedBanks(const s32 *banks, s32 numbanks);
+#endif
+
+#ifndef PLATFORM_N64
 /* Kai (be46717): the chaos text gags (g_ChaosUwuMode) for text that does not
  * flow through langGet at render time (hudmsgs, Lua overlays). Returns src
  * unchanged when the mode is off. */
