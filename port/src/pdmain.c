@@ -272,7 +272,10 @@ struct stageallocation g_StageAllocations8Mb[] = {
     {STAGE_TEST_LAM, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
     {STAGE_TEST_ARCH, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},
     {STAGE_TEST_LEN, "-ml0 -me0 -mgfx120 -mvtx98 -ma300"},
-    {STAGE_TITLE, "-ml0 -me0 -mgfx80 -mvtx20 -ma001"},
+    // fojo (#352): the title stage hosts the profile picker (a file manager,
+    // like CI) over the slow stars, not just logos. vanilla's -mvtx20 / -ma001
+    // were overrun every frame the picker was up; give it CI's budget.
+    {STAGE_TITLE, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
 #ifndef PLATFORM_N64
     // GoldenEye X Mod
     {STAGE_EXTRA1, "-ml0 -me0 -mgfx200 -mvtx200 -ma400"},  // Frigate
@@ -338,7 +341,10 @@ struct stageallocation g_StageAllocations4Mb[] = {
     {STAGE_TEST_MP20, "-ml0 -me0 -mgfx96 -mvtx96 -ma115"},
     {STAGE_TEST_LEN, "-ml0 -me0 -mgfx100 -mvtx96 -ma120"},
     {STAGE_4MBMENU, "-mgfx100 -mvtx50 -ma50"},
-    {STAGE_TITLE, "-ml0 -me0 -mgfx80 -mvtx20 -ma001"},
+    // fojo (#352): the title stage hosts the profile picker (a file manager,
+    // like CI) over the slow stars, not just logos. vanilla's -mvtx20 / -ma001
+    // were overrun every frame the picker was up; give it CI's budget.
+    {STAGE_TITLE, "-ml0 -me0 -mgfx120 -mvtx98 -ma400"},
     {0, "-ml0 -me0 -mgfx100 -mvtx96 -ma300"},
 };
 
