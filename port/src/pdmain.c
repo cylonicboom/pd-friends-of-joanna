@@ -1206,6 +1206,18 @@ void mainLoop(void) {
       playermgrDisableTeamPlayers(false);
     }
 
+    // fojo: the roles decide, not the flag alone. The Team Missions accept
+    // sets the roles, the player numbers and the player count; if isteam is
+    // lost between there and here, AllocatePlayers(n) seats the players and
+    // wires no coop/anti pointers while currentcoopplayernum still says there
+    // is one, and the first AI command that reads g_Vars.coop faults.
+    if (!g_MissionConfig.isteam && !g_MissionConfig.iscoop && !g_MissionConfig.isanti
+        && !g_Vars.perfectbuddynum && numplayers >= 2 && playermgrHasTeamRoles()) {
+      sysLogPrintf(LOG_WARNING, "stage 0x%02x: team roles set but isteam was cleared before load - restoring it", g_StageNum);
+      BRIEFDIAG("isteam restored from playerroles at stage load 0x%02x", g_StageNum);
+      g_MissionConfig.isteam = true;
+    }
+
     if (g_MissionConfig.isteam) {
       numplayers = playermgrAllocatePlayers(-1);
     } else {

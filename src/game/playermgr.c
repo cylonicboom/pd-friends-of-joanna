@@ -104,6 +104,24 @@ void playermgrResetTeamPlayers(void)
 	}
 }
 
+/**
+ * fojo: true when the Team Missions roles name a coop or anti player in some
+ * slot other than the operative's. The roles outlive the mission (Disable
+ * keeps them for the menu), so callers pair this with a check that a team
+ * start is what is pending.
+ */
+bool playermgrHasTeamRoles(void)
+{
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (i == g_Vars.bondplayernum) continue;
+		if (g_Vars.playerroles[i] == PLAYERROLE_COOP || g_Vars.playerroles[i] == PLAYERROLE_ANTI) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void playermgrReset(void)
 {
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
