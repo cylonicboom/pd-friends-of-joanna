@@ -583,6 +583,137 @@ s32 langGetFileId(s32 bank)
 	return g_LangFiles[bank] + langGetFileNumOffset();
 }
 
+#ifndef PLATFORM_N64
+/**
+ * fojo: the always-loaded text banks live in pages of their own, outside
+ * MEMPOOL_STAGE, and are read-only except while a bank is being loaded.
+ *
+ * They used to sit in the stage pool between everything else, so a stray
+ * write from a neighbour landed in a bank's offset table and surfaced later,
+ * somewhere else, as the wrong string or a wild char* (card #352: the title
+ * profile picker showing the Air Base hangar blurb, then a fault in
+ * menuCalculateItemSize). Sealed, the same write faults on the instruction
+ * that makes it, and the crash report names the writer instead of a victim.
+ *
+ * One block, reused every stage. When a stage needs more than it has, a new
+ * one is mapped and the old one is left mapped and sealed rather than freed:
+ * anything still holding a string from it keeps reading valid text, as it
+ * did when this memory was pool memory. That happens a handful of times per
+ * session at most.
+ *
+ * The briefing bank (langLoadToAddr into the menu model's memory) and, on
+ * NTSC, the per-stage bank langLoad puts in the stage pool are not in here.
+ */
+u8 *g_LangRoBase = NULL;
+u32 g_LangRoSize = 0;
+static u32 g_LangRoUsed = 0;
+static s32 g_LangRoSealed = false;
+
+void langRoUnseal(void)
+{
+	if (g_LangRoBase && g_LangRoSealed) {
+		sysMemPagesProtect(g_LangRoBase, g_LangRoSize, false);
+		g_LangRoSealed = false;
+	}
+}
+
+void langRoSeal(void)
+{
+	if (g_LangRoBase && !g_LangRoSealed) {
+		g_LangRoSealed = sysMemPagesProtect(g_LangRoBase, g_LangRoSize, true);
+	}
+}
+
+/**
+ * Make the block at least size bytes, writable and empty, and return it.
+ * NULL if it could not be mapped; callers fall back to the stage pool.
+ */
+u8 *langRoReserve(u32 size)
+{
+	if (g_LangRoBase == NULL || size > g_LangRoSize) {
+		u8 *block = sysMemPagesAlloc(size);
+
+		if (block == NULL) {
+			sysLogPrintf(LOG_WARNING, "lang: could not map %u bytes for the text banks; using the stage pool", size);
+			return NULL;
+		}
+
+		if (g_LangRoBase) {
+			// left mapped on purpose, see above
+			langRoSeal();
+			sysLogPrintf(LOG_NOTE, "lang: text bank block %p (+0x%x) outgrown, retired sealed", g_LangRoBase, g_LangRoSize);
+		}
+
+		g_LangRoBase = block;
+		g_LangRoSize = size;
+		g_LangRoSealed = false;
+	} else {
+		langRoUnseal();
+	}
+
+	g_LangRoUsed = 0;
+
+	return g_LangRoBase;
+}
+
+/**
+ * Bump-allocate len bytes (16-aligned) from the reserved block.
+ */
+static u8 *langRoTake(u32 len)
+{
+	u8 *ptr;
+
+	len = ALIGN16(len);
+
+	if (g_LangRoBase == NULL || g_LangRoUsed + len > g_LangRoSize) {
+		return NULL;
+	}
+
+	ptr = g_LangRoBase + g_LangRoUsed;
+	g_LangRoUsed += len;
+
+	return ptr;
+}
+
+/**
+ * Load the always-loaded banks for a stage into the block and seal it.
+ * Returns false if the block could not be had, so langReset can fall back.
+ */
+s32 langRoLoadFixedBanks(const s32 *banks, s32 numbanks)
+{
+	u32 sizes[16];
+	u32 total = 0;
+	s32 i;
+
+	if (numbanks > ARRAYCOUNT(sizes)) {
+		return false;
+	}
+
+	for (i = 0; i < numbanks; i++) {
+		// the same size fileLoadToNew would have allocated
+		sizes[i] = (fileGetInflatedSize(langGetFileId(banks[i]), LOADTYPE_LANG) + 0x20) & 0xfffffff0;
+		total += sizes[i];
+	}
+
+	if (langRoReserve(total) == NULL) {
+		return false;
+	}
+
+	for (i = 0; i < numbanks; i++) {
+		u8 *dst = langRoTake(sizes[i]);
+		g_LoadType = LOADTYPE_LANG;
+		g_LangBanks[banks[i]] = fileLoadToAddr(langGetFileId(banks[i]), FILELOADMETHOD_DEFAULT, dst, sizes[i]);
+	}
+
+	langRoSeal();
+
+	sysLogPrintf(LOG_NOTE, "lang: %d text banks in %p (+0x%x), %s", numbanks, g_LangRoBase, g_LangRoSize,
+			g_LangRoSealed ? "sealed read-only" : "NOT sealed (no page protection here)");
+
+	return true;
+}
+#endif
+
 void langLoad(s32 bank)
 {
 #if VERSION >= VERSION_PAL_BETA
@@ -592,7 +723,14 @@ void langLoad(s32 bank)
 		s32 len2 = (uintptr_t)g_LangBuffer + g_LangBufferSize - (uintptr_t)g_LangBufferPos;
 		len2 = len2 / 32 * 32;
 		g_LoadType = LOADTYPE_LANG;
+#ifndef PLATFORM_N64
+		// g_LangBuffer is the sealed block on PC (langreset.c)
+		langRoUnseal();
+#endif
 		g_LangBanks[bank] = fileLoadToAddr(langGetFileId(bank), FILELOADMETHOD_DEFAULT, (u8 *)g_LangBufferPos, len2);
+#ifndef PLATFORM_N64
+		langRoSeal();
+#endif
 		g_LangBufferPos = (u8 *)(align32((uintptr_t)g_LangBufferPos + len));
 	} else {
 		CRASH();

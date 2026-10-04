@@ -50,11 +50,46 @@ void langReset(s32 stagenum)
 	size *= 2;
 #endif
 
+#ifndef PLATFORM_N64
+	// fojo (#352): the bank buffer is the read-only block, not stage memory.
+	// langLoad unseals around each write.
+	g_LangBuffer = langRoReserve(ALIGN16(size));
+
+	if (g_LangBuffer == NULL) {
+		g_LangBuffer = mempAlloc(ALIGN16(size), MEMPOOL_STAGE);
+	}
+#else
 	g_LangBuffer = mempAlloc(ALIGN16(size), MEMPOOL_STAGE);
+#endif
 	g_LangBufferSize = size;
 
 	langReload();
 #else
+#ifndef PLATFORM_N64
+	// fojo (#352): same banks, same order, but in their own read-only pages
+	// instead of fileLoadToNew's stage-pool allocations. falls through to the
+	// original loads only if the pages could not be mapped.
+	{
+		s32 banks[7];
+		s32 numbanks = 0;
+
+		banks[numbanks++] = LANGBANK_GUN;
+		banks[numbanks++] = LANGBANK_MPMENU;
+		banks[numbanks++] = LANGBANK_PROPOBJ;
+		banks[numbanks++] = LANGBANK_MPWEAPONS;
+		banks[numbanks++] = LANGBANK_OPTIONS;
+		banks[numbanks++] = LANGBANK_MISC;
+
+		if (stagenum == STAGE_CREDITS) {
+			banks[numbanks++] = LANGBANK_TITLE;
+		}
+
+		if (langRoLoadFixedBanks(banks, numbanks)) {
+			return;
+		}
+	}
+#endif
+
 	// Versions prior to PAL load the language directly
 	g_LoadType = LOADTYPE_LANG; // find be a better way to do this..
 	g_LangBanks[LANGBANK_GUN] = fileLoadToNew(langGetFileId(LANGBANK_GUN), FILELOADMETHOD_DEFAULT, LOADTYPE_LANG);
