@@ -24,6 +24,8 @@
 // report, or the fault reads like any other access violation.
 extern u8 *g_LangRoBase;
 extern u32 g_LangRoSize;
+extern u8 *g_MemaGuardStart;
+extern u32 g_MemaGuardSize;
 s32 textFontRoContains(const void *addr);
 
 static const char *crashFaultRegion(const void *addr)
@@ -33,6 +35,10 @@ static const char *crashFaultRegion(const void *addr)
 
 	if (base && a >= base && a < base + g_LangRoSize) {
 		return " -- inside the read-only text banks: PC / frame #00 is the stray writer (#352)";
+	}
+
+	if (g_MemaGuardStart && a >= (uintptr_t)g_MemaGuardStart && a < (uintptr_t)g_MemaGuardStart + g_MemaGuardSize) {
+		return " -- in the guard past the mema heap: PC / frame #00 overran the heap (#352)";
 	}
 
 	if (textFontRoContains(addr)) {

@@ -101,6 +101,60 @@ void rngSetSeed(u32 seed);
 bool var8005d9b0 = false;
 s32 g_StageNum = STAGE_TITLE;
 u32 g_MainMemaHeapSize = 1024 * 300;
+
+/**
+ * fojo (#352): the mema heap sits flush against a read-only guard.
+ *
+ * It was a MEMPOOL_STAGE allocation with the stage's next allocations right
+ * behind it - langReset's text banks first, exactly as the vanilla note in
+ * memaReset says ("mema can allocate past the end of its heap. This would
+ * overflow into the gun names language file"). Something at the title picker
+ * writes past the end of the heap: it corrupted the MPMENU bank (the Air Base
+ * hangar blurb, a wild char* in menuCalculateItemSize), then with the banks
+ * sealed elsewhere the font glyph table, then the hud message array. The heap
+ * now ends exactly where MEMA_GUARD read-only bytes begin, so that write
+ * faults on the instruction that makes it.
+ *
+ * One region, grown only, reused every stage; an outgrown region is left
+ * mapped (stale mema pointers from an earlier stage keep pointing at memory)
+ * and its guard stays sealed. Falls back to the stage pool if unmappable.
+ */
+#define MEMA_GUARD (64 * 1024)
+
+u8 *g_MemaGuardStart = NULL;
+u32 g_MemaGuardSize = 0;
+static u8 *g_MemaRegion = NULL;
+static u32 g_MemaRegionSize = 0;
+
+static void *mainMemaHeap(u32 size)
+{
+  if (g_MemaRegion == NULL || size > g_MemaRegionSize) {
+    // 64K multiples keep the guard page-aligned on 4K and 16K page systems
+    const u32 rsize = (size + MEMA_GUARD - 1) / MEMA_GUARD * MEMA_GUARD;
+    u8 *region = sysMemPagesAlloc(rsize + MEMA_GUARD);
+
+    if (region == NULL) {
+      sysLogPrintf(LOG_WARNING, "mema: could not map 0x%x bytes; heap goes in the stage pool, unguarded", rsize + MEMA_GUARD);
+      return mempAlloc(size, MEMPOOL_STAGE);
+    }
+
+    g_MemaRegion = region;
+    g_MemaRegionSize = rsize;
+    g_MemaGuardStart = region + rsize;
+    g_MemaGuardSize = MEMA_GUARD;
+
+    if (!sysMemPagesProtect(g_MemaGuardStart, MEMA_GUARD, true)) {
+      sysLogPrintf(LOG_WARNING, "mema: guard at %p could not be sealed (no page protection here)", (void *)g_MemaGuardStart);
+    }
+  }
+
+  // the heap's last byte is the byte before the guard
+  u8 *heap = g_MemaGuardStart - size;
+  memset(heap, 0, size);
+  sysLogPrintf(LOG_NOTE, "mema: heap %p (+0x%x), guard %p (+0x%x)", (void *)heap, size, (void *)g_MemaGuardStart, g_MemaGuardSize);
+
+  return heap;
+}
 bool var8005d9bc = false;
 s32 var8005d9c0 = 0;
 s32 var8005d9c4 = 0;
@@ -1132,7 +1186,7 @@ void mainLoop(void) {
       g_MainMemaHeapSize = strtol(argFindByPrefix(1, "-ma"), NULL, 0) * 1024;
     }
 
-    memaReset(mempAlloc(g_MainMemaHeapSize, MEMPOOL_STAGE), g_MainMemaHeapSize);
+    memaReset(mainMemaHeap(g_MainMemaHeapSize), g_MainMemaHeapSize);
     langReset(g_StageNum);
     playermgrReset();
 
