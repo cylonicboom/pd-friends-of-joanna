@@ -13,6 +13,9 @@
 #include "data.h"
 #include "types.h"
 #include "platform.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 
 /**
  * This file handles memory usage for graphics related tasks.
@@ -70,6 +73,87 @@ u32 g_VtxSizesByPlayerCount[] = {
 s32 g_GfxNumSwapsPerBuffer[NUM_GFXTASKS] = {0, 1};
 u32 g_GfxNumSwaps = 2;
 
+#ifndef PLATFORM_N64
+/**
+ * fojo (#352): the vtx pool's bump allocators never checked the end of the
+ * active buffer. A stage whose -mvtx budget is smaller than what it draws ran
+ * g_GfxMemPos straight off g_VtxBuffers[2] into the next stage allocations -
+ * on the title stage (-mvtx20) with the profile picker and slow stars up, that
+ * was the text banks, then fonts, then hud messages, each found later as the
+ * Air Base string, a NULL glyph, a garbage playernum.
+ *
+ * Now an allocation that does not fit is served from a separate heap scratch
+ * block instead. Everything that overflows in a frame shares that block, so
+ * those vertices can draw wrong for the frame; nothing outside the pool is
+ * written. The first overflow per stage is logged with the numbers needed to
+ * set the stage's -mvtx, and gfxReset logs the previous stage's high-water
+ * mark so budgets can be set from measurements.
+ */
+static u8 *g_VtxOverflow = NULL;
+static u32 g_VtxOverflowSize = 0;
+static s32 g_VtxOverflowLogged = false;
+static u32 g_VtxOverflowCount = 0;
+static u32 g_VtxHighWater = 0;
+static u32 g_VtxWorstRequest = 0;
+
+static void gfxNoteHighWater(void)
+{
+	const u32 used = g_GfxMemPos - g_VtxBuffers[g_GfxActiveBufferIndex];
+
+	if (used > g_VtxHighWater) {
+		g_VtxHighWater = used;
+	}
+}
+
+static void *gfxVtxReserve(u32 size)
+{
+	u8 *ptr = g_GfxMemPos;
+	u8 *end = g_VtxBuffers[g_GfxActiveBufferIndex + 1];
+
+	if (ptr + size <= end) {
+		g_GfxMemPos += size;
+		return ptr;
+	}
+
+	// past the end of this frame's buffer: never write there
+	{
+		const u32 used = ptr - g_VtxBuffers[g_GfxActiveBufferIndex];
+		const u32 wanted = used + size;
+
+		g_VtxOverflowCount++;
+
+		if (wanted > g_VtxWorstRequest) {
+			g_VtxWorstRequest = wanted;
+		}
+
+		if (!g_VtxOverflowLogged) {
+			g_VtxOverflowLogged = true;
+			sysLogPrintf(LOG_WARNING, "gfx: vtx pool overflow on stage 0x%02x: frame needs >= 0x%x bytes, buffer is 0x%x (-mvtx%u); excess drawn from scratch",
+					g_Vars.stagenum, wanted, (u32)(end - g_VtxBuffers[g_GfxActiveBufferIndex]),
+					(u32)(end - g_VtxBuffers[g_GfxActiveBufferIndex]) / 1024);
+		}
+	}
+
+	if (size > g_VtxOverflowSize) {
+		u8 *grown = sysMemAlloc(size);
+
+		if (grown == NULL) {
+			// nothing safe to hand out; the old behaviour, but loud
+			sysLogPrintf(LOG_ERROR, "gfx: vtx overflow scratch of 0x%x bytes could not be allocated", size);
+			g_GfxMemPos += size;
+			return ptr;
+		}
+
+		// the previous scratch may still be referenced by this frame's
+		// display list; leave it allocated rather than free it under the GPU
+		g_VtxOverflow = grown;
+		g_VtxOverflowSize = size;
+	}
+
+	return g_VtxOverflow;
+}
+#endif
+
 /**
  * Allocate graphics memory from the heap. Presumably called on stage load.
  *
@@ -122,6 +206,19 @@ void gfxReset(void)
 	g_VtxBuffers[1] = g_VtxBuffers[0] + g_VtxSizesByPlayerCount[playermgrBudgetCount() - 1];
 	g_VtxBuffers[2] = g_VtxBuffers[1] + g_VtxSizesByPlayerCount[playermgrBudgetCount() - 1];
 
+#ifndef PLATFORM_N64
+	if (g_VtxHighWater || g_VtxOverflowCount) {
+		sysLogPrintf(g_VtxOverflowCount ? LOG_WARNING : LOG_NOTE,
+				"gfx: previous stage vtx high-water 0x%x, %u overflowed allocations, worst frame wanted 0x%x",
+				g_VtxHighWater, g_VtxOverflowCount, g_VtxWorstRequest);
+	}
+
+	g_VtxHighWater = 0;
+	g_VtxOverflowCount = 0;
+	g_VtxWorstRequest = 0;
+	g_VtxOverflowLogged = false;
+#endif
+
 	g_GfxActiveBufferIndex = 0;
 	g_GfxRequestedDisplayList = false;
 	g_GfxMemPos = g_VtxBuffers[0];
@@ -136,19 +233,29 @@ Gfx *gfxGetMasterDisplayList(void)
 
 Vtx *gfxAllocateVertices(u32 count)
 {
+#ifndef PLATFORM_N64
+	// g_GfxMemPos is always 16-aligned here, so this is the same advance as
+	// "add, then align the position"
+	return gfxVtxReserve(ALIGN16(count * sizeof(Vtx)));
+#else
 	void *ptr = g_GfxMemPos;
 	g_GfxMemPos += count * sizeof(Vtx);
 	g_GfxMemPos = (u8 *)ALIGN16((uintptr_t)g_GfxMemPos);
 
 	return ptr;
+#endif
 }
 
 void *gfxAllocateMatrix(void)
 {
+#ifndef PLATFORM_N64
+	return gfxVtxReserve(sizeof(Mtx));
+#else
 	void *ptr = g_GfxMemPos;
 	g_GfxMemPos += sizeof(Mtx);
 
 	return ptr;
+#endif
 }
 
 /**
@@ -158,36 +265,51 @@ void *gfxAllocateMatrix(void)
  */
 LookAt *gfxAllocateLookAt(s32 count)
 {
-	void *ptr = g_GfxMemPos;
+#ifndef PLATFORM_N64
 #ifdef PLATFORM_64BIT
-	g_GfxMemPos += count * (sizeof(LookAt) * 2);
+	return gfxVtxReserve(count * (sizeof(LookAt) * 2));
 #else
-	g_GfxMemPos += count * (sizeof(LookAt) / 2);
+	return gfxVtxReserve(count * (sizeof(LookAt) / 2));
 #endif
+#else
+	void *ptr = g_GfxMemPos;
+	g_GfxMemPos += count * (sizeof(LookAt) / 2);
 
 	return ptr;
+#endif
 }
 
 Col *gfxAllocateColours(s32 count)
 {
+#ifndef PLATFORM_N64
+	return gfxVtxReserve(ALIGN16(count * sizeof(Col)));
+#else
 	void *ptr = g_GfxMemPos;
 	count = ALIGN16(count * sizeof(Col));
 	g_GfxMemPos += count;
 
 	return ptr;
+#endif
 }
 
 void *gfxAllocate(u32 size)
 {
+#ifndef PLATFORM_N64
+	return gfxVtxReserve(ALIGN16(size));
+#else
 	void *ptr = g_GfxMemPos;
 	size = ALIGN16(size);
 	g_GfxMemPos += size;
 
 	return ptr;
+#endif
 }
 
 void gfxSwapBuffers(void)
 {
+#ifndef PLATFORM_N64
+	gfxNoteHighWater();
+#endif
 	g_GfxActiveBufferIndex ^= 1;
 	g_GfxRequestedDisplayList = false;
 	g_GfxMemPos = g_VtxBuffers[g_GfxActiveBufferIndex];
