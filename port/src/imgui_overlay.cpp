@@ -6306,6 +6306,19 @@ static void imguiOverlayRunPlayerRequests(void)
 // Window > Players. One row per slot; the last live slot can leave, the first
 // free slot can be filled from the profile list. Slot numbers are shown 1-based
 // as the game's menus do; the engine's playernum is one less.
+// Hand the keyboard and mouse to a seat and save it. The live owner falls
+// through to the next seated player while that seat is empty.
+static void imguiOverlayKbmGive(s32 seat)
+{
+	if (seat < 0 || seat >= MAX_PLAYERS) {
+		return;
+	}
+	inputKbmSetSaved(seat);
+	saveQueueMarkConfig();
+	sysLogPrintf(LOG_NOTE, "input: keyboard+mouse -> player %d%s", seat + 1,
+			inputKbmPlayer() == seat ? "" : " (not seated: next live seat has it until then)");
+}
+
 static void imguiOverlayDrawPlayersPanel(void)
 {
 	const s32 count = PLAYERCOUNT();
@@ -6320,10 +6333,14 @@ static void imguiOverlayDrawPlayersPanel(void)
 		}
 	}
 
-	if (ImGui::BeginTable("##fojoplayers", 4, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
+	const s32 kbmlive = inputKbmPlayer();
+	const s32 kbmsaved = inputKbmGetSaved();
+
+	if (ImGui::BeginTable("##fojoplayers", 5, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
 		ImGui::TableSetupColumn("slot");
 		ImGui::TableSetupColumn("profile", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn("state");
+		ImGui::TableSetupColumn("kb+m");
 		ImGui::TableSetupColumn("##act");
 		ImGui::TableHeadersRow();
 
@@ -6348,6 +6365,19 @@ static void imguiOverlayDrawPlayersPanel(void)
 				}
 				ImGui::TableNextColumn();
 				ImGui::PushID(i);
+				if (ImGui::RadioButton("##kbm", i == kbmlive)) {
+					imguiOverlayKbmGive(i);
+				}
+				if (ImGui::IsItemHovered()) {
+					if (i == kbmlive && kbmsaved != kbmlive) {
+						ImGui::SetTooltip("Keyboard and mouse are here because player %d is not seated.\nThey go back when player %d is.", kbmsaved + 1, kbmsaved + 1);
+					} else if (i == kbmlive) {
+						ImGui::SetTooltip("This player has the keyboard and mouse.");
+					} else {
+						ImGui::SetTooltip("Give the keyboard and mouse to this player.");
+					}
+				}
+				ImGui::TableNextColumn();
 				ImGui::BeginDisabled(i != lastslot || g_ImGuiDropLastPlayerPending);
 				if (ImGui::Button("Drop")) {
 					g_ImGuiDropLastPlayerPending = true;
@@ -6361,6 +6391,13 @@ static void imguiOverlayDrawPlayersPanel(void)
 				ImGui::TextDisabled("-");
 				ImGui::TableNextColumn();
 				ImGui::TextDisabled("free");
+				ImGui::TableNextColumn();
+				if (i == kbmsaved && kbmsaved != kbmlive) {
+					ImGui::TextDisabled("saved");
+					if (ImGui::IsItemHovered()) {
+						ImGui::SetTooltip("Keyboard and mouse come back here when this seat fills.");
+					}
+				}
 				ImGui::TableNextColumn();
 				ImGui::PushID(i);
 				ImGui::BeginDisabled(i != freeslot);
@@ -7792,6 +7829,23 @@ static void imguiOverlayCmdAddPlayer(void)
 
 // Editor pause: every ailist stops advancing at chraiExecute, the rest of
 // the tick runs. A chr mid-action finishes the action; that is c-ai-pause.
+// keyboard+mouse ownership; the Players panel's kb+m column does the same
+static void imguiOverlayCmdKbmNext(void)
+{
+	const s32 cur = inputKbmPlayer();
+	for (s32 n = 1; n <= MAX_PLAYERS; n++) {
+		const s32 i = (cur + n) % MAX_PLAYERS;
+		if (g_Vars.players[i]) {
+			imguiOverlayKbmGive(i);
+			return;
+		}
+	}
+}
+static void imguiOverlayCmdKbm1(void) { imguiOverlayKbmGive(0); }
+static void imguiOverlayCmdKbm2(void) { imguiOverlayKbmGive(1); }
+static void imguiOverlayCmdKbm3(void) { imguiOverlayKbmGive(2); }
+static void imguiOverlayCmdKbm4(void) { imguiOverlayKbmGive(3); }
+
 static void imguiOverlayCmdPauseAi(void)     { chraiSetPaused(1); }
 static void imguiOverlayCmdResumeAi(void)    { chraiSetPaused(0); }
 
@@ -7817,6 +7871,11 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Yank position",            imguiOverlayCmdYankPos },
 	{ "Add player",               imguiOverlayCmdAddPlayer },
 	{ "Drop last player",         imguiOverlayCmdDropLastPlayer },
+	{ "Pass KB+M to next player", imguiOverlayCmdKbmNext },
+	{ "KB+M to player 1",         imguiOverlayCmdKbm1 },
+	{ "KB+M to player 2",         imguiOverlayCmdKbm2 },
+	{ "KB+M to player 3",         imguiOverlayCmdKbm3 },
+	{ "KB+M to player 4",         imguiOverlayCmdKbm4 },
 	{ "Pause ailists",            imguiOverlayCmdPauseAi },
 	{ "Resume ailists",           imguiOverlayCmdResumeAi },
 };
