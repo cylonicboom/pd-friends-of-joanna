@@ -165,6 +165,11 @@ void playermgrReset(void)
  */
 s32 playermgrAllocatePlayers(s32 playercount)
 {
+	sysLogPrintf(LOG_NOTE, "playermgrAllocatePlayers(%d): isteam=%d roles={%d,%d,%d,%d} bond=%d coop=%d curcoop=%d anti=%d numplayers=%d",
+		playercount, g_MissionConfig.isteam,
+		g_Vars.playerroles[0], g_Vars.playerroles[1], g_Vars.playerroles[2], g_Vars.playerroles[3],
+		g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.currentcoopplayernum, g_Vars.antiplayernum, getNumPlayers());
+
 	g_Vars.players[0] = NULL;
 	g_Vars.players[1] = NULL;
 	g_Vars.players[2] = NULL;
@@ -227,6 +232,11 @@ s32 playermgrAllocatePlayers(s32 playercount)
 		setCurrentPlayerNum(g_Vars.bondplayernum);
 		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
 	}
+
+	sysLogPrintf(LOG_NOTE, "playermgrAllocatePlayers -> %d: players={%p,%p,%p,%p} coop=%p anti=%p parked={%p,%p,%p,%p} curcoop=%d",
+		playercount, g_Vars.players[0], g_Vars.players[1], g_Vars.players[2], g_Vars.players[3],
+		g_Vars.coop, g_Vars.anti, g_ParkedPlayers[0], g_ParkedPlayers[1], g_ParkedPlayers[2], g_ParkedPlayers[3],
+		g_Vars.currentcoopplayernum);
 
 	return playercount;
 }

@@ -541,6 +541,10 @@ void lvReset(s32 stagenum)
 		utilsReset();
 		casingsReset();
 
+#ifndef PLATFORM_N64
+		sysLogPrintf(LOG_NOTE, "lvReset: stage 0x%02x per-player init for %d player(s)", stagenum, PLAYERCOUNT());
+#endif
+
 		for (i = 0; i < PLAYERCOUNT(); i++) {
 			setCurrentPlayerNum(i);
 			g_Vars.currentplayer->usedowntime = 0;
