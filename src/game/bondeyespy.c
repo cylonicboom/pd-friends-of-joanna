@@ -947,7 +947,7 @@ void eyespyProcessInput(bool allowbuttons)
 #endif
 
 #ifndef PLATFORM_N64
-		if (g_Vars.currentplayernum == 0) {
+		if (g_Vars.currentplayernum == inputKbmPlayer()) {
 			f32 mdx, mdy;
 			inputMouseGetScaledDelta(&mdx, &mdy);
 			if (mdx || mdy) {

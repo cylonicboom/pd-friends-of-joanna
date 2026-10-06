@@ -6,6 +6,7 @@
 #include "game/playermgr.h"
 #include "game/mainmenu.h"
 #include "game/pak.h"
+#include "game/options.h"
 #include "game/mplayer/mplayer.h"
 #include "bss.h"
 #include "data.h"
@@ -51,6 +52,31 @@ s32 hotjoinLastSlot(void)
 {
 	s32 n = PLAYERCOUNT() - 1;
 	return (hotjoinAvailable() && n >= 1 && n != g_Vars.bondplayernum) ? n : -1;
+}
+
+s32 hotjoinKbmSeat(s32 want)
+{
+	if (want < 0 || want >= MAX_PLAYERS) {
+		want = 0;
+	}
+
+	for (s32 n = 0; n < MAX_PLAYERS; n++) {
+		const s32 i = (want + n) % MAX_PLAYERS;
+		if (g_Vars.players[i]) {
+			return i;
+		}
+	}
+
+	return 0;
+}
+
+s32 hotjoinSeatPad(s32 seat)
+{
+	if (seat <= 0 || seat >= MAX_PLAYERS || !g_Vars.players[seat]) {
+		return 0;
+	}
+
+	return optionsGetContpadNum1(g_Vars.playerstats[seat].mpindex);
 }
 
 /**

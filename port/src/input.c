@@ -13,6 +13,10 @@
 #include "fs.h"
 #include "imgui_overlay.h"
 
+// game side: seat liveness and seat -> pad (hotjoin.c)
+extern s32 hotjoinKbmSeat(s32 want);
+extern s32 hotjoinSeatPad(s32 seat);
+
 #if !SDL_VERSION_ATLEAST(2, 0, 14)
 // this was added in 2.0.14
 #define SDL_CONTROLLER_TYPE_VIRTUAL SDL_CONTROLLER_TYPE_UNKNOWN
@@ -91,6 +95,8 @@ static s32 mouseShowCursor = 1;
 
 static f32 mouseSensX = 2.5f;
 static f32 mouseSensY = 2.5f;
+
+static s32 kbmPlayer = 0;
 
 static s32 lastKey = 0;
 // Which physical device the player most recently used: 0 = keyboard/mouse,
@@ -845,15 +851,65 @@ s32 inputInit(void)
 	return connectedMask;
 }
 
+s32 inputKbmGetSaved(void)
+{
+	return kbmPlayer;
+}
+
+void inputKbmSetSaved(s32 seat)
+{
+	if (seat < 0 || seat >= MAXCONTROLLERS) {
+		seat = 0;
+	}
+	kbmPlayer = seat;
+}
+
+s32 inputKbmPlayer(void)
+{
+	return hotjoinKbmSeat(kbmPlayer);
+}
+
+s32 inputKbmPad(void)
+{
+	const s32 pad = hotjoinSeatPad(inputKbmPlayer());
+	return (pad >= 0 && pad < INPUT_MAX_CONTROLLERS) ? pad : 0;
+}
+
+static inline s32 inputVkIsKbm(const u32 vk)
+{
+	// VK_KEYBOARD_BEGIN is 0: everything below the first joystick key
+	return vk < VK_JOY_BEGIN;
+}
+
 static inline s32 inputBindPressed(const s32 idx, const u32 ck)
 {
+	const s32 kbmpad = inputKbmPad();
+
 	for (s32 i = 0; i < INPUT_MAX_BINDS; ++i) {
-		if (binds[idx][ck][i]) {
-			if (inputKeyPressed(binds[idx][ck][i])) {
+		const u32 vk = binds[idx][ck][i];
+		if (!vk) {
+			continue;
+		}
+		// player 1's keyboard and mouse have been handed to another pad
+		if (idx == 0 && kbmpad != 0 && inputVkIsKbm(vk)) {
+			continue;
+		}
+		if (inputKeyPressed(vk)) {
+			return 1;
+		}
+	}
+
+	// ...and this is that pad: read them from player 1's bind set. The pad's
+	// own keyboard binds, if anyone set any, still count above.
+	if (idx == kbmpad && idx != 0) {
+		for (s32 i = 0; i < INPUT_MAX_BINDS; ++i) {
+			const u32 vk = binds[0][ck][i];
+			if (vk && inputVkIsKbm(vk) && inputKeyPressed(vk)) {
 				return 1;
 			}
 		}
 	}
+
 	return 0;
 }
 
@@ -1713,6 +1769,7 @@ PD_CONSTRUCTOR static void inputConfigInit(void)
 	configRegisterFloat("Input.MouseSpeedX", &mouseSensX, -30.f, 30.f);
 	configRegisterFloat("Input.MouseSpeedY", &mouseSensY, -30.f, 30.f);
 	configRegisterInt("Input.FakeGamepads", &fakeControllers, 0, 4);
+	configRegisterInt("Input.KbmPlayer", &kbmPlayer, 0, MAXCONTROLLERS - 1);
 	configRegisterInt("Input.FirstGamepadNum", &firstController, 0, 3);
 	configRegisterInt("Input.UseHIDAPI", &useHIDAPI, 0, 1);
 	configRegisterInt("Input.UseRawInput", &useRawInput, 0, 1);

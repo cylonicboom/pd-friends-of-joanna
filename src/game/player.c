@@ -5204,7 +5204,7 @@ void playerTick(bool arg0)
 					sp178 = -sp178;
 				}
 				// mouse control
-				if (g_Vars.currentplayernum == 0) {
+				if (g_Vars.currentplayernum == inputKbmPlayer()) {
 					f32 mdx, mdy;
 					inputMouseGetScaledDelta(&mdx, &mdy);
 					if (mdx || mdy) {

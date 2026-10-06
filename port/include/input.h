@@ -129,6 +129,17 @@ enum mouselockmode {
 // returns bitmask of connected controllers or -1 if failed
 s32 inputInit(void);
 
+// The keyboard and mouse belong to one seat at a time (Input.KbmPlayer).
+// Keyboard and mouse binds always come from player 1's bind set and are
+// counted for the pad the owning seat reads; gamepad binds stay per-seat.
+// The saved value is what the player picked; the live owner is that seat if
+// it is in the game, otherwise the next live seat. A drop never rewrites the
+// saved value, so a seat that comes back gets the keyboard back.
+s32 inputKbmGetSaved(void);
+void inputKbmSetSaved(s32 seat);
+s32 inputKbmPlayer(void);   // live owning seat, 0 when nobody is seated
+s32 inputKbmPad(void);      // the pad index that seat reads
+
 // read the specified player's inputs into the N64 pad struct
 // returns 0 if read, non-0 if failed
 s32 inputReadController(s32 idx, OSContPad *npad);

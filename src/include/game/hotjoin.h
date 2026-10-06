@@ -27,4 +27,10 @@ s32 hotjoinDropLastPlayer(void);
 
 const char *hotjoinLastMessage(void);
 
+// keyboard+mouse ownership (input.c): the seat itself if it is live, else
+// the next live seat after it, wrapping; 0 when nobody is seated. And the
+// pad a seat reads. Seat 0 always reads pad 0, as it always has.
+s32 hotjoinKbmSeat(s32 want);
+s32 hotjoinSeatPad(s32 seat);
+
 #endif

@@ -5147,8 +5147,8 @@ void menuProcessInput(void)
 	inputs.mousescroll = 0;
 	inputs.mousex = 0;
 	inputs.mousey = 0;
-	// only allow mouse controls for player 1 menus
-	if (menu->playernum == 0) {
+	// only allow mouse controls for the keyboard+mouse player's menus
+	if (menu->playernum == inputKbmPlayer()) {
 		// ESC always acts as back
 		inputs.back = inputKeyJustPressed(VK_ESCAPE);
 		if (inputMouseIsEnabled() && !inputMouseIsLocked() && g_MenuMouseControl) {

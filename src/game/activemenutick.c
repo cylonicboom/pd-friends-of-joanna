@@ -93,7 +93,7 @@ void amTick(void)
 #ifndef PLATFORM_N64
 				s32 newstickx = (s32)cstickx;
 				s32 newsticky = (s32)csticky;
-				if (j == 0 && g_Vars.currentplayernum == 0 && inputMouseIsLocked()) {
+				if (j == 0 && g_Vars.currentplayernum == inputKbmPlayer() && inputMouseIsLocked()) {
 					f32 mdx, mdy;
 					struct activemenu *am = &g_AmMenus[g_AmIndex];
 					inputMouseGetAbsScaledDelta(&mdx, &mdy);
