@@ -9360,14 +9360,21 @@ bool aiSetWindSpeed(void)
 bool aiToggleP1P2(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+	// the player in the slot this command writes into p1p2. The number can be
+	// set before the player exists: a mission accept assigns the numbers, the
+	// stage change that allocates the players is deferred to the next loop,
+	// and the current stage keeps ticking in between - so the slot decides,
+	// not the number.
+	struct player *coop = g_Vars.currentcoopplayernum >= 0 ? g_Vars.coopplayers[g_Vars.currentcoopplayernum] : NULL;
+	struct player *bond = g_Vars.players[g_Vars.bondplayernum];
 
-	if (g_Vars.currentcoopplayernum >= 0) {
+	if (coop && bond) {
 		struct chrdata *chr = chrFindById(g_Vars.chrdata, cmd[2]);
 
 		if (chr) {
-			if (chr->p1p2 == g_Vars.bondplayernum && !g_Vars.coop->isdead) {
+			if (chr->p1p2 == g_Vars.bondplayernum && !coop->isdead) {
 				chr->p1p2 = g_Vars.currentcoopplayernum;
-			} else if (!g_Vars.bond->isdead) {
+			} else if (!bond->isdead) {
 				chr->p1p2 = g_Vars.bondplayernum;
 			}
 		}
@@ -9390,11 +9397,14 @@ bool aiChrSetP1P2(void)
 		struct chrdata *chr2 = chrFindById(g_Vars.chrdata, cmd[3]);
 
 		if (chr1 && chr2 && chr2->prop && chr2->prop->type == PROPTYPE_PLAYER) {
-			u32 playernum = playermgrGetPlayerNumByProp(chr2->prop);
+			s32 playernum = playermgrGetPlayerNumByProp(chr2->prop);
+			struct player *player = playernum >= 0 && playernum < MAX_PLAYERS ? g_Vars.players[playernum] : NULL;
 
-			if (!g_Vars.players[playernum]->isdead) {
-				if (chr2->prop == g_Vars.coop->prop) {
-					chr1->p1p2 = g_Vars.currentcoopplayernum;
+			if (player && !player->isdead) {
+				// the slot the target occupies, whichever coop player it is;
+				// anything that is not a seated coop player is the operative
+				if (g_Vars.coopplayers[playernum]) {
+					chr1->p1p2 = playernum;
 				} else {
 					chr1->p1p2 = g_Vars.bondplayernum;
 				}
