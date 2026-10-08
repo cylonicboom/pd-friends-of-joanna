@@ -23,6 +23,10 @@
 #include "data.h"
 #include "types.h"
 #include "string.h"
+#ifndef PLATFORM_N64
+#include "input.h"
+#include "rumbleshake.h"
+#endif
 
 /**
  * Perfect Dark supports saving to an in-cartridge EEPROM chip, as well as to
@@ -5348,6 +5352,32 @@ void pak0f11d9c4(s8 device, u8 *arg1, u8 *arg2, u32 arg3)
 #if VERSION >= VERSION_NTSC_1_0
 void pakRumble(s32 device, f32 numsecs, s32 onduration, s32 offduration)
 {
+#ifndef PLATFORM_N64
+	// port: rumble can also be shown as a shake of the player's own viewport,
+	// per Input.PlayerN.RumbleShake. Ahead of the rumble-pak gate below, so a
+	// pad with no motor, or keyboard and mouse, still gets it. Both callers
+	// (bondgun.c gunfire, chraction.c taking a hit) run with currentplayernum
+	// set to the player the rumble is for, and call once per pad; only the
+	// player's first pad counts, because a dual-pad mode's second pad number
+	// (PLAYERCOUNT() + playernum) lands on another player's settings.
+	{
+		s32 pad1;
+		s32 pad2;
+		s32 mode;
+
+		joyGetContpadNumsForPlayer(g_Vars.currentplayernum, &pad1, &pad2);
+		mode = device == pad1 ? inputRumbleGetShakeMode(device) : RUMBLESHAKE_OFF;
+
+		if (mode != RUMBLESHAKE_OFF) {
+			rumbleShakeStart(g_Vars.currentplayernum, numsecs, onduration, offduration);
+
+			if (mode == RUMBLESHAKE_INSTEAD) {
+				return;
+			}
+		}
+	}
+#endif
+
 	if (g_Paks[device].state == PAKSTATE_READY
 			&& g_Paks[device].type == PAKTYPE_RUMBLE
 			&& g_Paks[device].rumblestate != RUMBLESTATE_DISABLED_STOPPING

@@ -41,6 +41,7 @@ static SDL_GameController *pads[INPUT_MAX_CONTROLLERS];
 #define CONTROLLERCFG_DEFAULT { \
 	.rumbleOn = 0, \
 	.rumbleScale = 0.5f, \
+	.rumbleShake = RUMBLESHAKE_OFF, \
 	.axisMap = { \
 		{ SDL_CONTROLLER_AXIS_LEFTX,  SDL_CONTROLLER_AXIS_LEFTY  }, \
 		{ SDL_CONTROLLER_AXIS_RIGHTX, SDL_CONTROLLER_AXIS_RIGHTY }, \
@@ -56,6 +57,7 @@ static SDL_GameController *pads[INPUT_MAX_CONTROLLERS];
 static struct controllercfg {
 	s32 rumbleOn;
 	f32 rumbleScale;
+	s32 rumbleShake;
 	u32 axisMap[2][2];
 	f32 sens[4];
 	s32 deadzone[4];
@@ -1210,6 +1212,26 @@ void inputRumbleSetStrength(s32 cidx, f32 val)
 	padsCfg[cidx].rumbleScale = val;
 }
 
+// Callers pass pak device numbers, which run past the controller count for
+// the second pad of a dual-pad control mode; those have no setting of their own.
+s32 inputRumbleGetShakeMode(s32 cidx)
+{
+	if (cidx < 0 || cidx >= INPUT_MAX_CONTROLLERS) {
+		return RUMBLESHAKE_OFF;
+	}
+
+	return padsCfg[cidx].rumbleShake;
+}
+
+void inputRumbleSetShakeMode(s32 cidx, s32 mode)
+{
+	if (cidx < 0 || cidx >= INPUT_MAX_CONTROLLERS || mode < RUMBLESHAKE_OFF || mode > RUMBLESHAKE_BOTH) {
+		return;
+	}
+
+	padsCfg[cidx].rumbleShake = mode;
+}
+
 s32 inputControllerMask(void)
 {
 	return connectedMask;
@@ -1780,6 +1802,7 @@ PD_CONSTRUCTOR static void inputConfigInit(void)
 		secname[12] = '1' + c;
 		secname[13] = '\0';
 		configRegisterFloat(strFmt("%s.RumbleScale", secname), &padsCfg[c].rumbleScale, 0.f, 1.f);
+		configRegisterInt(strFmt("%s.RumbleShake", secname), &padsCfg[c].rumbleShake, RUMBLESHAKE_OFF, RUMBLESHAKE_BOTH);
 		configRegisterInt(strFmt("%s.LStickDeadzoneX", secname), &padsCfg[c].deadzone[0], 0, 32767);
 		configRegisterInt(strFmt("%s.LStickDeadzoneY", secname), &padsCfg[c].deadzone[1], 0, 32767);
 		configRegisterInt(strFmt("%s.RStickDeadzoneX", secname), &padsCfg[c].deadzone[2], 0, 32767);

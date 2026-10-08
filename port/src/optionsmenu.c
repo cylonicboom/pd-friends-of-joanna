@@ -19,6 +19,7 @@
 #include "lib/joy.h"
 #include "video.h"
 #include "input.h"
+#include "savequeue.h"
 #include "optionsmenu.h"
 #include "config.h"
 
@@ -553,6 +554,33 @@ static MenuItemHandlerResult menuhandlerVibration(s32 operation, struct menuitem
 	return 0;
 }
 
+static MenuItemHandlerResult menuhandlerRumbleShake(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	// order is the RUMBLESHAKE_* values
+	static const char *opts[] = {
+		"Vibration",
+		"Screen Shake",
+		"Both",
+	};
+
+	switch (operation) {
+	case MENUOP_GETOPTIONCOUNT:
+		data->dropdown.value = ARRAYCOUNT(opts);
+		break;
+	case MENUOP_GETOPTIONTEXT:
+		return (intptr_t)opts[data->dropdown.value];
+	case MENUOP_SET:
+		inputRumbleSetShakeMode(g_ExtMenuPlayer, data->dropdown.value);
+		saveQueueMarkConfig();
+		break;
+	case MENUOP_GETSELECTEDINDEX:
+		data->dropdown.value = inputRumbleGetShakeMode(g_ExtMenuPlayer);
+		break;
+	}
+
+	return 0;
+}
+
 static MenuItemHandlerResult menuhandlerAnalogMovement(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	switch (operation) {
@@ -676,6 +704,14 @@ struct menuitem g_ExtendedControllerMenuItems[] = {
 		(uintptr_t)"Vibration",
 		10,
 		menuhandlerVibration,
+	},
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Rumble As",
+		0,
+		menuhandlerRumbleShake,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,

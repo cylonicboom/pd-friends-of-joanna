@@ -17,6 +17,9 @@
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "platform.h"
+#ifndef PLATFORM_N64
+#include "rumbleshake.h"
+#endif
 #endif
 
 #define TO_U16_A(x) ((u16)(x))
@@ -617,6 +620,17 @@ Gfx *viSetPerspectiveWithFovMirrorY(Gfx *gdl, f32 fovy, f32 znear, f32 zfar)
 }
 #endif
 
+#ifndef PLATFORM_N64
+/*
+ * port: per-player viewport shake (rumbleshake.c). Moves the viewport
+ * transform only - the scissor (bgScissorToViewport) keeps the player's real
+ * rectangle, so the image slides inside its own frame and never over a
+ * neighbouring viewport. Set by vi0000b1a8 around the call below and zero
+ * everywhere else, so menu and credits viewports never pick it up.
+ */
+static s32 g_ViViewportShakeY = 0;
+#endif
+
 Gfx *vi0000ad5c(Gfx *gdl, Vp *vp)
 {
 	vp[g_ViBackIndex].vp.vscale[0] = g_ViBackData->viewx * 2;
@@ -624,6 +638,10 @@ Gfx *vi0000ad5c(Gfx *gdl, Vp *vp)
 
 	vp[g_ViBackIndex].vp.vscale[1] = g_ViBackData->viewy * 2;
 	vp[g_ViBackIndex].vp.vtrans[1] = g_ViBackData->viewy * 2 + g_ViBackData->viewtop * 4;
+
+#ifndef PLATFORM_N64
+	vp[g_ViBackIndex].vp.vtrans[1] += g_ViViewportShakeY * 4;
+#endif
 
 	gSPViewport(gdl++, OS_K0_TO_PHYSICAL(&vp[g_ViBackIndex]));
 
@@ -685,7 +703,15 @@ Gfx *vi0000b0e8(Gfx *gdl, f32 fovy, f32 aspect)
 
 Gfx *vi0000b1a8(Gfx *gdl)
 {
+#ifndef PLATFORM_N64
+	g_ViViewportShakeY = rumbleShakeGetOffset(g_Vars.currentplayernum);
+	gdl = vi0000ad5c(gdl, &g_Vars.currentplayer->viewport[0]);
+	g_ViViewportShakeY = 0;
+
+	return gdl;
+#else
 	return vi0000ad5c(gdl, &g_Vars.currentplayer->viewport[0]);
+#endif
 }
 
 Gfx *vi0000b1d0(Gfx *gdl)

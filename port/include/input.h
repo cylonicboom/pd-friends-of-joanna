@@ -221,6 +221,14 @@ void inputRumble(s32 idx, f32 strength, f32 time);
 f32 inputRumbleGetStrength(s32 cidx);
 void inputRumbleSetStrength(s32 cidx, f32 val);
 
+// Input.PlayerN.RumbleShake: how rumble reaches this player (see rumbleshake.h)
+#define RUMBLESHAKE_OFF     0 // the pad's motor only, as vanilla
+#define RUMBLESHAKE_INSTEAD 1 // a viewport shake, and the motor stays still
+#define RUMBLESHAKE_BOTH    2
+
+s32 inputRumbleGetShakeMode(s32 cidx);
+void inputRumbleSetShakeMode(s32 cidx, s32 mode);
+
 // locks the mouse cursor in the window and makes it invisible if argument is true
 void inputLockMouse(s32 lock);
 
