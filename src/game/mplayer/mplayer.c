@@ -39,6 +39,7 @@
 #ifndef PLATFORM_N64 // All in One Mod
 #include "system.h"
 #include "mod.h"
+#include "mpprofiles.h"
 #endif
 
 // bss
@@ -5067,4 +5068,334 @@ void func0f18e558(void) {
 
 struct modeldef *func0f18e57c(s32 index, s32 *headnum) {
   return var800acc28[index];
+}
+
+/*
+ * Profile operations for the fojOS profile manager (port/include/mpprofiles.h).
+ *
+ * mpplayerfileLoadWad / SaveWad only work through a seat's
+ * g_PlayerConfigsArray entry, and LoadWad also rewrites that seat's challenge
+ * state, so an unseated profile cannot be borrowed into a seat to be edited.
+ * These edit the file itself instead, which works because the start of the
+ * wad is fixed-width: the name is always 10 bytes (savebufferWriteString pads
+ * it), then 28 bits of play time, then the 7-bit head and body.
+ *
+ * Head and body also live in the profile's pd.ini section as name hashes,
+ * which outrank the 7-bit fields on load (mpProfileApplySlotHashes), so both
+ * are written. A vanilla head has no reservation name and hashes to 0, which
+ * leaves the 7-bit field in charge - that is why the file is written at all.
+ */
+
+#define MPPLAYERFILE_HEAD_BIT (MPPROFILE_NAME_MAX * 8 + 28)
+#define MPPLAYERFILE_BODY_BIT (MPPLAYERFILE_HEAD_BIT + 7)
+
+static u32 mpProfileReadBits(const u8 *data, s32 bit, s32 numbits) {
+  u32 value = 0;
+  s32 i;
+
+  for (i = 0; i < numbits; i++, bit++) {
+    value = (value << 1) | ((data[bit / 8] >> (7 - bit % 8)) & 1);
+  }
+
+  return value;
+}
+
+static void mpProfileWriteBits(u8 *data, s32 bit, s32 numbits, u32 value) {
+  s32 i;
+
+  for (i = numbits - 1; i >= 0; i--, bit++) {
+    const u8 mask = 1 << (7 - bit % 8);
+
+    if (value & (1u << i)) {
+      data[bit / 8] |= mask;
+    } else {
+      data[bit / 8] &= ~mask;
+    }
+  }
+}
+
+s32 mpProfileSeatOf(const struct fileguid *guid) {
+  struct fileguid g = *guid;
+
+  return mpPlayerGetIndexFromFileGuid(&g);
+}
+
+// The profile's g_ExtendedProfiles entry. A profile that has never been
+// loaded on this install has none; `create` makes one and registers its
+// pd.ini keys so they are written on the next save.
+static s32 mpProfileExtIndex(const struct fileguid *guid, bool create) {
+  struct fileguid g = *guid;
+  s32 index = getExtendedProfileIndexFromFileGuid(&g);
+
+  if (index < 0 && create) {
+    index = iniBindProfileProperties(&g, 1, -1);
+  }
+
+  return index;
+}
+
+// Back to defaults, keeping the entry and its registered keys. Used when a
+// file goes away or a new one arrives: fileids are reused, and a new profile
+// must not inherit a deleted one's head or operative from pd.ini.
+static void mpProfileExtReset(s32 index) {
+  struct fileguid guid;
+
+  if (index < 0 || index >= CONFIG_MAX_PROFILES) {
+    return;
+  }
+
+  guid = g_ExtendedProfiles[index].fileguid;
+  g_ExtendedProfiles[index] = (struct extplayerprofile)PLAYER_EXT_PROFILE_DEFAULT;
+  g_ExtendedProfiles[index].fileguid = guid;
+}
+
+/*
+ * A new wad with defaults - the fields mpPlayerSetDefaults gives a seat - and
+ * every counter at zero. Field for field the layout of mpplayerfileSaveWad
+ * above, which has to change in step with it.
+ */
+static void mpplayerfileWriteBlankWad(struct savebuffer *buffer, char *name) {
+  static const u8 statbits[] = {
+      20, // kills
+      20, // deaths
+      19, // gamesplayed
+      19, // gameswon
+      19, // gameslost
+      25, // distance
+      10, // accuracy
+      26, // damagedealt
+      26, // painreceived
+      20, // headshots
+      30, // ammoused
+      18, // accuracymedals
+      18, // headshotmedals
+      18, // killmastermedals
+      16, // survivormedals
+  };
+  struct fileguid noguid;
+  const s32 bodynum = MPBODY_DARK_COMBAT;
+  s32 i;
+
+  noguid.fileid = 0;
+  noguid.deviceserial = 0;
+
+  savebufferWriteString(buffer, name);
+  savebufferOr(buffer, 0, 28); // time
+  savebufferOr(buffer, mpGetMpheadnumByMpbodynum(bodynum), 7);
+  savebufferOr(buffer, bodynum, 7);
+  savebufferWriteGuid(buffer, &noguid);
+  savebufferOr(buffer, MPDISPLAYOPTION_RADAR | MPDISPLAYOPTION_HIGHLIGHTTEAMS, 8);
+
+  for (i = 0; i < ARRAYCOUNT(statbits); i++) {
+    savebufferOr(buffer, 0, statbits[i]);
+  }
+
+  savebufferOr(buffer, CONTROLMODE_11, 2);
+  savebufferOr(buffer,
+#ifdef PLATFORM_N64
+               OPTION_LOOKAHEAD
+#else
+               OPTION_FORWARDPITCH
+#endif
+                   | OPTION_SIGHTONSCREEN | OPTION_AUTOAIM |
+                   OPTION_AMMOONSCREEN | OPTION_SHOWGUNFUNCTION |
+                   OPTION_HEADROLL | OPTION_0100 | OPTION_ALWAYSSHOWTARGET |
+                   OPTION_SHOWZOOMRANGE,
+               12);
+
+  for (i = 0; i < ARRAYCOUNT(g_MpChallenges) * MAX_PLAYERS; i++) {
+    savebufferOr(buffer, 0, 1);
+  }
+
+  savebufferOr(buffer, 0, 35); // gunfuncs
+}
+
+s32 mpProfileCreateBlank(const char *name, struct fileguid *out) {
+  const s8 device = SAVEDEVICE_GAMEPAK;
+  struct savebuffer buffer;
+  u32 fileids[1024];
+  s32 blankid = 0;
+  s32 numblank = 0;
+  s32 newfileid = 0;
+  char wadname[MPPROFILE_NAME_MAX + 1];
+  s32 i;
+
+  if (pakGetFileIdsByType(device, PAKFILETYPE_MPPLAYER, fileids) != 0) {
+    return -1;
+  }
+
+  // A never-written slot reads back as 10 (as filelist.c counts free
+  // spaces). One of them always has to stay free: _pakSaveAtGuid writes
+  // into a vacant file of the same type and then vacates the old one.
+  for (i = 0; fileids[i] != 0; i++) {
+    savebufferClear(&buffer);
+
+    if (pakReadBodyAtGuid(device, fileids[i], buffer.bytes, 0) == 10) {
+      if (blankid == 0) {
+        blankid = fileids[i];
+      }
+      numblank++;
+    }
+  }
+
+  if (numblank < 2) {
+    return -2;
+  }
+
+  snprintf(wadname, sizeof(wadname), "%s", name);
+  savebufferClear(&buffer);
+  mpplayerfileWriteBlankWad(&buffer, wadname);
+
+  if (pakSaveAtGuid(device, blankid, PAKFILETYPE_MPPLAYER, buffer.bytes, &newfileid, NULL) != 0) {
+    return -1;
+  }
+
+  out->fileid = newfileid ? newfileid : blankid;
+  out->deviceserial = pakGetSerial(device);
+
+  mpProfileExtReset(mpProfileExtIndex(out, true));
+  saveQueueMarkConfig();
+
+  return 0;
+}
+
+s32 mpProfileRename(const struct fileguid *guid, const char *name) {
+  struct savebuffer buffer;
+  char wadname[MPPROFILE_NAME_MAX + 1];
+  const s32 seat = mpProfileSeatOf(guid);
+  s32 device;
+  s32 newfileid = 0;
+
+  snprintf(wadname, sizeof(wadname), "%s", name);
+
+  if (seat >= 0) {
+    // the live name carries the trailing newline LoadWad gives it
+    snprintf(g_PlayerConfigsArray[seat].base.name,
+             sizeof(g_PlayerConfigsArray[seat].base.name), "%s\n", wadname);
+    mpProfileMarkDirty(seat);
+    return 0;
+  }
+
+  device = pakFindBySerial(guid->deviceserial);
+
+  if (device < 0) {
+    return -1;
+  }
+
+  savebufferClear(&buffer);
+
+  if (pakReadBodyAtGuid(device, guid->fileid, buffer.bytes, 0) != 0) {
+    return -1;
+  }
+
+  func0f0d5690(buffer.bytes, wadname);
+
+  // same fileid, so the pd.ini section key does not move
+  return pakSaveAtGuid(device, guid->fileid, PAKFILETYPE_MPPLAYER, buffer.bytes, &newfileid, NULL) == 0 ? 0 : -1;
+}
+
+s32 mpProfileDelete(const struct fileguid *guid) {
+  s32 device;
+
+  if (mpProfileSeatOf(guid) >= 0) {
+    return -1;
+  }
+
+  device = pakFindBySerial(guid->deviceserial);
+
+  if (device < 0 || pakDeleteFile(device, guid->fileid) != 0) {
+    return -2;
+  }
+
+  mpProfileExtReset(mpProfileExtIndex(guid, false));
+  saveQueueMarkConfig();
+
+  return 0;
+}
+
+s32 mpProfileGetHeadBody(const struct fileguid *guid, s32 *head, s32 *body) {
+  struct savebuffer buffer;
+  const s32 seat = mpProfileSeatOf(guid);
+  s32 device;
+  s32 index;
+  s32 slot;
+
+  if (seat >= 0) {
+    *head = g_PlayerConfigsArray[seat].base.mpheadnum;
+    *body = g_PlayerConfigsArray[seat].base.mpbodynum;
+    return 0;
+  }
+
+  device = pakFindBySerial(guid->deviceserial);
+  savebufferClear(&buffer);
+
+  if (device < 0 || pakReadBodyAtGuid(device, guid->fileid, buffer.bytes, 0) != 0) {
+    return -1;
+  }
+
+  *head = mpProfileReadBits(buffer.bytes, MPPLAYERFILE_HEAD_BIT, 7);
+  *body = mpProfileReadBits(buffer.bytes, MPPLAYERFILE_BODY_BIT, 7);
+
+  // the same precedence a load applies
+  index = mpProfileExtIndex(guid, false);
+
+  if (index >= 0) {
+    slot = modHeadSlotForHash((u32)g_ExtendedProfiles[index].headnamehash_prop.s32);
+    if (slot >= 0) {
+      *head = slot;
+    }
+
+    slot = modBodySlotForHash((u32)g_ExtendedProfiles[index].bodynamehash_prop.s32);
+    if (slot >= 0) {
+      *body = slot;
+    }
+  }
+
+  return 0;
+}
+
+s32 mpProfileSetHeadBody(const struct fileguid *guid, s32 head, s32 body) {
+  struct savebuffer buffer;
+  const s32 seat = mpProfileSeatOf(guid);
+  s32 device;
+  s32 index;
+  s32 newfileid = 0;
+
+  if (head < 0 || head >= mpGetNumHeads() || body < 0 || body >= (s32)mpGetNumBodies()) {
+    return -1;
+  }
+
+  if (seat >= 0) {
+    // what character select does; the flush stores the hashes
+    g_PlayerConfigsArray[seat].base.mpheadnum = head;
+    g_PlayerConfigsArray[seat].base.mpbodynum = body;
+    mpProfileMarkDirty(seat);
+    return 0;
+  }
+
+  device = pakFindBySerial(guid->deviceserial);
+  savebufferClear(&buffer);
+
+  if (device < 0 || pakReadBodyAtGuid(device, guid->fileid, buffer.bytes, 0) != 0) {
+    return -1;
+  }
+
+  // the 7-bit fields truncate exactly as mpplayerfileSaveWad does
+  mpProfileWriteBits(buffer.bytes, MPPLAYERFILE_HEAD_BIT, 7, head & 0x7f);
+  mpProfileWriteBits(buffer.bytes, MPPLAYERFILE_BODY_BIT, 7, body & 0x7f);
+
+  if (pakSaveAtGuid(device, guid->fileid, PAKFILETYPE_MPPLAYER, buffer.bytes, &newfileid, NULL) != 0) {
+    return -1;
+  }
+
+  index = mpProfileExtIndex(guid, true);
+
+  if (index >= 0) {
+    g_ExtendedProfiles[index].headnamehash_prop.s32 = (s32)modSlotNameHash(modHeadSlotName(head));
+    g_ExtendedProfiles[index].bodynamehash_prop.s32 = (s32)modSlotNameHash(modBodySlotName(body));
+  }
+
+  saveQueueMarkConfig();
+
+  return 0;
 }

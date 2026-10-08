@@ -25,6 +25,7 @@
 #include "imgui_ailistnames.h"
 #include "imgui_skinmatch.h"
 #include "imgui_extoptions.h"
+#include "imgui_profiles.h"
 #include "input.h"
 #include "mod.h"
 #include "romdata.h"
@@ -60,6 +61,7 @@ static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
 static bool g_ImGuiOverlayShowExtOptions = false;
+static bool g_ImGuiOverlayShowProfiles = false;
 static bool g_ImGuiOverlayShowSaves = false;
 static bool g_ImGuiOverlayShowPlayers = false;
 static bool g_ImGuiOverlayShowImport = false;
@@ -7176,6 +7178,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
 	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
 	{ "ExtOptions",  "Fojo Extended Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL },
+	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL },
 	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL },
 };
 
