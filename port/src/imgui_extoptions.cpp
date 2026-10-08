@@ -15,6 +15,9 @@
 
 #include <stdio.h>
 #include <string.h>
+// before the project headers: gu.h redeclares cosf/sinf/sqrtf, and clang
+// rejects the libc++ declarations if they arrive second
+#include <math.h>
 
 #include "bss.h"
 #include "constants.h"
