@@ -38,12 +38,21 @@ extern "C" s32 mpGetNumHeads(void);
 extern "C" u32 mpGetNumBodies(void);
 extern "C" char *mpGetBodyName(u8 mpbodynum);
 
+// Friends of Joanna: the operative list is the FoJo carousel's own
+// (mainmenu.c), options 0..g_FojoHeadCount-1 plus a last one that is the
+// profile's own character-select head, which the carousel labels with the
+// profile's name
+extern "C" s32 g_FojoHeadCount;
+extern "C" void fojoInitHeadOptions(void);
+extern "C" char *fojoGetHeadName(s32 optionindex);
+
 struct profilerow {
 	struct fileguid guid;
 	char name[16];
 	s32 seat;
 	s32 head;
 	s32 body;
+	s32 operative;
 };
 
 static std::vector<profilerow> g_ProfRows;
@@ -93,6 +102,7 @@ static void profRefresh(void)
 		row.head = -1;
 		row.body = -1;
 		mpProfileGetHeadBody(&row.guid, &row.head, &row.body);
+		row.operative = mpProfileGetOperative(&row.guid);
 		g_ProfRows.push_back(row);
 	}
 
@@ -134,6 +144,21 @@ static void profBodyLabel(s32 body, char *out, size_t outlen)
 	snprintf(out, outlen, "%d %s", body, name);
 }
 
+static void profOperativeLabel(s32 operative, const char *profilename, char *out, size_t outlen)
+{
+	if (g_FojoHeadCount == 0) {
+		fojoInitHeadOptions();
+	}
+
+	if (operative < 0 || operative > g_FojoHeadCount) {
+		snprintf(out, outlen, "-");
+	} else if (operative == g_FojoHeadCount) {
+		snprintf(out, outlen, "%s", profilename);
+	} else {
+		snprintf(out, outlen, "%s", fojoGetHeadName(operative));
+	}
+}
+
 static void profSay(const char *fmt, const char *arg)
 {
 	snprintf(g_ProfMessage, sizeof(g_ProfMessage), fmt, arg);
@@ -166,7 +191,7 @@ static void profDrawCreate(void)
 
 static void profDrawTable(void)
 {
-	if (!ImGui::BeginTable("##profiles", 4,
+	if (!ImGui::BeginTable("##profiles", 5,
 			ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY,
 			ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 9.0f))) {
 		return;
@@ -177,6 +202,7 @@ static void profDrawTable(void)
 	ImGui::TableSetupColumn("seat", ImGuiTableColumnFlags_WidthStretch, 0.5f);
 	ImGui::TableSetupColumn("head", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	ImGui::TableSetupColumn("body", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("operative", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	ImGui::TableHeadersRow();
 
 	for (s32 i = 0; i < (s32)g_ProfRows.size(); i++) {
@@ -208,6 +234,10 @@ static void profDrawTable(void)
 		ImGui::TableNextColumn();
 		profBodyLabel(row.body, label, sizeof(label));
 		ImGui::TextUnformatted(label);
+
+		ImGui::TableNextColumn();
+		profOperativeLabel(row.operative, row.name, label, sizeof(label));
+		ImGui::TextUnformatted(label);
 	}
 
 	// each seat's engine default, for reference only
@@ -233,6 +263,9 @@ static void profDrawTable(void)
 		ImGui::TextDisabled("%s", label);
 		ImGui::TableNextColumn();
 		profBodyLabel(cfg->base.mpbodynum, label, sizeof(label));
+		ImGui::TextDisabled("%s", label);
+		ImGui::TableNextColumn();
+		profOperativeLabel(cfg->teamagentindex, name, label, sizeof(label));
 		ImGui::TextDisabled("%s", label);
 	}
 
@@ -313,6 +346,25 @@ static void profDrawEdit(void)
 			profSay("%s", "head/body change failed");
 			g_ProfStale = true;
 		}
+	}
+
+	// operative
+	profOperativeLabel(row.operative, row.name, label, sizeof(label));
+	if (ImGui::BeginCombo("Operative", label)) {
+		for (s32 o = 0; o <= g_FojoHeadCount; o++) {
+			char opt[64];
+			profOperativeLabel(o, row.name, opt, sizeof(opt));
+			ImGui::PushID(o);
+			if (ImGui::Selectable(opt, o == row.operative)) {
+				if (mpProfileSetOperative(&row.guid, o) == 0) {
+					row.operative = o;
+				} else {
+					profSay("%s", "operative change failed");
+				}
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
 	}
 
 	// delete, two-step

@@ -35,6 +35,11 @@ s32 mpProfileDelete(const struct fileguid *guid);
 s32 mpProfileGetHeadBody(const struct fileguid *guid, s32 *head, s32 *body);
 s32 mpProfileSetHeadBody(const struct fileguid *guid, s32 head, s32 body);
 
+// Friends of Joanna: the operative (TeamAgentIndex), an index into the FoJo
+// carousel's options (mainmenu.c g_FojoHeadOptions); -1 when never chosen
+s32 mpProfileGetOperative(const struct fileguid *guid);
+s32 mpProfileSetOperative(const struct fileguid *guid, s32 index);
+
 #ifdef __cplusplus
 }
 #endif

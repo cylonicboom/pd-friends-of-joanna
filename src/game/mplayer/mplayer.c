@@ -5399,3 +5399,48 @@ s32 mpProfileSetHeadBody(const struct fileguid *guid, s32 head, s32 body) {
 
   return 0;
 }
+
+/*
+ * Friends of Joanna: the operative a profile plays as. Stored the way the
+ * FoJo carousel (mainmenu.c) stores it - the seat's teamagentindex plus the
+ * TeamAgentIndex property in the profile's pd.ini section.
+ */
+s32 mpProfileGetOperative(const struct fileguid *guid) {
+  const s32 seat = mpProfileSeatOf(guid);
+  s32 index;
+
+  if (seat >= 0) {
+    return g_PlayerConfigsArray[seat].teamagentindex;
+  }
+
+  index = mpProfileExtIndex(guid, false);
+
+  return index >= 0 ? g_ExtendedProfiles[index].teamagentindex_prop.s32 : -1;
+}
+
+s32 mpProfileSetOperative(const struct fileguid *guid, s32 operative) {
+  const s32 seat = mpProfileSeatOf(guid);
+  s32 index;
+
+  if (seat >= 0) {
+    g_PlayerConfigsArray[seat].teamagentindex = operative;
+
+    if (g_PlayerConfigsArray[seat].configindex >= 0) {
+      g_ExtendedProfiles[g_PlayerConfigsArray[seat].configindex].teamagentindex_prop.s32 = operative;
+    }
+
+    mpProfileMarkDirty(seat);
+    return 0;
+  }
+
+  index = mpProfileExtIndex(guid, true);
+
+  if (index < 0) {
+    return -1;
+  }
+
+  g_ExtendedProfiles[index].teamagentindex_prop.s32 = operative;
+  saveQueueMarkConfig();
+
+  return 0;
+}
