@@ -2349,6 +2349,50 @@ static void updateMaxAnisotropyLevel(void)
 	}
 }
 
+/*
+ * fojOS draws these same tables in an ImGui window (imgui_extoptions.cpp) by
+ * calling each item's own handler, so the two front ends cannot drift. These
+ * are the few things it cannot read off the tables: which player the
+ * per-player handlers act on, and the bind list, whose std menu rows are
+ * pushed through a dialog of their own.
+ */
+void optionsmenuSetExtPlayer(s32 player)
+{
+	if (player >= 0 && player < MAX_PLAYERS) {
+		g_ExtMenuPlayer = player;
+	}
+}
+
+s32 optionsmenuGetExtPlayer(void)
+{
+	return g_ExtMenuPlayer;
+}
+
+s32 optionsmenuGetNumBinds(void)
+{
+	return ARRAYCOUNT(menuBinds);
+}
+
+u32 optionsmenuGetBindCk(s32 idx)
+{
+	if (idx < 0 || idx >= (s32)ARRAYCOUNT(menuBinds)) {
+		return 0;
+	}
+
+	return menuBinds[idx].ck;
+}
+
+// the same name the std Bindings menu shows: PC-style or N64-style, by the
+// player's extended-controls setting
+const char *optionsmenuGetBindName(s32 idx)
+{
+	if (idx < 0 || idx >= (s32)ARRAYCOUNT(menuBinds)) {
+		return "";
+	}
+
+	return g_PlayerExtCfg[g_ExtMenuPlayer].extcontrols ? menuBinds[idx].name : menuBinds[idx].n64name;
+}
+
 void optionsMenuInit(void)
 {
 	updateMaxAnisotropyLevel();

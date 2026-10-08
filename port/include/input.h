@@ -267,6 +267,8 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode);
 
 // clear or get the last pressed button
 void inputClearLastKey(void);
+void inputArmBindCapture(void);
+void inputDisarmBindCapture(void);
 s32 inputGetLastKey(void);
 
 // 1 if the most recent input came from a gamepad, 0 for keyboard/mouse

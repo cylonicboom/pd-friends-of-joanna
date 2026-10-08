@@ -24,6 +24,7 @@
 #include "imgui_modelnames.h"
 #include "imgui_ailistnames.h"
 #include "imgui_skinmatch.h"
+#include "imgui_extoptions.h"
 #include "input.h"
 #include "mod.h"
 #include "romdata.h"
@@ -58,6 +59,7 @@ static bool g_ImGuiOverlayShowPauseBlur = false;
 static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
+static bool g_ImGuiOverlayShowExtOptions = false;
 static bool g_ImGuiOverlayShowSaves = false;
 static bool g_ImGuiOverlayShowPlayers = false;
 static bool g_ImGuiOverlayShowImport = false;
@@ -7173,6 +7175,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
 	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
+	{ "ExtOptions",  "Fojo Extended Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL },
 	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL },
 };
 
@@ -8970,6 +8973,15 @@ void imguiOverlayShutdown(void)
 void imguiOverlayProcessEvent(const SDL_Event *event)
 {
 	if (!g_ImGuiOverlayInitialized || !event) {
+		return;
+	}
+
+	// a pending bind in Extended Options owns the next press (input.c records
+	// it); ImGui must not also treat it as a click or a keystroke
+	if (imguiExtOptionsIsCapturing()
+			&& (event->type == SDL_KEYDOWN || event->type == SDL_KEYUP
+				|| event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP
+				|| event->type == SDL_MOUSEWHEEL)) {
 		return;
 	}
 

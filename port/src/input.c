@@ -101,6 +101,9 @@ static f32 mouseSensY = 2.5f;
 static s32 kbmPlayer = 0;
 
 static s32 lastKey = 0;
+
+// SDL_GetTicks() until which a bind capture is armed; see inputArmBindCapture
+static u32 bindCaptureUntil = 0;
 // Which physical device the player most recently used: 0 = keyboard/mouse,
 // 1 = gamepad. Updated in the event watcher; read by pd.input_source
 // (inputLastSourceWasPad). From Kai (be46717).
@@ -488,6 +491,32 @@ static inline void inputInitAllControllers(void)
 
 static int inputEventFilter(void *data, SDL_Event *event)
 {
+	// fojOS's bind capture: while the overlay is up, keyboard and mouse stop
+	// here (below), so the press that should become the bind would never reach
+	// lastKey. Record it first. The overlay skips these events while capturing
+	// (imguiOverlayProcessEvent) and the game's polling is gated on the overlay,
+	// so nothing else acts on the press. Pad buttons are never gated and reach
+	// lastKey through the normal path.
+	if (bindCaptureUntil && (s32)(bindCaptureUntil - SDL_GetTicks()) > 0) {
+		switch (event->type) {
+		case SDL_KEYDOWN:
+			if (!event->key.repeat && !lastKey) {
+				lastKey = VK_KEYBOARD_BEGIN + event->key.keysym.scancode;
+			}
+			return 0;
+		case SDL_MOUSEBUTTONDOWN:
+			if (!lastKey) {
+				lastKey = VK_MOUSE_BEGIN - 1 + event->button.button;
+			}
+			return 0;
+		case SDL_MOUSEWHEEL:
+			if (!lastKey && event->wheel.y) {
+				lastKey = (event->wheel.y < 0) + VK_MOUSE_WHEEL_UP;
+			}
+			return 0;
+		}
+	}
+
 	if ((event->type == SDL_KEYDOWN || event->type == SDL_KEYUP)
 			&& imguiOverlayCapturesKeyboard()) {
 		return 0;
@@ -1662,6 +1691,23 @@ s32 inputGetKeyByName(const char *name)
 void inputClearLastKey(void)
 {
 	lastKey = 0;
+}
+
+// Must be called every frame the capture is wanted. It lapses on its own a
+// quarter second after the last call, so a panel that stops drawing mid-capture
+// cannot leave the keyboard and mouse swallowed.
+void inputArmBindCapture(void)
+{
+	bindCaptureUntil = SDL_GetTicks() + 250;
+
+	if (!bindCaptureUntil) {
+		bindCaptureUntil = 1;
+	}
+}
+
+void inputDisarmBindCapture(void)
+{
+	bindCaptureUntil = 0;
 }
 
 s32 inputGetLastKey(void)
