@@ -289,10 +289,16 @@ static inline void osEeepromLoad(const char *fname)
 
 static inline void osEeepromSave(const char *fname)
 {
-	FILE* fp = fsFileOpenWrite(fname);
+	// atomic: a crash mid-save keeps the previous gamepak rather than a
+	// truncated one (fsFileOpenWriteAtomic)
+	FILE* fp = fsFileOpenWriteAtomic(fname);
 	if (fp) {
-		fwrite(eeprom, 1, EEPROM_SIZE, fp);
-		fsFileFree(fp);
+		if (fwrite(eeprom, 1, EEPROM_SIZE, fp) != EEPROM_SIZE) {
+			fclose(fp);
+			sysLogPrintf(LOG_ERROR, "could not save EEPROM to `%s`: short write, kept the old file", fsFullPath(fname));
+			return;
+		}
+		fsFileCommitAtomic(fp, fname);
 	} else {
 		sysLogPrintf(LOG_ERROR, "could not save EEPROM to `%s`: %s", fsFullPath(fname), strerror(errno));
 	}

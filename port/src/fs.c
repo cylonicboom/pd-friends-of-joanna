@@ -589,6 +589,66 @@ FILE *fsFileOpenRead(const char *name)
 	return fopen(fsFullPath(name), "rb");
 }
 
+/*
+ * Atomic replace for save files (eeprom.bin, pd.ini).
+ *
+ * fsFileOpenWrite truncates first and writes second, so a crash, kill or power
+ * loss in between leaves the file short or empty - the whole gamepak, or every
+ * setting, not one record. This writes "<name>.tmp" instead, and commit
+ * flushes it to disk and renames it over <name>. Rename replaces in one step
+ * on POSIX; on Windows plain rename() refuses an existing target, so that
+ * path is MoveFileEx with REPLACE_EXISTING. Either way a reader sees the old
+ * file or the new one, never half of one.
+ *
+ * Not done: syncing the directory after the rename. Without it a power cut
+ * right after a save can bring back the previous version - still whole.
+ */
+static void fsAtomicTmpPath(const char *name, char *out, size_t outlen)
+{
+	snprintf(out, outlen, "%s.tmp", fsFullPath(name));
+}
+
+FILE *fsFileOpenWriteAtomic(const char *name)
+{
+	char tmp[FS_MAXPATH + 8];
+	fsAtomicTmpPath(name, tmp, sizeof(tmp));
+	return fopen(tmp, "wb");
+}
+
+s32 fsFileCommitAtomic(FILE *f, const char *name)
+{
+	char tmp[FS_MAXPATH + 8];
+	char dst[FS_MAXPATH + 1];
+	s32 ok;
+
+	fsAtomicTmpPath(name, tmp, sizeof(tmp));
+	snprintf(dst, sizeof(dst), "%s", fsFullPath(name));
+
+	ok = fflush(f) == 0;
+#ifdef PLATFORM_WIN32
+	ok = ok && _commit(_fileno(f)) == 0;
+#else
+	ok = ok && fsync(fileno(f)) == 0;
+#endif
+	ok = (fclose(f) == 0) && ok;
+
+	if (ok) {
+#ifdef PLATFORM_WIN32
+		ok = MoveFileExA(tmp, dst, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+		ok = rename(tmp, dst) == 0;
+#endif
+	}
+
+	if (!ok) {
+		sysLogPrintf(LOG_ERROR, "fs: could not replace %s, left as it was", dst);
+		remove(tmp);
+		return 0;
+	}
+
+	return 1;
+}
+
 void fsFileFree(FILE *f)
 {
 	fclose(f);

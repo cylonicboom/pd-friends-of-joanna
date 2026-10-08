@@ -346,7 +346,7 @@ struct configentry *configFindEntryByPtr(void *ptr)
 
 s32 configSave(const char *fname)
 {
-	FILE *f = fsFileOpenWrite(fname);
+	FILE *f = fsFileOpenWriteAtomic(fname);
 	if (!f) {
 		return 0;
 	}
@@ -366,8 +366,7 @@ s32 configSave(const char *fname)
 		configSaveEntry(cfg, f);
 	}
 
-	fsFileFree(f);
-	return 1;
+	return fsFileCommitAtomic(f, fname);
 }
 
 static inline s32 configLoadFileIdFromSection(const char *sec, u16 *deviceserial, s32 *fileid)

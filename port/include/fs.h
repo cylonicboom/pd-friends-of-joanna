@@ -29,6 +29,11 @@ FILE *fsFileOpenWrite(const char *name);
 FILE *fsFileOpenRead(const char *name);
 void fsFileFree(FILE *f);
 
+// write <name>.tmp, then fsFileCommitAtomic flushes it and renames it over
+// <name>: the old file survives any failure before the rename
+FILE *fsFileOpenWriteAtomic(const char *name);
+s32 fsFileCommitAtomic(FILE *f, const char *name);
+
 const char *fsGetModDir(void);
 const char *fsGetBaseDir(void);
 const char *fsGetSaveDir(void);
