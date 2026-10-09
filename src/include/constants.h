@@ -585,7 +585,7 @@
 // a dose. Pause blur is the one fojo effect that puts a still, high-contrast
 // menu inside bondview's framebuffer feedback loop, so this is also the switch
 // for the recursion artifact that produces; see no-pause-drug-blur-notes.md.
-#define BLUR_DOSE_ENABLED   1
+#define BLUR_DOSE_ENABLED   0
 
 #define THIRDPERSON_BODYFADE_START 130.0f
 #define THIRDPERSON_BODYFADE_MAX   127
