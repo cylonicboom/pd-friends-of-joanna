@@ -715,6 +715,32 @@ void bmoveResetMoveData(struct movedata *data)
 }
 
 /**
+ * Moon jump and the gravity toggle, as this tick's gameplay input saw them.
+ *
+ * bwalkUpdateVertical() used to read these straight off the pad, which meant
+ * they fired while a menu had the controller - with the d-pad navigating
+ * menus, pressing up in the pause menu would also moon-jump. Taking them from
+ * c1buttons puts them behind the same gates as every other gameplay button:
+ * allowc1buttons (false while a menu is open), joybutinhibit (the held-through
+ * press when a menu closes) and the Lua button thief.
+ *
+ * bmoveProcessInput() runs before bwalkUpdateVertical() in the same
+ * bmoveTick(), for the same player, so these are always this player's.
+ */
+static bool g_BmoveMoonJumpHeld;
+static bool g_BmoveGravityTogglePressed;
+
+bool bmoveIsMoonJumpHeld(void)
+{
+	return g_BmoveMoonJumpHeld;
+}
+
+bool bmoveWasGravityTogglePressed(void)
+{
+	return g_BmoveGravityTogglePressed;
+}
+
+/**
  * Called with these arguments:
  * 0, 0, 0, 1 = tickmode 6
  * 0, 0, 0, 1 = eyespy
@@ -829,6 +855,9 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 		c1allowedbuttons &= ~(u32)(BUTTON_ROLL | BUTTON_JUMP);
 	}
 #endif
+
+	g_BmoveMoonJumpHeld = (c1buttons & BUTTON_MOONJUMP) != 0;
+	g_BmoveGravityTogglePressed = (c1buttonsthisframe & BUTTON_TOGGLEGRAVITY) != 0;
 
 	numsamples = joyGetNumSamples();
 	bmoveResetMoveData(&movedata);

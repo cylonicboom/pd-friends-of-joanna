@@ -1242,8 +1242,8 @@ void bwalkUpdateVertical(void)
 		fallspeed = g_Vars.currentplayer->bdeltapos.y;
 		newmanground = g_Vars.currentplayer->vv_manground;
 
-		u32 moonjumpbuttonpressed = cheatIsActive(CHEAT_MOONJUMP) &&
-			joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xffffffff & BUTTON_MOONJUMP);
+		// Gated with the rest of gameplay input - see bmoveIsMoonJumpHeld()
+		u32 moonjumpbuttonpressed = cheatIsActive(CHEAT_MOONJUMP) && bmoveIsMoonJumpHeld();
 
 		if (moonjumpbuttonpressed) {
 			g_Vars.currentplayer->vv_manground += 15;
@@ -1271,8 +1271,7 @@ void bwalkUpdateVertical(void)
 			fallspeed = -fallspeed;
 		}
 
-		if (cheatIsActive(CHEAT_MOONJUMP) &&
-				joyGetButtonsPressedThisFrame(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xffffffff & BUTTON_TOGGLEGRAVITY)) {
+		if (cheatIsActive(CHEAT_MOONJUMP) && bmoveWasGravityTogglePressed()) {
 			g_NoFall[g_Vars.currentplayerstats->mpindex] = !g_NoFall[g_Vars.currentplayerstats->mpindex];
 			if (!g_NoFall[g_Vars.currentplayerstats->mpindex]) {
 				fallspeed = 0;

@@ -5314,6 +5314,49 @@ void menuProcessInput(void)
 				xtapdir = 1;
 			}
 
+#ifndef PLATFORM_N64
+			// The physical d-pad, read off the pad rather than through the
+			// binds. Upstream gets it here by binding the d-pad to the
+			// C-buttons; fojo's binds give it to gameplay (moon jump, gravity)
+			// instead, and those are gated off while a menu has the
+			// controller, so the menu can have the d-pad whatever it is
+			// bound to.
+			{
+				const s32 vkbase = VK_JOY1_BEGIN + contpadnums[i] * INPUT_MAX_CONTROLLER_BUTTONS;
+
+				if (inputKeyPressed(vkbase + (VK_JOY1_DPAD_UP - VK_JOY1_BEGIN))) {
+					yhelddir = -1;
+				}
+
+				if (inputKeyJustPressed(vkbase + (VK_JOY1_DPAD_UP - VK_JOY1_BEGIN))) {
+					ytapdir = -1;
+				}
+
+				if (inputKeyPressed(vkbase + (VK_JOY1_DPAD_DOWN - VK_JOY1_BEGIN))) {
+					yhelddir = 1;
+				}
+
+				if (inputKeyJustPressed(vkbase + (VK_JOY1_DPAD_DOWN - VK_JOY1_BEGIN))) {
+					ytapdir = 1;
+				}
+
+				if (inputKeyPressed(vkbase + (VK_JOY1_DPAD_LEFT - VK_JOY1_BEGIN))) {
+					xhelddir = -1;
+				}
+
+				if (inputKeyJustPressed(vkbase + (VK_JOY1_DPAD_LEFT - VK_JOY1_BEGIN))) {
+					xtapdir = -1;
+				}
+
+				if (inputKeyPressed(vkbase + (VK_JOY1_DPAD_RIGHT - VK_JOY1_BEGIN))) {
+					xhelddir = 1;
+				}
+
+				if (inputKeyJustPressed(vkbase + (VK_JOY1_DPAD_RIGHT - VK_JOY1_BEGIN))) {
+					xtapdir = 1;
+				}
+			}
+#endif
 		}
 
 		// Prevent select and going back on the same frame

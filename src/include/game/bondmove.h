@@ -31,6 +31,8 @@ f32 bmoveGetSpeedThetaControlLimit(f32 value);
 void bmoveUpdateSpeedThetaControl(f32 value);
 f32 bmoveCalculateLookahead(void);
 void bmoveResetMoveData(struct movedata *data);
+bool bmoveIsMoonJumpHeld(void);
+bool bmoveWasGravityTogglePressed(void);
 void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool ignorec2);
 void bmoveFindEnteredRoomsByPos(struct player *player, struct coord *arg1, RoomNum *rooms);
 void bmoveFindEnteredRooms(struct player *player, RoomNum *rooms);
