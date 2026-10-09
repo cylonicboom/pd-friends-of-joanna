@@ -151,6 +151,7 @@ bool pakHasBitflag(u32 flagnum, u8 *stream);
 void pakClearAllBitflags(u8 *flags);
 void pakN64FontCodeToAscii(char *src, char *dst, s32 len);
 s8 pakFindBySerial(s32 deviceserial);
+s8 pakFindMountedBySerial(s32 deviceserial);
 s32 pak0f11e750(s8 device);
 bool gbpakIsAnyPerfectDark(void);
 bool gbpakStrcmp(char *a, char *b);

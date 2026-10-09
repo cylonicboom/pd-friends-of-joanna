@@ -406,6 +406,7 @@ extern "C" void mpProfileFlushSlotHashes(s32 playernum);
 extern "C" s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial);
 extern "C" void iniProcessPendingProfiles(void);
 extern "C" s8 pakFindBySerial(s32 deviceserial);
+extern "C" s8 pakFindMountedBySerial(s32 deviceserial);
 
 // Mirrors MOD_MAX_PERSISTABLE_SLOT, which is private to port/src/mod.c. Kept
 // in step by hand, like kFojoMaxJointOverrides below.
@@ -6100,7 +6101,7 @@ static void imguiOverlayDrawSavesPanel(void)
 			const struct fileguid *guid = &cfg->fileguid;
 			bool bound = guid->fileid != 0 || guid->deviceserial != 0;
 			bool local = guid->deviceserial == kFojoLocalDeviceSerial;
-			s32 device = (bound && !local) ? pakFindBySerial(guid->deviceserial) : -1;
+			s32 device = (bound && !local) ? pakFindMountedBySerial(guid->deviceserial) : -1;
 			char name[sizeof(cfg->base.name) + 1];
 
 			// base.name is a fixed field and is not guaranteed terminated.

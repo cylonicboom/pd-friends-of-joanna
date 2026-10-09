@@ -27,6 +27,12 @@ u8 mpkMountedMask(void);
 // write every changed page back to its file (save queue, exit)
 void mpkFlush(void);
 
+// a device serial no page uses, for a new PD filesystem on a page
+s32 mpkAllocSerial(u32 seed);
+
+// put the page with this PD serial on a channel; see mpk.c. -1 if none.
+s32 mpkMountBySerial(s32 serial, u8 pinned);
+
 #ifdef __cplusplus
 }
 #endif

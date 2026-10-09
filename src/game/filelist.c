@@ -353,7 +353,8 @@ struct textureconfig *pheadGetTexture(s32 playernum, s32 fileid, u16 deviceseria
 	}
 
 	if (indextouse == -1) {
-		s8 device = pakFindBySerial(deviceserial);
+		// a thumbnail is only drawn for a pak that is already mounted
+		s8 device = pakFindMountedBySerial(deviceserial);
 
 		if (device < 0) {
 			return NULL;

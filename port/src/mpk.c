@@ -1,10 +1,10 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <PR/ultratypes.h>
-#include <PR/os_thread.h>
-#include <PR/os_cont.h>
-#include <PR/os_pfs.h>
+#include "bss.h"
+#include "constants.h"
+#include "data.h"
+#include "types.h"
 #include "platform.h"
 #include "fs.h"
 #include "system.h"
@@ -47,14 +47,25 @@
 
 static const u16 kMpkIdBlocks[] = { 1, 3, 4, 6 };
 
-struct mpkslot {
-	bool mounted;
-	bool dirty;
+/*
+ * Every page is held in memory (32KB each) whether or not it is mounted, so
+ * the index can read any of them and mounting is a pointer swap. A channel
+ * maps to at most one page; a page is on at most one channel.
+ */
+struct mpkpage {
 	char path[FS_MAXPATH + 1];
 	u8 image[MPK_SIZE];
+	bool dirty;          // changed since its file was written
+	bool indexstale;     // changed since mpkPageScan
+	s32 serial;          // PD's device serial from its filesystem, -1 if none yet
+	s32 channel;         // -1 when not mounted
+	u32 lastuse;
 };
 
-static struct mpkslot g_MpkSlots[MAXCONTROLLERS];
+static struct mpkpage *g_MpkPages = NULL;
+static s32 g_MpkNumPages = 0;
+static s32 g_MpkChannelPage[MAXCONTROLLERS] = { -1, -1, -1, -1 };
+static u32 g_MpkUseClock = 0;
 
 /* ---- byte order --------------------------------------------------------- */
 
@@ -235,7 +246,7 @@ static void mpkPagePath(s32 index, char *out, size_t outlen)
 	snprintf(out, outlen, "$S/paks/page-%04d.mpk", index);
 }
 
-static bool mpkLoad(struct mpkslot *slot, const char *path)
+static bool mpkLoad(struct mpkpage *page, const char *path)
 {
 	FILE *f = fsFileOpenRead(path);
 	s32 len;
@@ -244,7 +255,7 @@ static bool mpkLoad(struct mpkslot *slot, const char *path)
 		return false;
 	}
 
-	len = (s32)fread(slot->image, 1, MPK_SIZE, f);
+	len = (s32)fread(page->image, 1, MPK_SIZE, f);
 	fsFileFree(f);
 
 	if (len != MPK_SIZE) {
@@ -252,15 +263,18 @@ static bool mpkLoad(struct mpkslot *slot, const char *path)
 		return false;
 	}
 
-	mpkToHost(slot->image);
-	snprintf(slot->path, sizeof(slot->path), "%s", path);
-	slot->mounted = true;
-	slot->dirty = false;
+	mpkToHost(page->image);
+	snprintf(page->path, sizeof(page->path), "%s", path);
+	page->dirty = false;
+	page->indexstale = true;
+	page->serial = -1;
+	page->channel = -1;
+	page->lastuse = 0;
 
 	return true;
 }
 
-static bool mpkSave(struct mpkslot *slot)
+static bool mpkSave(struct mpkpage *slot)
 {
 	static u8 disk[MPK_SIZE];
 	FILE *f = fsFileOpenWriteAtomic(slot->path);
@@ -283,7 +297,7 @@ static bool mpkSave(struct mpkslot *slot)
 
 static bool mpkCreatePage(s32 index)
 {
-	static struct mpkslot scratch;
+	static struct mpkpage scratch;
 	char path[FS_MAXPATH + 1];
 
 	mpkPagePath(index, path, sizeof(path));
@@ -299,38 +313,227 @@ static bool mpkCreatePage(s32 index)
 	return true;
 }
 
+/* ---- the page index ------------------------------------------------------ */
+
+/*
+ * What PD keeps in a page, read straight from the image (host order in
+ * memory): the pfs directory entry for PD's note, the note's page chain from
+ * the inode table, and PD's own file headers inside the note. Every header
+ * on a pak carries the pak's device serial, which is how a fileguid names it.
+ */
+static s32 mpkPageNote(const u8 *image, u8 *note, s32 notecap)
+{
+	for (s32 n = 0; n < 16; n++) {
+		const u8 *dir = image + MPK_DIR_OFF + n * 32;
+		u32 gamecode;
+		u16 company, start;
+
+		memcpy(&gamecode, dir + 0, 4);
+		memcpy(&company, dir + 4, 2);
+		memcpy(&start, dir + 6, 2);
+
+		if (company != ROM_COMPANYCODE || gamecode != ROM_GAMECODE) {
+			continue;
+		}
+
+		s32 len = 0;
+		u16 page = start;
+
+		for (s32 hops = 0; hops < 128 && (page & 0xff) >= 5 && (page & 0xff) < 128 && len + 256 <= notecap; hops++) {
+			u16 next;
+
+			memcpy(note + len, image + (page & 0xff) * 256, 256);
+			len += 256;
+			memcpy(&next, image + MPK_INODE_OFF + (page & 0xff) * 2, 2);
+
+			if (next == 1) {
+				return len;
+			}
+
+			page = next;
+		}
+
+		return len;
+	}
+
+	return 0;
+}
+
+static void mpkPageScan(struct mpkpage *page)
+{
+	static u8 note[128 * 256];
+	const s32 len = mpkPageNote(page->image, note, sizeof(note));
+	struct pakfileheader header;
+
+	page->serial = -1;
+	page->indexstale = false;
+
+	for (s32 offset = 0; offset + (s32)sizeof(header) <= len; ) {
+		memcpy(&header, note + offset, sizeof(header));
+
+		if (header.filelen == 0 || header.filetype == PAKFILETYPE_TERMINATOR) {
+			break;
+		}
+
+		page->serial = header.deviceserial;
+		break;
+	}
+}
+
+static s32 mpkPageSerial(s32 index)
+{
+	struct mpkpage *page = &g_MpkPages[index];
+
+	if (page->indexstale) {
+		mpkPageScan(page);
+	}
+
+	return page->serial;
+}
+
+static s32 mpkFindPageBySerial(s32 serial)
+{
+	for (s32 i = 0; i < g_MpkNumPages; i++) {
+		if (mpkPageSerial(i) == serial) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+/*
+ * A device serial for a new PD filesystem on a page: 13 bits, not 0, not the
+ * game pak's 0xbaa, and not in use on any page. PD draws these at random
+ * (pakGenerateSerial), which is fine for four physical paks and not for a
+ * pool that keeps growing - two pages with one serial would make every
+ * fileguid on them ambiguous.
+ */
+s32 mpkAllocSerial(u32 seed)
+{
+	for (s32 tries = 0; tries < 8192; tries++) {
+		seed = seed * 1103515245u + 12345u;
+		const s32 serial = 16 + (s32)((seed >> 8) % (8192 - 16));
+
+		if (serial != 0xbaa && mpkFindPageBySerial(serial) < 0) {
+			return serial;
+		}
+	}
+
+	return -1;
+}
+
+/* ---- mounting --------------------------------------------------------------- */
+
+static void mpkMap(s32 channel, s32 pageindex)
+{
+	const s32 old = g_MpkChannelPage[channel];
+
+	if (old >= 0) {
+		g_MpkPages[old].channel = -1;
+	}
+
+	g_MpkChannelPage[channel] = pageindex;
+
+	if (pageindex >= 0) {
+		g_MpkPages[pageindex].channel = channel;
+		g_MpkPages[pageindex].lastuse = ++g_MpkUseClock;
+	}
+}
+
+/*
+ * Put the page whose PD filesystem has this serial on a channel, and say
+ * which. A page already mounted stays where it is. Otherwise a channel with
+ * no page is used, else the least recently mounted one not in `pinned` (a bit
+ * per channel the caller cannot spare - a seated player's profile, the open
+ * game file). The page that leaves stays in memory, dirty or not; it is
+ * written by the next flush. -1 if no page has the serial or every channel is
+ * pinned. The caller re-probes the channel (pakFindBySerial does).
+ */
+s32 mpkMountBySerial(s32 serial, u8 pinned)
+{
+	const s32 pageindex = mpkFindPageBySerial(serial);
+	s32 channel = -1;
+
+	if (pageindex < 0) {
+		return -1;
+	}
+
+	if (g_MpkPages[pageindex].channel >= 0) {
+		g_MpkPages[pageindex].lastuse = ++g_MpkUseClock;
+		return g_MpkPages[pageindex].channel;
+	}
+
+	for (s32 ch = 0; ch < MAXCONTROLLERS && channel < 0; ch++) {
+		if (g_MpkChannelPage[ch] < 0) {
+			channel = ch;
+		}
+	}
+
+	if (channel < 0) {
+		u32 oldest = 0xffffffff;
+
+		for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
+			if (!(pinned & (1 << ch)) && g_MpkPages[g_MpkChannelPage[ch]].lastuse < oldest) {
+				oldest = g_MpkPages[g_MpkChannelPage[ch]].lastuse;
+				channel = ch;
+			}
+		}
+	}
+
+	if (channel < 0) {
+		return -1;
+	}
+
+	sysLogPrintf(LOG_NOTE, "mpk: %s on controller pak %d (serial %x)", g_MpkPages[pageindex].path, channel + 1, serial);
+	mpkMap(channel, pageindex);
+
+	return channel;
+}
+
 /*
  * Pages are numbered from 0 with no gaps - they are made in order and never
  * deleted (empty pages are kept for reuse) - so finding them is counting.
- * For now the first four are mounted on channels 1-4; mounting on demand and
- * the collated drive come with "the feature where four paks become one".
+ * All are loaded; the first four are mounted on channels 1-4 to start with.
  */
 void mpkInit(void)
 {
 	char path[FS_MAXPATH + 1];
-	s32 numpages = 0;
+	s32 numfiles;
 
 	fsCreateDir("$S/paks");
 
-	for (numpages = 0; numpages < MPK_MAXPAGES; numpages++) {
-		mpkPagePath(numpages, path, sizeof(path));
+	for (numfiles = 0; numfiles < MPK_MAXPAGES; numfiles++) {
+		mpkPagePath(numfiles, path, sizeof(path));
 		if (fsFileSize(path) < 0) {
 			break;
 		}
 	}
 
-	if (numpages == 0) {
-		if (mpkCreatePage(0)) {
-			numpages = 1;
+	if (numfiles == 0 && mpkCreatePage(0)) {
+		numfiles = 1;
+	}
+
+	g_MpkPages = calloc(numfiles > 0 ? numfiles : 1, sizeof(*g_MpkPages));
+	g_MpkNumPages = 0;
+
+	for (s32 i = 0; i < numfiles && g_MpkPages; i++) {
+		mpkPagePath(i, path, sizeof(path));
+		if (mpkLoad(&g_MpkPages[g_MpkNumPages], path)) {
+			g_MpkNumPages++;
 		}
 	}
 
-	for (s32 ch = 0; ch < MAXCONTROLLERS && ch < numpages; ch++) {
-		mpkPagePath(ch, path, sizeof(path));
-		if (mpkLoad(&g_MpkSlots[ch], path)) {
-			sysLogPrintf(LOG_NOTE, "mpk: %s on controller pak %d", path, ch + 1);
-		}
+	for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
+		g_MpkChannelPage[ch] = -1;
 	}
+
+	for (s32 ch = 0; ch < MAXCONTROLLERS && ch < g_MpkNumPages; ch++) {
+		mpkMap(ch, ch);
+		sysLogPrintf(LOG_NOTE, "mpk: %s on controller pak %d", g_MpkPages[ch].path, ch + 1);
+	}
+
+	sysLogPrintf(LOG_NOTE, "mpk: %d page%s", g_MpkNumPages, g_MpkNumPages == 1 ? "" : "s");
 }
 
 u8 mpkMountedMask(void)
@@ -338,7 +541,7 @@ u8 mpkMountedMask(void)
 	u8 mask = 0;
 
 	for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
-		if (g_MpkSlots[ch].mounted) {
+		if (g_MpkChannelPage[ch] >= 0) {
 			mask |= 1 << ch;
 		}
 	}
@@ -348,30 +551,30 @@ u8 mpkMountedMask(void)
 
 void mpkFlush(void)
 {
-	for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
-		struct mpkslot *slot = &g_MpkSlots[ch];
+	for (s32 i = 0; i < g_MpkNumPages; i++) {
+		struct mpkpage *page = &g_MpkPages[i];
 
-		if (slot->mounted && slot->dirty) {
-			slot->dirty = false;
-			mpkSave(slot);
+		if (page->dirty) {
+			page->dirty = false;
+			mpkSave(page);
 		}
 	}
 }
 
 /* ---- the libultra bottom ------------------------------------------------ */
 
-static struct mpkslot *mpkSlot(int channel)
+static struct mpkpage *mpkSlot(int channel)
 {
-	if (channel < 0 || channel >= MAXCONTROLLERS || !g_MpkSlots[channel].mounted) {
+	if (channel < 0 || channel >= MAXCONTROLLERS || g_MpkChannelPage[channel] < 0) {
 		return NULL;
 	}
 
-	return &g_MpkSlots[channel];
+	return &g_MpkPages[g_MpkChannelPage[channel]];
 }
 
 s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer)
 {
-	struct mpkslot *slot = mpkSlot(channel);
+	struct mpkpage *slot = mpkSlot(channel);
 
 	if (!slot) {
 		return PFS_ERR_NOPACK;
@@ -388,7 +591,7 @@ s32 __osContRamRead(OSMesgQueue *mq, int channel, u16 address, u8 *buffer)
 
 s32 __osContRamWrite(OSMesgQueue *mq, int channel, u16 address, u8 *buffer, int force)
 {
-	struct mpkslot *slot = mpkSlot(channel);
+	struct mpkpage *slot = mpkSlot(channel);
 
 	if (!slot) {
 		return PFS_ERR_NOPACK;
@@ -397,6 +600,7 @@ s32 __osContRamWrite(OSMesgQueue *mq, int channel, u16 address, u8 *buffer, int 
 	if (address < MPK_NUMBLOCKS && memcmp(slot->image + address * MPK_BLOCKSIZE, buffer, MPK_BLOCKSIZE) != 0) {
 		memcpy(slot->image + address * MPK_BLOCKSIZE, buffer, MPK_BLOCKSIZE);
 		slot->dirty = true;
+		slot->indexstale = true;
 		saveQueueMarkEeprom();
 	}
 
