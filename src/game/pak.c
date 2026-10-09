@@ -233,6 +233,7 @@ const char var7f1b3ad4[] = "Pak %d -> Pak_UpdateAndGetPakNoteInfo - ERROR - ekPa
 const char var7f1b3b18[] = "Pak %d -> Pak_UpdateAndGetPakNoteInfo - ERROR - ekPakErrorNoPakPresent\n";
 
 struct pak g_Paks[5]; // controller paks + EEPROM
+struct rumble g_Rumbles[5]; // indexed like g_Paks; see struct rumble
 
 #if VERSION >= VERSION_NTSC_1_0
 u32 var800a317c;
@@ -805,12 +806,23 @@ s32 pakGetUnk270(s8 device)
 
 s32 pakGetRumbleState(s8 device)
 {
-	return g_Paks[device].rumblestate;
+	return g_Rumbles[device].rumblestate;
 }
 
 void pakSetRumbleState(s8 device, s32 state)
 {
-	g_Paks[device].rumblestate = state;
+	g_Rumbles[device].rumblestate = state;
+}
+
+// fojo: whether a motor answered on this channel. Replaces asking whether the
+// pak in the slot is a rumble pak; see struct rumble.
+bool pakHasRumble(s32 device)
+{
+	if (device < 0 || device >= ARRAYCOUNT(g_Rumbles)) {
+		return false;
+	}
+
+	return g_Rumbles[device].present;
 }
 
 s32 pak0f117350(s8 device)
@@ -2841,7 +2853,8 @@ void pakSetDefaults(s8 device)
 	g_Paks[device].features = 0;
 	g_Paks[device].type = PAKTYPE_NONE;
 	g_Paks[device].unk008 = PAK008_01;
-	g_Paks[device].rumblestate = RUMBLESTATE_1;
+	g_Rumbles[device].present = false;
+	g_Rumbles[device].rumblestate = RUMBLESTATE_1;
 	g_Paks[device].unk00c = PAK00C_03;
 	g_Paks[device].state = PAKSTATE_NOPAK;
 	g_Paks[device].pdnoteindex = -1;
@@ -2859,7 +2872,7 @@ void pakSetDefaults(s8 device)
 	g_Paks[device].unk2c4 = NULL;
 	g_Paks[device].maxfileid = 8;
 	g_Paks[device].serial = 0;
-	g_Paks[device].rumblettl = -1;
+	g_Rumbles[device].rumblettl = -1;
 #if VERSION >= VERSION_NTSC_1_0
 	g_Paks[device].unk2c8 = 0;
 #endif
@@ -3193,7 +3206,8 @@ bool pakProbe(s8 device)
 			if (pakHandleResult(ret, device, false, LINE_3865)) {
 				g_Paks[device].type = PAKTYPE_RUMBLE;
 				g_Paks[device].state = PAKSTATE_READY;
-				g_Paks[device].rumblestate = RUMBLESTATE_1;
+				g_Rumbles[device].present = true;
+				g_Rumbles[device].rumblestate = RUMBLESTATE_1;
 				g_Paks[device].plugcount++;
 
 				plugged = true;
@@ -3276,7 +3290,8 @@ void pak0f114dd4nb(s8 device)
 	pak->unk2b8_01 = false;
 	pak->type = PAKTYPE_NONE;
 	pak->unk008 = PAK008_01;
-	pak->rumblestate = RUMBLESTATE_1;
+	g_Rumbles[device].present = false;
+	g_Rumbles[device].rumblestate = RUMBLESTATE_1;
 	pak->unk00c = PAK00C_03;
 
 	if (pakProbe(device)) {
@@ -3297,6 +3312,7 @@ void pak0f114dd4nb(s8 device)
 
 				if (pakHandleResult(ret, device, 1, 3518)) {
 					pak->type = PAKTYPE_RUMBLE;
+					g_Rumbles[device].present = true;
 					pak->state = PAKSTATE_READY;
 					pak->plugcount++;
 					return;
@@ -5379,15 +5395,15 @@ void pakRumble(s32 device, f32 numsecs, s32 onduration, s32 offduration)
 #endif
 
 	if (g_Paks[device].state == PAKSTATE_READY
-			&& g_Paks[device].type == PAKTYPE_RUMBLE
-			&& g_Paks[device].rumblestate != RUMBLESTATE_DISABLED_STOPPING
-			&& g_Paks[device].rumblestate != RUMBLESTATE_DISABLED_STOPPED
-			&& g_Paks[device].rumblettl < 60 * numsecs) {
-		g_Paks[device].rumblestate = RUMBLESTATE_ENABLED_STARTING;
-		g_Paks[device].rumblettl = 60 * numsecs;
-		g_Paks[device].rumblepulsestopat = onduration;
-		g_Paks[device].rumblepulselen = onduration + offduration;
-		g_Paks[device].rumblepulsetimer = 0;
+			&& g_Rumbles[device].present
+			&& g_Rumbles[device].rumblestate != RUMBLESTATE_DISABLED_STOPPING
+			&& g_Rumbles[device].rumblestate != RUMBLESTATE_DISABLED_STOPPED
+			&& g_Rumbles[device].rumblettl < 60 * numsecs) {
+		g_Rumbles[device].rumblestate = RUMBLESTATE_ENABLED_STARTING;
+		g_Rumbles[device].rumblettl = 60 * numsecs;
+		g_Rumbles[device].rumblepulsestopat = onduration;
+		g_Rumbles[device].rumblepulselen = onduration + offduration;
+		g_Rumbles[device].rumblepulsetimer = 0;
 	}
 }
 #else
@@ -5396,15 +5412,15 @@ void pakRumble(s8 device, f32 numsecs, s32 onduration, s32 offduration)
 	u8 index = g_Vars.playertojoymap[device];
 
 	if (g_Paks[index].state == PAKSTATE_READY
-			&& g_Paks[index].type == PAKTYPE_RUMBLE
-			&& g_Paks[index].rumblestate != RUMBLESTATE_DISABLED_STOPPING
-			&& g_Paks[index].rumblestate != RUMBLESTATE_DISABLED_STOPPED
-			&& g_Paks[index].rumblettl < 60 * numsecs) {
-		g_Paks[index].rumblestate = RUMBLESTATE_ENABLED_STARTING;
-		g_Paks[index].rumblettl = 60 * numsecs;
-		g_Paks[index].rumblepulsestopat = onduration;
-		g_Paks[index].rumblepulselen = onduration + offduration;
-		g_Paks[index].rumblepulsetimer = 0;
+			&& g_Rumbles[index].present
+			&& g_Rumbles[index].rumblestate != RUMBLESTATE_DISABLED_STOPPING
+			&& g_Rumbles[index].rumblestate != RUMBLESTATE_DISABLED_STOPPED
+			&& g_Rumbles[index].rumblettl < 60 * numsecs) {
+		g_Rumbles[index].rumblestate = RUMBLESTATE_ENABLED_STARTING;
+		g_Rumbles[index].rumblettl = 60 * numsecs;
+		g_Rumbles[index].rumblepulsestopat = onduration;
+		g_Rumbles[index].rumblepulselen = onduration + offduration;
+		g_Rumbles[index].rumblepulsetimer = 0;
 	}
 }
 #endif
@@ -5434,14 +5450,14 @@ void pakDisableRumbleForPlayer(s8 playernum)
 	joyGetContpadNumsForPlayer(tmp, &contpads[0], &contpads[1]);
 
 	for (i = 0; i < 2; i++) {
-		if (contpads[i] >= 0 && g_Paks[contpads[i]].type == PAKTYPE_RUMBLE) {
-			g_Paks[contpads[i]].rumblestate = RUMBLESTATE_DISABLED_STOPPING;
+		if (contpads[i] >= 0 && g_Rumbles[contpads[i]].present) {
+			g_Rumbles[contpads[i]].rumblestate = RUMBLESTATE_DISABLED_STOPPING;
 			joyStopRumble(contpads[i], true);
 		}
 	}
 #else
-	if (g_Paks[playernum].type == PAKTYPE_RUMBLE) {
-		g_Paks[playernum].rumblestate = RUMBLESTATE_DISABLED_STOPPING;
+	if (g_Rumbles[playernum].present) {
+		g_Rumbles[playernum].rumblestate = RUMBLESTATE_DISABLED_STOPPING;
 		joyStopRumble(playernum, true);
 	}
 #endif
@@ -5458,15 +5474,15 @@ void pakEnableRumbleForPlayer(s8 playernum)
 
 	for (i = 0; i < 2; i++) {
 		if (contpads[i] >= 0
-				&& g_Paks[contpads[i]].type == PAKTYPE_RUMBLE
-				&& g_Paks[contpads[i]].rumblestate == RUMBLESTATE_DISABLED_STOPPED) {
-			g_Paks[contpads[i]].rumblestate = RUMBLESTATE_ENABLING;
+				&& g_Rumbles[contpads[i]].present
+				&& g_Rumbles[contpads[i]].rumblestate == RUMBLESTATE_DISABLED_STOPPED) {
+			g_Rumbles[contpads[i]].rumblestate = RUMBLESTATE_ENABLING;
 		}
 	}
 #else
-	if (g_Paks[playernum].type == PAKTYPE_RUMBLE
-			&& g_Paks[playernum].rumblestate == RUMBLESTATE_DISABLED_STOPPED) {
-		g_Paks[playernum].rumblestate = RUMBLESTATE_ENABLING;
+	if (g_Rumbles[playernum].present
+			&& g_Rumbles[playernum].rumblestate == RUMBLESTATE_DISABLED_STOPPED) {
+		g_Rumbles[playernum].rumblestate = RUMBLESTATE_ENABLING;
 	}
 #endif
 }
@@ -5477,8 +5493,8 @@ void pakDisableRumbleForAllPlayers(void)
 
 #if VERSION >= VERSION_NTSC_1_0
 	for (i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Paks[i].type == PAKTYPE_RUMBLE) {
-			g_Paks[i].rumblestate = RUMBLESTATE_DISABLED_STOPPING;
+		if (g_Rumbles[i].present) {
+			g_Rumbles[i].rumblestate = RUMBLESTATE_DISABLED_STOPPING;
 			joyStopRumble(i, true);
 		}
 	}
@@ -5495,8 +5511,8 @@ void pakEnableRumbleForAllPlayers(void)
 
 #if VERSION >= VERSION_NTSC_FINAL
 	for (i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Paks[i].type == PAKTYPE_RUMBLE && g_Paks[i].rumblestate == RUMBLESTATE_DISABLED_STOPPED) {
-			g_Paks[i].rumblestate = RUMBLESTATE_ENABLING;
+		if (g_Rumbles[i].present && g_Rumbles[i].rumblestate == RUMBLESTATE_DISABLED_STOPPED) {
+			g_Rumbles[i].rumblestate = RUMBLESTATE_ENABLING;
 		}
 	}
 #else
@@ -5543,6 +5559,7 @@ void pakTickState(s8 device)
 		g_Paks[device].showdatalost = false;
 #endif
 		g_Paks[device].type = PAKTYPE_NONE;
+		g_Rumbles[device].present = false;
 
 		SETBANNER(-1);
 		func0f14aed0(device);
