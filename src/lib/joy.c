@@ -1129,12 +1129,12 @@ void joyStopRumble(s8 arg0, bool disablepolling)
 #endif
 			}
 
-			if (g_Paks[device].rumblestate != RUMBLESTATE_DISABLED_STOPPING
-					&& g_Paks[device].rumblestate != RUMBLESTATE_DISABLED_STOPPED) {
-				g_Paks[device].rumblestate = RUMBLESTATE_ENABLED_STOPPING;
+			if (g_Rumbles[device].rumblestate != RUMBLESTATE_DISABLED_STOPPING
+					&& g_Rumbles[device].rumblestate != RUMBLESTATE_DISABLED_STOPPED) {
+				g_Rumbles[device].rumblestate = RUMBLESTATE_ENABLED_STOPPING;
 			}
 
-			g_Paks[device].rumblettl = -1;
+			g_Rumbles[device].rumblettl = -1;
 		}
 	}
 }
@@ -1154,44 +1154,44 @@ void joysTickRumble(void)
 	s32 i;
 
 	for (i = 0; i < NUM_PADS; i++) {
-		if (g_Paks[i].state == PAKSTATE_READY && g_Paks[i].type == PAKTYPE_RUMBLE) {
-			switch (g_Paks[i].rumblestate) {
+		if (g_Rumbles[i].present) {
+			switch (g_Rumbles[i].rumblestate) {
 			case RUMBLESTATE_ENABLED_STARTING:
-				g_Paks[i].rumblestate = RUMBLESTATE_ENABLED_RUMBLING;
+				g_Rumbles[i].rumblestate = RUMBLESTATE_ENABLED_RUMBLING;
 				osMotorStart(PFS(i));
 				break;
 			case RUMBLESTATE_ENABLED_RUMBLING:
-				if (g_Paks[i].rumblepulsestopat != -1) {
-					if (g_Paks[i].rumblepulsetimer == 0) {
+				if (g_Rumbles[i].rumblepulsestopat != -1) {
+					if (g_Rumbles[i].rumblepulsetimer == 0) {
 						osMotorStart(PFS(i));
-					} else if (g_Paks[i].rumblepulsestopat == g_Paks[i].rumblepulsetimer) {
+					} else if (g_Rumbles[i].rumblepulsestopat == g_Rumbles[i].rumblepulsetimer) {
 						osMotorStop(PFS(i));
 					}
 
-					g_Paks[i].rumblepulsetimer++;
+					g_Rumbles[i].rumblepulsetimer++;
 
-					if (g_Paks[i].rumblepulselen == g_Paks[i].rumblepulsetimer) {
-						g_Paks[i].rumblepulsetimer = 0;
+					if (g_Rumbles[i].rumblepulselen == g_Rumbles[i].rumblepulsetimer) {
+						g_Rumbles[i].rumblepulsetimer = 0;
 					}
 				}
 
-				g_Paks[i].rumblettl--;
+				g_Rumbles[i].rumblettl--;
 
-				if (g_Paks[i].rumblettl < 0) {
-					g_Paks[i].rumblestate = RUMBLESTATE_ENABLED_STOPPING;
+				if (g_Rumbles[i].rumblettl < 0) {
+					g_Rumbles[i].rumblestate = RUMBLESTATE_ENABLED_STOPPING;
 				}
 				break;
 			case RUMBLESTATE_ENABLED_STOPPING:
-				g_Paks[i].rumblestate = RUMBLESTATE_ENABLED_STOPPED;
+				g_Rumbles[i].rumblestate = RUMBLESTATE_ENABLED_STOPPED;
 				osMotorStop(PFS(i));
 				break;
 			case RUMBLESTATE_DISABLED_STOPPING:
 				osMotorStop(PFS(i));
-				g_Paks[i].rumblestate = RUMBLESTATE_DISABLED_STOPPED;
+				g_Rumbles[i].rumblestate = RUMBLESTATE_DISABLED_STOPPED;
 				break;
 			case RUMBLESTATE_ENABLING:
-				g_Paks[i].rumblestate = RUMBLESTATE_ENABLED_STOPPED;
-				g_Paks[i].rumblettl = -1;
+				g_Rumbles[i].rumblestate = RUMBLESTATE_ENABLED_STOPPED;
+				g_Rumbles[i].rumblettl = -1;
 				break;
 			}
 		}

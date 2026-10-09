@@ -18,6 +18,7 @@ bool pakDeleteFile(s8 device, s32 fileid);
 PakErr1 pakDeleteGameNote(s8 device, u16 company_code, u32 game_code, char *game_name, char *ext_name);
 PakErr1 pak0f1168c4(s8 device, struct pakdata **arg1);
 s32 pakGetType(s8 device);
+bool pakHasRumble(s32 device);
 s32 pakGetSerial(s8 device);
 void pak0f11698c(s8 device);
 void pak0f116994(void);

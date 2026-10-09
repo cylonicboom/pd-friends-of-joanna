@@ -197,6 +197,7 @@ extern struct covercandidate *g_CoverCandidates;
 extern u16 g_NumSpecialCovers;
 extern u16 *g_SpecialCoverNums;
 extern struct pak g_Paks[5];
+extern struct rumble g_Rumbles[5];
 extern OSPfs g_Pfses[MAX_PLAYERS];
 extern u32 g_SkyStageNum;
 extern bool g_SkyLightningActive;

@@ -4838,9 +4838,26 @@ struct pakheadercache {
   u8 payload[0x20];
 };
 
+/*
+ * fojo: rumble state, split out of struct pak (g_Rumbles, indexed like
+ * g_Paks). A controller slot could hold a memory pak or a rumble pak, never
+ * both, so vanilla kept the motor's state in the pak's struct and asked
+ * "is this pak a rumble pak". On PC a slot can be a memory pak (an .mpk page)
+ * on a pad that has a motor, so the motor gets its own record and its own
+ * present flag.
+ */
+struct rumble {
+  bool present;           // a motor answered osMotorProbe on this channel
+  u32 rumblestate;
+  s32 rumblepulsestopat;
+  u32 rumblepulselen;
+  u32 rumblepulsetimer;   // counts up to pulselen then loops
+  f32 rumblettl;
+};
+
 struct pak {
   /*0x000*/ s32 type;
-  /*0x004*/ u32 rumblestate;
+  /*0x004*/ u32 unused004; // was rumblestate: g_Rumbles (struct rumble)
   /*0x008*/ u32 unk008;
   /*0x00c*/ u32 unk00c;
   /*0x010*/ s32 state;
@@ -4856,9 +4873,9 @@ struct pak {
   /*0x278*/ u32 unk278;
   /*0x27c*/ u32 unk27c;
   /*0x280*/ u32 unk280;
-  /*0x284*/ s32 rumblepulsestopat;
-  /*0x288*/ u32 rumblepulselen;
-  /*0x28c*/ u32 rumblepulsetimer; // counts up to pulselen then loops
+  /*0x284*/ s32 unused284; // was rumblepulsestopat: g_Rumbles
+  /*0x288*/ u32 unused288; // was rumblepulselen: g_Rumbles
+  /*0x28c*/ u32 unused28c; // was rumblepulsetimer: g_Rumbles
   /*0x290*/ s32 notestotal;       // always 16
   /*0x294*/ s32 notesused;
   /*0x298*/ u32 unk298;
@@ -4868,7 +4885,7 @@ struct pak {
   /*0x2a8*/ u32 pdnumpages;
   /*0x2ac*/ u32 unk2ac;
   /*0x2b0*/ u32 unk2b0;
-  /*0x2b4*/ f32 rumblettl;
+  /*0x2b4*/ f32 unused2b4; // was rumblettl: g_Rumbles
   /*0x2b8*/ u8 unk2b8_01 : 1;
   /*0x2b8*/ u8 unk2b8_02 : 1;
   /*0x2b8*/ u8 isgbcamera : 1;
