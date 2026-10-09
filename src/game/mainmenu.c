@@ -6947,7 +6947,7 @@ struct menuitem g_MainMenuMenuItems[] = {
         0,
         MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SELECTABLE_OPENSDIALOG |
             MENUITEMFLAG_BIGFONT,
-        (uintptr_t)"Change Reality...", // "Change Agent..."
+        (uintptr_t)"Switch Reality...", // "Change Agent..."
 #ifndef PLATFORM_N64
         0x00000007,
 #else
