@@ -26,6 +26,7 @@
 #ifndef PLATFORM_N64
 #include "input.h"
 #include "rumbleshake.h"
+#include "mpk.h"
 #endif
 
 /**
@@ -373,6 +374,18 @@ u32 pakGenerateSerial(s8 device)
 	if (device == SAVEDEVICE_GAMEPAK) {
 		return 0xbaa;
 	}
+
+#ifndef PLATFORM_N64
+	// fojo: controller paks are .mpk pages from a pool that keeps growing,
+	// so the serial has to be unique across all of them, not just random
+	{
+		const s32 serial = mpkAllocSerial(g_Paks[device].unk2c8 ^ osGetCount() ^ rngRandom());
+
+		if (serial > 0) {
+			return serial;
+		}
+	}
+#endif
 
 	value = g_Paks[device].unk2c8;
 	rand = (rngRandom() % 496) + 16; // range 16-511
@@ -6018,7 +6031,7 @@ void pakN64FontCodeToAscii(char *src, char *dst, s32 len)
 	strcpy(dst, buffer);
 }
 
-s8 pakFindBySerial(s32 findserial)
+s8 pakFindMountedBySerial(s32 findserial)
 {
 	s8 device = -1;
 	s32 i;
@@ -6035,6 +6048,84 @@ s8 pakFindBySerial(s32 findserial)
 
 	return device;
 }
+
+#ifndef PLATFORM_N64
+/*
+ * fojo: find the device holding the pak with this serial, mounting its .mpk
+ * page on a controller channel if it is not on one (port/src/mpk.c). The
+ * channel is re-probed on the spot - what the pak state machine does over
+ * several frames after a pak is swapped (PROBE -> MEM_DISPATCH -> PREPARE ->
+ * READY), done now because the caller wants the device this call.
+ *
+ * Channels holding a seated player's profile or the open game file are
+ * never taken. Display code that only wants to know where something is
+ * calls pakFindMountedBySerial, so drawing a frame never mounts.
+ */
+static u8 pakPinnedChannels(void)
+{
+	u8 pinned = 0;
+
+	for (s32 i = SAVEDEVICE_CONTROLLERPAK1; i <= SAVEDEVICE_CONTROLLERPAK4; i++) {
+		const s32 serial = g_Paks[i].serial;
+
+		if (!mempakIsReady(i)) {
+			continue;
+		}
+
+		if (g_GameFileGuid.deviceserial == serial) {
+			pinned |= 1 << i;
+		}
+
+		for (s32 p = 0; p < MAX_PLAYERS; p++) {
+			if (g_PlayerConfigsArray[p].fileguid.deviceserial == serial) {
+				pinned |= 1 << i;
+			}
+		}
+	}
+
+	return pinned;
+}
+
+s8 pakFindBySerial(s32 findserial)
+{
+	s8 device = pakFindMountedBySerial(findserial);
+	s32 channel;
+
+	if (device >= 0 || findserial == 0) {
+		return device;
+	}
+
+	channel = mpkMountBySerial(findserial, pakPinnedChannels());
+
+	if (channel < 0) {
+		return -1;
+	}
+
+	joyDisableCyclicPolling();
+
+	g_Paks[channel].type = PAKTYPE_NONE;
+	g_Paks[channel].plugcount++;
+	g_Paks[channel].state = PAKSTATE_PROBE;
+
+	if (pakProbe(channel) && g_Paks[channel].state == PAKSTATE_MEM_DISPATCH) {
+		g_Paks[channel].state = PAKSTATE_MEM_PREPARE;
+		mempakPrepare(channel);
+	}
+
+	if (g_Paks[channel].state == PAKSTATE_MEM_POST_PREPARE) {
+		g_Paks[channel].state = PAKSTATE_READY;
+	}
+
+	joyEnableCyclicPolling();
+
+	return pakFindMountedBySerial(findserial);
+}
+#else
+s8 pakFindBySerial(s32 findserial)
+{
+	return pakFindMountedBySerial(findserial);
+}
+#endif
 
 #if VERSION >= VERSION_NTSC_1_0
 const char var7f1b4d24[] = "Pak %d -> Pak_PdGameBoySetRWByte - Fatal Error\n";
