@@ -6545,6 +6545,9 @@ static void imguiOverlayRunSaveRequests(void)
 	// it dirty. saveQueueFlush is a no-op when nothing is pending.
 	saveQueueFlush();
 
+	// the bind strings lag the live binds until something rebuilds them
+	inputSaveBinds();
+
 	// configSave returns 1 on success and 0 when it cannot open the file.
 	if (configSave(CONFIG_PATH)) {
 		snprintf(g_ImGuiSavesResult, sizeof(g_ImGuiSavesResult),
