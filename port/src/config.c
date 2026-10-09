@@ -404,9 +404,12 @@ static inline s32 configLoadFileIdFromSection(const char *sec, u16 *deviceserial
 {
     u32 tmp_deviceserial = 0;
     s32 tmp_fileid = 0;
+    s32 end = 0;
 
-    // Ensure sscanf matches both fields
-    if (sscanf(sec, "MpPlayer.%x-%x", &tmp_deviceserial, &tmp_fileid) == 2) {
+    // Both fields, and nothing after them: [MpPlayer.1aba-10.Game] is a
+    // subsection of a profile already queued by its own header, and queueing
+    // it again spends a slot of g_GuidsToProcess on a duplicate.
+    if (sscanf(sec, "MpPlayer.%x-%x%n", &tmp_deviceserial, &tmp_fileid, &end) == 2 && sec[end] == '\0') {
         *deviceserial = tmp_deviceserial;
         *fileid = tmp_fileid;
         return 1;
