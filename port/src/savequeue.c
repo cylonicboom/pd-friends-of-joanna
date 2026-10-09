@@ -4,6 +4,7 @@
 #include "types.h"
 
 #include "config.h"
+#include "input.h"
 #include "savequeue.h"
 #include "system.h"
 
@@ -109,6 +110,12 @@ void saveQueueFlush(void)
 	}
 
 	if (config) {
+		// The bind strings are what the ini entries point at, and they are
+		// only rebuilt from the live binds on request: a bind changed since
+		// boot is not in them, and inputLoadBinds' strtok has cut every one
+		// down to its first key. Shutdown always did this; a flush did not,
+		// so a crash after any queued save lost every second bind.
+		inputSaveBinds();
 		configSave(CONFIG_PATH);
 	}
 }

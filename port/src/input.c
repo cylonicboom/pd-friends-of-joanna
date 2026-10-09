@@ -111,6 +111,11 @@ static s32 lastSourceWasPad = 0;
 static char lastChar = 0;
 static s32 textInput = 0;
 
+// set once inputInit has named the keys and parsed the bind strings; before
+// that, binds[] is empty and turning it back into strings would write NONE
+// over every control
+static s32 bindsReady = 0;
+
 static char *clipboardText = NULL;
 
 static const char *ckNames[CK_TOTAL_COUNT] = {
@@ -692,6 +697,10 @@ void inputSaveBinds(void)
 {
 	char *bindstr;
 
+	if (!bindsReady) {
+		return;
+	}
+
 	for (s32 i = 0; i < MAXCONTROLLERS; ++i) {
 		for (u32 ck = 0; ck < CK_TOTAL_COUNT; ++ck) {
 			bindstr = bindStrs[i][ck];
@@ -878,6 +887,11 @@ s32 inputInit(void)
 	}
 
 	inputLoadBinds();
+	bindsReady = 1;
+
+	// parsing tokenises the strings in place, leaving only each control's
+	// first key in them until something rebuilds them
+	inputSaveBinds();
 
 	return connectedMask;
 }
