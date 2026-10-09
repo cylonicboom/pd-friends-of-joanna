@@ -333,8 +333,8 @@ static void extDrawBinds(void)
 		optionsmenuSetExtPlayer(g_ExtOptCapPlayer);
 		char name[64];
 		extCopyLabel(name, sizeof(name), optionsmenuGetBindName(g_ExtOptCapBind), false);
-		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "Player %d, %s, slot %d: press a key or button",
-				g_ExtOptCapPlayer + 1, name, g_ExtOptCapSlot + 1);
+		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f), "%s, %s, slot %d: press a key or button",
+				optionsmenuPlayerName(g_ExtOptCapPlayer), name, g_ExtOptCapSlot + 1);
 		ImGui::TextDisabled("Esc cancels, Delete clears the slot");
 	} else {
 		ImGui::TextDisabled("Click a slot, then press the key or button for it.");
@@ -411,9 +411,11 @@ static void extDrawPlayerPicker(void)
 {
 	ImGui::TextUnformatted("Player");
 
+	// named for the profile in the seat, as the Team Missions menus do;
+	// "Player <n>" only when the seat has no file
 	for (s32 p = 0; p < MAX_PLAYERS; p++) {
-		char name[16];
-		snprintf(name, sizeof(name), "%d", p + 1);
+		char name[48];
+		snprintf(name, sizeof(name), "%s##seat%d", optionsmenuPlayerName(p), p);
 		ImGui::SameLine();
 		ImGui::BeginDisabled(g_ExtOptCapturing);
 		if (ImGui::RadioButton(name, g_ExtOptPlayer == p)) {

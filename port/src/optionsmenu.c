@@ -4,6 +4,7 @@
 #include <math.h>
 #include <PR/ultratypes.h>
 #include "platform.h"
+#include "bss.h"
 #include "data.h"
 #include "types.h"
 #include "game/mainmenu.h"
@@ -26,17 +27,92 @@
 static s32 g_ExtMenuPlayer = 0;
 static struct menudialogdef *g_ExtNextDialog = NULL;
 
+// room for a profile name in front of the longest suffix
+#define EXT_TITLE_LEN 48
+
+extern struct menudialogdef g_ExtendedControllerMenuDialog;
+extern struct menudialogdef g_ExtendedGameMenuDialog;
+extern struct menudialogdef g_ExtendedBindsMenuDialog;
+
+static const char *optionsmenuTitleSuffix(struct menudialogdef *dialog)
+{
+	if (dialog == &g_ExtendedControllerMenuDialog) {
+		return "Controller Options";
+	}
+	if (dialog == &g_ExtendedGameMenuDialog) {
+		return "Game Options";
+	}
+	return "Bindings";
+}
+
 static s32 g_BindIndex = 0;
 static u32 g_BindContKey = 0;
 
 static MenuItemHandlerResult menuhandlerSelectPlayer(s32 operation, struct menuitem *item, union handlerdata *data);
+
+/*
+ * A seat is named for whoever is in it: the MP profile's name, as the Team
+ * Missions menus show it. "Player <n>" is only the seat's default, for a
+ * seat with no profile file - the same name mpPlayerSetDefaults gives it.
+ */
+const char *optionsmenuPlayerName(s32 seat)
+{
+	static char names[MAX_PLAYERS][24];
+	const char *src;
+	s32 i;
+
+	if (seat < 0 || seat >= MAX_PLAYERS) {
+		return "";
+	}
+
+	src = g_PlayerConfigsArray[seat].base.name;
+
+	for (i = 0; i < (s32)sizeof(g_PlayerConfigsArray[seat].base.name) && src[i] && src[i] != '\n'; i++) {
+		names[seat][i] = src[i];
+	}
+
+	names[seat][i] = '\0';
+
+	if (i == 0) {
+		snprintf(names[seat], sizeof(names[seat]), "Player %d", seat + 1);
+	}
+
+	return names[seat];
+}
+
+// labels for the Select Player rows; the std menu wants the trailing newline
+static char g_ExtSelectPlayerLabels[MAX_PLAYERS][28] = {
+	"Player 1\n", "Player 2\n", "Player 3\n", "Player 4\n",
+};
+
+static void optionsmenuRefreshPlayerLabels(void)
+{
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		snprintf(g_ExtSelectPlayerLabels[i], sizeof(g_ExtSelectPlayerLabels[i]), "%s\n", optionsmenuPlayerName(i));
+	}
+}
+
+// "<name> Controller Options" and so on, for the per-player dialogs' titles
+static void optionsmenuSetPlayerTitle(char *title, size_t titlelen, s32 seat, const char *what)
+{
+	snprintf(title, titlelen, "%s %s", optionsmenuPlayerName(seat), what);
+}
+
+static MenuDialogHandlerResult menudialogSelectPlayer(s32 operation, struct menudialogdef *dialogdef, union handlerdata *data)
+{
+	if (operation == MENUOP_OPEN) {
+		optionsmenuRefreshPlayerLabels();
+	}
+
+	return 0;
+}
 
 struct menuitem g_ExtendedSelectPlayerMenuItems[] = {
 	{
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 1\n",
+		(uintptr_t)g_ExtSelectPlayerLabels[0],
 		0,
 		menuhandlerSelectPlayer,
 	},
@@ -44,7 +120,7 @@ struct menuitem g_ExtendedSelectPlayerMenuItems[] = {
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 2\n",
+		(uintptr_t)g_ExtSelectPlayerLabels[1],
 		0,
 		menuhandlerSelectPlayer,
 	},
@@ -52,7 +128,7 @@ struct menuitem g_ExtendedSelectPlayerMenuItems[] = {
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 3\n",
+		(uintptr_t)g_ExtSelectPlayerLabels[2],
 		0,
 		menuhandlerSelectPlayer,
 	},
@@ -60,7 +136,7 @@ struct menuitem g_ExtendedSelectPlayerMenuItems[] = {
 		MENUITEMTYPE_SELECTABLE,
 		0,
 		MENUITEMFLAG_LITERAL_TEXT,
-		(uintptr_t)"Player 4\n",
+		(uintptr_t)g_ExtSelectPlayerLabels[3],
 		0,
 		menuhandlerSelectPlayer,
 	},
@@ -87,7 +163,7 @@ struct menudialogdef g_ExtendedSelectPlayerMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)"Select Player",
 	g_ExtendedSelectPlayerMenuItems,
-	NULL,
+	menudialogSelectPlayer,
 	MENUDIALOGFLAG_LITERAL_TEXT,
 	NULL,
 };
@@ -96,7 +172,7 @@ static MenuItemHandlerResult menuhandlerSelectPlayer(s32 operation, struct menui
 {
 	if (operation == MENUOP_SET) {
 		g_ExtMenuPlayer = item - g_ExtendedSelectPlayerMenuItems;
-		((char *)g_ExtNextDialog->title)[7] = g_ExtMenuPlayer + '1';
+		optionsmenuSetPlayerTitle((char *)g_ExtNextDialog->title, EXT_TITLE_LEN, g_ExtMenuPlayer, optionsmenuTitleSuffix(g_ExtNextDialog));
 		menuPushDialog(g_ExtNextDialog);
 	}
 
@@ -732,7 +808,7 @@ struct menuitem g_ExtendedControllerMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-static char g_ExtendedControllerMenuTitle[] = "Player 1 Controller Options";
+static char g_ExtendedControllerMenuTitle[EXT_TITLE_LEN] = "Player 1 Controller Options";
 struct menudialogdef g_ExtendedControllerMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)g_ExtendedControllerMenuTitle,
@@ -1865,7 +1941,7 @@ struct menuitem g_ExtendedGameMenuItems[] = {
 	{ MENUITEMTYPE_END },
 };
 
-static char g_ExtendedGameMenuTitle[] = "Player 1 Game Options";
+static char g_ExtendedGameMenuTitle[EXT_TITLE_LEN] = "Player 1 Game Options";
 struct menudialogdef g_ExtendedGameMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)g_ExtendedGameMenuTitle,
@@ -2123,7 +2199,7 @@ static MenuItemHandlerResult menuhandlerResetBindsN64(s32 operation, struct menu
 	return 0;
 }
 
-static char g_ExtendedBindsMenuTitle[] = "Player 1 Bindings";
+static char g_ExtendedBindsMenuTitle[EXT_TITLE_LEN] = "Player 1 Bindings";
 struct menudialogdef g_ExtendedBindsMenuDialog = {
 	MENUDIALOGTYPE_DEFAULT,
 	(uintptr_t)g_ExtendedBindsMenuTitle,
@@ -2148,7 +2224,7 @@ static MenuItemHandlerResult menuhandlerOpenControllerMenuMpPlayer(s32 operation
 {
 	if (operation == MENUOP_SET) {
 		g_ExtMenuPlayer = g_MpPlayerNum;
-		g_ExtendedControllerMenuTitle[7] = g_MpPlayerNum + '1';
+		optionsmenuSetPlayerTitle(g_ExtendedControllerMenuTitle, EXT_TITLE_LEN, g_MpPlayerNum, "Controller Options");
 		menuPushDialog(&g_ExtendedControllerMenuDialog);
 	}
 	return 0;
@@ -2167,7 +2243,7 @@ static MenuItemHandlerResult menuhandlerOpenGameMenuMpPlayer(s32 operation, stru
 {
 	if (operation == MENUOP_SET) {
 		g_ExtMenuPlayer = g_MpPlayerNum;
-		g_ExtendedGameMenuTitle[7] = g_MpPlayerNum + '1';
+		optionsmenuSetPlayerTitle(g_ExtendedGameMenuTitle, EXT_TITLE_LEN, g_MpPlayerNum, "Game Options");
 		menuPushDialog(&g_ExtendedGameMenuDialog);
 	}
 	return 0;
@@ -2186,7 +2262,7 @@ static MenuItemHandlerResult menuhandlerOpenBindsMenuMpPlayer(s32 operation, str
 {
 	if (operation == MENUOP_SET) {
 		g_ExtMenuPlayer = g_MpPlayerNum;
-		g_ExtendedBindsMenuTitle[7] = g_MpPlayerNum + '1';
+		optionsmenuSetPlayerTitle(g_ExtendedBindsMenuTitle, EXT_TITLE_LEN, g_MpPlayerNum, "Bindings");
 		menuPushDialog(&g_ExtendedBindsMenuDialog);
 	}
 	return 0;

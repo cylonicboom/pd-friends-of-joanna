@@ -9,6 +9,8 @@ extern "C" {
 
 void optionsmenuSetExtPlayer(s32 player);
 s32 optionsmenuGetExtPlayer(void);
+// the MP profile name in a seat, or "Player <n>" when the seat has no file
+const char *optionsmenuPlayerName(s32 seat);
 s32 optionsmenuGetNumBinds(void);
 u32 optionsmenuGetBindCk(s32 idx);
 const char *optionsmenuGetBindName(s32 idx);
