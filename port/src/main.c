@@ -18,6 +18,7 @@
 #include "romdata.h"
 #include "config.h"
 #include "savequeue.h"
+#include "seatprofile.h"
 #include "game/music.h"
 #include "mod.h"
 #include "game/stancetuning.h"
@@ -161,6 +162,8 @@ int main(int argc, const char **argv)
 	}
 
 	configInit();
+	// before inputInit parses the binds it moves
+	seatProfileMigrateLegacy();
 	videoInit();
 	inputInit();
 	audioInit();
@@ -380,28 +383,5 @@ PD_CONSTRUCTOR static void gameConfigInit(void)
 	configRegisterFloat("Stance.BuildCrouchMix", &g_BuildCrouchMix, 0.f, 1.f);
 	configRegisterInt("Game.GEMuzzleFlashes", &g_BgunGeMuzzleFlashes, 0, 1);
 	configRegisterInt("Game.MaxExplosions", &g_MaxExplosions, 6, 96);
-	for (s32 j = 0; j < MAX_PLAYERS; ++j) {
-		const s32 i = j + 1;
-		configRegisterFloat(strFmt("Game.Player%d.FovY", i), &g_PlayerExtCfg[j].fovy, 5.f, 175.f);
-		configRegisterInt(strFmt("Game.Player%d.FovAffectsZoom", i), &g_PlayerExtCfg[j].fovzoom, 0, 1);
-		configRegisterInt(strFmt("Game.Player%d.MouseAimMode", i), &g_PlayerExtCfg[j].mouseaimmode, 0, 1);
-		configRegisterFloat(strFmt("Game.Player%d.MouseAimSpeedX", i), &g_PlayerExtCfg[j].mouseaimspeedx, 0.f, 10.f);
-		configRegisterFloat(strFmt("Game.Player%d.MouseAimSpeedY", i), &g_PlayerExtCfg[j].mouseaimspeedy, 0.f, 10.f);
-		configRegisterFloat(strFmt("Game.Player%d.RadialMenuSpeed", i), &g_PlayerExtCfg[j].radialmenuspeed, 0.f, 10.f);
-		configRegisterFloat(strFmt("Game.Player%d.CrosshairSway", i), &g_PlayerExtCfg[j].crosshairsway, 0.f, 10.f);
-		configRegisterFloat(strFmt("Game.Player%d.CameraTilt", i), &g_PlayerExtCfg[j].cameratilt, 0.f, 4.f);
-		configRegisterFloat(strFmt("Game.Player%d.CameraBob", i), &g_PlayerExtCfg[j].camerabob, 0.f, 4.f);
-		configRegisterInt(strFmt("Game.Player%d.GunSwayWithBob", i), &g_PlayerExtCfg[j].gunswaywithbob, 0, 1);
-		configRegisterInt(strFmt("Game.Player%d.TiltIntoRun", i), &g_PlayerExtCfg[j].tiltforward, 0, 1);
-		configRegisterInt(strFmt("Game.Player%d.InvertTilt", i), &g_PlayerExtCfg[j].tiltinvert, 0, 1);
-		configRegisterInt(strFmt("Game.Player%d.CodAiming", i), &g_PlayerExtCfg[j].codaiming, 0, 1);
-		configRegisterInt(strFmt("Game.Player%d.CodAimLock", i), &g_PlayerExtCfg[j].codaimlock, 0, 1);
-		configRegisterFloat(strFmt("Game.Player%d.CrosshairEdgeBoundary", i), &g_PlayerExtCfg[j].crosshairedgeboundary, 0.0f, 1.0f);
-		configRegisterInt(strFmt("Game.Player%d.CrouchMode", i), &g_PlayerExtCfg[j].crouchmode, 0, CROUCHMODE_TOGGLE_ANALOG);
-		configRegisterInt(strFmt("Game.Player%d.ExtendedControls", i), &g_PlayerExtCfg[j].extcontrols, 0, 1);
-		configRegisterUInt(strFmt("Game.Player%d.CrosshairColour", i), &g_PlayerExtCfg[j].crosshaircolour, 0, 0xFFFFFFFF);
-		configRegisterUInt(strFmt("Game.Player%d.CrosshairSize", i), &g_PlayerExtCfg[j].crosshairsize, 0, 4);
-		configRegisterInt(strFmt("Game.Player%d.CrosshairHealth", i), &g_PlayerExtCfg[j].crosshairhealth, 0, CROSSHAIR_HEALTH_ON_WHITE);
-		configRegisterInt(strFmt("Game.Player%d.UseKeyReloads", i), &g_PlayerExtCfg[j].usereloads, 0, false);
-	}
+	// Game.Player<n>.* are per save file now: seatprofile.c
 }

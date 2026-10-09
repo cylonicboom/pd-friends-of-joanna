@@ -262,6 +262,13 @@ void inputUpdate(void);
 // call this before configSave()
 void inputSaveBinds(void);
 
+// one seat's binds, for seatprofile.c - see there
+char *inputSeatBindStr(s32 seat, u32 ck);
+u32 inputSeatBindStrMax(void);
+void inputSeatBindsCapture(s32 seat);
+void inputSeatBindsReset(s32 seat);
+void inputSeatBindsApply(s32 seat);
+
 // reset given player's binds to either PC or N64 defaults
 void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode);
 

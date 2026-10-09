@@ -802,6 +802,81 @@ static void inputMigrateRollBind(s32 ctrl)
 	}
 }
 
+/*
+ * One seat's binds, for seatprofile.c, which moves them between save files.
+ * The strings are what the ini keys point at; binds[] is what the game reads.
+ */
+char *inputSeatBindStr(s32 seat, u32 ck)
+{
+	return bindStrs[seat][ck];
+}
+
+u32 inputSeatBindStrMax(void)
+{
+	return MAX_BIND_STR;
+}
+
+// binds[] -> strings, so a detach or a save keeps what the seat has now
+void inputSeatBindsCapture(s32 seat)
+{
+	char *bindstr;
+
+	if (!bindsReady || seat < 0 || seat >= MAXCONTROLLERS) {
+		return;
+	}
+
+	for (u32 ck = 0; ck < CK_TOTAL_COUNT; ++ck) {
+		bindstr = bindStrs[seat][ck];
+		bindstr[0] = '\0';
+		for (s32 b = 0; b < INPUT_MAX_BINDS; ++b) {
+			if (binds[seat][ck][b]) {
+				if (b) {
+					strncat(bindstr, ", ", MAX_BIND_STR - 1);
+				}
+				strncat(bindstr, inputGetKeyName(binds[seat][ck][b]), MAX_BIND_STR - 1);
+			}
+		}
+		if (!bindstr[0]) {
+			strcpy(bindstr, "NONE");
+		}
+	}
+}
+
+// defaults in binds[], empty strings - and an empty string parses as "keep
+// the default", so a file with no binds saved gets the defaults
+void inputSeatBindsReset(s32 seat)
+{
+	if (seat < 0 || seat >= MAXCONTROLLERS) {
+		return;
+	}
+
+	for (u32 ck = 0; ck < CK_TOTAL_COUNT; ++ck) {
+		bindStrs[seat][ck][0] = '\0';
+	}
+
+	if (bindsReady) {
+		inputSetDefaultKeyBinds(seat, 0);
+	}
+}
+
+// strings -> binds[]. Before inputInit there is nothing to parse into;
+// inputInit parses every seat itself.
+void inputSeatBindsApply(s32 seat)
+{
+	if (!bindsReady || seat < 0 || seat >= MAXCONTROLLERS) {
+		return;
+	}
+
+	for (u32 ck = 0; ck < CK_TOTAL_COUNT; ++ck) {
+		inputParseBindString(seat, ck, bindStrs[seat][ck]);
+	}
+
+	inputMigrateRollBind(seat);
+
+	// parsing cut the strings up; put them back whole
+	inputSeatBindsCapture(seat);
+}
+
 static inline void inputLoadBinds(void)
 {
 	for (s32 i = 0; i < MAXCONTROLLERS; ++i) {
@@ -1856,11 +1931,11 @@ PD_CONSTRUCTOR static void inputConfigInit(void)
 	configRegisterInt("Input.UseHIDAPI", &useHIDAPI, 0, 1);
 	configRegisterInt("Input.UseRawInput", &useRawInput, 0, 1);
 
-	char secname[] = "Input.Player1.Binds";
-	char keyname[256] = { 0 };
+	// The binds are not here: they belong to the player's save file and are
+	// registered per seat by seatprofile.c, [MpPlayer.<file>.Binds].
+	char secname[] = "Input.Player1";
 	for (s32 c = 0; c < MAXCONTROLLERS; ++c) {
 		secname[12] = '1' + c;
-		secname[13] = '\0';
 		configRegisterFloat(strFmt("%s.RumbleScale", secname), &padsCfg[c].rumbleScale, 0.f, 1.f);
 		configRegisterInt(strFmt("%s.RumbleShake", secname), &padsCfg[c].rumbleShake, RUMBLESHAKE_OFF, RUMBLESHAKE_BOTH);
 		configRegisterInt(strFmt("%s.LStickDeadzoneX", secname), &padsCfg[c].deadzone[0], 0, 32767);
@@ -1875,10 +1950,5 @@ PD_CONSTRUCTOR static void inputConfigInit(void)
 		configRegisterInt(strFmt("%s.CancelCButtons", secname), &padsCfg[c].cancelCButtons, 0, 1);
 		configRegisterInt(strFmt("%s.SwapSticks", secname), &padsCfg[c].swapSticks, 0, 1);
 		configRegisterInt(strFmt("%s.ControllerIndex", secname), &padsCfg[c].deviceIndex, -1, 0x7FFFFFFF);
-		secname[13] = '.';
-		for (u32 ck = 0; ck < CK_TOTAL_COUNT; ++ck) {
-			snprintf(keyname, sizeof(keyname), "%s.%s", secname, inputGetContKeyName(ck));
-			configRegisterString(keyname, bindStrs[c][ck], MAX_BIND_STR);
-		}
 	}
 }

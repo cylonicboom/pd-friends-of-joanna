@@ -40,6 +40,7 @@
 #include "system.h"
 #include "mod.h"
 #include "mpprofiles.h"
+#include "seatprofile.h"
 #endif
 
 // bss
@@ -527,6 +528,13 @@ static inline s32 iniBindProfileProperties(struct fileguid *fileguid, s32 arg0,
     }
   }
 
+  // A fileless seat's Game options and binds live under the same stand-in.
+  // A real file's are seated by mpplayerfileLoad / mpplayerfileSave, which
+  // know whether the file's values or the seat's should win.
+  if (playernum >= 0 && fileguid->deviceserial == 0xFFFF) {
+    seatProfileBind(playernum, fileguid);
+  }
+
   return configindex;
 }
 
@@ -842,6 +850,12 @@ void iniProcessPendingProfiles(void) { iniFlushRegistrationQueue(); }
 void mpPlayerSetDefaults(s32 playernum, bool autonames) {
   s32 i;
   s32 j;
+
+#ifndef PLATFORM_N64
+  // The file is leaving the seat: back to the seat's stand-in options. First,
+  // because the control mode below is picked from ExtendedControls.
+  seatProfileBind(playernum, NULL);
+#endif
 
   func0f187fbc(playernum);
 
@@ -4387,6 +4401,12 @@ static inline void mpplayerBindExtendedProfile(s32 playernum) {
 
 void onUpdateExtendedMpProfileFileOperation(s32 playernum) {
   mpplayerBindExtendedProfile(playernum);
+#ifndef PLATFORM_N64
+  // On a load this is already done (mpplayerfileLoad) and is a no-op. On a
+  // save to a new file the person in the seat is the same, so their current
+  // options go with them into the file.
+  seatProfileAdopt(playernum, &g_PlayerConfigsArray[playernum].fileguid);
+#endif
 }
 
 /*
@@ -4653,6 +4673,12 @@ s32 mpplayerfileLoad(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
     if (ret == 0) {
       g_PlayerConfigsArray[playernum].fileguid.fileid = fileid;
       g_PlayerConfigsArray[playernum].fileguid.deviceserial = deviceserial;
+
+#ifndef PLATFORM_N64
+      // Before the wad: mpplayerfileLoadWad reads ExtendedControls to pick
+      // the control mode, and that is the file's option now, not the seat's.
+      seatProfileBind(playernum, &g_PlayerConfigsArray[playernum].fileguid);
+#endif
 
       mpplayerfileLoadWad(playernum, &buffer, 1);
 
