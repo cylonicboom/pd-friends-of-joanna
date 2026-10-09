@@ -10,8 +10,20 @@
 #include "types.h"
 #include "bss.h"
 
-struct configentry settings[CONFIG_MAX_SETTINGS];
+/*
+ * Grows on demand. It used to be a fixed 2048 entries, and every key the file
+ * holds takes one whether or not anything binds it - so the table fills with
+ * the number of profiles ever saved into pd.ini, not with anything running.
+ * Per-file options put ~70 keys under every profile, and the boot queue alone
+ * can bring in 32 profiles.
+ *
+ * Nothing holds an entry pointer across an add: configAddEntry already
+ * memmoves the tail to keep sections contiguous, so a realloc moving the
+ * whole table breaks nothing that the memmove did not already break.
+ */
+struct configentry *settings = NULL;
 static s32 numSettings = 0;
+static s32 maxSettings = 0;
 static u8 configMaxWarningLogged = 0;
 static u8 configGuidQueueWarningLogged = 0;
 
@@ -40,9 +52,23 @@ static inline struct configentry *configFindEntry(const char *key)
 	return NULL;
 }
 
+static s32 configGrow(void)
+{
+	const s32 newmax = maxSettings ? maxSettings * 2 : CONFIG_MAX_SETTINGS;
+	struct configentry *grown = realloc(settings, (size_t)newmax * sizeof(*grown));
+
+	if (!grown) {
+		return 0;
+	}
+
+	settings = grown;
+	maxSettings = newmax;
+	return 1;
+}
+
 static inline struct configentry *configAddEntry(const char *key)
 {
-	if (numSettings < CONFIG_MAX_SETTINGS) {
+	if (numSettings < maxSettings || configGrow()) {
 		const char *delim = strrchr(key, '.');
 		s32 seclen = delim ? (delim - key) : 0;
 
@@ -68,7 +94,7 @@ static inline struct configentry *configAddEntry(const char *key)
 		return cfg;
 	}
 	if (!configMaxWarningLogged) {
-		sysLogPrintf(LOG_WARNING, "Maximum number of configuration entries exceeded: %d", CONFIG_MAX_SETTINGS);
+		sysLogPrintf(LOG_WARNING, "config: out of memory growing the table past %d entries", maxSettings);
 		configMaxWarningLogged = 1;
 	}
 	return NULL;
@@ -353,6 +379,11 @@ s32 configSave(const char *fname)
 
 	char tmpSec[CONFIG_MAX_SECNAME + 1] = { 0 };
 	char curSec[CONFIG_MAX_SECNAME + 1] = { 0 };
+
+	if (numSettings == 0) {
+		return fsFileCommitAtomic(f, fname);
+	}
+
 	configGetSection(curSec, &settings[0]);
 	fprintf(f, "[%s]\n", curSec);
 

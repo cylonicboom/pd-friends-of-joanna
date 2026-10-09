@@ -16,6 +16,7 @@ extern "C" {
 
 #define CONFIG_MAX_SECNAME 128
 #define CONFIG_MAX_KEYNAME 256
+// initial capacity; the table doubles past it
 #define CONFIG_MAX_SETTINGS (256 * 8)
 
 typedef enum {
@@ -45,7 +46,7 @@ struct configentry {
 	};
 };
 
-extern struct configentry settings[CONFIG_MAX_SETTINGS];
+extern struct configentry *settings;
 
 void configInit(void);
 
