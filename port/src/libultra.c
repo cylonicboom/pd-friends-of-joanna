@@ -358,69 +358,9 @@ void osEepromFlush(void)
 
 /* Pfs */
 
-s32 osPfsIsPlug(OSMesgQueue *queue, u8 *pattern)
-{
-	if (pattern) {
-		*pattern = 0;
-		for (s32 i = 0; i < MAXCONTROLLERS; ++i) {
-			if (inputRumbleSupported(i)) {
-				*pattern |= 1 << i;
-			}
-		}
-	}
-	return 0;
-}
-
-s32 osPfsInitPak(OSMesgQueue *queue, OSPfs *pfs, s32 channel, s32 *arg3)
-{
-	// if rumble is supported, indicate that we have a rumble pak instead
-	return inputRumbleSupported(channel) ? PFS_ERR_DEVICE : PFS_ERR_NOPACK;
-}
-
-s32 osPfsChecker(OSPfs *pfs)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsFreeBlocks(OSPfs *pfs, s32 *remaining)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsNumFiles(OSPfs *pfs, s32 *max_files, s32 *files_used)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsAllocateFile(OSPfs *pfs, u16 company_code, u32 game_code, u8 *game_name, u8 *ext_name, int num_bytes, s32 *file_no)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsFindFile(OSPfs *pfs, u16 company_code, u32 game_code, u8 *game_name, u8 *ext_name, s32 *file_no)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsDeleteFile(OSPfs *pfs, u16 company_code, u32 game_code, u8 *game_name, u8 *ext_name)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsReSizeFile(OSPfs *pfs, u16 company_code, u32 game_code, u8 *game_name, u8 *ext_name, int length)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsFileState(OSPfs *pfs, s32 fileNo, OSPfsState *state)
-{
-	return PFS_ERR_NOPACK;
-}
-
-s32 osPfsReadWriteFile(OSPfs* pfs, s32 fileNo, u8 flag, int offset, int size, u8* data)
-{
-	return PFS_ERR_NOPACK;
-}
+// The real libultra pfs code (src/lib/ultra/io/pfs*.c, contpfs.c) is compiled
+// on PC now; port/src/mpk.c supplies its bottom (__osContRamRead/Write,
+// __osPfsGetStatus, osPfsIsPlug) over .mpk files.
 
 /* Gbpak */
 

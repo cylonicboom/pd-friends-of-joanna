@@ -61,8 +61,16 @@ typedef struct
 typedef union {
 	/* 0x0 */ struct
 	{
+#if !defined(PLATFORM_N64) && defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+		// fojo: port/src/mpk.c holds inode entries as host-order u16s on a
+		// little-endian host, so the byte view swaps with them - otherwise
+		// ipage and inode_t disagree about the same entry
+		/* 0x0 */ u8 page;
+		/* 0x1 */ u8 bank;
+#else
 		/* 0x0 */ u8 bank;
 		/* 0x1 */ u8 page;
+#endif
 	} inode_t;
 	/* 0x0 */ u16 ipage;
 } __OSInodeUnit;
