@@ -26,6 +26,7 @@
 #include "input.h"
 #include "savequeue.h"
 #include "optionsmenu.h"
+#include "seatprofile.h"
 // types.h defines bool as s32 for the C side; ImGui wants the real thing
 #undef bool
 #undef true
@@ -431,6 +432,10 @@ static void extDrawPlayerPicker(void)
 	} else {
 		ImGui::TextDisabled("  no device");
 	}
+	// whose save file the Game options and binds are being read from and
+	// written to (Mouse and Controller stay with the seat)
+	const char *slug = seatProfileSlug(g_ExtOptPlayer);
+	ImGui::TextDisabled("options saved under [%s]", slug[0] ? slug : "-");
 }
 
 void imguiExtOptionsDrawPanel(void)
