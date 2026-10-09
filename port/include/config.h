@@ -86,6 +86,10 @@ void configForgetKey(const char *key);
 // writes it and a later bind still reads it. For state that belongs to
 // something not loaded any more - a reality that was switched away from.
 void configUnbindKey(const char *key);
+// Move an unbound key's value under a new name, for a key that has been
+// renamed. The new key takes it only when the file did not already carry the
+// new key; the old key is forgotten either way. Returns 1 if a value moved.
+s32 configMigrateKey(const char *oldkey, const char *newkey);
 
 // player save stuff
 struct configentry *configFindPlayerEntry(s32 player, const char *key);

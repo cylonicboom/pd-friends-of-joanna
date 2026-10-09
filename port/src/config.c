@@ -234,6 +234,41 @@ void configForgetKey(const char *key)
 	}
 }
 
+s32 configMigrateKey(const char *oldkey, const char *newkey)
+{
+	struct configentry *old = configFindEntry(oldkey);
+	struct configentry *cur;
+	char *val;
+
+	if (!old || old->ptr || !old->pending) {
+		return 0;
+	}
+
+	// The new key came out of the file too: it was written by a build that
+	// already had it, so it is the newer value. Drop the old one.
+	cur = configFindEntry(newkey);
+	if (cur && cur->pending) {
+		configForgetKey(oldkey);
+		return 0;
+	}
+
+	val = configStrdup(old->pending);
+	configForgetKey(oldkey);
+
+	if (!val) {
+		return 0;
+	}
+
+	// may add an entry and move the table; old is not used past this point
+	cur = configFindOrAddEntry(newkey);
+	if (cur) {
+		configSet(cur, val);
+	}
+
+	free(val);
+	return cur != NULL;
+}
+
 void configUnbindKey(const char *key)
 {
 	struct configentry *cfg = configFindEntry(key);
@@ -379,20 +414,21 @@ s32 configSave(const char *fname)
 
 	char tmpSec[CONFIG_MAX_SECNAME + 1] = { 0 };
 	char curSec[CONFIG_MAX_SECNAME + 1] = { 0 };
+	s32 any = 0;
 
-	if (numSettings == 0) {
-		return fsFileCommitAtomic(f, fname);
-	}
-
-	configGetSection(curSec, &settings[0]);
-	fprintf(f, "[%s]\n", curSec);
-
+	// A header goes out with the first entry that writes anything, so a
+	// section whose keys were all forgotten or migrated away leaves no empty
+	// [header] behind.
 	for (s32 i = 0; i < numSettings; ++i) {
 		struct configentry *cfg = &settings[i];
+		if (!cfg->ptr && !cfg->pending) {
+			continue;
+		}
 		configGetSection(tmpSec, cfg);
-		if (strncmp(curSec, tmpSec, CONFIG_MAX_SECNAME) != 0) {
-			fprintf(f, "\n[%s]\n", tmpSec);
+		if (!any || strncmp(curSec, tmpSec, CONFIG_MAX_SECNAME) != 0) {
+			fprintf(f, any ? "\n[%s]\n" : "[%s]\n", tmpSec);
 			strncpy(curSec, tmpSec, CONFIG_MAX_SECNAME);
+			any = 1;
 		}
 		configSaveEntry(cfg, f);
 	}
