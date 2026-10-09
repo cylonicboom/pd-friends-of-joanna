@@ -2,6 +2,19 @@
 #include "controller.h"
 
 s32 corrupted_init(OSPfs *pfs, __OSInodeCache *cache);
+
+/*
+ * The decomp's ((__OSInodeUnit *)&pfs->inode_start_page + 1)->ipage reads the
+ * second halfword of the s32 - its low 16 bits on the big-endian N64, its
+ * high 16 bits (0) on a little-endian PC, where it turned "chain continues"
+ * into always-true and osPfsChecker into an infinite loop. Same value, said
+ * plainly.
+ */
+#ifdef PLATFORM_N64
+#define PFS_INODE_START_U16(pfs) (((__OSInodeUnit *)&((pfs)->inode_start_page) + 1)->ipage)
+#else
+#define PFS_INODE_START_U16(pfs) ((u16)(pfs)->inode_start_page)
+#endif
 s32 corrupted(OSPfs *pfs, __OSInodeUnit fpage, __OSInodeCache *cache);
 
 s32 osPfsChecker(OSPfs *pfs)
@@ -95,7 +108,7 @@ s32 osPfsChecker(OSPfs *pfs)
 
 		if (tmp_dir.company_code != 0
 				&& tmp_dir.game_code != 0
-				&& tmp_dir.start_page.ipage >= ((__OSInodeUnit *)&(pfs->inode_start_page) + 1)->ipage) {
+				&& tmp_dir.start_page.ipage >= PFS_INODE_START_U16(pfs)) {
 			file_next_node[j].ipage = tmp_dir.start_page.ipage;
 		} else {
 			file_next_node[j].ipage = 0;
@@ -124,7 +137,7 @@ s32 osPfsChecker(OSPfs *pfs)
 		}
 
 		for (j = 0; j < pfs->dir_size; j++) {
-			while (file_next_node[j].inode_t.bank == bank && file_next_node[j].ipage >= ((__OSInodeUnit *)&(pfs->inode_start_page) + 1)->ipage) {
+			while (file_next_node[j].inode_t.bank == bank && file_next_node[j].ipage >= PFS_INODE_START_U16(pfs)) {
 				u8 pp = file_next_node[j].inode_t.page;
 				file_next_node[j] = checked_inode.inode_page[pp] = tmp_inode.inode_page[pp];
 			}

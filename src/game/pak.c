@@ -3181,6 +3181,20 @@ bool pakProbe(s8 device)
 	if (pakHandleResult(ret, device, true, LINE_3829)) {
 		g_Paks[device].state = PAKSTATE_MEM_DISPATCH;
 
+#ifndef PLATFORM_N64
+		// fojo: on PC the slot can be an .mpk page on a pad that has a motor.
+		// Probe into a scratch OSPfs - osMotorProbe rewrites the status of
+		// the one it is given, and this slot's belongs to the memory pak.
+		if (device != SAVEDEVICE_GAMEPAK) {
+			OSPfs motor;
+
+			if (osMotorProbe(&g_PiMesgQueue, &motor, device) == 0) {
+				g_Rumbles[device].present = true;
+				g_Rumbles[device].rumblestate = RUMBLESTATE_1;
+			}
+		}
+#endif
+
 		if (device == SAVEDEVICE_GAMEPAK) {
 			pakExecuteDebugOperations();
 			pakExecuteDebugOperations();
@@ -5434,7 +5448,7 @@ void paksStop(bool disablepolling)
 
 		if (type);
 
-		if (type != PAKTYPE_MEMORY && type != PAKTYPE_GAMEBOY) {
+		if ((type != PAKTYPE_MEMORY && type != PAKTYPE_GAMEBOY) || g_Rumbles[i].present) {
 			joyStopRumble(i, disablepolling);
 		}
 	}

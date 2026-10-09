@@ -31,6 +31,7 @@
 #include "game/mplayer/setup.h"
 #include "ext_tex.h"
 #include "skinmatch.h"
+#include "mpk.h"
 #include "textrace.h"
 #include "game/luaai.h"
 
@@ -166,6 +167,7 @@ int main(int argc, const char **argv)
 	seatProfileMigrateLegacy();
 	videoInit();
 	inputInit();
+	mpkInit();
 	audioInit();
 	skinmatchInit();
 	if (extTexInit() > 0) {

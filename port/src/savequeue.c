@@ -6,6 +6,7 @@
 #include "config.h"
 #include "input.h"
 #include "savequeue.h"
+#include "mpk.h"
 #include "system.h"
 
 // Defined in port/src/libultra.c, which owns the EEPROM shadow and its path.
@@ -107,6 +108,7 @@ void saveQueueFlush(void)
 	if (eeprom || g_SaveQueueEepromDirty) {
 		g_SaveQueueEepromDirty = 0;
 		osEepromFlush();
+		mpkFlush(); // controller pak pages share the pak flag
 	}
 
 	if (config) {

@@ -349,6 +349,18 @@ set(SRC_LIB
   src/lib/ultra/io/vimodepallan1.c
   src/lib/ultra/io/vimodempallan1.c
   src/lib/ultra/io/vitbl.c
+  src/lib/ultra/io/contpfs.c
+  src/lib/ultra/io/pfsallocatefile.c
+  src/lib/ultra/io/pfschecker.c
+  src/lib/ultra/io/pfsdeletefile.c
+  src/lib/ultra/io/pfsfilestate.c
+  src/lib/ultra/io/pfsfindfile.c
+  src/lib/ultra/io/pfsfreeblocks.c
+  src/lib/ultra/io/pfsinitpak.c
+  src/lib/ultra/io/pfsnumfiles.c
+  src/lib/ultra/io/pfsreadwritefile.c
+  src/lib/ultra/io/pfsresizefile.c
+  src/lib/ultra/io/pfsselectbank.c
   src/lib/ailist.c
   src/lib/anim.c
   src/lib/args.c
