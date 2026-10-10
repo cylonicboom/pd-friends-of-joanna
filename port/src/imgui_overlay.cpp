@@ -7235,6 +7235,144 @@ static struct imguiOverlayWindowRt g_ImGuiOverlayWindowRt[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedOrder[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedCount = 0;
 
+// ---------------------------------------------------------------------------
+// UI scale
+//
+// One number scales the whole overlay: imgui's spacing and padding through
+// ScaleAllSizes, the font through style.FontScaleMain, and the window table's
+// default sizes where they are applied.
+//
+// imgui 1.92 rasterises glyphs on demand -- IMGUI_HAS_TEXTURES, and the GL3
+// backend sets ImGuiBackendFlags_RendererHasTextures
+// (third_party/imgui/backends/imgui_impl_opengl3.cpp:366) -- so FontScaleMain
+// *resizes* the font instead of stretching a fixed atlas, and no atlas rebuild
+// is needed. That is the mechanism; it is not a promise about legibility. The
+// overlay adds no font, so this is AddFontDefault: ProggyClean hinted for 13px
+// with oversampling off, rasterised here at round(13 * scale). 1.44 lands on
+// 19px, which is the regime where a pixel-grid face gets uneven stems. Judge it
+// on screen before trusting the number.
+//
+// Known not-yet-scaled: the panel interiors still carry 1.0 pixel literals --
+// WidthFixed table columns, BeginChild heights, SetNextItemWidth, and the
+// awesome bar's minimum width -- so content has ~30% fewer rows of room at
+// 1.44 than it was laid out for.
+//
+// ScaleAllSizes multiplies and ImTruncs as it goes, so applying it twice to the
+// same style compounds and loses a pixel each time. Every application
+// re-derives from a pristine copy taken once at init.
+// ---------------------------------------------------------------------------
+static const float kFojoUiScaleDefault = 1.44f;
+static const float kFojoUiScaleMin = 0.80f;
+static const float kFojoUiScaleMax = 3.00f;
+static const float kFojoUiScaleStep = 0.10f;
+
+static float g_ImGuiOverlayUiScale = kFojoUiScaleDefault;
+static float g_ImGuiOverlayUiScaleApplied = 0.0f;
+static ImGuiStyle g_ImGuiOverlayBaseStyle;
+static bool g_ImGuiOverlayHaveBaseStyle = false;
+
+static void imguiOverlayApplyUiScale(void)
+{
+	if (!g_ImGuiOverlayHaveBaseStyle) {
+		return;
+	}
+
+	ImGuiStyle scaled = g_ImGuiOverlayBaseStyle;
+	scaled.ScaleAllSizes(g_ImGuiOverlayUiScale);
+	scaled.FontScaleMain = g_ImGuiOverlayUiScale;
+	ImGui::GetStyle() = scaled;
+	g_ImGuiOverlayUiScaleApplied = g_ImGuiOverlayUiScale;
+}
+
+/**
+ * Carry every remembered window across a scale change so a layout keeps its
+ * shape instead of its pixels.
+ *
+ * Dropping `live` is the whole of the work: a window that was not submitted
+ * last frame has its geometry reapplied exactly once with ImGuiCond_Always, so
+ * the existing reappear path does the applying. It is also what beats imgui's
+ * own ini, whose duplicate [Window][Fojo X] blocks still hold the old pixels.
+ */
+static void imguiOverlayRescaleWindowGeometry(float ratio)
+{
+	const ImGuiViewport *viewport = ImGui::GetMainViewport();
+	const float minX = viewport->WorkPos.x;
+	const float minY = viewport->WorkPos.y;
+	const float maxX = viewport->WorkPos.x + viewport->WorkSize.x - 64.0f;
+	const float maxY = viewport->WorkPos.y + viewport->WorkSize.y - 32.0f;
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+
+		if (!rt.haveGeometry) {
+			continue;
+		}
+
+		rt.pos.x = minX + (rt.pos.x - minX) * ratio;
+		rt.pos.y = minY + (rt.pos.y - minY) * ratio;
+		rt.size.x *= ratio;
+		rt.size.y *= ratio;
+
+		// scaling up near the right or bottom edge walks a window off it
+		if (rt.pos.x > maxX) rt.pos.x = maxX;
+		if (rt.pos.y > maxY) rt.pos.y = maxY;
+		if (rt.pos.x < minX) rt.pos.x = minX;
+		if (rt.pos.y < minY) rt.pos.y = minY;
+
+		rt.live = false;
+	}
+}
+
+static float imguiOverlayUiScaleClamp(float v)
+{
+	if (v < kFojoUiScaleMin) v = kFojoUiScaleMin;
+	if (v > kFojoUiScaleMax) v = kFojoUiScaleMax;
+	// two decimals, so stepping off 1.44 does not accumulate float dust
+	return floorf(v * 100.0f + 0.5f) / 100.0f;
+}
+
+static void imguiOverlaySetUiScale(float next)
+{
+	next = imguiOverlayUiScaleClamp(next);
+
+	if (next == g_ImGuiOverlayUiScale) {
+		return;
+	}
+
+	const float ratio = next / g_ImGuiOverlayUiScale;
+	g_ImGuiOverlayUiScale = next;
+	imguiOverlayApplyUiScale();
+	imguiOverlayRescaleWindowGeometry(ratio);
+	// Zoom is rare and deliberate, so it does not wait on the 5s ini rate.
+	// Note this writes imgui's own [Window][Fojo X] blocks from window->Pos and
+	// SizeFull, which this frame still hold the PRE-zoom pixels -- the windows
+	// are re-Begin-ed later in the render loop. So the two halves of the file
+	// disagree on disk until the next save. Harmless: the Cond_Always reappear
+	// path above applies fojo's record on the first Begin after a restart, and
+	// it is fojo's that is correct.
+	ImGui::SaveIniSettingsToDisk(g_ImGuiOverlayIniPath);
+}
+
+/**
+ * Step onto the 0.1 grid rather than by 0.1, so the first Ctrl+- off the 1.44
+ * default lands on 1.4 and not 1.34.
+ *
+ * Integer hundredths, deliberately. The float form -- floorf(scale/step + 1)
+ * -- stranded the scale at 1.30, 2.10 and 2.60, where the quotient lands a
+ * hair under the integer (1.30/0.10 is 12.9999990f) so stepping up returned
+ * the value it started from and Ctrl+= became a dead key until Ctrl+0.
+ */
+static void imguiOverlayStepUiScale(s32 dir)
+{
+	const s32 hundredths = (s32)floorf(g_ImGuiOverlayUiScale * 100.0f + 0.5f);
+	const s32 grid = (s32)floorf(kFojoUiScaleStep * 100.0f + 0.5f);
+	// strictly past the current value, so an off-grid start lands on the grid
+	const s32 next = (dir > 0)
+			? (hundredths / grid + 1) * grid
+			: ((hundredths + grid - 1) / grid - 1) * grid;
+	imguiOverlaySetUiScale((float)next / 100.0f);
+}
+
 static bool imguiOverlayWindowOnThisFloor(s32 index)
 {
 	const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
@@ -7355,7 +7493,9 @@ static bool imguiOverlayBeginWindow(s32 index)
 {
 	const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[index];
 	struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
-	const ImVec2 defaultSize(def->defaultW, def->defaultH);
+	// the table's sizes are written at 1.0; a scaled overlay wants scaled boxes
+	const ImVec2 defaultSize(def->defaultW * g_ImGuiOverlayUiScale,
+			def->defaultH * g_ImGuiOverlayUiScale);
 
 	imguiOverlaySetNextWindowDefaults(defaultSize, def->xAnchor, def->yAnchor);
 
@@ -7384,7 +7524,7 @@ static bool imguiOverlayBeginWindow(s32 index)
 	if (!wasMinimised) {
 		rt.pos = w->Pos;
 		rt.size = w->SizeFull;
-		if (rt.size.y < 40.0f) {
+		if (rt.size.y < 40.0f * g_ImGuiOverlayUiScale) {
 			rt.size.y = defaultSize.y;
 		}
 		rt.haveGeometry = true;
@@ -7529,6 +7669,17 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 		if (sscanf(line, "LoreScale=%f", &fvalue) == 1 && fvalue > 0.05f && fvalue < 20.0f) {
 			g_ImGuiPropLoreScale = fvalue;
 		}
+
+		// Set the value only. The geometry on the other lines was written at
+		// this same scale, so it must NOT be rescaled; the render loop notices
+		// applied != current and applies the style alone.
+		// Range-checked before assignment, as LoreScale is above: NaN compares
+		// false against both clamp bounds, so a hand-edited "UiScale=nan" would
+		// otherwise reach the style and trip imgui's own WindowMinSize assert.
+		if (sscanf(line, "UiScale=%f", &fvalue) == 1
+				&& fvalue >= kFojoUiScaleMin && fvalue <= kFojoUiScaleMax) {
+			g_ImGuiOverlayUiScale = imguiOverlayUiScaleClamp(fvalue);
+		}
 	}
 
 	{
@@ -7562,6 +7713,7 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	buffer->appendf("ShowTilesAllRooms=%d\n", g_TilesRenderAllRooms);
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
 	buffer->appendf("LoreScale=%.5f\n", g_ImGuiPropLoreScale);
+	buffer->appendf("UiScale=%.5f\n", g_ImGuiOverlayUiScale);
 	buffer->appendf("ShowProps=%d\n", g_ImGuiOverlayShowPropMarkers);
 	buffer->appendf("ShowPads=%d\n", g_ImGuiOverlayShowPadMarkers);
 	buffer->appendf("ShowPadsAllRooms=%d\n\n", g_ImGuiOverlayPadMarkersAllRooms);
@@ -8950,6 +9102,12 @@ void imguiOverlayInit(void *window)
 	ImGui::AddSettingsHandler(&settingsHandler);
 
 	ImGui::StyleColorsDark();
+
+	// pristine, colours included: every scale application re-derives from this
+	g_ImGuiOverlayBaseStyle = ImGui::GetStyle();
+	g_ImGuiOverlayHaveBaseStyle = true;
+	imguiOverlayApplyUiScale();
+
 	ImGui_ImplSDL2_InitForOpenGL((SDL_Window *)window, SDL_GL_GetCurrentContext());
 	ImGui_ImplOpenGL3_Init("#version 150");
 	g_ImGuiOverlayInitialized = true;
@@ -9075,6 +9233,37 @@ void imguiOverlayRender(void)
 		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_P, ImGuiInputFlags_RouteGlobal)
 				|| ImGui::Shortcut(ImGuiMod_Super | ImGuiKey_P, ImGuiInputFlags_RouteGlobal)) {
 			imguiOverlayOpenAwesomeBar();
+		}
+
+		// A scale that arrived from the ini, or from anywhere that set the
+		// global directly, reaches the style here. Geometry is already in that
+		// scale, so this path deliberately does not rescale it.
+		if (g_ImGuiOverlayUiScaleApplied != g_ImGuiOverlayUiScale) {
+			imguiOverlayApplyUiScale();
+		}
+
+		// Ctrl +/- zooms, Ctrl+0 back to the default. Ctrl is spoken for three
+		// ways already -- 1..4 for floors, P for the bar, and click for the prop
+		// picker -- and none of them is -, = or 0. Shift is accepted on = so
+		// Ctrl+Shift+= (ie. Ctrl++ on a US layout) zooms in rather than doing
+		// nothing.
+		// Repeat, so holding the chord keeps stepping instead of one tap per 0.1.
+		const ImGuiInputFlags zoomRoute = ImGuiInputFlags_RouteGlobal | ImGuiInputFlags_Repeat;
+
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Equal, zoomRoute)
+				|| ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Equal, zoomRoute)
+				|| ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadAdd, zoomRoute)) {
+			imguiOverlayStepUiScale(1);
+		}
+
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Minus, zoomRoute)
+				|| ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_KeypadSubtract, zoomRoute)) {
+			imguiOverlayStepUiScale(-1);
+		}
+
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_0, ImGuiInputFlags_RouteGlobal)
+				|| ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Keypad0, ImGuiInputFlags_RouteGlobal)) {
+			imguiOverlaySetUiScale(kFojoUiScaleDefault);
 		}
 
 		imguiOverlayDrawWindowMenu();
