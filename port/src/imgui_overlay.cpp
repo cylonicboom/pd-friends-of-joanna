@@ -7146,7 +7146,15 @@ struct imguiOverlayWindowDef {
 	f32 xAnchor;
 	f32 yAnchor;
 	bool (*gate)(void);     // NULL when the window is always available
+	bool dev;               // kFojoDev: hidden unless developer mode is on
 };
+
+// Which side of developer mode a row is on. A developer window is not drawn,
+// not listed and not searchable while developer mode is off; its open flag and
+// its geometry record are left alone, so turning developer mode back on puts
+// every one of them back exactly as it was.
+static const bool kFojoDev = true;
+static const bool kFojoUser = false;
 
 // The skin match panel takes its chr as an argument and re-latches it from the
 // focus chr first, so it gets a wrapper rather than a special case in the loop.
@@ -7164,26 +7172,26 @@ static void imguiOverlayDrawSkinMatchPanel(void)
 }
 
 static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
-	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL },
-	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL },
-	{ "Entities",    "Fojo Entities",    &g_ImGuiOverlayShowEntities,    imguiOverlayDrawEntitiesPanel,    520.0f, 620.0f, 1.0f, 0.00f, NULL },
-	{ "Assets",      "Fojo Assets",      &g_ImGuiOverlayShowAssets,      imguiOverlayDrawAssetsPanel,      620.0f, 560.0f, 0.5f, 0.20f, NULL },
-	{ "Textures",    "Fojo Textures",    &g_ImGuiOverlayShowTextures,    imguiOverlayDrawTexturesPanel,    520.0f, 620.0f, 1.0f, 0.25f, NULL },
-	{ "SkinMatch",   "Fojo Skin Match",  &g_ImGuiOverlayShowSkinMatch,   imguiOverlayDrawSkinMatchPanel,   760.0f, 640.0f, 1.0f, 0.50f, NULL },
-	{ "Memory",      "Fojo Memory",      &g_ImGuiOverlayShowMemory,      imguiOverlayDrawMemoryPanel,      360.0f, 300.0f, 0.0f, 1.00f, NULL },
-	{ "Profiler",    "Fojo Profiler",    &g_ImGuiOverlayShowProfiler,    imguiOverlayDrawProfilerPanel,    620.0f, 360.0f, 0.5f, 1.00f, NULL },
-	{ "LookingAt",   "Fojo Looking At",  &g_ImGuiOverlayShowLookingAt,   imguiOverlayDrawLookingAtPanel,   430.0f, 340.0f, 1.0f, 0.00f, imguiOverlayCanAimInspect },
-	{ "Audio",       "Fojo Audio",       &g_ImGuiOverlayShowAudio,       imguiOverlayDrawAudioPanel,       440.0f, 560.0f, 0.5f, 0.50f, NULL },
-	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL },
-	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL },
-	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL },
-	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL },
-	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
-	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
-	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
-	{ "ExtOptions",  "Fojo Extended Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL },
-	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL },
-	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL },
+	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL, kFojoDev  },
+	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL, kFojoDev  },
+	{ "Entities",    "Fojo Entities",    &g_ImGuiOverlayShowEntities,    imguiOverlayDrawEntitiesPanel,    520.0f, 620.0f, 1.0f, 0.00f, NULL, kFojoDev  },
+	{ "Assets",      "Fojo Assets",      &g_ImGuiOverlayShowAssets,      imguiOverlayDrawAssetsPanel,      620.0f, 560.0f, 0.5f, 0.20f, NULL, kFojoDev  },
+	{ "Textures",    "Fojo Textures",    &g_ImGuiOverlayShowTextures,    imguiOverlayDrawTexturesPanel,    520.0f, 620.0f, 1.0f, 0.25f, NULL, kFojoDev  },
+	{ "SkinMatch",   "Fojo Skin Match",  &g_ImGuiOverlayShowSkinMatch,   imguiOverlayDrawSkinMatchPanel,   760.0f, 640.0f, 1.0f, 0.50f, NULL, kFojoDev  },
+	{ "Memory",      "Fojo Memory",      &g_ImGuiOverlayShowMemory,      imguiOverlayDrawMemoryPanel,      360.0f, 300.0f, 0.0f, 1.00f, NULL, kFojoDev  },
+	{ "Profiler",    "Fojo Profiler",    &g_ImGuiOverlayShowProfiler,    imguiOverlayDrawProfilerPanel,    620.0f, 360.0f, 0.5f, 1.00f, NULL, kFojoDev  },
+	{ "LookingAt",   "Fojo Looking At",  &g_ImGuiOverlayShowLookingAt,   imguiOverlayDrawLookingAtPanel,   430.0f, 340.0f, 1.0f, 0.00f, imguiOverlayCanAimInspect, kFojoDev  },
+	{ "Audio",       "Fojo Audio",       &g_ImGuiOverlayShowAudio,       imguiOverlayDrawAudioPanel,       440.0f, 560.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL, kFojoDev  },
+	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL, kFojoDev  },
+	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL, kFojoUser },
+	{ "ExtOptions",  "Fojo Extended Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL, kFojoUser },
+	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL, kFojoUser },
+	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL, kFojoDev  },
 };
 
 // The change mask below is one bit per row, so the table has a ceiling of 32.
@@ -7234,6 +7242,26 @@ static bool g_ImGuiOverlayCtxOpen = false;
 static struct imguiOverlayWindowRt g_ImGuiOverlayWindowRt[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedOrder[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedCount = 0;
+
+// Developer mode. Off by default, so a player opening fojOS sees the user apps
+// only. The menu toggle is persisted in the ini; --dev turns it on for this
+// session without touching what the ini says.
+static bool g_ImGuiOverlayDevMode = false;
+static bool g_ImGuiOverlayDevModeCli = false;
+
+// Set once the first-open defaults (every app open, parked in the pile) have
+// been applied to this ini. Persisted, so they happen exactly once.
+static bool g_ImGuiOverlayWindowDefaultsDone = false;
+
+static bool imguiOverlayDevModeOn(void)
+{
+	return g_ImGuiOverlayDevMode || g_ImGuiOverlayDevModeCli;
+}
+
+static bool imguiOverlayWindowAvailable(s32 index)
+{
+	return !g_ImGuiOverlayWindowDefs[index].dev || imguiOverlayDevModeOn();
+}
 
 // ---------------------------------------------------------------------------
 // UI scale
@@ -7377,6 +7405,10 @@ static bool imguiOverlayWindowOnThisFloor(s32 index)
 {
 	const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
 
+	if (!imguiOverlayWindowAvailable(index)) {
+		return false;
+	}
+
 	return rt.sticky || rt.ws == g_ImGuiOverlayWorkspace;
 }
 
@@ -7411,13 +7443,100 @@ static float imguiOverlayCollapsedTitleWidth(const char *name)
 	return ImGui::CalcTextSize(name).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight() * 2.0f + style.ItemInnerSpacing.x * 2.0f;
 }
 
+/**
+ * One column of the minimised pile is as wide as the widest title that could
+ * be in it. With developer mode on the pile can hold twenty windows: about
+ * 630px at the 1.44 default, which fits 720p, but about 840px at 2.0, which
+ * does not -- so the pile wraps into columns. (Arithmetic from the font and
+ * frame padding, not measured on screen.)
+ */
+static float imguiOverlayMinimisedColumnWidth(void)
+{
+	float widest = 0.0f;
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		if (imguiOverlayWindowAvailable(i)) {
+			const float w = imguiOverlayCollapsedTitleWidth(g_ImGuiOverlayWindowDefs[i].title);
+			widest = w > widest ? w : widest;
+		}
+	}
+
+	return widest;
+}
+
 static ImVec2 imguiOverlayMinimisedSlotPos(s32 slot)
 {
 	const ImGuiViewport *viewport = ImGui::GetMainViewport();
 	const float titleH = ImGui::GetFrameHeight();
 	const float gap = 4.0f;
-	return ImVec2(viewport->WorkPos.x + 8.0f,
-		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (slot + 1) * (titleH + gap) + gap);
+	s32 perColumn = (s32)((viewport->WorkSize.y - 16.0f + gap) / (titleH + gap));
+
+	if (perColumn < 1) {
+		perColumn = 1;
+	}
+
+	const s32 column = slot / perColumn;
+	const s32 row = slot % perColumn;
+
+	return ImVec2(viewport->WorkPos.x + 8.0f + column * (imguiOverlayMinimisedColumnWidth() + gap),
+		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (row + 1) * (titleH + gap) + gap);
+}
+
+/**
+ * Where a window goes the first time it is opened, or when its position is
+ * reset: its table size at the current scale, shrunk to fit the screen, placed
+ * by its anchors inside the area to the right of the minimised pile so it never
+ * lands on top of the pile. Rows sharing an anchor would sit exactly on top of
+ * one another, so each later one steps in from that corner by a title bar.
+ */
+static void imguiOverlayFirstOpenGeometry(s32 index, ImVec2 *pos, ImVec2 *size)
+{
+	const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[index];
+	const ImGuiViewport *viewport = ImGui::GetMainViewport();
+	const float margin = 8.0f * g_ImGuiOverlayUiScale;
+	const float step = ImGui::GetFrameHeight();
+	const float pileW = imguiOverlayMinimisedColumnWidth() + margin * 2.0f;
+	const float minW = 200.0f * g_ImGuiOverlayUiScale;
+	const float minH = 150.0f * g_ImGuiOverlayUiScale;
+	float availW = viewport->WorkSize.x - pileW - margin;
+	float availH = viewport->WorkSize.y - margin * 2.0f;
+	float left = viewport->WorkPos.x + pileW;
+	s32 cascade = 0;
+
+	// a screen too narrow for the pile and a window both gives up the pile
+	if (availW < minW) {
+		availW = viewport->WorkSize.x - margin * 2.0f;
+		left = viewport->WorkPos.x + margin;
+	}
+
+	if (availH < minH) {
+		availH = minH;
+	}
+
+	size->x = def->defaultW * g_ImGuiOverlayUiScale;
+	size->y = def->defaultH * g_ImGuiOverlayUiScale;
+	size->x = size->x > availW ? availW : size->x;
+	size->y = size->y > availH ? availH : size->y;
+
+	for (s32 j = 0; j < index; ++j) {
+		if (g_ImGuiOverlayWindowDefs[j].xAnchor == def->xAnchor
+				&& g_ImGuiOverlayWindowDefs[j].yAnchor == def->yAnchor) {
+			cascade++;
+		}
+	}
+
+	pos->x = left + (availW - size->x) * def->xAnchor
+		+ cascade * step * (def->xAnchor > 0.5f ? -1.0f : 1.0f);
+	pos->y = viewport->WorkPos.y + margin + (availH - size->y) * def->yAnchor
+		+ cascade * step * (def->yAnchor > 0.5f ? -1.0f : 1.0f);
+
+	// whatever the cascade did, the whole window stays on screen
+	const float maxX = viewport->WorkPos.x + viewport->WorkSize.x - size->x;
+	const float maxY = viewport->WorkPos.y + viewport->WorkSize.y - size->y;
+	pos->x = pos->x > maxX ? maxX : pos->x;
+	pos->y = pos->y > maxY ? maxY : pos->y;
+	pos->x = pos->x < viewport->WorkPos.x ? viewport->WorkPos.x : pos->x;
+	pos->y = pos->y < viewport->WorkPos.y ? viewport->WorkPos.y : pos->y;
 }
 
 static s32 imguiOverlayMinimisedSlot(s32 index)
@@ -7685,6 +7804,8 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 	{
 		int flag;
 
+		if (sscanf(line, "DevMode=%d", &flag) == 1) g_ImGuiOverlayDevMode = flag != 0;
+		if (sscanf(line, "WindowDefaults=%d", &flag) == 1) g_ImGuiOverlayWindowDefaultsDone = flag != 0;
 		if (sscanf(line, "ShowProps=%d", &flag) == 1) g_ImGuiOverlayShowPropMarkers = flag != 0;
 		if (sscanf(line, "ShowPads=%d", &flag) == 1) g_ImGuiOverlayShowPadMarkers = flag != 0;
 		if (sscanf(line, "ShowPadsAllRooms=%d", &flag) == 1) g_ImGuiOverlayPadMarkersAllRooms = flag != 0;
@@ -7714,6 +7835,8 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
 	buffer->appendf("LoreScale=%.5f\n", g_ImGuiPropLoreScale);
 	buffer->appendf("UiScale=%.5f\n", g_ImGuiOverlayUiScale);
+	buffer->appendf("DevMode=%d\n", g_ImGuiOverlayDevMode);
+	buffer->appendf("WindowDefaults=%d\n", g_ImGuiOverlayWindowDefaultsDone);
 	buffer->appendf("ShowProps=%d\n", g_ImGuiOverlayShowPropMarkers);
 	buffer->appendf("ShowPads=%d\n", g_ImGuiOverlayShowPadMarkers);
 	buffer->appendf("ShowPadsAllRooms=%d\n\n", g_ImGuiOverlayPadMarkersAllRooms);
@@ -7815,7 +7938,12 @@ static void imguiOverlayDrawWindowContextMenu(void)
 	}
 
 	if (ImGui::MenuItem("Reset position")) {
-		rt.haveGeometry = false;
+		// haveGeometry = false used to fall through to FirstUseEver, which
+		// ImGui ignores for a window it has already seen, so reset did nothing
+		// visible. Put it on its first-open spot instead.
+		imguiOverlayFirstOpenGeometry(index, &rt.pos, &rt.size);
+		rt.haveGeometry = true;
+		rt.collapsed = false;
 		rt.minimised = false;
 		imguiOverlayMinimisedErase(index);
 		rt.live = false;
@@ -8540,7 +8668,7 @@ static void imguiOverlayBarSearch(void)
 			const char *label = imguiOverlayWindowLabel(def);
 			char detail[32];
 
-			if (def->gate && !def->gate()) {
+			if ((def->gate && !def->gate()) || !imguiOverlayWindowAvailable(i)) {
 				continue;
 			}
 
@@ -9049,11 +9177,13 @@ static void imguiOverlayDrawWindowMenu(void)
 		}
 	}
 
-	ImGui::SeparatorText("Markers");
+	if (imguiOverlayDevModeOn()) {
+		ImGui::SeparatorText("Markers");
 
-	if (ImGui::MenuItem("Show props", NULL, &g_ImGuiOverlayShowPropMarkers)) imguiOverlaySaveWindowState();
-	if (ImGui::MenuItem("Show pads", NULL, &g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
-	if (ImGui::MenuItem("  every room", NULL, &g_ImGuiOverlayPadMarkersAllRooms, g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+		if (ImGui::MenuItem("Show props", NULL, &g_ImGuiOverlayShowPropMarkers)) imguiOverlaySaveWindowState();
+		if (ImGui::MenuItem("Show pads", NULL, &g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+		if (ImGui::MenuItem("  every room", NULL, &g_ImGuiOverlayPadMarkersAllRooms, g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+	}
 
 	ImGui::SeparatorText("Fojo Windows");
 
@@ -9062,6 +9192,10 @@ static void imguiOverlayDrawWindowMenu(void)
 		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
 		const bool wasOpen = *def->open;
 		char label[64];
+
+		if (!imguiOverlayWindowAvailable(i)) {
+			continue;
+		}
 
 		// say where it is, so a window that is open but on another floor does
 		// not read as broken
@@ -9076,6 +9210,15 @@ static void imguiOverlayDrawWindowMenu(void)
 		if (!wasOpen && *def->open) {
 			imguiOverlayBringToCurrentWorkspace(i);
 		}
+	}
+
+	ImGui::Separator();
+
+	// --dev wins for the session; the menu shows it on and cannot turn it off
+	if (g_ImGuiOverlayDevModeCli) {
+		ImGui::MenuItem("Developer mode (--dev)", NULL, true, false);
+	} else if (ImGui::MenuItem("Developer mode", NULL, &g_ImGuiOverlayDevMode)) {
+		imguiOverlaySaveWindowState();
 	}
 
 	ImGui::EndPopup();
@@ -9100,6 +9243,7 @@ void imguiOverlayInit(void *window)
 	settingsHandler.ReadLineFn = imguiOverlaySettingsReadLine;
 	settingsHandler.WriteAllFn = imguiOverlaySettingsWriteAll;
 	ImGui::AddSettingsHandler(&settingsHandler);
+	g_ImGuiOverlayDevModeCli = sysArgCheck("--dev") != 0;
 
 	ImGui::StyleColorsDark();
 
@@ -9195,11 +9339,57 @@ void imguiOverlayStartFrame(void)
 	ImGui::NewFrame();
 }
 
+/**
+ * Every app starts open and parked in the minimised pile, so the first look at
+ * fojOS is a list of what there is rather than an empty screen or twenty
+ * windows on top of each other. Each one gets a first-open placement to come
+ * back to when it is un-minimised.
+ *
+ * Runs once per ini: WindowDefaults=1 is written after it. On an ini from
+ * before this existed it opens, parked, only the windows that were closed;
+ * windows already open are left exactly where they are.
+ *
+ * Called from the render, not from init, because imgui reads the ini lazily
+ * in the first NewFrame -- before that the open flags are still the defaults.
+ */
+static void imguiOverlayApplyFirstOpenDefaults(void)
+{
+	if (g_ImGuiOverlayWindowDefaultsDone) {
+		return;
+	}
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+		struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+
+		if (*def->open) {
+			continue;
+		}
+
+		*def->open = true;
+
+		if (!rt.haveGeometry) {
+			imguiOverlayFirstOpenGeometry(i, &rt.pos, &rt.size);
+			rt.haveGeometry = true;
+		}
+
+		rt.collapsed = true;
+		rt.minimised = true;
+		rt.live = false;
+		imguiOverlayMinimisedPush(i);
+	}
+
+	g_ImGuiOverlayWindowDefaultsDone = true;
+	ImGui::MarkIniSettingsDirty();
+}
+
 void imguiOverlayRender(void)
 {
 	if (!g_ImGuiOverlayInitialized) {
 		return;
 	}
+
+	imguiOverlayApplyFirstOpenDefaults();
 
 	if (g_ImGuiOverlayVisible) {
 		// The game re-locks the mouse behind the overlay: inputAutoLockMouse(true)
