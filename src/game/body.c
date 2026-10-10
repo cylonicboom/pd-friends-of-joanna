@@ -626,6 +626,24 @@ struct model *body0f02ce8c(s32 bodynum, s32 headnum, struct modeldef *bodymodeld
 		modelSetScale(model, scale);
 		modelSetAnimScale(model, animscale);
 
+		if (headmodeldef && !g_HeadsAndBodies[bodynum].unk00_01 && node == NULL) {
+			// A body whose skeleton is not g_SkelChr, or has no head spot,
+			// cannot take a head: node is still NULL here and
+			// modelmgrAttachHead would dereference it. A modconfig that
+			// declares such a body (a full-body model like Skedar or
+			// Dr Caroll) without `hasownhead 1` lands here from the
+			// character previewer. Render the body bare and say why, once.
+#ifndef PLATFORM_N64
+			static s32 s_lastWarnedBody = -1;
+			if (s_lastWarnedBody != bodynum) {
+				s_lastWarnedBody = bodynum;
+				sysLogPrintf(LOG_WARNING, "body %d has no head spot (skel %p, headspot %s) but hasownhead is 0; head %d not attached - declare `hasownhead 1` on it",
+						bodynum, (void *)bodymodeldef->skel, bodymodeldef->skel == &g_SkelChr ? "missing" : "n/a", headnum);
+			}
+#endif
+			headmodeldef = NULL;
+		}
+
 		if (headmodeldef && !g_HeadsAndBodies[bodynum].unk00_01) {
 			bodymodeldef->rwdatalen -= headmodeldef->rwdatalen;
 
