@@ -343,6 +343,7 @@ struct modeldefGdlStats {
 	u32 inRange;      // slots whose value is < NUM_TEXTURES (candidate sources)
 	u32 mapped;       // candidates that produced a different port-range id
 	u32 gateAccepted; // mapped ids whose owner matches modIdx (rewrite happened)
+	u32 wideBinds;    // single-texture binds carrying a 16-bit id in w1 (all-in-one form), folded into ours
 };
 
 // Try to remap a single texturenum field. Returns the value to write
@@ -428,6 +429,30 @@ static u32 modeldefRemapGdlCmd(Gfx *cmd, s32 modIdx, struct modeldefGdlStats *st
 	uintptr_t w0 = cmd->words.w0;
 	uintptr_t w1 = cmd->words.w1;
 	bool didRemap;
+
+	// Two encodings of a texture id past 0x0fff exist in a single-texture
+	// bind. Ours keeps bits 12-14 in w0 (gbiex.h G_NOOP_TEXSLOT); Jonaeru's
+	// all-in-one engine, and so every model its packs ship, keeps bits
+	// 12-15 in w1 (his tex.c reads `w1 & 0xffff` unless subcmd is 1). In
+	// vanilla those w1 bits are unused for subcmd 0/2 and our writer never
+	// sets them, so a bind with w1[12..15] set and w0's slot-0 high bits
+	// clear can only be the all-in-one form. Fold it into ours here, before
+	// the texmap lookup, so an id like 0x1087 is looked up as 0x1087 rather
+	// than as 0x087 - which is vanilla texture 0x87 and the wrong picture.
+	// A two-texture bind (subcmd 1) is 12 bits per slot in both engines.
+	if (cmd->unkc0.subcmd != 1) {
+		u32 w1hi = ((u32)w1 >> 12) & 0xfu;
+		u32 w0hi = ((u32)w0 >> G_NOOP_TEXSLOT_W0_SHIFT(0)) & 0x7u;
+		if (w1hi != 0 && w0hi == 0) {
+			u32 id = (u32)w1 & 0xffffu;
+			if (id <= G_NOOP_TEXSLOT_MAX) {
+				w1 &= ~(uintptr_t)0xf000u;
+				w0 = G_NOOP_SET_TEXSLOT_W0(w0, 0, id);
+				w1 = G_NOOP_SET_TEXSLOT_W1(w1, 0, id);
+				if (stats) ++stats->wideBinds;
+			}
+		}
+	}
 
 	u32 t0 = G_NOOP_TEXSLOT(w0, w1, 0);
 	u32 n0 = modeldefRemapOneTexnumSlot(t0, modIdx, &didRemap, stats);
@@ -525,9 +550,9 @@ static void modeldefRemapGdlTexnumsForMod(struct modeldef *modeldef, s32 modIdx,
 	static u32 s_logCount = 0;
 	if (s_logCount < 128) {
 		sysLogPrintf(LOG_NOTE,
-			"modeldefRemapGdlTexnums: filenum=0x%08x modIdx=%d noops=%u inRange=%u mapped=%u gateAccepted=%u rewritten=%u",
+			"modeldefRemapGdlTexnums: filenum=0x%08x modIdx=%d noops=%u inRange=%u mapped=%u gateAccepted=%u rewritten=%u wide16=%u",
 			filenum, modIdx,
-			stats.noops, stats.inRange, stats.mapped, stats.gateAccepted, totalRemapped);
+			stats.noops, stats.inRange, stats.mapped, stats.gateAccepted, totalRemapped, stats.wideBinds);
 		++s_logCount;
 	}
 }
