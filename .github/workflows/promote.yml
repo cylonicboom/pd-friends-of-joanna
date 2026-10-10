@@ -4,16 +4,21 @@
 # playable folder (binary + the mod's data/). This takes one such run and
 # makes a GitHub release out of it: the artifacts are downloaded, bundled by
 # tools/ci/bundle.sh exactly as the rolling ci-dev-build is, and uploaded to
-# the GitHub release whose tag is in that commit's tools/release.config.json.
+# the GitHub release whose tag you name when you press the button.
 #
 # It never creates a release. You make the release (tag, title, notes,
 # pre-release or not - all yours, in the GitHub UI, a draft is fine), then
 # press this to put the files on it. No local packaging step, no scripts to
 # run offline.
 #
-# Releases > Draft a new release > tag = the config's tag. Then
+# Releases > Draft a new release > pick a tag. Then
 # Actions > Promote a run > Run workflow > paste the run id (the number in
-# the run's URL).
+# the run's URL) and that tag.
+#
+# The run's commit carries its own version in tools/release.config.json; that
+# is what the binaries report. If the tag you give does not match it the run
+# still promotes, but says so, because the files will be named after the tag
+# while the game inside says the config's version.
 name: Promote a run
 
 on:
@@ -21,6 +26,9 @@ on:
     inputs:
       run_id:
         description: "the C/C++ CI run to promote (the number in its URL)"
+        required: true
+      release:
+        description: "the release tag to put the files on (must already exist)"
         required: true
 
 jobs:
@@ -34,16 +42,19 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find the run's commit and tag
+      - name: Find the run's commit
         id: run
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          tag="${{ inputs.release }}"
           sha=$(gh run view "${{ inputs.run_id }}" --json headSha -q .headSha)
           status=$(gh run view "${{ inputs.run_id }}" --json conclusion -q .conclusion)
           [ "$status" = "success" ] || { echo "run ${{ inputs.run_id }} concluded '$status', not success"; exit 1; }
-          tag=$(git show "$sha:tools/release.config.json" | jq -r .tag)
-          [ -n "$tag" ] && [ "$tag" != "null" ] || { echo "no tag in tools/release.config.json at $sha"; exit 1; }
+          built=$(git show "$sha:tools/release.config.json" 2>/dev/null | jq -r .tag)
+          if [ -n "$built" ] && [ "$built" != "null" ] && [ "$built" != "$tag" ]; then
+            echo "::warning::release tag is $tag but the run's tools/release.config.json says $built - the binaries will report $built"
+          fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "promoting run ${{ inputs.run_id }} ($sha) as $tag"
