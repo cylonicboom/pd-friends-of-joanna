@@ -110,31 +110,29 @@ static struct { char *name; u32 filenum; } *g_ModHandFileNames = NULL;
 static s32 g_NumModHandFileNames = 0;
 
 /*
- * Persisted mp-slot reservations.
+ * Mp-slot tables: name <-> slot, rebuilt from the modconfigs every boot.
  *
  * A mod head that declares no slotnum is appended to g_MpHeads, and the index
  * it lands on is the index a saved profile stores: mpheadnum indexes
- * g_MpHeads (mpGetHeadId, mplayer.c:3161), not g_HeadsAndBodies. Appending
- * meant that index was decided by --moddir order, so adding a mod ahead of
- * another one in the roster moved every head behind it and a saved profile
- * came back wearing a different face. Nothing keyed the index to the head, and
- * g_ModHeadNames - the only name -> id map there was - is rebuilt from the
- * modconfigs every boot and never written anywhere.
+ * g_MpHeads (mpGetHeadId, mplayer.c:3161), not g_HeadsAndBodies. The index
+ * therefore depends on roster order. What makes that safe is that nothing
+ * durable keys on the index any more: a profile recovers its head and body by
+ * NAME HASH through these tables (mplayer.c g_ExtendedProfileProperties
+ * HeadNameHash / BodyNameHash, read back via modHeadSlotForHash) and a saved
+ * setup records its bots by name; the stored index is only the fallback when
+ * the name is gone.
  *
- * So the allocation is what gets persisted, in pd.ini, one key per head name:
- *
- *   [MpHeadSlots]
- *   head_mikado=75
- *
- * A name that has been allocated a slot keeps it. A name that has not takes
- * the lowest slot no reservation holds. A name whose mod is not loaded this
- * session keeps its reservation, because the entry is registered with a live
- * pointer at scan time and configSave writes back what it finds registered -
- * the same reason iniBindProfileProperties binds [MpPlayer.*] sections for
- * identities that are not present (mplayer.c:394).
- *
- * The entries array is fixed and never realloc'd: config holds a pointer into
- * it for the lifetime of the process.
+ * These tables used to be persisted too, one key per name under
+ * [MpHeadSlots] / [MpBodySlots] in pd.ini, so that a name kept its index
+ * across boots. That predates the name hash and it caused a bug: a
+ * reservation outlived the mod that made it, the roster array was grown to
+ * the highest reserved index and zeroed, and the zeroed row - headnum 0,
+ * bodynum 0 (the dinner jacket), name 0 - was shown by the picker and crashed
+ * when selected. So head and body tables are no longer written to pd.ini, and
+ * on read any key still sitting in those two sections is forgotten so the next
+ * configSave drops it (Catherine, 2026-10-10). [MpStageSlots] is unchanged:
+ * a stagenum selects a row that exists already, and the table that hands rows
+ * out still records its allocations there.
  *
  * Head names are unique across the shipped roster - 153 declarations in the
  * three character mods, 153 distinct names, no collision - so the head name
@@ -186,6 +184,9 @@ struct modslottable {
 	// prescan every explicit claim before the first allocation and do not
 	// need that.
 	bool persistclaims;
+	// Whether this table is written to pd.ini at all. Heads and bodies are
+	// not (see the note above); stages are.
+	bool persistent;
 	// When set, an ini key this returns false for is not an allocation - it is
 	// a claim spelling (a row constant, a number) that an earlier build wrote -
 	// and it is dropped on read so the next configSave prunes it. NULL keeps
@@ -197,12 +198,13 @@ struct modslottable {
 	struct modslotreservation entries[MOD_MAX_SLOT_RESERVATIONS];
 };
 
-static struct modslottable g_ModHeadSlots = { .section = MOD_HEADSLOT_SECTION, .hashrecovered = true, .persistclaims = true };
-static struct modslottable g_ModBodySlots = { .section = MOD_BODYSLOT_SECTION, .hashrecovered = true, .persistclaims = true };
+static struct modslottable g_ModHeadSlots = { .section = MOD_HEADSLOT_SECTION, .hashrecovered = true, .persistclaims = true, .persistent = false };
+static struct modslottable g_ModBodySlots = { .section = MOD_BODYSLOT_SECTION, .hashrecovered = true, .persistclaims = true, .persistent = false };
 static bool modStageSlotUsable(s32 stagenum);
 static bool modStageSlotOwnName(const char *key);
 static void modStageSlotsPrescan(void);
 static struct modslottable g_ModStageSlots = {
+	.persistent = true,
 	.section = MOD_STAGESLOT_SECTION,
 	.first = 0,
 	.usable = modStageSlotUsable,
@@ -266,7 +268,7 @@ static bool g_ModSlotsLoaded = false;
 static struct modslotreservation *modSlotFind(struct modslottable *tbl, const char *name)
 {
 	for (s32 i = 0; i < tbl->count; ++i) {
-		if (!strcmp(tbl->entries[i].name, name)) {
+		if (tbl->entries[i].name[0] && !strcmp(tbl->entries[i].name, name)) {
 			return &tbl->entries[i];
 		}
 	}
@@ -276,7 +278,7 @@ static struct modslotreservation *modSlotFind(struct modslottable *tbl, const ch
 static bool modSlotTaken(struct modslottable *tbl, s32 slot)
 {
 	for (s32 i = 0; i < tbl->count; ++i) {
-		if (tbl->entries[i].slot == slot) {
+		if (tbl->entries[i].name[0] && tbl->entries[i].slot == slot) {
 			return true;
 		}
 	}
@@ -305,7 +307,7 @@ static struct modslotreservation *modSlotAdd(struct modslottable *tbl, const cha
 	// Registering is what puts the key in pd.ini: configSave writes back
 	// whatever is registered. An unregistered entry still counts for
 	// modSlotTaken, which is all a claim needs.
-	if (persist) {
+	if (persist && tbl->persistent) {
 		// min == max, so configSet does not clamp it.
 		snprintf(key, sizeof(key), "%s.%s", tbl->section, r->name);
 		configRegisterInt(key, &r->slot, 0, 0);
@@ -329,6 +331,22 @@ static void modSlotDrop(struct modslottable *tbl, const char *name)
 	char key[CONFIG_MAX_SECNAME * 2 + 2];
 	snprintf(key, sizeof(key), "%s.%s", tbl->section, name);
 	configForgetKey(key);
+}
+
+static void modSlotForgetScanned(const char *name, const char *value, void *ctx)
+{
+	struct modslottable *tbl = ctx;
+	static u32 reported = 0;
+
+	if (!name || !name[0]) {
+		return;
+	}
+	if (reported < 16) {
+		reported++;
+		sysLogPrintf(LOG_NOTE, "modconfig: [%s] '%s'=%s is from a build that persisted slots; dropped, slots are rebuilt from the modconfigs",
+				tbl->section, name, value ? value : "");
+	}
+	modSlotDrop(tbl, name);
 }
 
 static void modSlotScanned(const char *name, const char *value, void *ctx)
@@ -390,13 +408,15 @@ void modSlotReservationsInit(void)
 	// modConfigParseStage will accept, and modStageSlotUsable does the rest.
 	g_ModStageSlots.first = 0x02;
 
-	configScanSection(CONFIG_PATH, MOD_HEADSLOT_SECTION, modSlotScanned, &g_ModHeadSlots);
-	configScanSection(CONFIG_PATH, MOD_BODYSLOT_SECTION, modSlotScanned, &g_ModBodySlots);
+	// Head and body slots are not persisted any more; a key an earlier build
+	// left in those sections is forgotten so the next save drops it.
+	configScanSection(CONFIG_PATH, MOD_HEADSLOT_SECTION, modSlotForgetScanned, &g_ModHeadSlots);
+	configScanSection(CONFIG_PATH, MOD_BODYSLOT_SECTION, modSlotForgetScanned, &g_ModBodySlots);
 	configScanSection(CONFIG_PATH, MOD_STAGESLOT_SECTION, modSlotScanned, &g_ModStageSlots);
 
 	sysLogPrintf(LOG_NOTE,
-			"modconfig: restored %d head, %d body and %d stage slot reservations from " CONFIG_FNAME,
-			g_ModHeadSlots.count, g_ModBodySlots.count, g_ModStageSlots.count);
+			"modconfig: restored %d stage slot reservations from " CONFIG_FNAME "; head and body slots are rebuilt from the modconfigs",
+			g_ModStageSlots.count);
 }
 
 static s32 modSlotReserve(struct modslottable *tbl, const char *name)
@@ -1490,6 +1510,19 @@ static void modBodyLabelSet(s32 slot, const char *label)
 	if (g_MpBodyLabels[slot]) {
 		strcpy(g_MpBodyLabels[slot], label);
 	}
+}
+
+static void modBodyLabelMove(s32 from, s32 to)
+{
+	if (from < 0 || from >= g_NumMpBodyLabels) {
+		return;
+	}
+	if (to >= g_NumMpBodyLabels) {
+		return;
+	}
+	free(g_MpBodyLabels[to]);
+	g_MpBodyLabels[to] = g_MpBodyLabels[from];
+	g_MpBodyLabels[from] = NULL;
 }
 
 const char *modBodyLabel(s32 slot)
@@ -3542,6 +3575,7 @@ void modCacheAllConfigs(void)
 	// rather than acting on it is the whole of phase 0.
 	modStageBindingReport();
 }
+
 
 s32 modConfigLoad(const char *fname)
 {
