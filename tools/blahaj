@@ -29,6 +29,7 @@ Usage, from the pd-fojo tree root:
     tools/blahaj --rom basedir/data/pd.ntsc-final.z64 UsetupdishZ
     tools/blahaj --rom pd.z64 --xdelta mod.xdelta UsetupdishZ   # patched rom
     tools/blahaj --rom pd.z64 --file-patch patches/UsetupdishZ.xdelta UsetupdishZ
+    tools/blahaj --rom pd.z64 --gameshark codes.txt --base 0x80xxxxxx UsetupdishZ
     tools/blahaj ... -o src/setups/setupdish.c
 
 Dev-side only: needs python3; xdelta3 only for the --xdelta/--file-patch
@@ -939,11 +940,24 @@ class Setup:
         self.raw_lists = 0
         self.lossy = False
         self.lossy_words = 0
+        self.base = 0
         self.hdr = [be32(data, i * 4) for i in range(8)]
+        self.rawhdr = list(self.hdr)
+
+    def ptr(self, v):
+        """A file offset, or a RAM address a gameshark code wrote into a
+        pointer slot of the loaded (relocated) setup."""
+        if self.base and v >= 0x80000000:
+            off = (v & 0x00ffffff) - (self.base & 0x00ffffff)
+            if 0 <= off < len(self.d):
+                return off
+            self.warn('pointer %#x is outside the setup once un-relocated (+%#x)' % (v, off))
+        return v
 
     # -- layout --------------------------------------------------------
     def parse(self):
         d = self.d
+        self.hdr = [self.ptr(v) for v in self.rawhdr]
         h = self.hdr
         for i, nm in ((0, 'waypoints'), (1, 'waygroups'), (2, 'cover'), (7, 'padfiledata')):
             if h[i]:
@@ -955,7 +969,7 @@ class Setup:
             lists = []
             off = h[6]
             while True:
-                ptr, lid = be32(d, off), be32(d, off + 4)
+                ptr, lid = self.ptr(be32(d, off)), be32(d, off + 4)
                 off += 8
                 if ptr == 0:
                     break
@@ -967,7 +981,7 @@ class Setup:
             paths = []
             off = h[5]
             while True:
-                ptr, pid, pflags, plen = be32(d, off), d[off + 4], d[off + 5], struct.unpack_from('>H', d, off + 6)[0]
+                ptr, pid, pflags, plen = self.ptr(be32(d, off)), d[off + 4], d[off + 5], struct.unpack_from('>H', d, off + 6)[0]
                 off += 8
                 if ptr == 0:
                     paths.append((ptr, pid, pflags, plen))
@@ -1288,6 +1302,14 @@ class Setup:
         w('extern u32 props[];')
         w('extern struct path paths[];')
         w('extern struct ailist ailists[];')
+        # a list or pad array that sits after the table pointing at it (a mod
+        # appending to the file) needs declaring first
+        tbl = {r.kind: r.start for r in self.regions if r.kind in ('ailists', 'paths')}
+        fwd = [r for r in self.regions
+               if (r.kind in ('ailist', 'rawbytes') and r.start > tbl.get('ailists', 1 << 30))
+               or (r.kind == 'path' and r.start > tbl.get('paths', 1 << 30))]
+        for r in fwd:
+            w('extern %s %s[];' % ('s32' if r.kind == 'path' else 'u8', r.name))
         w('')
         w('struct stagesetup setup = {')
         for i in range(8):
@@ -1631,6 +1653,120 @@ class Setup:
 # Inputs
 # --------------------------------------------------------------------------- #
 
+def parse_gameshark(path):
+    """Gameshark / Action Replay code text -> list of (ram address, width, value).
+
+    Understands 80/81 (8/16-bit write), 88/89 and A0/A1 (same writes, button
+    or uncached variants), D0-D3 (conditional: the next line is applied and
+    the condition reported), 50 (serial repeater: 5000CCSS IIII applies the
+    next code CC times, SS bytes apart, adding IIII each time), and skips
+    DE/EE/F0/F1/FF lines with a note. Anything else is reported, not guessed."""
+    writes, notes = [], []
+    lines = []
+    for raw in open(path, encoding='utf-8', errors='replace'):
+        raw = raw.split('//')[0].split('#')[0].strip()
+        m = re.match(r'^([0-9A-Fa-f]{8})\s+([0-9A-Fa-f]{4})\b', raw)
+        if m:
+            lines.append((int(m.group(1), 16), int(m.group(2), 16), raw))
+    i = 0
+    while i < len(lines):
+        code, val, text = lines[i]
+        op = code >> 24
+        addr = code & 0x00ffffff
+        if op in (0x80, 0x88, 0xa0):
+            writes.append((addr, 1, val & 0xff))
+        elif op in (0x81, 0x89, 0xa1):
+            writes.append((addr, 2, val & 0xffff))
+        elif op in (0xd0, 0xd1, 0xd2, 0xd3):
+            notes.append('conditional %s applied unconditionally (its target line follows)' % text)
+        elif op == 0x50 and i + 1 < len(lines):
+            count = (code >> 8) & 0xff
+            step = code & 0xff
+            inc = val
+            ncode, nval, ntext = lines[i + 1]
+            nop = ncode >> 24
+            width = 1 if nop in (0x80, 0x88, 0xa0) else 2 if nop in (0x81, 0x89, 0xa1) else None
+            if width is None:
+                notes.append('repeater %s before a non-write %s: skipped both' % (text, ntext))
+            else:
+                for k in range(count):
+                    writes.append(((ncode & 0x00ffffff) + k * step, width, (nval + k * inc) & (0xff if width == 1 else 0xffff)))
+            i += 2
+            continue
+        elif op in (0xde, 0xee, 0xf0, 0xf1, 0xff) or op == 0:
+            notes.append('skipped %s' % text)
+        else:
+            notes.append('unknown code type %02x: %s (not applied)' % (op, text))
+        i += 1
+    return writes, notes
+
+
+def apply_gameshark(data, writes, base, warn):
+    """Apply RAM writes to the file image loaded at `base`. Writes past the
+    end grow the file (new lists get appended by mods); writes before the
+    start or implausibly far past the end are reported and dropped."""
+    b = bytearray(data)
+    base &= 0x00ffffff
+    inside = outside = grown = 0
+    lo = hi = None
+    for addr, width, val in writes:
+        off = addr - base
+        if off < 0 or off > len(data) + 0x20000:
+            outside += 1
+            warn('gameshark: write %02x%06x (%d bytes) is outside the setup (+%#x from base); dropped' % (0x80, addr, width, off))
+            continue
+        if off + width > len(b):
+            grown = off + width - len(data)
+            b.extend(b'\0' * (off + width - len(b)))
+        b[off:off + width] = val.to_bytes(width, 'big')
+        inside += 1
+        lo = off if lo is None else min(lo, off)
+        hi = off + width if hi is None else max(hi, off + width)
+    if grown:
+        pad = (-len(b)) % 16
+        b.extend(b'\0' * pad)
+    warn('gameshark: %d writes applied (+%#x..+%#x), %d outside, file %d -> %d bytes' % (
+        inside, lo or 0, hi or 0, outside, len(data), len(b)))
+    return bytes(b)
+
+
+def derelocate(data, base, warn):
+    """Turn RAM addresses a gameshark code wrote into pointer slots back into
+    file offsets, so the image is a plain setup file again. The slots are the
+    header, the ailists[] entries and the paths[] entries - the same ones
+    setupLoadFiles() relocates on load."""
+    b = bytearray(data)
+    base &= 0x00ffffff
+    n = 0
+
+    def fix(off):
+        nonlocal n
+        v = be32(b, off)
+        if v >= 0x80000000:
+            o = (v & 0x00ffffff) - base
+            if 0 <= o < len(b):
+                struct.pack_into('>I', b, off, o)
+                n += 1
+            else:
+                warn('gameshark: pointer %#x at +%#x is outside the setup once un-relocated (+%#x); left as is' % (v, off, o))
+        return be32(b, off)
+
+    for i in range(8):
+        fix(i * 4)
+    h = [be32(b, i * 4) for i in range(8)]
+    if h[6]:
+        off = h[6]
+        while off + 8 <= len(b) and fix(off) != 0:
+            off += 8
+    if h[5]:
+        off = h[5]
+        while off + 8 <= len(b) and fix(off) != 0:
+            off += 8
+    if n:
+        warn('gameshark: %d pointer slots un-relocated against %#x' % (n, 0x80000000 | base))
+    return bytes(b)
+
+
 def rom_file(rom_path, filename):
     sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib', 'packages', 'python'))
     sys.path.insert(0, os.path.join(ROOT, '..', 'docker-caroll', 'lib', 'packages', 'python'))
@@ -1669,6 +1805,10 @@ def main():
     ap.add_argument('--rom', help='ROM to pull the file from')
     ap.add_argument('--xdelta', help='whole-rom xdelta to apply to --rom first')
     ap.add_argument('--file-patch', help='per-file xdelta applied after inflate (mod patches/)')
+    ap.add_argument('--gameshark', help='gameshark code list to apply to the file as loaded in N64 RAM')
+    ap.add_argument('--base', type=lambda x: int(x, 0),
+                    help='RAM address the setup is loaded at for --gameshark (0x80xxxxxx); pointers '
+                         'the codes write are un-relocated against it')
     ap.add_argument('--xdelta3', default=os.environ.get('XDELTA3', 'xdelta3'))
     ap.add_argument('--romid', default=os.environ.get('ROMID', 'ntsc-final'))
     ap.add_argument('--name', help='setup name for the output (setupdish, mp_setupmp1)')
@@ -1730,6 +1870,16 @@ def main():
             xdelta_apply(xd, src, args.file_patch, out)
             data = open(out, 'rb').read()
 
+    base = args.base or 0
+    if args.gameshark:
+        if not args.base:
+            sys.exit('blahaj: --gameshark needs --base, the RAM address the stage loads this setup at')
+        writes, notes = parse_gameshark(args.gameshark)
+        for n in notes:
+            warn('gameshark: ' + n)
+        data = apply_gameshark(data, writes, base, warn)
+        data = derelocate(data, base, warn)
+
     if args.raw_out:
         open(args.raw_out, 'wb').write(data)
 
@@ -1748,6 +1898,7 @@ def main():
     fmt = Formatter(names)
     s = Setup(data, tables, names, fmt, setupname, warn)
     s.lossy = args.lossy
+    s.base = base
     s.parse()
     fmt.objtypes = s.objtypes
     text = s.emit()
