@@ -3263,6 +3263,13 @@ char *mpGetBodyName(u8 mpbodynum) {
     mpbodynum = 0;
   }
 
+#ifndef PLATFORM_N64
+  // a modconfig `label` beats the lang id - see g_MpBodyLabels in port/src/mod.c
+  const char *label = modBodyLabel(mpbodynum);
+  if (label) {
+    return (char *)label;
+  }
+#endif
   return langGet(g_MpBodies[mpbodynum].name);
 }
 

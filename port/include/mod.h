@@ -272,6 +272,8 @@ const char *stageGetModAllocation(s32 stagenum);
 u32 modSlotNameHash(const char *name);
 const char *modHeadSlotName(s32 slot);
 const char *modBodySlotName(s32 slot);
+/* the body's `label` literal for an mp body slot, or NULL when none was declared */
+const char *modBodyLabel(s32 slot);
 s32 modHeadSlotForHash(u32 hash);
 s32 modBodySlotForHash(u32 hash);
 // A saved MP setup records its level and each bot's head and body by NAME in

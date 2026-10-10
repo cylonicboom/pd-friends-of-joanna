@@ -103,6 +103,7 @@ struct modelstate g_ModelStatesOriginal[NUM_MODELS];
 s8 g_PropExplosionTypesOriginal[NUM_MODELS];
 
 static struct { char *name; s32 id; } *g_ModHeadNames = NULL;
+static void modBodyLabelsReset(void);
 static s32 g_NumModHeadNames = 0;
 
 static struct { char *name; u32 filenum; } *g_ModHandFileNames = NULL;
@@ -1393,6 +1394,7 @@ void modResetMplayerArrays(void)
 		g_MpBodies = g_MpBodiesOriginal;
 		g_NumMpBodies = g_NumMpBodies_Original;
 	}
+	modBodyLabelsReset();
 
 	// g_MpArenas points into g_MpArenas_AIO whenever a mod declared an arena,
 	// so the pointer goes home before the array it names is released.
@@ -1445,7 +1447,58 @@ struct modconfigslotinfo {
 	u8 requireFeature;
 	char handName[64];
 	char bodyHeadName[64];
+	char label[64];
 };
+
+/*
+ * A body's display name as a literal, by mp body slot. g_MpBodies[].name is
+ * a lang id, which is only useful for text the vanilla banks carry or a mod's
+ * own bank adds; an imported roster (AIO's) names its bodies in banks that
+ * overwrite live vanilla slots, so those ids cannot be used. `label "…"` on a
+ * HeadsAndBodies block sets this instead, the way MpArena's label does for an
+ * arena, and mpGetBodyName prefers it when set.
+ */
+static char **g_MpBodyLabels = NULL;
+static s32 g_NumMpBodyLabels = 0;
+
+static void modBodyLabelsReset(void)
+{
+	for (s32 i = 0; i < g_NumMpBodyLabels; ++i) {
+		free(g_MpBodyLabels[i]);
+	}
+	free(g_MpBodyLabels);
+	g_MpBodyLabels = NULL;
+	g_NumMpBodyLabels = 0;
+}
+
+static void modBodyLabelSet(s32 slot, const char *label)
+{
+	if (slot < 0 || !label || !label[0]) {
+		return;
+	}
+	if (slot >= g_NumMpBodyLabels) {
+		char **grown = realloc(g_MpBodyLabels, (slot + 1) * sizeof(char *));
+		if (!grown) {
+			return;
+		}
+		memset(grown + g_NumMpBodyLabels, 0, (slot + 1 - g_NumMpBodyLabels) * sizeof(char *));
+		g_MpBodyLabels = grown;
+		g_NumMpBodyLabels = slot + 1;
+	}
+	free(g_MpBodyLabels[slot]);
+	g_MpBodyLabels[slot] = malloc(strlen(label) + 1);
+	if (g_MpBodyLabels[slot]) {
+		strcpy(g_MpBodyLabels[slot], label);
+	}
+}
+
+const char *modBodyLabel(s32 slot)
+{
+	if (slot < 0 || slot >= g_NumMpBodyLabels) {
+		return NULL;
+	}
+	return g_MpBodyLabels[slot];
+}
 
 // Returns updated p. Sets *skipEntry=1 if the entry should be discarded
 // (e.g. file not found). On hard parse failure (a malformed value for a key
@@ -1486,6 +1539,13 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 		} else if (!strcmp(token, "bodyheadnum")) {
 			PARSE_INT("HeadsAndBodies", "bodyheadnum", tmp, 0, 0xFFFF, NULL);
 			if (slotInfo) slotInfo->bodyHeadNum = tmp;
+		} else if (!strcmp(token, "label") || !strcmp(token, "bodylabel")) {
+			// the body's display name as a literal; see g_MpBodyLabels
+			p = modConfigParseStringValue(p, token, tmps);
+			if (p && slotInfo) {
+				strncpy(slotInfo->label, tmps, 63);
+				slotInfo->label[63] = '\0';
+			}
 		} else if (!strcmp(token, "bodyheadname")) {
 			// bodyheadnum by name: the head this body pairs with in the
 			// simulator, for a head a mod registered and so has no HEAD_
@@ -2045,7 +2105,7 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 	memset(&tempItem, 0, sizeof(tempItem));
 	char name[64] = "";
 
-	struct modconfigslotinfo slotInfo = { -1, -1, -1, -1, 0, "", "" };
+	struct modconfigslotinfo slotInfo = { -1, -1, -1, -1, 0, "", "", "" };
 
 	// Save the position right before the opening '{' so we can recover by
 	// skipping the entire block if a non-fatal parse error occurs.
@@ -2272,6 +2332,9 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 				g_MpBodies[bodySlot].requirefeature = slotInfo.requireFeature;
 				if (slotInfo.bodyName >= 0) {
 					g_MpBodies[bodySlot].name = slotInfo.bodyName;
+				}
+				if (slotInfo.label[0]) {
+					modBodyLabelSet(bodySlot, slotInfo.label);
 				}
 				if (slotInfo.bodyHeadNum >= 0) {
 					g_MpBodies[bodySlot].headnum = slotInfo.bodyHeadNum;
