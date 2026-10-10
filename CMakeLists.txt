@@ -243,13 +243,16 @@ add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-unused-function>)
 # Before 13 the diagnostic is not a warning anybody can name - it is only
 # under -fpermissive - and gcc 11 swallows the unknown -Wno-changes-meaning
 # without a word, so a flag check passes and nothing changes (ubuntu-22.04,
-# the i686 job). Scope -fpermissive to the two files that include the
-# header rather than loosening every C++ file in the build.
+# the i686 job). Scope -fpermissive to the files that include the header
+# rather than loosening every C++ file in the build - so a new .cpp that
+# includes bss.h or types.h must be added here, or only i686-linux breaks.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
     set_source_files_properties(
       "${CMAKE_SOURCE_DIR}/port/src/imgui_overlay.cpp"
       "${CMAKE_SOURCE_DIR}/port/src/imgui_skinmatch.cpp"
+      "${CMAKE_SOURCE_DIR}/port/src/imgui_extoptions.cpp"
+      "${CMAKE_SOURCE_DIR}/port/src/imgui_profiles.cpp"
       PROPERTIES COMPILE_OPTIONS "-fpermissive")
   else()
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-changes-meaning>)
