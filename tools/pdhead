@@ -464,6 +464,68 @@ def parse_map(text, flag):
         out[k] = v
     return out
 
+# ── the G_NOOP bind codec ────────────────────────────────────────────
+#
+# A texture id in a display list lives in a repurposed G_NOOP (0xC0). Two
+# encodings of an id past 0x0fff exist and both are read here; only ours is
+# written:
+#
+#   ours (pd-fojo gbiex.h G_NOOP_TEXSLOT): slot 0 = w1[0..11] | w0[6..8] << 12,
+#       slot 1 (subcmd 1 only) = w1[12..23] | w0[3..5] << 12. Fifteen bits.
+#   all-in-one (Jonaeru's tex.c): a single-texture bind is w1 & 0xffff - bits
+#       12-15 of w1 - and a two-texture bind is twelve bits per slot.
+#
+# Vanilla leaves w1[12..15] unused on a single-texture bind and our writer
+# never sets them, so w1[12..15] != 0 with w0's slot-0 bits clear can only be
+# the all-in-one form. The engine folds it the same way (modeldef.c).
+
+BIND_MAX = 0x7fff
+
+def bind_subcmd(w0):
+    return w0 & 0xff
+
+def bind_get(w0, w1, slot):
+    """The id in slot 0 or 1 of a bind, whichever encoding wrote it."""
+    if slot == 0:
+        hi = (w0 >> 6) & 0x7
+        if bind_subcmd(w0) != 1 and hi == 0 and ((w1 >> 12) & 0xf):
+            return w1 & 0xffff
+        return (w1 & 0xfff) | (hi << 12)
+    return ((w1 >> 12) & 0xfff) | (((w0 >> 3) & 0x7) << 12)
+
+def bind_set(w0, w1, slot, texid):
+    """Write `texid` into slot 0 or 1 in our encoding; returns (w0, w1).
+    Slot 0 also clears w1[12..15] so an all-in-one bind comes out canonical."""
+    if not (0 <= texid <= BIND_MAX):
+        die("texture id 0x%x does not fit the 15 bits a bind carries" % texid)
+    if slot == 0:
+        if bind_subcmd(w0) != 1:
+            w1 &= ~0xf000
+        w1 = (w1 & ~0xfff) | (texid & 0xfff)
+        w0 = (w0 & ~(0x7 << 6)) | (((texid >> 12) & 0x7) << 6)
+    else:
+        w1 = (w1 & ~(0xfff << 12)) | ((texid & 0xfff) << 12)
+        w0 = (w0 & ~(0x7 << 3)) | (((texid >> 12) & 0x7) << 3)
+    return w0 & 0xffffffff, w1 & 0xffffffff
+
+def bind_ids(m, md):
+    """Every texture id any display list of the model binds, in order of first use."""
+    out = []
+    for n in gdl_nodes(m, md):
+        need(m, n["rodata"], 8, "display-list rodata")
+        for base in [x & 0xffffff for x in struct.unpack_from(">II", m, n["rodata"])]:
+            for o in scan_gdl(m, base):
+                if m[o] != 0xc0:
+                    continue
+                w0, w1 = struct.unpack_from(">II", m, o)
+                ids = [bind_get(w0, w1, 0)]
+                if bind_subcmd(w0) == 1:
+                    ids.append(bind_get(w0, w1, 1))
+                for t in ids:
+                    if t not in out:
+                        out.append(t)
+    return out
+
 def check_mapping(mapping, source):
     """Every new id fits the 12 bits a display list carries, and no two old ids
     land on the same new one.
@@ -475,8 +537,8 @@ def check_mapping(mapping, source):
     own edit.
     """
     for v in sorted(mapping.values()):
-        if not (0 < v <= 0xfff):
-            die("%s: texture id 0x%x does not fit the 12 bits a display list carries"
+        if not (0 < v <= BIND_MAX):
+            die("%s: texture id 0x%x does not fit the 15 bits a display list carries"
                 % (source, v))
     seen = {}
     for k in sorted(mapping):
@@ -499,10 +561,10 @@ def default_remap(old, base):
 def rewrite_texids(m, mapping):
     """Remap texture ids in the texconfig table AND in every display list.
 
-    The ids live in two places: a u32 per texconfig, and the low bits of the
-    repurposed G_NOOP (0xC0) binds inside each DL — w1 bits 0-11, plus bits
-    12-23 when the subcommand is 1. Changing one and not the other silently
-    ships a model whose table and geometry disagree.
+    The ids live in two places: a u32 per texconfig, and the repurposed
+    G_NOOP (0xC0) binds inside each DL, read and written through the bind
+    codec above (both encodings read, ours written). Changing one and not the
+    other silently ships a model whose table and geometry disagree.
     """
     check_mapping(mapping, "remap")
     d = bytearray(m)
@@ -535,14 +597,14 @@ def rewrite_texids(m, mapping):
                 if d[o] != 0xc0:
                     continue
                 w0, w1 = struct.unpack_from(">II", d, o)
-                t0 = w1 & 0xfff
+                t0 = bind_get(w0, w1, 0)
                 if t0 in mapping:
-                    w1 = (w1 & ~0xfff) | (mapping[t0] & 0xfff); ndl += 1
-                if (w0 & 0xff) == 1:
-                    t1 = (w1 >> 12) & 0xfff
+                    w0, w1 = bind_set(w0, w1, 0, mapping[t0]); ndl += 1
+                if bind_subcmd(w0) == 1:
+                    t1 = bind_get(w0, w1, 1)
                     if t1 in mapping:
-                        w1 = (w1 & ~(0xfff << 12)) | ((mapping[t1] & 0xfff) << 12); ndl += 1
-                struct.pack_into(">I", d, o + 4, w1)
+                        w0, w1 = bind_set(w0, w1, 1, mapping[t1]); ndl += 1
+                struct.pack_into(">II", d, o, w0, w1)
     return bytes(d), ntab, ndl
 
 def cmd_reindex(a):
@@ -580,6 +642,18 @@ def cmd_info(a):
         ref = ("ptr %08x" % t["texid"]) if t["pointer"] else ("id  0x%04x" % t["texid"])
         print("    tex %-2d %s  %dx%d  level %d  format %d  depth %d"
               % (i, ref, t["width"], t["height"], t["level"], t["format"], t["depth"]))
+    bound = bind_ids(m, md)
+    table = [t["texid"] for t in tcs if not t["pointer"]]
+    print("  binds  %s" % " ".join("0x%04x" % t for t in bound))
+    only_bound = [t for t in bound if t not in table]
+    only_table = [t for t in table if t not in bound]
+    if only_bound or only_table:
+        # The table and the geometry disagree. The binds are what render; the
+        # table is what preloads. Brosnan and Moore in the AIO packs are the
+        # known cases - their tables name vanilla-range ids their binds never use.
+        print("  WARNING: texconfig table and display-list binds disagree - bound only: %s; table only: %s"
+              % (" ".join("0x%04x" % t for t in only_bound) or "-",
+                 " ".join("0x%04x" % t for t in only_table) or "-"))
     b = bbox_of(m)
     if b:
         print("  bbox hitpart %d  x %.1f..%.1f  y %.1f..%.1f  z %.1f..%.1f" % b)

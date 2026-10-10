@@ -62,7 +62,10 @@ def fit(pos, box):
 def gvtx(n, v0, off):    return be32(0x04000000 | ((n-1) << 20) | (v0 << 16) | (n*12)) + be32(seg(SEG_VTX, off))
 def gcol(n, off):        return be32(0x07000000 | (((n-1) << 2) << 16) | (n*4)) + be32(seg(SEG_COL, off))
 def gmtx(off):           return be32(0x01020040) + be32(seg(SEG_MTX, off))
-def gtexid(texid):       return be32(0xc0080003) + be32(texid & 0xfff)
+def gtexid(texid):
+    # our 15-bit bind: w1[0..11] | w0[6..8] << 12 (pd-fojo gbiex.h G_NOOP_TEXSLOT)
+    if not (0 <= texid <= 0x7fff): raise ValueError("texture id 0x%x does not fit a bind" % texid)
+    return be32(0xc0080003 | (((texid >> 12) & 0x7) << 6)) + be32(texid & 0xfff)
 def genddl():            return be32(0xb8000000) + be32(0)
 
 def gtri4(t):
