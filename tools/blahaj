@@ -1,0 +1,1787 @@
+#!/usr/bin/env python3
+"""blahaj - disassemble Perfect Dark stage setup files into decomp-style C.
+
+Turns a setup file (UsetupXZ / Ump_setupXZ, 1173-compressed or raw, pulled
+from a ROM or given as a file) into a src/setups/<name>.c in the shape the
+decomp writes them - props/intro/paths/ailists as the props.h, intro.h and
+commands.h macros - so tools/mksetups can build it straight back.
+
+Everything about the file format comes from the tree, not from this script:
+
+  - the record layouts are the macros in src/include/props.h, intro.h and
+    commands.h, expanded symbolically and run backwards (a macro that bakes a
+    constant word is checked, a parameter word is solved for);
+  - the aicmd operand lengths are g_CommandLengths[] in src/game/chrai.c, so
+    every vanilla opcode can be stepped over even when no macro names it;
+  - prop record lengths come from the macros, with OBJ_LENGTHS below for the
+    types no macro covers (cross-checked against port/include/preprocess/setup.h);
+  - names come from src/include/constants.h, src/generated/<romid>/, and, for
+    a stage the decomp already has, from src/setups/<name>.c itself.
+
+What it cannot express it emits raw, never guesses: a prop record the macro
+cannot reproduce byte for byte becomes a raw u32 run with a comment, an aicmd
+it cannot size (mod windows 0x0400/0x0800, GE-X's additions) turns the rest
+of that list into offset-labelled raw bytes. Both rebuild byte-identical.
+
+Usage, from the pd-fojo tree root:
+
+    tools/blahaj UsetupdishZ                   # file on disk (raw or 1173)
+    tools/blahaj --rom basedir/data/pd.ntsc-final.z64 UsetupdishZ
+    tools/blahaj --rom pd.z64 --xdelta mod.xdelta UsetupdishZ   # patched rom
+    tools/blahaj --rom pd.z64 --file-patch patches/UsetupdishZ.xdelta UsetupdishZ
+    tools/blahaj ... -o src/setups/setupdish.c
+
+Dev-side only: needs python3; xdelta3 only for the --xdelta/--file-patch
+inputs (the same authoring dependency mksetups --patches has).
+"""
+
+import argparse
+import glob
+import json
+import os
+import re
+import shutil
+import struct
+import subprocess
+import sys
+import tempfile
+import zlib
+
+# --------------------------------------------------------------------------- #
+# Tree lookup
+# --------------------------------------------------------------------------- #
+
+def find_root(start):
+    d = os.path.abspath(start)
+    while True:
+        if os.path.isfile(os.path.join(d, 'src', 'include', 'props.h')):
+            return d
+        p = os.path.dirname(d)
+        if p == d:
+            return None
+        d = p
+
+
+ROOT = find_root(os.path.dirname(os.path.abspath(__file__))) or find_root('.')
+
+OBJTYPE_END = 0x34
+INTRO_END = 0x0c
+AICMD_END = 0x0004
+AICMD_LABEL = 0x0002
+AICMD_YIELD = 0x0003
+AICMD_GOTO_NEXT = 0x0000
+AICMD_GOTO_FIRST = 0x0001
+AICMD_PRINT = 0x00b5
+
+# Record lengths in u32 words for OBJTYPEs that have no authoring macro in
+# props.h. Taken from the N64 structs (sizeof / 4); cross-check against
+# objSizeN64() in port/src/preprocess/filesetup.c when touching them.
+OBJ_LENGTHS = {
+    0x05: 23,   # alarm        - struct alarmobj: defaultobj only
+    0x0c: 23 + 4,  # hangingmonitors - defaultobj + 4 u32? (verify)
+    0x12: 2,    # grenadeprob  - chrnum, probability
+    0x1f: 1,
+    0x22: 1,
+    0x27: 23 + 7,  # truck (verify)
+    0x28: 23 + 10, # heli (verify)
+    0x2d: 32,   # tank: objSizeN64 says 32
+}
+
+# --------------------------------------------------------------------------- #
+# Header parsing: #defines, enums, macros
+# --------------------------------------------------------------------------- #
+
+_SAFE_EXPR = re.compile(r'^[\s0-9a-fA-FxX()<>|&+\-*~=!/%]+$')
+
+
+def eval_const(text, env):
+    """Evaluate a C integer expression using only literals and known names."""
+    t = text.strip()
+    t = re.sub(r'/\*.*?\*/', '', t)
+    t = re.sub(r'//.*$', '', t).strip()
+    if not t:
+        return None
+    t = re.sub(r'\b(0x[0-9a-fA-F]+|\d+)[uUlL]+\b', r'\1', t)
+
+    def sub(m):
+        name = m.group(0)
+        if name[0].isdigit():
+            return name
+        if name in env:
+            return str(env[name])
+        raise KeyError(name)
+    try:
+        t2 = re.sub(r'0[xX][0-9a-fA-F]+|\d+|[A-Za-z_]\w*', sub, t)
+    except KeyError:
+        return None
+    m = re.match(r'^\s*\(?\s*(.+?)\s*\?\s*(.+?)\s*:\s*(.+?)\s*\)?\s*$', t2)
+    if m and '?' in t2:
+        t2 = '((%s) if (%s) else (%s))' % (m.group(2), m.group(1), m.group(3))
+    if not _SAFE_EXPR.match(t2.replace(' if ', '').replace(' else ', '')):
+        return None
+    try:
+        return int(eval(t2, {'__builtins__': {}}, {}))
+    except Exception:
+        return None
+
+
+def active_lines(path, env):
+    """Lines of a header with #if VERSION / PLATFORM_N64 conditionals
+    resolved against env; directives themselves are dropped."""
+    stack = []      # (active_before, this_branch_taken, any_branch_taken)
+
+    def active():
+        return all(x[1] for x in stack)
+
+    def cond(expr):
+        expr = expr.strip()
+        m = re.match(r'^defined\s*\(?\s*(\w+)\s*\)?$', expr)
+        if m:
+            return m.group(1) in env
+        v = eval_const(expr, env)
+        return True if v is None else bool(v)
+
+    for line in open(path, encoding='utf-8', errors='replace'):
+        l = line.strip()
+        d = re.match(r'#\s*(if|ifdef|ifndef|elif|else|endif)\b\s*(.*)$', l)
+        if d:
+            kw, rest = d.group(1), re.sub(r'//.*$', '', d.group(2)).strip()
+            if kw == 'if':
+                c = cond(rest)
+                stack.append((active(), c, c))
+            elif kw == 'ifdef':
+                c = rest.split()[0] in env if rest else False
+                stack.append((active(), c, c))
+            elif kw == 'ifndef':
+                nm = rest.split()[0] if rest else ''
+                c = nm not in env or nm.startswith('_IN_') or nm.endswith('_H')
+                stack.append((active(), c, c))
+            elif kw == 'elif' and stack:
+                _, _, anyb = stack[-1]
+                c = (not anyb) and cond(rest)
+                stack[-1] = (stack[-1][0], c, anyb or c)
+            elif kw == 'else' and stack:
+                _, _, anyb = stack[-1]
+                stack[-1] = (stack[-1][0], not anyb, True)
+            elif kw == 'endif' and stack:
+                stack.pop()
+            continue
+        if active():
+            yield line
+
+
+def load_defines(path, env=None):
+    """#define NAME <int expr> from a header, honouring the tree's #if
+    VERSION / PLATFORM_N64 conditionals (env carries VERSION etc)."""
+    env = dict(env or {})
+    order = []
+    for line in active_lines(path, env):
+        l = line.strip()
+        m = re.match(r'#\s*define\s+([A-Za-z_]\w*)\s+(.+?)\s*$', l)
+        if not m or re.match(r'#\s*define\s+[A-Za-z_]\w*\(', l):
+            continue
+        v = eval_const(m.group(2), env)
+        if v is not None:
+            env[m.group(1)] = v
+            if m.group(1) not in order:
+                order.append(m.group(1))
+    return env, order
+
+
+def load_enums(path, env):
+    """enum members from a generated header, in declaration order."""
+    text = ''.join(active_lines(path, env))
+    text = re.sub(r'//.*', '', text)
+    out = []
+    for m in re.finditer(r'enum\s+(\w+)\s*\{(.*?)\}', text, re.S):
+        val = 0
+        for ent in m.group(2).split(','):
+            ent = re.sub(r'/\*.*?\*/', '', ent).strip()
+            if not ent:
+                continue
+            if '=' in ent:
+                name, expr = [x.strip() for x in ent.split('=', 1)]
+                v = eval_const(expr, env)
+                if v is None:
+                    continue
+                val = v
+            else:
+                name = ent
+            env[name] = val
+            out.append((name, val))
+            val += 1
+    return out
+
+
+def split_top(s, sep=','):
+    out, depth, cur, q = [], 0, '', None
+    for ch in s:
+        if q:
+            cur += ch
+            if ch == q:
+                q = None
+            continue
+        if ch in '\'"':
+            q = ch
+            cur += ch
+            continue
+        if ch == '(':
+            depth += 1
+        elif ch == ')':
+            depth -= 1
+        if ch == sep and depth == 0:
+            out.append(cur)
+            cur = ''
+        else:
+            cur += ch
+    out.append(cur)
+    return [x.strip() for x in out if x.strip()]
+
+
+class Macros:
+    """Function-like and object-like macros from one header, expandable."""
+
+    def __init__(self):
+        self.defs = {}      # name -> (params or None, [raw tokens])
+        self.order = []
+
+    def load(self, path):
+        lines = open(path, encoding='utf-8', errors='replace').read().splitlines()
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            m = re.match(r'\s*#\s*define\s+([A-Za-z_]\w*)(\([^)]*\))?\s*(.*?)\s*(\\)?\s*$', line)
+            if not m:
+                i += 1
+                continue
+            name = m.group(1)
+            params = None
+            if m.group(2):
+                params = [p.strip() for p in m.group(2)[1:-1].split(',') if p.strip()]
+            body_lines = []
+            if m.group(3):
+                body_lines.append(m.group(3))
+            cont = bool(m.group(4))
+            while cont and i + 1 < len(lines):
+                i += 1
+                l = lines[i].rstrip()
+                cont = l.endswith('\\')
+                if cont:
+                    l = l[:-1]
+                body_lines.append(l.strip())
+            toks = []
+            for l in body_lines:
+                l = re.sub(r'/\*.*?\*/', '', l)
+                toks.extend(split_top(l))
+            self.defs[name] = (params, toks)
+            self.order.append(name)
+            i += 1
+
+    def expand(self, name, args=None, depth=0):
+        """Expand macro `name` with symbolic args -> flat list of token strings."""
+        params, toks = self.defs[name]
+        env = {}
+        if params:
+            if args is None:
+                args = params
+            if len(args) != len(params):
+                raise ValueError('%s wants %d args, got %d' % (name, len(params), len(args)))
+            env = dict(zip(params, args))
+        out = []
+        for t in toks:
+            t = t.strip().rstrip(',').strip()
+            if not t:
+                continue
+            t = self._subst(t, env)
+            mc = re.match(r'^([A-Za-z_]\w*)\((.*)\)$', t, re.S)
+            if mc and mc.group(1) in self.defs and self.defs[mc.group(1)][0] is not None \
+                    and mc.group(1) not in ('_mkword', '_mkshort', 'mkshort', 'mkword'):
+                out.extend(self.expand(mc.group(1), split_top(mc.group(2)), depth + 1))
+            elif re.match(r'^[A-Za-z_]\w*$', t) and t in self.defs and self.defs[t][0] is None:
+                out.extend(self.expand(t, None, depth + 1))
+            else:
+                out.append(t)
+        return out
+
+    @staticmethod
+    def _subst(t, env):
+        if not env:
+            return t
+        return re.sub(r'[A-Za-z_]\w*', lambda m: env.get(m.group(0), m.group(0)), t)
+
+
+# --------------------------------------------------------------------------- #
+# Expression inversion
+# --------------------------------------------------------------------------- #
+
+class Fail(Exception):
+    pass
+
+
+def parse_expr(s):
+    """Tiny C expression parser -> ('num', v) | ('id', name) | ('call', name, [args]) | ('neg', e)"""
+    s = s.strip()
+    if s.startswith('(') and s.endswith(')') and _balanced(s[1:-1]):
+        return parse_expr(s[1:-1])
+    if s.startswith('-'):
+        return ('neg', parse_expr(s[1:]))
+    m = re.match(r'^([A-Za-z_]\w*)\((.*)\)$', s, re.S)
+    if m and _balanced(m.group(2)):
+        return ('call', m.group(1), [parse_expr(a) for a in split_top(m.group(2))])
+    for op in ('/', '*'):
+        parts = split_top(s, op)
+        if len(parts) == 2 and _balanced(parts[0]) and _balanced(parts[1]):
+            return ('bin', op, parse_expr(parts[0]), parse_expr(parts[1]))
+    m = re.match(r'^(0x[0-9a-fA-F]+|\d+)$', s)
+    if m:
+        return ('num', int(s, 0))
+    m = re.match(r"^'(\\.|.)'$", s)
+    if m:
+        return ('num', ord(eval(s)))
+    if re.match(r'^[A-Za-z_]\w*$', s):
+        return ('id', s)
+    raise ValueError('cannot parse expression: %r' % s)
+
+
+def _balanced(s):
+    d = 0
+    for ch in s:
+        if ch == '(':
+            d += 1
+        elif ch == ')':
+            d -= 1
+            if d < 0:
+                return False
+    return d == 0
+
+
+def expr_text(e):
+    k = e[0]
+    if k == 'num':
+        return '%#x' % e[1]
+    if k == 'id':
+        return e[1]
+    if k == 'neg':
+        return '-' + expr_text(e[1])
+    if k == 'bin':
+        return '%s %s %s' % (expr_text(e[2]), e[1], expr_text(e[3]))
+    return '%s(%s)' % (e[1], ', '.join(expr_text(a) for a in e[2]))
+
+
+def invert(e, value, bits, params, binds, consts):
+    """Solve expression tree e == value (a bits-wide field). Binds params."""
+    mask = (1 << bits) - 1
+    value &= mask
+    k = e[0]
+    if k == 'num':
+        if (e[1] & mask) != value:
+            raise Fail()
+    elif k == 'neg':
+        inner = e[1]
+        if inner[0] == 'num':
+            if ((-inner[1]) & mask) != value:
+                raise Fail()
+        else:
+            invert(inner, (-value) & mask, bits, params, binds, consts)
+    elif k == 'id':
+        name = e[1]
+        if name in params:
+            if name in binds:
+                if (binds[name][0] & mask) != value:
+                    raise Fail()
+            else:
+                binds[name] = (value, bits)
+        elif name in consts:
+            if (consts[name] & mask) != value:
+                raise Fail()
+        else:
+            raise Fail()
+    elif k == 'bin':
+        op, lhs, rhs = e[1], e[2], e[3]
+        if rhs[0] != 'num' or rhs[1] == 0:
+            raise Fail()
+        if op == '/':
+            # x / n == value: x = value * n (the decomp writes the unscaled number)
+            invert(lhs, value * rhs[1], 32, params, binds, consts)
+        else:
+            if value % rhs[1]:
+                raise Fail()
+            invert(lhs, value // rhs[1], 32, params, binds, consts)
+    elif k == 'call':
+        fn, args = e[1], e[2]
+        if fn == '_mkword' and len(args) == 2 and bits == 32:
+            invert(args[0], value >> 16, 16, params, binds, consts)
+            invert(args[1], value & 0xffff, 16, params, binds, consts)
+        elif fn == '_mkshort' and len(args) == 2 and bits == 16:
+            invert(args[0], value >> 8, 8, params, binds, consts)
+            invert(args[1], value & 0xff, 8, params, binds, consts)
+        else:
+            raise Fail()
+    else:
+        raise Fail()
+
+
+# --------------------------------------------------------------------------- #
+# Names: constants, generated enums, the decomp's own source for the stage
+# --------------------------------------------------------------------------- #
+
+class Names:
+    def __init__(self, root, romid, stagekey, setupname, auto):
+        self.root = root
+        self.romid = romid
+        self.key = stagekey
+        verenv, _ = load_defines(os.path.join(root, 'src/include/versions.h'))
+        verenv['VERSION'] = {'ntsc-beta': 0, 'ntsc-1.0': 1, 'ntsc-final': 2, 'pal-beta': 3,
+                             'pal-final': 4, 'jpn-final': 5}.get(romid, 2)
+        verenv['PAL'] = 1 if romid.startswith('pal') else 0
+        self.consts, self.const_order = load_defines(os.path.join(root, 'src/include/constants.h'), verenv)
+        self.fileids, _ = load_defines(os.path.join(root, 'src/include/files.h'), verenv)
+        self.by_prefix = {}
+        for name in self.const_order:
+            pre = name.split('_')[0] + '_'
+            self.by_prefix.setdefault(pre, []).append(name)
+        gen = os.path.join(root, 'src/generated', romid)
+        sk = stagekey or '\0'
+        self.pads = self._enum(os.path.join(gen, 'pads', sk + '.h'))
+        self.rooms = self._enum(os.path.join(gen, 'tiles', sk + '.h'))
+        self.lang = self._enum(os.path.join(gen, 'lang', sk + '.h'))
+        self.anims = self._enum(os.path.join(gen, 'animations.h'))
+        self.sounds = {}
+        sfx = os.path.join(root, 'src/include/sfx.h')
+        if os.path.isfile(sfx):
+            env = dict(self.fileids, **verenv)
+            for nm, v in load_enums(sfx, env):
+                if nm.startswith(('SFX_', 'MP3_')):
+                    self.sounds.setdefault(v, nm)
+            env, order = load_defines(sfx, env)
+            for nm in order:
+                if nm.startswith(('SFX_', 'MP3_')):
+                    self.sounds.setdefault(env[nm], nm)
+        self.music = self._enum(os.path.join(gen, 'sequences.h'))
+        self.langtext = {}
+        lj = os.path.join(root, 'src/assets', romid, 'lang', sk + '.json')
+        if os.path.isfile(lj):
+            try:
+                for r in json.load(open(lj)):
+                    self.langtext[r['id']] = r.get('text', r.get('value', ''))
+            except Exception:
+                pass
+        # harvested from the decomp's own source for this stage
+        self.local = {}        # family -> {value: name}
+        self.local_defs = []   # (family, name, value) in file order
+        self.funcnames = {}    # ailist id -> func name
+        self.unreg_lists = []  # decomp's names for unregistered lists, in order
+        self.unreg_paths = []
+        self.textnames = []
+        src = os.path.join(root, 'src/setups', setupname + '.c')
+        if auto and os.path.isfile(src):
+            self._harvest(src)
+
+    def _enum(self, path):
+        if not os.path.isfile(path):
+            return {}
+        env = {}
+        return {v: n for n, v in load_enums(path, env)}
+
+    def _harvest(self, src):
+        text = open(src, encoding='utf-8', errors='replace').read()
+        for m in re.finditer(r'^#define\s+([A-Z][A-Z0-9_]*)\s+(-?0x[0-9a-fA-F]+|-?\d+)\s*$', text, re.M):
+            name, val = m.group(1), int(m.group(2), 0)
+            fam = name.split('_')[0] + '_'
+            self.local.setdefault(fam, {}).setdefault(val & 0xffffffff, name)
+            self.local_defs.append((fam, name, val))
+        # the decomp's ailists[] in table order: ids repeat (dish has four
+        # 0x1021 lists), so names are matched by (id, nth occurrence)
+        self.funcs_in_order = []
+        for m in re.finditer(r'\{\s*(func[0-9a-fA-F]{4}_\w*)\s*,\s*(0x[0-9a-fA-F]+|[A-Z_0-9]+)\s*\}', text):
+            fn, ident = m.group(1), m.group(2)
+            if ident.startswith('0x'):
+                v = int(ident, 16)
+            elif ident in self.consts:
+                v = self.consts[ident]
+            else:
+                v = None
+                for vv, nn in self.local.get('AILIST_', {}).items():
+                    if nn == ident:
+                        v = vv
+            if v is not None:
+                self.funcs_in_order.append((v, fn))
+        seen = {}
+        for v, fn in self.funcs_in_order:
+            k = seen.get(v, 0)
+            self.funcnames[(v, k)] = fn
+            seen[v] = k + 1
+        self.unreg_lists = re.findall(r'^u8 (\w*unregistered\w*)\[\]', text, re.M)
+        self.unreg_paths = re.findall(r'^s32 (\w*unregistered\w*)\[\]', text, re.M)
+        self.textnames = re.findall(r'^char \*(\w+) = "', text, re.M)
+
+    # -- lookups ---------------------------------------------------------
+    def const(self, prefix, value, bits=32):
+        mask = (1 << bits) - 1
+        value &= mask
+        for name in self.by_prefix.get(prefix, []):
+            if (self.consts[name] & mask) == value:
+                return name
+        return None
+
+    def flags(self, prefix, value, bits=32, prefer=None):
+        """Decompose value into OR of single-bit constants with this prefix.
+        Aliases for one bit (OBJFLAG2_DOOR_* / OBJFLAG2_AUTOGUN_*) pick the
+        one naming `prefer` (the macro) when there is one."""
+        if value == 0:
+            return '0'
+        exact = self.const(prefix, value, bits)
+        if exact and (value & (value - 1)) != 0:
+            return exact
+        names = []
+        rem = value & ((1 << bits) - 1)
+        key = (prefer or '').upper().replace('_', '')
+        cands = self.by_prefix.get(prefix, [])
+        for name in cands:
+            v = self.consts[name]
+            if v and (v & (v - 1)) == 0 and (rem & v):
+                alts = [a for a in cands if self.consts[a] == v]
+                named = [a for a in alts if not re.search(r'_[0-9A-F]{4,}$|_[0-9]{2,}$', a)] or alts
+                generic = [a for a in named if not self._typed(a, prefix)]
+                mine = [a for a in named if key and key in a.upper().replace('_', '')]
+                pick = (generic or mine or named)[0]
+                if mine and not generic:
+                    pick = mine[0]
+                names.append(pick)
+                rem &= ~v
+        if not names:
+            return None
+        if rem:
+            names.append('0x%08x' % rem)
+        return ' | '.join(names)
+
+    TYPEWORDS = ('DOOR', 'AUTOGUN', 'GLASS', 'LIFT', 'WEAPON', 'CHR', 'CAMERA', 'MONITOR',
+                 'HOVER', 'FAN', 'SAFE', 'TAG', 'KEY', 'DEBRIS', 'CCTV', 'TANK', 'HELI',
+                 'TRUCK', 'ESCASTEP', 'CHOPPER', 'AMMOCRATE', 'ALARM', 'GASBOTTLE', 'MINE',
+                 'SHIELD', 'HAT', 'PROP')
+
+    def _typed(self, name, prefix):
+        rest = name[len(prefix):]
+        return any(rest.startswith(t + '_') or rest.startswith(t) and rest[len(t):len(t) + 1].isdigit() is False and '_' + t + '_' in '_' + rest for t in self.TYPEWORDS)
+
+    def local_name(self, fam, value, bits=32):
+        return self.local.get(fam, {}).get(value & ((1 << bits) - 1))
+
+    def pad(self, value, bits=16):
+        v = value & ((1 << bits) - 1)
+        n = self.local_name('PAD_', v, bits)
+        if n:
+            return n
+        if v in self.pads:
+            return self.pads[v]
+        return None
+
+    def room(self, value):
+        return self.rooms.get(value)
+
+    def sound(self, value):
+        return self.sounds.get(value)
+
+    def text(self, value):
+        n = self.lang.get(value)
+        if not n:
+            return None, None
+        return n, self.langtext.get(n)
+
+
+# --------------------------------------------------------------------------- #
+# Value formatting rules
+# --------------------------------------------------------------------------- #
+
+def hexw(v, bits):
+    return '0x%0*x' % (bits // 4, v & ((1 << bits) - 1))
+
+
+def signed(v, bits):
+    if v & (1 << (bits - 1)):
+        return v - (1 << bits)
+    return v
+
+
+class Formatter:
+    """Turns a bound macro parameter into the token the decomp would write.
+
+    Rules are keyed by parameter name (as spelled in the header macro), with
+    a few per-macro overrides. Anything without a rule is hex at its width.
+    A rule may return (text, comment); the comment lands after the call.
+    """
+
+    DEC = {'maxdamage', 'hear_scale', 'view_dist', 'convtalk', 'tude', 'naturalanim',
+           'yvisang', 'teamscandist', 'value', 'stopnum', 'distance',
+           'speed', 'seconds', 'amount', 'health', 'accuracy', 'walkspeed', 'angle',
+           'volume', 'time', 'timemerge', 'animspeed', 'to', 'from', 'duration60',
+           'reaction', 'recovery', 'shield', 'frames', 'percentage', 'ammo',
+           'quantity', 'rand', 'chance', 'ticks', 'score', 'count', 'slot',
+           'image', 'image1', 'image2', 'image3', 'image4', 'diffbit_unused'}
+    SIGNED = {'startframe', 'endframe', 'chair', 'chrpreset', 'padpreset'}
+    HEX2 = {'id', 'chrnum', 'object', 'door', 'lift', 'operation', 'entity_id',
+            'whichprop', 'modelpart', 'criteria', 'action', 'checktype', 'operator',
+            'player', 'chr'}
+
+    def __init__(self, names):
+        self.n = names
+        self.objtypes = {}
+
+    def fmt(self, macro, param, value, bits, ctx, binds=None):
+        n = self.n
+        p = param
+        r = None
+        if p == 'label':
+            return '/*goto*/ ' + hexw(value, 8)
+        if macro in ('case', 'case_respawn') and p == 'id':
+            return str(value)
+        if macro == 'object_do_animation' and p == 'startframe':
+            return hexw(value, bits)
+        if p == 'objective':
+            return str(value)
+        if p == 'special':
+            return (n.const('BANK_', value, bits) if value < 2 else None) or hexw(value, bits)
+        if p == 'bool':
+            return {0: 'FALSE', 1: 'TRUE'}.get(value, hexw(value, bits))
+        if p in ('pad', 'targetpad', 'pad1', 'pad2', 'pad3', 'pad4', 'roomorpad') \
+                or (p == 'chr' and macro in ('weapon', 'hat')):
+            if value == 0xffff:
+                return '-1'
+            if p == 'roomorpad':
+                return hexw(value, bits)
+            r = n.pad(value, bits)
+        elif p == 'model':
+            r = n.const('MODEL_', value, bits) if (value or macro != 'weapon') else hexw(value, bits)
+        elif ctx == 'props' and macro == 'chr' and p == 'flags':
+            r = n.flags('CHRFLAG0_', value, bits)
+        elif ctx == 'props' and macro == 'chr' and p == 'flags2':
+            r = n.flags('CHRFLAG1_', value, bits)
+        elif ctx == 'props' and p == 'flags':
+            r = n.flags('OBJFLAG_', value, bits, prefer=macro)
+        elif ctx == 'props' and p == 'flags2':
+            r = n.flags('OBJFLAG2_', value, bits, prefer=macro)
+        elif ctx == 'props' and p == 'flags3':
+            r = n.flags('OBJFLAG3_', value, bits, prefer=macro)
+        elif p == 'diffbit':
+            r = n.flags('DIFFBIT_', value, bits)
+            if r and '|' in r:
+                r = '(' + r + ')'
+        elif p == 'doorstate':
+            r = n.flags('DOORSTATE_', value, bits)
+            if r and '|' in r:
+                r = '(' + r + ')'
+        elif p == 'portal':
+            return hexw(value, bits)
+        elif p == 'flag' and macro == 'set_portal_flag':
+            r = n.flags('PORTALFLAG_', value, bits)
+        elif p == 'image' and macro == 'set_object_image':
+            r = n.const('TVCMDLIST_', value, bits)
+        elif p in self.SIGNED:
+            return str(signed(value, bits)) if value & (1 << (bits - 1)) else (str(value) if p in ('startframe', 'endframe') else hexw(value, bits))
+        elif p in ('objectflag', 'objectflag2', 'objectflag3'):
+            obj = binds.get('object', (None,))[0] if binds else None
+            otype = (self.objtypes or {}).get(obj) if obj is not None else None
+            r = n.flags({'objectflag': 'OBJFLAG_', 'objectflag2': 'OBJFLAG2_', 'objectflag3': 'OBJFLAG3_'}[p],
+                        value, bits, prefer=otype)
+        elif p == 'doorflags':
+            r = n.flags('DOORFLAG_', value, bits)
+        elif p == 'doortype':
+            r = n.const('DOORTYPE_', value, bits)
+        elif p in self.DEC:
+            return str(value)
+        elif p == 'body':
+            r = n.const('BODY_', value, bits)
+        elif p == 'head':
+            r = n.const('HEAD_', value, bits)
+        elif p == 'spawnflags':
+            r = n.flags('SPAWNFLAG_', value, bits)
+        elif p == 'team':
+            r = n.const('TEAM_', value, bits)
+        elif p == 'squadron':
+            r = n.const('SQUADRON_', value, bits)
+        elif p == 'function':
+            r = n.local_name('AILIST_', value, bits)
+        elif p in ('ailist', 'ailistid') or p.endswith('list'):
+            r = n.local_name('AILIST_', value, bits) or n.const('GAILIST_', value, bits)
+        elif p in ('weapon', 'gun', 'weaponnum', 'weapon_fallback'):
+            r = n.const('WEAPON_', value, bits)
+        elif p == 'ammotype':
+            r = n.const('AMMOTYPE_', value, bits)
+        elif p == 'outfit':
+            r = n.const('OUTFIT_', value, bits)
+        elif p == 'room':
+            return hexw(value, bits)
+        elif p == 'text' or re.match(r'^text\d*$', p):
+            name, s = n.text(value)
+            if name:
+                if s:
+                    return name, '"%s"' % s.replace('\n', ' ').replace('"', '\\"')
+                return name
+            if value == 0xffff:
+                return hexw(value, bits), 'unknown text'
+            if value < 0x10000:
+                return hexw(value, 16)
+        elif p == 'stageflag':
+            r = n.local_name('STAGEFLAG_', value, bits)
+            if not r:
+                loc = n.local.get('STAGEFLAG_', {})
+                parts, rem = [], value
+                for v, nm in loc.items():
+                    if v and (v & (v - 1)) == 0 and rem & v:
+                        parts.append(nm)
+                        rem &= ~v
+                if parts:
+                    r = ' | '.join(parts + ([hexw(rem, bits)] if rem else []))
+        elif p == 'object' or p.endswith('object') or p == 'obj':
+            r = n.local_name('OBJ_', value, bits)
+        elif p == 'chrnum' and macro == 'chr':
+            r = n.local_name('CHR_', value, bits)
+        elif p == 'chr' or p.endswith('chr') or p == 'player':
+            if bits == 8 and value == 0xff:
+                return '-1'
+            if value >= 0xf0 and bits == 8:
+                r = n.const('CHR_', value, bits)
+            if not r:
+                r = n.local_name('CHR_', value, bits)
+        elif p == 'color':
+            r = n.const('COLOR_', value, bits)
+        elif p in ('difficulty', 'diff'):
+            r = n.const('DIFF_', value, bits)
+        elif p == 'animation':
+            r = n.anims.get(value)
+        elif p in ('music', 'tracknum'):
+            r = n.music.get(value)
+        elif p == 'hovtype':
+            r = n.const('HOVTYPE_', value, bits)
+        elif p == 'chranimflags':
+            r = n.flags('CHRANIMFLAG_', value, bits)
+        elif p == 'chrflag3':
+            r = n.flags('CHRCFLAG_', value, bits)
+        elif p == 'chrflag2':
+            r = n.flags('CHRHFLAG_', value, bits)
+        elif p in ('flag', 'props') and binds and 'bank' in binds:
+            r = n.flags('CHRFLAG%d_' % binds['bank'][0], value, bits)
+        elif p == 'bank':
+            r = n.const('BANK_', value, bits)
+        elif p == 'attackflags':
+            r = n.flags('ATTACKFLAG_', value, bits)
+        elif p in ('sound', 'id') and macro.startswith('play_sound') or p == 'sound':
+            r = n.sound(value)
+        elif p == 'channel':
+            if value == 0xff:
+                return '-1'
+            r = n.const('CHANNEL_', value, bits)
+        elif p == 'stage':
+            r = n.const('STAGE_', value, bits)
+        elif p == 'quip' and binds and binds.get('bank', (1,))[0] == 0:
+            r = n.const('QUIP_', value, bits)
+        elif p.endswith('offset') and macro not in ('rename_object',):
+            return str(signed(value, bits))
+        # per-macro overrides
+        if macro == 'set_lights_state' and p == 'operation':
+            r = n.const('LIGHTOP_', value, bits)
+        elif macro == 'configure_environment' and p == 'operation':
+            r = n.const('AIENVCMD_', value, bits)
+        elif p == 'entity_id' and value == 0:
+            return '0'
+        if r:
+            return r
+        if p in self.HEX2 and bits > 8 and value < 0x100:
+            return hexw(value, 8)
+        return hexw(value, bits)
+
+
+# --------------------------------------------------------------------------- #
+# Decoding tables built from the headers
+# --------------------------------------------------------------------------- #
+
+def fmt_arg(f, macro, p, v, bits, ctx, binds, comments):
+    r = f.fmt(macro, p, v, bits, ctx, binds)
+    if isinstance(r, tuple):
+        comments.append(r[1])
+        return r[0]
+    return r
+
+
+class Tables:
+    def __init__(self, root, consts):
+        self.consts = consts
+        self.props = Macros()
+        self.props.load(os.path.join(root, 'src/include/props.h'))
+        self.intro = Macros()
+        self.intro.load(os.path.join(root, 'src/include/intro.h'))
+        self.cmds = Macros()
+        self.cmds.load(os.path.join(root, 'src/include/commands.h'))
+        self.cmdlens = self._cmdlens(os.path.join(root, 'src/game/chrai.c'))
+        self.prop_by_type = self._index_words(self.props, exclude={'_generic_object', '_mkshort', '_mkword'})
+        self.intro_by_type = self._index_words(self.intro)
+        self.cmd_by_op = self._index_cmds()
+
+    @staticmethod
+    def _cmdlens(path):
+        text = open(path, encoding='utf-8', errors='replace').read()
+        out = {}
+        m = re.search(r'g_CommandLengths\[\]\s*=\s*\{(.*?)\n\};', text, re.S)
+        if m:
+            for mm in re.finditer(r'/\*\s*(0x[0-9a-fA-F]+)\s*\*/\s*(\d+)', m.group(1)):
+                out[int(mm.group(1), 16)] = int(mm.group(2))
+        return out
+
+    def _index_words(self, macros, exclude=()):
+        """type byte -> [(name, params, [expr trees])] for word-array macros."""
+        idx = {}
+        for name in macros.order:
+            if name in exclude or name.startswith('_'):
+                continue
+            params, _ = macros.defs[name]
+            try:
+                toks = macros.expand(name)
+                trees = [parse_expr(t) for t in toks]
+            except Exception:
+                continue
+            if not trees:
+                continue
+            t0 = trees[0]
+            typ = None
+            if t0[0] == 'num':
+                typ = t0[1] & 0xff
+            elif t0[0] == 'call' and t0[1] == '_mkword' and t0[2][1][0] == 'num':
+                typ = t0[2][1][1] & 0xff
+            if typ is None:
+                continue
+            idx.setdefault(typ, []).append((name, params or [], trees))
+        return idx
+
+    def _index_cmds(self):
+        idx = {}
+        for name in self.cmds.order:
+            params, raw = self.cmds.defs[name]
+            if not raw:
+                continue
+            m = re.match(r'mkshort\(\s*(0x[0-9a-fA-F]+)\s*\)', raw[0].strip())
+            toks = raw
+            if not m:
+                # a macro built from one other command (remove_hudmsgs) is a
+                # more specific spelling of that command; two or more commands
+                # (beginloop) is structure, handled by the printer
+                try:
+                    toks = self.cmds.expand(name)
+                except Exception:
+                    continue
+                if not toks or not re.match(r'mkshort\(\s*0x[0-9a-fA-F]+\s*\)$', toks[0].strip()):
+                    continue
+                m = re.match(r'mkshort\(\s*(0x[0-9a-fA-F]+)\s*\)', toks[0].strip())
+                nbytes = sum(2 if t.strip().startswith('mkshort(') else 4 if t.strip().startswith('mkword(') else 1
+                             for t in toks if t.strip())
+                if self.cmdlens.get(int(m.group(1), 16)) != nbytes:
+                    continue
+            op = int(m.group(1), 16)
+            layout = []
+            ok = True
+            for t in toks[1:]:
+                t = t.strip().rstrip(',').strip()
+                if not t:
+                    continue
+                ms = re.match(r'mkshort\(\s*(.+)\s*\)$', t)
+                mw = re.match(r'mkword\(\s*(.+)\s*\)$', t)
+                try:
+                    if ms:
+                        layout.append((parse_expr(ms.group(1)), 16))
+                    elif mw:
+                        layout.append((parse_expr(mw.group(1)), 32))
+                    else:
+                        layout.append((parse_expr(t), 8))
+                except ValueError:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            idx.setdefault(op, []).append((name, params or [], layout))
+        # a macro that bakes more of its operands (remove_hudmsgs over
+        # show_hudmsg_middle) is the more specific reading: try it first
+        for op in idx:
+            idx[op].sort(key=lambda c: -sum(1 for t, _ in c[2] if t[0] == 'num'))
+        return idx
+
+
+# --------------------------------------------------------------------------- #
+# The file
+# --------------------------------------------------------------------------- #
+
+def be32(b, off):
+    return struct.unpack_from('>I', b, off)[0]
+
+
+def inflate1173(b):
+    if len(b) >= 5 and b[:2] == b'\x11\x73':
+        return zlib.decompress(b[5:], -15)
+    return bytes(b)
+
+
+class Region:
+    def __init__(self, start, end, kind, name, payload=None):
+        self.start, self.end, self.kind, self.name, self.payload = start, end, kind, name, payload
+
+    def __repr__(self):
+        return '<%s %s %#x-%#x>' % (self.kind, self.name, self.start, self.end)
+
+
+class Setup:
+    def __init__(self, data, tables, names, fmt, setupname, warn):
+        self.d = data
+        self.t = tables
+        self.n = names
+        self.f = fmt
+        self.name = setupname
+        self.warn = warn
+        self.regions = []
+        self.raw_props = 0
+        self.raw_lists = 0
+        self.lossy = False
+        self.lossy_words = 0
+        self.hdr = [be32(data, i * 4) for i in range(8)]
+
+    # -- layout --------------------------------------------------------
+    def parse(self):
+        d = self.d
+        h = self.hdr
+        for i, nm in ((0, 'waypoints'), (1, 'waygroups'), (2, 'cover'), (7, 'padfiledata')):
+            if h[i]:
+                self.warn('header slot %s is %#x; no setup in the decomp uses it, emitted as a raw offset' % (nm, h[i]))
+        self.regions.append(Region(0, 0x20, 'header', 'setup'))
+        starts = set()
+        # tables first: they give us every pointer
+        if h[6]:
+            lists = []
+            off = h[6]
+            while True:
+                ptr, lid = be32(d, off), be32(d, off + 4)
+                off += 8
+                if ptr == 0:
+                    break
+                lists.append((ptr, lid))
+            self.regions.append(Region(h[6], off, 'ailists', 'ailists', lists))
+            for ptr, lid in lists:
+                starts.add(ptr)
+        if h[5]:
+            paths = []
+            off = h[5]
+            while True:
+                ptr, pid, pflags, plen = be32(d, off), d[off + 4], d[off + 5], struct.unpack_from('>H', d, off + 6)[0]
+                off += 8
+                if ptr == 0:
+                    paths.append((ptr, pid, pflags, plen))
+                    break
+                paths.append((ptr, pid, pflags, plen))
+            self.regions.append(Region(h[5], off, 'paths', 'paths', paths))
+            for ptr, _, _, _ in paths:
+                if ptr:
+                    starts.add(ptr)
+        for i in range(3, 8):
+            if h[i]:
+                starts.add(h[i])
+        starts.add(len(d))
+        # props
+        self.objtypes = {}    # prop index -> macro name, for flag aliases in aicmds
+        if h[4]:
+            end = self._walk_props(h[4])
+            self.regions.append(Region(h[4], end, 'props', 'props'))
+            # ailists name objects by tag number; a tag record binds its
+            # tagnum to the record cmdoffset entries after it (setup.c:1999)
+            off, idx = h[4], 0
+            types, tags = [], []
+            while off < end:
+                typ = d[off + 3]
+                if typ == OBJTYPE_END:
+                    break
+                cands = self.t.prop_by_type.get(typ)
+                types.append(cands[0][0] if cands else None)
+                if typ == 0x16:
+                    tagnum = struct.unpack_from('>H', d, off + 4)[0]
+                    cmdoff = struct.unpack_from('>h', d, off + 6)[0]
+                    tags.append((tagnum, idx + cmdoff))
+                idx += 1
+                off += (self.prop_len(off) or 1) * 4
+            for tagnum, i in tags:
+                if 0 <= i < len(types):
+                    self.objtypes[tagnum] = types[i]
+        if h[3]:
+            end = self._walk_intro(h[3])
+            self.regions.append(Region(h[3], end, 'intro', 'intro'))
+        # path pad arrays
+        if h[5]:
+            pathregion = [r for r in self.regions if r.kind == 'paths'][0]
+            seenp = set()
+            for i, (ptr, pid, pflags, plen) in enumerate(pathregion.payload):
+                if not ptr or ptr in seenp:
+                    continue
+                seenp.add(ptr)
+                off = ptr
+                while struct.unpack_from('>i', d, off)[0] >= 0:
+                    off += 4
+                off += 4
+                self.regions.append(Region(ptr, off, 'path', 'path'))
+        # ailist bodies
+        if h[6]:
+            lr = [r for r in self.regions if r.kind == 'ailists'][0]
+            covered = sorted(starts | {r.start for r in self.regions})
+            seen = set()
+            nth = {}
+            for ptr, lid in lr.payload:
+                k = nth.get(lid, 0)
+                nth[lid] = k + 1
+                if ptr in seen:
+                    continue
+                seen.add(ptr)
+                nxt = min([s for s in covered if s > ptr] + [len(d)])
+                end = self._walk_list(ptr, nxt)
+                nm = self.n.funcnames.get((lid, k)) or ('func%04x' % lid if k == 0 else 'func%04x_%d' % (lid, k + 1))
+                self.regions.append(Region(ptr, end, 'ailist', nm, lid))
+        # orphans and padding. A run of zeros is alignment padding only when
+        # the compiler would put it there itself: fewer than 4 bytes before a
+        # 4-aligned region, or the linker's ALIGN(0x10) at the end of the
+        # file. Any other zeros are data the file carries (GE-editor output
+        # pads its tables) and are emitted so they come back.
+        self.regions.sort(key=lambda r: r.start)
+        cursor = 0
+        extra = []
+        for r in list(self.regions):
+            if r.start > cursor:
+                gap = d[cursor:r.start]
+                if any(gap) or len(gap) >= 4 or r.start % 4:
+                    extra.extend(self._carve_orphans(cursor, r.start, keep_zeros=not any(gap)))
+            cursor = max(cursor, r.end)
+        if cursor < len(d):
+            tail = d[cursor:]
+            linker_pad = (-cursor) % 16
+            if any(tail) or len(tail) != linker_pad:
+                extra.extend(self._carve_orphans(cursor, len(d), keep_zeros=not any(tail)))
+        self.regions.extend(extra)
+        self.regions.sort(key=lambda r: r.start)
+        # a text table's strings live in .rodata, after .data: drop whatever
+        # the carver made of them and remember where .data ends
+        self.rodata_start = None
+        for r in self.regions:
+            if r.kind == 'texttable':
+                lo = min(r.payload[0])
+                self.rodata_start = lo
+                keep = []
+                for x in self.regions:
+                    if x.start >= lo or (x.end > lo and not any(d[x.start:lo])):
+                        continue
+                    if x.end > lo:
+                        self.warn('region %r runs into the credits text at %#x' % (x, lo))
+                    keep.append(x)
+                self.regions = keep
+                break
+        # names, in file order, the way the decomp numbers them
+        k = 0
+        pid = {}
+        for r in self.regions:
+            if r.kind == 'paths':
+                for ptr, i, _, _ in r.payload:
+                    if ptr:
+                        pid[ptr] = i
+        nl = np = nt = 0
+        used = set()
+        for r in self.regions:
+            if r.kind == 'path':
+                if r.start in pid:
+                    r.name = 'path%02d' % pid[r.start]
+                    k = 2
+                    while r.name in used:        # two arrays can share an id
+                        r.name = 'path%02d_%d' % (pid[r.start], k)
+                        k += 1
+                    used.add(r.name)
+                else:
+                    r.name = self.n.unreg_paths[np] if np < len(self.n.unreg_paths) else 'unregistered_path%d' % (np + 1)
+                    np += 1
+            elif r.kind == 'ailist' and r.name is None:
+                r.name = self.n.unreg_lists[nl] if nl < len(self.n.unreg_lists) else 'unregistered_func%d' % (nl + 1)
+                nl += 1
+            elif r.kind == 'rawbytes' and r.name is None:
+                r.name = ('zeros_%04x' if not any(d[r.start:r.end]) else 'unknown_%04x') % r.start
+        # overlaps are a format misunderstanding; say so loudly
+        for a, b in zip(self.regions, self.regions[1:]):
+            if b.start < a.end:
+                self.warn('regions overlap: %r and %r' % (a, b))
+
+    # -- walkers -------------------------------------------------------
+    def prop_len(self, off):
+        d = self.d
+        typ = d[off + 3]
+        cands = self.t.prop_by_type.get(typ)
+        if cands:
+            return len(cands[0][2])
+        if typ in OBJ_LENGTHS:
+            return OBJ_LENGTHS[typ]
+        return None
+
+    def _walk_props(self, off):
+        d = self.d
+        while True:
+            if off + 4 > len(d):
+                raise Fail('props run off the end of the file')
+            typ = d[off + 3]
+            if typ == OBJTYPE_END:
+                return off + 4
+            n = self.prop_len(off)
+            if n is None:
+                # setupGetCmdLength() returns 1 for a type it does not know;
+                # do the same so the walk reaches endprops the way the engine does
+                self.warn('props: unknown type 0x%02x at +%#x, stepping one word like the engine' % (typ, off))
+                n = 1
+            off += n * 4
+
+    def _walk_intro(self, off):
+        d = self.d
+        while True:
+            typ = be32(d, off)
+            if typ == INTRO_END:
+                return off + 4
+            cands = self.t.intro_by_type.get(typ)
+            if not cands:
+                raise Fail('unknown intro op 0x%02x at %#x' % (typ, off))
+            off += len(cands[0][2]) * 4
+
+    def cmd_len(self, off):
+        d = self.d
+        op = (d[off] << 8) | d[off + 1]
+        if op == AICMD_PRINT:
+            p = off + 2
+            while p < len(d) and d[p] != 0:
+                p += 1
+            return p - off + 1
+        if op in self.t.cmdlens:
+            return self.t.cmdlens[op]
+        return None
+
+    def _walk_list(self, off, limit, strict=False):
+        """Return the end of the list starting at off, bounded by limit.
+
+        Ends at the first endlist, unless bytes follow it before the next
+        4-byte boundary (then the tail is glued to this list and the walk goes
+        on). Whatever follows an aligned end is someone else's - an
+        unregistered list, a stray path - and is left for the orphan pass.
+        With strict=True an unsizable opcode is a failure, not a raw tail."""
+        d = self.d
+        p = off
+        while p < limit:
+            if p + 2 > limit:
+                break
+            n = self.cmd_len(p)
+            if n is None:
+                if strict:
+                    raise Fail()
+                return limit
+            op = (d[p] << 8) | d[p + 1]
+            p += n
+            if op == AICMD_END:
+                aligned = (p + 3) & ~3
+                if not any(d[p:min(aligned, limit)]):
+                    return p
+        if strict:
+            raise Fail()
+        return limit
+
+    def _carve_orphans(self, start, end, keep_zeros=False):
+        """Split an unreferenced byte range into the things the decomp would
+        write for it: unregistered ailists, stray pad lists, a GE credits
+        text table, else raw bytes."""
+        d = self.d
+        out = []
+        p = start
+        while p < end:
+            if not any(d[p:end]):
+                if keep_zeros:
+                    out.append(Region(p, end, 'rawbytes', None))
+                break
+            if p % 4:
+                # alignment zeros before the next 4-byte boundary are padding
+                aligned = min((p + 3) & ~3, end)
+                if not any(d[p:aligned]):
+                    p = aligned
+                    continue
+            if p % 4 == 0:
+                # credits text table: words that are offsets to NUL-terminated strings
+                tbl = self._text_table(p, end)
+                if tbl:
+                    out.append(tbl)
+                    p = tbl.end
+                    continue
+                # stray pad list
+                q = p
+                ok = False
+                while q + 4 <= end:
+                    v = struct.unpack_from('>i', d, q)[0]
+                    q += 4
+                    if v == -1:
+                        ok = True
+                        break
+                    if v < 0 or v > 0xffff:
+                        break
+                if ok:
+                    out.append(Region(p, q, 'path', None))
+                    p = q
+                    continue
+            # unregistered ailist
+            try:
+                e = self._walk_list(p, end, strict=True)
+                out.append(Region(p, e, 'ailist', None, None))
+                p = (e + 3) & ~3
+                continue
+            except Fail:
+                pass
+            # raw to the end of the range (or to the next thing we can parse)
+            q = p + 1
+            while q < end:
+                if q % 4 == 0:
+                    try:
+                        self._walk_list(q, end, strict=True)
+                        break
+                    except Fail:
+                        pass
+                q += 1
+            if any(d[p:q]):
+                out.append(Region(p, q, 'rawbytes', None))
+            p = q
+        return out
+
+    def _text_table(self, p, end):
+        d = self.d
+        ptrs = []
+        q = p
+        while q + 4 <= end:
+            v = be32(d, q)
+            if v < 0x20 or v >= len(d) or v % 1 != 0:
+                break
+            ptrs.append(v)
+            q += 4
+            if len(ptrs) > 64:
+                return None
+        if len(ptrs) < 2 or ptrs != sorted(ptrs):
+            return None
+        strs = []
+        for v in ptrs:
+            e = d.find(b'\0', v)
+            if e < 0 or e == v:
+                return None
+            sb = d[v:e]
+            if any(c < 9 or (13 < c < 32) or c > 126 for c in sb):
+                return None
+            strs.append(sb.decode('ascii'))
+        return Region(p, q, 'texttable', None, (ptrs, strs))
+
+    # -- emission ------------------------------------------------------
+    def emit(self):
+        out = []
+        w = out.append
+        w('//')
+        w('// %s (disassembled by tools/blahaj)' % self.name)
+        w('//')
+        w('')
+        w('#include "stagesetup.h"')
+        w('')
+        self._emit_defines(w)
+        names = {r.kind: r.name for r in self.regions}
+        w('extern s32 intro[];')
+        w('extern u32 props[];')
+        w('extern struct path paths[];')
+        w('extern struct ailist ailists[];')
+        w('')
+        w('struct stagesetup setup = {')
+        for i in range(8):
+            h = self.hdr[i]
+            kind = {3: 'intro', 4: 'props', 5: 'paths', 6: 'ailists'}.get(i)
+            if h and kind and kind in names:
+                w('\t%s,' % names[kind])
+            elif h:
+                w('\t(void *)%#x,' % h)
+            else:
+                w('\tNULL,')
+        w('};')
+        w('')
+        for r in self.regions:
+            if r.kind == 'header':
+                continue
+            getattr(self, '_emit_' + r.kind)(w, r)
+            w('')
+        while out and out[-1] == '':
+            out.pop()
+        return '\n'.join(out) + '\n'
+
+    def _emit_defines(self, w):
+        if not self.n.local_defs:
+            return
+        fam = None
+        width = 0
+        for f, nm, v in self.n.local_defs:
+            if f != fam:
+                if fam is not None:
+                    w('')
+                fam = f
+                width = max(len(x[1]) for x in self.n.local_defs if x[0] == f)
+            if v < 0:
+                vs = str(v)
+            elif v >= 0x10000 or f in ('STAGEFLAG_',):
+                vs = '0x%08x' % v
+            elif v >= 0x100 or f in ('AILIST_', 'PAD_'):
+                vs = '0x%04x' % v
+            else:
+                vs = '0x%02x' % v
+            w('#define %-*s %s' % (width, nm, vs))
+        w('')
+
+    def _emit_props(self, w, r):
+        d = self.d
+        w('u32 props[] = {')
+        off = r.start
+        while off < r.end:
+            typ = d[off + 3]
+            if typ == OBJTYPE_END:
+                w('\tendprops')
+                off += 4
+                continue
+            n = self.prop_len(off) or 1
+            words = [be32(d, off + i * 4) for i in range(n)]
+            line = self._decode_words(self.t.prop_by_type.get(typ, []), words, 'props')
+            if line is None:
+                self.raw_props += 1
+                why = self.last_mismatch or 'no macro for this type'
+                w('\t// raw: OBJTYPE 0x%02x at +%#x: %s' % (typ, off, why))
+                for i in range(0, n, 8):
+                    w('\t' + ', '.join('0x%08x' % x for x in words[i:i + 8]) + ',')
+            else:
+                w('\t' + line)
+            off += n * 4
+        w('};')
+
+    def _emit_intro(self, w, r):
+        d = self.d
+        w('s32 intro[] = {')
+        off = r.start
+        while off < r.end:
+            typ = be32(d, off)
+            if typ == INTRO_END:
+                w('\tendintro')
+                off += 4
+                continue
+            cands = self.t.intro_by_type[typ]
+            n = len(cands[0][2])
+            words = [be32(d, off + i * 4) for i in range(n)]
+            line = self._decode_words(cands, words, 'intro')
+            if line is None:
+                w('\t' + ', '.join('0x%08x' % x for x in words) + ',')
+            else:
+                w('\t' + line)
+            off += n * 4
+        w('};')
+
+    def _decode_words(self, cands, words, ctx):
+        self.last_mismatch = None
+        for name, params, trees in cands:
+            if len(trees) != len(words):
+                continue
+            binds = {}
+            lost = []       # (word index, file value, baked expr) accepted under --lossy
+            try:
+                for i, (tree, wv) in enumerate(zip(trees, words)):
+                    try:
+                        invert(tree, wv, 32, set(params), binds, self.t.consts)
+                    except Fail:
+                        self.last_mismatch = '%s word %d is %#010x, macro bakes %s' % (name, i, wv, expr_text(tree))
+                        if self.lossy and tree[0] == 'num' and ctx == 'props':
+                            lost.append((i, wv, tree[1]))
+                            continue
+                        raise
+            except Fail:
+                continue
+            if lost:
+                self.lossy_words += len(lost)
+                note = ' // lossy: ' + ', '.join('word %d was %#010x (macro bakes %#x)' % x for x in lost)
+            else:
+                note = ''
+            args, comments = [], []
+            for p in params:
+                if p not in binds:
+                    args.append('0')
+                    continue
+                v, bits = binds[p]
+                args.append(fmt_arg(self.f, name, p, v, bits, ctx, binds, comments))
+            text = '%s(%s)' % (name, ', '.join(args)) if params else name
+            if comments:
+                text += ' // ' + ', '.join(comments)
+            return text + note
+        return None
+
+    def _emit_path(self, w, r):
+        d = self.d
+        w('s32 %s[] = {' % r.name)
+        off = r.start
+        while off < r.end:
+            v = struct.unpack_from('>i', d, off)[0]
+            if v < 0:
+                w('\t%d,' % v)
+            else:
+                w('\t%s,' % (self.n.pad(v, 32) or '0x%04x' % v))
+            off += 4
+        w('};')
+
+    def _emit_paths(self, w, r):
+        pathnames = {x.start: x.name for x in self.regions if x.kind == 'path'}
+        w('struct path paths[] = {')
+        for ptr, pid, pflags, plen in r.payload:
+            if ptr == 0:
+                w('\t{ NULL, %d, %d },' % (pid, pflags))
+            else:
+                fl = self.n.flags('PATHFLAG_', pflags, 8) or '0x%02x' % pflags
+                w('\t{ %s, %d, %s },' % (pathnames.get(ptr, '(s32 *)%#x' % ptr), pid, fl))
+                if plen:
+                    self.warn('path %#x has len %d baked in the file' % (ptr, plen))
+        w('};')
+
+    def _emit_ailists(self, w, r):
+        listnames = {x.start: x.name for x in self.regions if x.kind in ('ailist', 'rawbytes')}
+        w('struct ailist ailists[] = {')
+        width = max([len(listnames.get(p, '')) for p, _ in r.payload] + [4])
+        for ptr, lid in r.payload:
+            nm = listnames.get(ptr, '(u8 *)%#x' % ptr)
+            idn = self.n.local_name('AILIST_', lid, 32) or '0x%04x' % lid
+            w('\t{ %-*s %s },' % (width + 1, nm + ',', idn))
+        w('\t{ NULL, 0 },')
+        w('};')
+
+    def _emit_texttable(self, w, r):
+        ptrs, strs = r.payload
+        for i, (ptr, st) in enumerate(zip(ptrs, strs)):
+            nm = self.n.textnames[i] if i < len(self.n.textnames) else 'text_%d' % (i + 1)
+            w('char *%s = "%s";' % (nm, st.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '\\n')))
+
+    def _emit_rawbytes(self, w, r):
+        d = self.d
+        w('// raw: %#x bytes at +%#x that nothing references and nothing here can read' % (r.end - r.start, r.start))
+        w('u8 %s[] = {' % r.name)
+        for i in range(r.start, r.end, 16):
+            w('\t' + ', '.join('0x%02x' % x for x in d[i:min(i + 16, r.end)]) + ',')
+        w('};')
+
+    def _emit_ailist(self, w, r):
+        d = self.d
+        w('u8 %s[] = {' % r.name)
+        p = r.start
+        end = self._walk_list(r.start, r.end)
+        lines = []     # (indent-delta-before, text, indent-delta-after)
+        loops = []     # stack of open loop labels
+        cmds = []
+        while p < end:
+            n = self.cmd_len(p)
+            op = (d[p] << 8) | d[p + 1]
+            if n is None:
+                self.raw_lists += 1
+                self.warn('%s: opcode 0x%04x at +%#x (list +%#x) cannot be sized; rest of list is raw' % (r.name, op, p, p - r.start))
+                cmds.append(('raw', p, end))
+                p = end
+                break
+            cmds.append(('cmd', p, p + n))
+            p += n
+        # pass 1: decode to (op, text, label-id)
+        decoded = []
+        for kind, a, b in cmds:
+            if kind == 'raw':
+                decoded.append(('raw', a, b, None))
+                continue
+            op = (d[a] << 8) | d[a + 1]
+            text, lab = self._decode_cmd(op, d[a:b])
+            fwd = lab if (lab is not None and op not in (AICMD_LABEL, AICMD_GOTO_FIRST)) else None
+            decoded.append((op, text, lab, fwd))
+        # pass 2: fold label+yield into beginloop, pick endloop/reloop.
+        # A loop's body extends past a goto_first(lab) when a command inside
+        # the body jumps forward to a label after it (the decomp writes that
+        # goto_first as reloop); the first goto_first with nothing pending
+        # closes the loop (endloop).
+        def next_label(idx, lab):
+            for k in range(idx + 1, len(decoded)):
+                if decoded[k][0] == AICMD_LABEL and decoded[k][2] == lab:
+                    return k
+            return None
+        # drop a duplicate region walk: same list referenced twice
+        i = 0
+        indent = 1
+        open_loops = []    # [(lab, far)]
+        while i < len(decoded):
+            item = decoded[i]
+            if item[0] == 'raw':
+                a, b = item[1], item[2]
+                w('\t// raw from list +%#x: opcode 0x%02x%02x has no known length' % (a - r.start, d[a], d[a + 1]))
+                for k in range(a, b, 16):
+                    w('\t' + ', '.join('0x%02x' % x for x in d[k:min(k + 16, b)]) + ',')
+                i += 1
+                continue
+            op, text, lab, fwd = item[0], item[1], item[2], item[3]
+            # forward targets from inside an open loop push its end out
+            if fwd is not None and open_loops:
+                tgt = next_label(i, fwd)
+                if tgt is not None:
+                    open_loops[-1][1] = max(open_loops[-1][1], tgt)
+            if op == AICMD_LABEL and i + 1 < len(decoded) and decoded[i + 1][0] == AICMD_YIELD \
+                    and lab is not None and any(x[0] == AICMD_GOTO_FIRST and x[2] == lab for x in decoded[i + 2:]):
+                w('\t' * indent + 'beginloop(%s)' % hexw(lab, 8))
+                open_loops.append([lab, i])
+                indent += 1
+                i += 2
+                continue
+            if op == AICMD_GOTO_FIRST and open_loops and lab == open_loops[-1][0]:
+                # the body continues past this jump only when a forward target
+                # lies beyond it AND the code there jumps back to this loop
+                # before any other loop opens (the decomp's reloop)
+                far = open_loops[-1][1]
+                continues = False
+                if os.environ.get('BLAHAJ_LOOPRULE') == 'last':
+                    continues = any(x[0] == AICMD_GOTO_FIRST and x[2] == lab for x in decoded[i + 1:])
+                elif far > i:
+                    for k in range(i + 1, len(decoded)):
+                        dk = decoded[k]
+                        if dk[0] == AICMD_LABEL and k + 1 < len(decoded) and decoded[k + 1][0] == AICMD_YIELD \
+                                and any(x[0] == AICMD_GOTO_FIRST and x[2] == dk[2] for x in decoded[k + 2:]):
+                            break
+                        if dk[0] == AICMD_GOTO_FIRST and dk[2] == lab and k > far:
+                            continues = True
+                            break
+                        if dk[0] == AICMD_END:
+                            break
+                if not continues:
+                    indent -= 1
+                    open_loops.pop()
+                    w('\t' * indent + 'endloop(%s)' % hexw(lab, 8))
+                else:
+                    w('\t' * indent + 'reloop(%s)' % hexw(lab, 8))
+                w('')
+                i += 1
+                continue
+            if op == AICMD_LABEL and i > 0 and decoded[i - 1][0] not in (AICMD_LABEL,) and w.__self__[-1] != '':
+                w('')
+            w('\t' * indent + text)
+            i += 1
+        while open_loops:
+            # loop never closed (jumps back from a raw tail, or a dead one): unindent quietly
+            open_loops.pop()
+            indent -= 1
+        # dead tail past the list end, if any
+        if end < r.end and any(d[end:r.end]):
+            w('\t// bytes after the list end, kept verbatim')
+            for k in range(end, r.end, 16):
+                w('\t' + ', '.join('0x%02x' % x for x in d[k:min(k + 16, r.end)]) + ',')
+        w('};')
+
+    def _decode_cmd(self, op, raw):
+        """-> (text, label id or None)"""
+        if op == AICMD_PRINT:
+            body = raw[2:-1]
+            chars = []
+            for c in body:
+                ch = chr(c)
+                if ch == '\n':
+                    chars.append("'\\n'")
+                elif ch == "'":
+                    chars.append("'\\''")
+                elif ch == '\\':
+                    chars.append("'\\\\'")
+                elif 32 <= c < 127:
+                    chars.append("'%s'" % ch)
+                else:
+                    chars.append('0x%02x' % c)
+            return 'dprint ' + ','.join(chars + ['0']) + ',', None
+        cands = self.t.cmd_by_op.get(op, [])
+        for name, params, layout in cands:
+            if 2 + sum(b // 8 for _, b in layout) != len(raw):
+                continue
+            binds = {}
+            p = 2
+            try:
+                for tree, bits in layout:
+                    nb = bits // 8
+                    v = int.from_bytes(raw[p:p + nb], 'big')
+                    invert(tree, v, bits, set(params), binds, self.t.consts)
+                    p += nb
+            except Fail:
+                continue
+            lab = None
+            args, comments = [], []
+            for prm in params:
+                if prm not in binds:
+                    args.append('0')
+                    continue
+                v, bits = binds[prm]
+                if name in ('label', 'goto_next', 'goto_first'):
+                    args.append(hexw(v, bits))
+                    lab = v
+                else:
+                    if prm == 'label':
+                        lab = v
+                    args.append(fmt_arg(self.f, name, prm, v, bits, 'ai', binds, comments))
+            text = '%s(%s)' % (name, ', '.join(args)) if params else name
+            if comments:
+                text += ' // ' + ', '.join(comments)
+            return text, lab
+        # known length, no macro: raw bytes for this command only
+        return 'mkshort(0x%04x), %s' % (op, ', '.join('0x%02x' % x for x in raw[2:])) + ',', None
+
+
+# --------------------------------------------------------------------------- #
+# Inputs
+# --------------------------------------------------------------------------- #
+
+def rom_file(rom_path, filename):
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'lib', 'packages', 'python'))
+    sys.path.insert(0, os.path.join(ROOT, '..', 'docker-caroll', 'lib', 'packages', 'python'))
+    from leylinelib.pd_rom_driver import PDROMDriver
+    rom = open(rom_path, 'rb').read()
+    drv = PDROMDriver(rom_path=rom_path)
+    for f in drv.get_files():
+        if f['name'] == filename:
+            return rom[f['offset']:f['end_offset']], getattr(drv, 'romid', None) or getattr(drv, 'variant', None)
+    sys.exit('blahaj: %s is not a file in %s' % (filename, rom_path))
+
+
+def xdelta_apply(xd, src, patch, out):
+    subprocess.check_call([xd, '-d', '-f', '-s', src, patch, out])
+
+
+def setup_name_from(filename):
+    base = os.path.basename(filename)
+    base = re.sub(r'\.(bin|z|Z)$', '', base)
+    m = re.match(r'^U(mp_)?setup(\w+?)Z?$', base)
+    if m:
+        return (m.group(1) or '') + 'setup' + m.group(2)
+    m = re.match(r'^(mp_)?setup(\w+)$', base)
+    if m:
+        return base
+    return base
+
+
+def stage_key(setupname):
+    return re.sub(r'^(mp_)?setup', '', setupname)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    ap.add_argument('input', help='setup file on disk, or its ROM name with --rom')
+    ap.add_argument('--rom', help='ROM to pull the file from')
+    ap.add_argument('--xdelta', help='whole-rom xdelta to apply to --rom first')
+    ap.add_argument('--file-patch', help='per-file xdelta applied after inflate (mod patches/)')
+    ap.add_argument('--xdelta3', default=os.environ.get('XDELTA3', 'xdelta3'))
+    ap.add_argument('--romid', default=os.environ.get('ROMID', 'ntsc-final'))
+    ap.add_argument('--name', help='setup name for the output (setupdish, mp_setupmp1)')
+    ap.add_argument('--stage', help='stage key for pad/room/text names (dish, mp4); default: from a '
+                    'vanilla-looking file name, none for a mod file (its pads are not the tree\'s)')
+    ap.add_argument('--names', default='auto', help='auto (harvest src/setups/<name>.c) or none')
+    ap.add_argument('--tree', default=ROOT, help='pd-fojo tree root')
+    ap.add_argument('-o', '--output', help='write C here (default stdout)')
+    ap.add_argument('--raw-out', help='also write the inflated input bytes here (for cmp)')
+    ap.add_argument('--lossy', action='store_true',
+                    help='write a prop as its macro even when a word the macro bakes (runtime '
+                         'state a level editor left behind) differs; each such word is noted in '
+                         'a comment and the rebuild is not byte-identical there')
+    ap.add_argument('--check', action='store_true',
+                    help='after writing, rebuild the C with tools/mksetups (clang+lld) and compare '
+                         'the bytes with the input; exit 1 if they differ')
+    ap.add_argument('-q', '--quiet', action='store_true')
+    args = ap.parse_args()
+
+    root = args.tree
+    if not root or not os.path.isfile(os.path.join(root, 'src/include/props.h')):
+        sys.exit('blahaj: cannot find the pd-fojo tree (pass --tree)')
+
+    warnings = []
+
+    def warn(msg):
+        warnings.append(msg)
+        if not args.quiet:
+            print('blahaj: ' + msg, file=sys.stderr)
+
+    if args.rom:
+        rom = args.rom
+        tmp = None
+        if args.xdelta:
+            xd = shutil.which(args.xdelta3)
+            if not xd:
+                sys.exit('blahaj: no xdelta3 on PATH (brew install xdelta / apt install xdelta3)')
+            tmp = tempfile.NamedTemporaryFile(suffix='.z64', delete=False)
+            tmp.close()
+            xdelta_apply(xd, rom, args.xdelta, tmp.name)
+            rom = tmp.name
+        blob, _ = rom_file(rom, args.input)
+        if tmp:
+            os.unlink(tmp.name)
+        data = inflate1173(blob)
+        setupname = args.name or setup_name_from(args.input)
+    else:
+        data = inflate1173(open(args.input, 'rb').read())
+        setupname = args.name or setup_name_from(args.input)
+
+    if args.file_patch:
+        xd = shutil.which(args.xdelta3)
+        if not xd:
+            sys.exit('blahaj: no xdelta3 on PATH')
+        with tempfile.TemporaryDirectory() as td:
+            src = os.path.join(td, 'src.bin')
+            out = os.path.join(td, 'out.bin')
+            open(src, 'wb').write(data)
+            xdelta_apply(xd, src, args.file_patch, out)
+            data = open(out, 'rb').read()
+
+    if args.raw_out:
+        open(args.raw_out, 'wb').write(data)
+
+    tables = Tables(root, {})
+    inname = os.path.basename(args.input)
+    vanilla_like = re.match(r'^U(mp_)?setup[a-z0-9]+Z(\.bin)?$', inname) is not None
+    if args.stage:
+        key = args.stage
+    elif vanilla_like:
+        key = stage_key(setupname)
+    else:
+        key = None
+        warn('%s does not look like a vanilla file name: pads, rooms and text stay numeric (pass --stage KEY to use a stage\'s names)' % inname)
+    names = Names(root, args.romid, key, setupname, args.names == 'auto' and key is not None)
+    tables.consts = names.consts
+    fmt = Formatter(names)
+    s = Setup(data, tables, names, fmt, setupname, warn)
+    s.lossy = args.lossy
+    s.parse()
+    fmt.objtypes = s.objtypes
+    text = s.emit()
+    if args.output:
+        os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
+        open(args.output, 'w').write(text)
+    else:
+        sys.stdout.write(text)
+    if not args.quiet:
+        print('blahaj: %s: %d bytes, %d regions, %d raw props, %d raw list tails, %d lossy words, %d warnings' % (
+            setupname, len(data), len(s.regions), s.raw_props, s.raw_lists, s.lossy_words, len(warnings)), file=sys.stderr)
+    if args.check:
+        sys.exit(0 if roundtrip(root, args.romid, setupname, text, data) else 1)
+
+
+def roundtrip(root, romid, setupname, text, data):
+    """Build the emitted C with tools/mksetups and compare with the input."""
+    srcdir = os.path.join(root, 'build', romid, 'blahaj')
+    os.makedirs(srcdir, exist_ok=True)
+    open(os.path.join(srcdir, setupname + '.c'), 'w').write(text)
+    cmd = [sys.executable, os.path.join(root, 'tools', 'mksetups'), '--no-headers',
+           '--romid', romid, '--src-dir', srcdir, setupname]
+    r = subprocess.run(cmd, cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if r.returncode:
+        print('blahaj: check: mksetups failed:\n' + r.stdout.decode(errors='replace'), file=sys.stderr)
+        return False
+    built = open(os.path.join(root, 'build', romid, 'files', 'setup', setupname + '.bin'), 'rb').read()
+    if built == data:
+        print('blahaj: check: %s rebuilds byte-identical (%d bytes)' % (setupname, len(data)), file=sys.stderr)
+        return True
+    n = next((i for i in range(min(len(built), len(data))) if built[i] != data[i]), min(len(built), len(data)))
+    print('blahaj: check: %s DIFFERS at +%#x (built %d bytes, input %d bytes)' % (setupname, n, len(built), len(data)), file=sys.stderr)
+    return False
+
+
+if __name__ == '__main__':
+    main()

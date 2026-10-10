@@ -213,7 +213,7 @@ def rarezip(data):
     return b'\x11\x73' + len(data).to_bytes(3, 'big') + c.compress(data) + c.flush()
 
 
-def build_one(llvm, romid, name, verbose):
+def build_one(llvm, romid, name, verbose, srcdir='src/setups'):
     version = VERSIONS[romid]
     pal = 1 if romid.startswith('pal') else 0
     B = 'build/%s' % romid
@@ -222,7 +222,7 @@ def build_one(llvm, romid, name, verbose):
     os.makedirs(objdir, exist_ok=True)
     os.makedirs(bindir, exist_ok=True)
 
-    src = 'src/setups/%s.c' % name
+    src = os.path.join(srcdir, '%s.c' % name)
     shimmed = os.path.join(objdir, name + '.c')
     obj = os.path.join(objdir, name + '.o')
     ld = os.path.join(objdir, name + '.ld')
@@ -268,6 +268,7 @@ def main():
     ap.add_argument('--romid', default=os.environ.get('ROMID', 'ntsc-final'), choices=sorted(VERSIONS))
     ap.add_argument('--out', help='also copy the compressed U<name>Z files into this dir (eg a moddir files/)')
     ap.add_argument('--no-headers', action='store_true', help='skip regenerating src/generated/<romid>')
+    ap.add_argument('--src-dir', default='src/setups', help='where <name>.c lives (default src/setups; tools/blahaj --check builds from build/<romid>/blahaj)')
     ap.add_argument('-v', '--verbose', action='store_true')
     ap.add_argument('--patches', action='store_true',
                     help='write <mod-dir>/patches/U<name>Z.xdelta against the vanilla file and upsert the manifest rows')
@@ -287,14 +288,14 @@ def main():
     if not args.no_headers:
         gen_headers(args.romid)
 
-    names = args.names or sorted(os.path.basename(p)[:-2] for p in glob.glob('src/setups/*.c'))
+    names = args.names or sorted(os.path.basename(p)[:-2] for p in glob.glob(os.path.join(args.src_dir, '*.c')))
     if args.out:
         os.makedirs(args.out, exist_ok=True)
     failed = 0
     built = []
     for name in names:
         try:
-            binp, zipp, size = build_one(llvm, args.romid, name, args.verbose)
+            binp, zipp, size = build_one(llvm, args.romid, name, args.verbose, args.src_dir)
         except subprocess.CalledProcessError as e:
             print('FAIL %s: %s' % (name, e))
             failed += 1
