@@ -2084,12 +2084,27 @@ Gfx *menuRenderModel(Gfx *gdl, struct menumodel *menumodel, s32 modeltype)
 				videoResetTextureCache();
 #endif
 				if (MENUMODELPARAMS_GET_FILENUM(menumodel->newparams) == 0xffff || MENUMODELPARAMS_HAS_MASTER_HEADBODY(menumodel->newparams)) {
-					if (MENUMODELPARAMS_HAS_MASTER_HEADBODY(menumodel->newparams)) {
+					// MENUMODELPARAMS_SET_MP_HEADBODY packs the mp body slot into
+					// bits 24-31 and HAS_MASTER_HEADBODY tests bit 31, so an mp body
+					// in slot 128 or above reads as a master head/body word and the
+					// previewer decodes head 0x3ff / body 0x3f out of the 0xffff
+					// sentinel - a fixed wrong body with an out-of-range head. The
+					// master encoding never carries the sentinel in its low half, so
+					// require that too. Same guard as Jonaeru's all-in-one branch.
+					if (MENUMODELPARAMS_HAS_MASTER_HEADBODY(menumodel->newparams)
+							&& MENUMODELPARAMS_GET_FILENUM(menumodel->newparams) != 0xffff) {
 						headnum = MENUMODELPARAMS_GET_MASTER_HEADNUM(menumodel->newparams);
 						bodynum = MENUMODELPARAMS_GET_MASTER_BODYNUM(menumodel->newparams);
 					} else {
 						s32 mpheadnum = MENUMODELPARAMS_GET_MP_HEADNUM(menumodel->newparams);
 						s32 mpbodynum = MENUMODELPARAMS_GET_MP_BODYNUM(menumodel->newparams);
+#ifndef PLATFORM_N64
+						// Degrade to the first slot rather than index past the roster.
+						if (mpbodynum < 0 || mpbodynum >= (s32)mpGetNumBodies()) {
+							sysLogPrintf(LOG_WARNING, "menu: mp body slot %d is past the roster (%d bodies); previewing slot 0", mpbodynum, mpGetNumBodies());
+							mpbodynum = 0;
+						}
+#endif
 						bodynum = mpGetBodyId(mpbodynum);
 
 						if (mpheadnum < mpGetNumHeads2()) {
