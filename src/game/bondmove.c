@@ -11,10 +11,6 @@
 #include "game/modspectate.h"
 #include "game/chraction.h"
 #include "game/debug.h"
-#ifndef PLATFORM_N64
-#include "system.h"
-#include "lib/model.h"
-#endif
 #include "game/footstep.h"
 #include "game/game_006900.h"
 #include "game/chr.h"
@@ -3094,14 +3090,6 @@ void bmoveTick(bool allowc1x, bool allowc1y, bool allowc1buttons, bool ignorec2)
 				sound = footstepChooseSound(chr, distance > 10);
 
 				if (sound != -1) {
-#ifndef PLATFORM_N64
-					// FOOTDIAG (#394) - temporary probe
-					sysLogPrintf(LOG_NOTE, "FOOTDIAG: distance f=%d u240=%d players=%d third=%d anim=%04x magic=%d foot=%d snd=%04x",
-							g_Vars.lvframenum, g_Vars.lvupdate240, PLAYERCOUNT(),
-							(s32)playerIsThirdPerson(g_Vars.currentplayer),
-							chr->model ? (u32)modelGetAnimNum(chr->model) : 0xffff,
-							(s32)chr->magicanim, (s32)chr->footstep, (u32)sound & 0xffff);
-#endif
 					snd00010718(0, 0, AL_VOL_FULL, AL_PAN_CENTER, sound, 1, 1, -1, true);
 				}
 			}
