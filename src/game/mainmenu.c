@@ -2322,6 +2322,11 @@ const char *fojoGetPlayerOperativeName(s32 playernum) {
     return NULL;
   }
 
+  // a counter-operative is not on the roster's side: no operative name
+  if (g_Vars.playerroles[playernum] == PLAYERROLE_ANTI) {
+    return NULL;
+  }
+
   index = g_PlayerConfigsArray[playernum].teamagentindex;
 
   if (index < 0 || index >= g_FojoHeadCount) {
