@@ -1099,6 +1099,71 @@ static void inputChaosDelayApply(s32 idx, OSContPad *npad)
 	chaosDelayHead[idx]++;
 }
 
+u32 inputKeyboardButtons(s32 idx)
+{
+	u32 out = 0;
+
+	if (idx < 0 || idx >= MAXCONTROLLERS) {
+		return 0;
+	}
+
+	for (u32 i = 0; i < CONT_NUM_BUTTONS; ++i) {
+		for (s32 b = 0; b < INPUT_MAX_BINDS; ++b) {
+			const u32 vk = binds[idx][i][b];
+
+			if (vk && vk < VK_MOUSE_BEGIN && inputKeyPressed(vk)) {
+				out |= 1U << i;
+				break;
+			}
+		}
+	}
+
+	return out;
+}
+
+// [weightyaim] Motion sensors for gyro aiming. Fills gyro[3] (rad/s: pitch, yaw,
+// roll) and accel[3] (m/s^2, points up when the controller is at rest).
+// Returns 1 if the controller has a gyro, 0 otherwise.
+s32 inputControllerGetMotion(s32 idx, f32 *gyro, f32 *accel)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	if (idx < 0 || idx >= INPUT_MAX_CONTROLLERS || !pads[idx]) {
+		return 0;
+	}
+
+	SDL_GameController *pad = pads[idx];
+
+	if (!SDL_GameControllerHasSensor(pad, SDL_SENSOR_GYRO)) {
+		return 0;
+	}
+
+	if (!SDL_GameControllerIsSensorEnabled(pad, SDL_SENSOR_GYRO)) {
+		SDL_GameControllerSetSensorEnabled(pad, SDL_SENSOR_GYRO, SDL_TRUE);
+	}
+
+	if (SDL_GameControllerGetSensorData(pad, SDL_SENSOR_GYRO, gyro, 3) != 0) {
+		return 0;
+	}
+
+	if (accel) {
+		accel[0] = 0.f;
+		accel[1] = 9.81f;
+		accel[2] = 0.f;
+
+		if (SDL_GameControllerHasSensor(pad, SDL_SENSOR_ACCEL)) {
+			if (!SDL_GameControllerIsSensorEnabled(pad, SDL_SENSOR_ACCEL)) {
+				SDL_GameControllerSetSensorEnabled(pad, SDL_SENSOR_ACCEL, SDL_TRUE);
+			}
+			SDL_GameControllerGetSensorData(pad, SDL_SENSOR_ACCEL, accel, 3);
+		}
+	}
+
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 static inline s32 inputAxisScale(s32 x, s32 deadzone, const f32 scale)
 {
 	if (chaosDeadzone > deadzone) {
