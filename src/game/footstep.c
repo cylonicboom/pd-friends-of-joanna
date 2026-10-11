@@ -11,19 +11,6 @@
 #include "lib/mtx.h"
 #include "data.h"
 #include "types.h"
-#ifndef PLATFORM_N64
-#include "system.h"
-// FOOTDIAG (#394) - temporary probe: every footstep a PLAYER's body makes
-#define FOOTDIAG(site, chr, frame, prev, snd) \
-	if ((chr) && (chr)->prop && (chr)->prop->type == PROPTYPE_PLAYER) { \
-		sysLogPrintf(LOG_NOTE, "FOOTDIAG: %s f=%d u240=%d u60=%d anim=%04x frame=%.2f prev=%.2f magic=%d mframe=%.2f foot=%d snd=%04x", \
-			(site), g_Vars.lvframenum, g_Vars.lvupdate240, g_Vars.lvupdate60, \
-			(chr)->model ? (u32)modelGetAnimNum((chr)->model) : 0xffff, (f64)(frame), (f64)(prev), \
-			(s32)(chr)->magicanim, (f64)(chr)->magicframe, (s32)(chr)->footstep, (u32)(snd) & 0xffff); \
-	}
-#else
-#define FOOTDIAG(site, chr, frame, prev, snd)
-#endif
 
 s32 g_FootstepSounds[] = {
 	/* none   */ -1,                -1,                -1,                -1,                -1,                -1,                -1,                -1,
@@ -211,7 +198,6 @@ void footstepCheckDefault(struct chrdata *chr)
 					soundnum = footstepChooseSound(chr, i);
 
 					if (soundnum != -1 && chr->footstep != 0) {
-						FOOTDIAG("body-anim", chr, frame, prevframe, soundnum);
 #if VERSION >= VERSION_NTSC_1_0
 						psCreate(NULL, chr->prop, soundnum, -1, -1, PSFLAG_0400, 0, PSTYPE_FOOTSTEP, NULL, -1, NULL, -1, -1, -1, -1);
 #else
@@ -292,7 +278,6 @@ void footstepCheckMagic(struct chrdata *chr)
 				soundnum = footstepChooseSound(chr, index);
 
 				if (soundnum != -1 && chr->footstep != 0) {
-					FOOTDIAG("body-magic", chr, frame, prevframe, soundnum);
 #if VERSION >= VERSION_NTSC_1_0
 					psCreate(NULL, chr->prop, soundnum, -1,
 							-1, PSFLAG_0400, 0, PSTYPE_FOOTSTEP, NULL, -1, NULL, -1, -1, -1, -1);
