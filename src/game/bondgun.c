@@ -4122,6 +4122,15 @@ void bgunTickGunLoad(void)
 		modelPromoteTypeToPointer(modeldef);
 		modelPromoteOffsetsToPointers(modeldef, 0x05000000, (uintptr_t)modeldef);
 
+#ifndef PLATFORM_N64
+		// This loader never goes through modeldefLoad, so a gun or hand model
+		// from a mod reached the texture ticks below with its texconfig ids and
+		// DL binds unmapped: an all-in-one hand binding 0x1074 was read as
+		// vanilla 0x074 (a lava tile), and anything >= NUM_TEXTURES was skipped
+		// outright. Vanilla hands never showed it - their ids need no mapping.
+		modeldefRemapForMod(modeldef, player->gunctrl.loadfilenum);
+#endif
+
 		*player->gunctrl.loadtomodeldef = modeldef;
 
 		player->gunctrl.nexttexturetoload = 0;
@@ -4142,6 +4151,15 @@ void bgunTickGunLoad(void)
 
 		// Load textures - up to 3 per call
 		numthistick = 0;
+
+#ifndef PLATFORM_N64
+		// modeldefLoad names the model being loaded so a texture scoped to it
+		// ('<model>/<id>.bin') resolves; this path has to say so too.
+		{
+			extern s32 g_TexCurrentModelFileNum;
+			g_TexCurrentModelFileNum = MOD_FILEID_RAW(player->gunctrl.loadfilenum);
+		}
+#endif
 
 		for (i = player->gunctrl.nexttexturetoload; i < modeldef->numtexconfigs; i++) {
 			osSyncPrintf("BriGun:  at texture %d\n", i);
@@ -4178,6 +4196,12 @@ void bgunTickGunLoad(void)
 		*fileinfo = player->gunctrl.fileinfo;
 		modeldef = *player->gunctrl.loadtomodeldef;
 
+#ifndef PLATFORM_N64
+		{
+			extern s32 g_TexCurrentModelFileNum;
+			g_TexCurrentModelFileNum = MOD_FILEID_RAW(player->gunctrl.loadfilenum);
+		}
+#endif
 		modeldef0f1a7560(modeldef, player->gunctrl.loadfilenum, 0x05000000, modeldef, &player->gunctrl.texpool, false);
 
 		fileGetInflatedSize(player->gunctrl.loadfilenum, LOADTYPE_MODEL);

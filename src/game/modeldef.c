@@ -941,6 +941,24 @@ void modelPromoteTypeToPointer(struct modeldef *modeldef)
 	}
 }
 
+#ifndef PLATFORM_N64
+/**
+ * Rewrite a freshly promoted modeldef's texture ids for the mod that owns it:
+ * the texconfig table and the G_NOOP binds in every display list, through the
+ * mod's texmap. modeldefLoad does this on every model it loads; the gun loader
+ * in bondgun.c loads gun and hand models through its own staged path and has
+ * to ask for it by name. Call it after modelPromoteOffsetsToPointers and
+ * before anything reads a texturenum out of the model.
+ */
+void modeldefRemapForMod(struct modeldef *modeldef, s32 fileid)
+{
+	s32 modIdx = MOD_FILEID_MOD(fileid);
+
+	modeldefRemapTexconfigsForMod(modeldef, modIdx);
+	modeldefRemapGdlTexnumsForMod(modeldef, modIdx, fileid);
+}
+#endif
+
 struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg3)
 {
 	struct modeldef *modeldef;
@@ -980,8 +998,7 @@ struct modeldef *modeldefLoad(s32 fileid, u8 *dst, s32 size, struct texpool *arg
 		s32 prevModelFN = g_TexCurrentModelFileNum;
 		g_TexCurrentModelFileNum = MOD_FILEID_RAW(fileid);
 		TEXTRACE(TEXTRACE_MODELDEF, fileid, modIdx, g_TexCurrentModelFileNum, 0, 0);
-		modeldefRemapTexconfigsForMod(modeldef, modIdx);
-		modeldefRemapGdlTexnumsForMod(modeldef, modIdx, fileid);
+		modeldefRemapForMod(modeldef, fileid);
 		modeldef0f1a7560(modeldef, fileid, 0x5000000, modeldef, arg3, dst == NULL);
 		TEXTRACE(TEXTRACE_MODELDEF_END, fileid, fileGetLoadedSize(fileid), 0, 0, 0);
 		g_TexCurrentModelFileNum = prevModelFN;
