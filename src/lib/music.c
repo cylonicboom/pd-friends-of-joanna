@@ -1135,6 +1135,15 @@ void musicTickEvents(void)
 			if (dumpage60 >= 30) {
 				dumpage60 = 0;
 
+				{
+					extern void n_alSynDiagVoices(s32 *out);
+					s32 sv[5];
+
+					n_alSynDiagVoices(sv);
+					sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   synth alloc=%d playing=%d ownerless=%d lame=%d lameplaying=%d",
+							g_Vars.lvframenum, sv[0], sv[1], sv[2], sv[3], sv[4]);
+				}
+
 				for (i = 0; i < 3; i++) {
 					// voices: what this player still has sounding, whatever
 					// state it says it is in
