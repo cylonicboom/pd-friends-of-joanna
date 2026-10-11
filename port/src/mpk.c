@@ -491,6 +491,95 @@ s32 mpkMountBySerial(s32 serial, u8 pinned)
 	return channel;
 }
 
+s32 mpkNumPages(void)
+{
+	return g_MpkNumPages;
+}
+
+s32 mpkPageSerialAt(s32 index)
+{
+	if (index < 0 || index >= g_MpkNumPages) {
+		return -1;
+	}
+
+	return mpkPageSerial(index);
+}
+
+/*
+ * The pool growing. Put a page that has no PD filesystem on a channel and say
+ * which, for the caller to re-probe: PD formats a pak it finds empty, and
+ * draws the new filesystem's serial from mpkAllocSerial.
+ *
+ * An empty page that is already in the pool is used before a new one is made
+ * - empty pages are kept for exactly this - and a new one takes the next
+ * number, so the files stay gapless and mpkInit's count still finds them all.
+ * The channel is chosen the way mpkMountBySerial chooses: a channel with no
+ * page, else the least recently mounted one not in `pinned`.
+ */
+s32 mpkMountBlankPage(u8 pinned)
+{
+	char path[FS_MAXPATH + 1];
+	s32 pageindex = -1;
+	s32 channel = -1;
+
+	for (s32 ch = 0; ch < MAXCONTROLLERS && channel < 0; ch++) {
+		if (g_MpkChannelPage[ch] < 0) {
+			channel = ch;
+		}
+	}
+
+	if (channel < 0) {
+		u32 oldest = 0xffffffff;
+
+		for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
+			if (!(pinned & (1 << ch)) && g_MpkPages[g_MpkChannelPage[ch]].lastuse < oldest) {
+				oldest = g_MpkPages[g_MpkChannelPage[ch]].lastuse;
+				channel = ch;
+			}
+		}
+	}
+
+	if (channel < 0) {
+		return -1;
+	}
+
+	for (s32 i = 0; i < g_MpkNumPages && pageindex < 0; i++) {
+		if (g_MpkPages[i].channel < 0 && mpkPageSerial(i) < 0) {
+			pageindex = i;
+		}
+	}
+
+	if (pageindex < 0) {
+		struct mpkpage *pages;
+
+		if (g_MpkNumPages >= MPK_MAXPAGES || !mpkCreatePage(g_MpkNumPages)) {
+			return -1;
+		}
+
+		pages = realloc(g_MpkPages, (g_MpkNumPages + 1) * sizeof(*g_MpkPages));
+
+		if (!pages) {
+			return -1;
+		}
+
+		g_MpkPages = pages;
+		memset(&g_MpkPages[g_MpkNumPages], 0, sizeof(*g_MpkPages));
+		mpkPagePath(g_MpkNumPages, path, sizeof(path));
+
+		if (!mpkLoad(&g_MpkPages[g_MpkNumPages], path)) {
+			return -1;
+		}
+
+		pageindex = g_MpkNumPages++;
+		sysLogPrintf(LOG_NOTE, "mpk: the pool grew to %d pages", g_MpkNumPages);
+	}
+
+	sysLogPrintf(LOG_NOTE, "mpk: %s on controller pak %d (blank)", g_MpkPages[pageindex].path, channel + 1);
+	mpkMap(channel, pageindex);
+
+	return channel;
+}
+
 /*
  * Pages are numbered from 0 with no gaps - they are made in order and never
  * deleted (empty pages are kept for reuse) - so finding them is counting.

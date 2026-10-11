@@ -57,6 +57,7 @@ static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowProportions = false;
 static bool g_ImGuiOverlayShowStance = false;
 static bool g_ImGuiOverlayShowPauseBlur = false;
+static bool g_ImGuiOverlayShowSway = false;
 static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
@@ -330,6 +331,28 @@ extern "C" f32 g_BuildSpeedRef;
 extern "C" f32 g_BuildCrouchMix;
 extern "C" void stanceTuningReset(void);
 
+// Hip sway and reticle wander, also in src/game/stancetuning.c; the curve
+// itself is player.c's, so the plot below is the one the game runs.
+extern "C" f32 g_HipSwaySide;
+extern "C" f32 g_HipSwayRoll;
+extern "C" f32 g_HipSwayShape;
+extern "C" f32 g_HipSwayPhase;
+extern "C" f32 g_HipSwaySpeedCurve;
+extern "C" f32 g_WanderRest;
+extern "C" f32 g_WanderMove;
+extern "C" f32 g_WanderRate;
+extern "C" f32 g_WanderSpeedCurve;
+extern "C" f32 g_WanderStride;
+extern "C" void swayTuningReset(void);
+extern "C" f32 playerHipSwayShape(f32 stridephase);
+extern "C" f32 g_GunFollowNear;
+extern "C" f32 g_GunFollowFar;
+extern "C" f32 g_GunFollowGap;
+extern "C" f32 g_GunFollowCurve;
+extern "C" f32 g_CodSlide;
+extern "C" f32 g_CodLeanRoll;
+extern "C" f32 gunFollowSpeed(f32 gap);
+
 // Lua scripting. The switch is in src/game/luaai.c, the readout flags in
 // src/game/chaosstate.c, the rest in src/game/luaai_api_menus.c. Declared by
 // hand for the same reason as everything above.
@@ -398,6 +421,7 @@ extern "C" s32 chraiIsPaused(void);
 extern "C" void tilesRenderSetMode(s32 mode);   // src/game/tilesrender.c, port only
 extern "C" s32 tilesRenderGetMode(void);
 extern "C" s32 g_TilesRenderAllRooms;
+extern "C" s32 g_BgRenderEnabled;          // src/game/bg.c, port only
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -1795,6 +1819,18 @@ static void imguiOverlayDrawStagePanel(void)
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Off: only rooms the portal walk put on screen this frame.\n"
 					"A level with no bg has no walk, so it draws every room either way.");
+		}
+	}
+
+	// The bg itself (bg.c): off skips the rooms' display lists and nothing
+	// else - props, chrs and the portal walk carry on. With tiles on, the
+	// level is its collision mesh, for prototyping one.
+	{
+		bool bg = g_BgRenderEnabled != 0;
+		if (ImGui::Checkbox("render bg", &bg)) g_BgRenderEnabled = bg ? 1 : 0;
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Off: the room geometry is not drawn. Props, chrs and the sky still are,\n"
+					"and rooms still load and walk, so tiles keep culling to what is on screen.");
 		}
 	}
 
@@ -7146,7 +7182,15 @@ struct imguiOverlayWindowDef {
 	f32 xAnchor;
 	f32 yAnchor;
 	bool (*gate)(void);     // NULL when the window is always available
+	bool dev;               // kFojoDev: hidden unless developer mode is on
 };
+
+// Which side of developer mode a row is on. A developer window is not drawn,
+// not listed and not searchable while developer mode is off; its open flag and
+// its geometry record are left alone, so turning developer mode back on puts
+// every one of them back exactly as it was.
+static const bool kFojoDev = true;
+static const bool kFojoUser = false;
 
 // The skin match panel takes its chr as an argument and re-latches it from the
 // focus chr first, so it gets a wrapper rather than a special case in the loop.
@@ -7163,27 +7207,209 @@ static void imguiOverlayDrawSkinMatchPanel(void)
 	imguiSkinMatchDrawPanel(g_ImGuiOverlaySkinChr);
 }
 
+// ----------------------------------------------------------------------------
+// Sway panel
+//
+// Hip sway (the eye riding the hips, once per stride, on the step bob's phase)
+// and hip-fire reticle wander (Weighty Aim's reticle drifting on slow noise,
+// part of it rocking with the same stride). The curves are [Sway] in pd.ini
+// and constants.h has the defaults; how much of each a player gets is their
+// HipSway / ReticleWander Game option, which follows their save file and is
+// saved through the queue like any other. The curve knobs are not saved by
+// the panel, as with the Stance panel.
+// ----------------------------------------------------------------------------
+
+static void imguiOverlayDrawSwayPanel(void)
+{
+	ImGui::TextDisabled("Defaults live in constants.h. pd.ini [Sway] sets where these start.");
+	ImGui::Separator();
+
+	if (ImGui::CollapsingHeader("How much, per player", ImGuiTreeNodeFlags_DefaultOpen)) {
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			bool changed = false;
+
+			ImGui::PushID(i);
+			ImGui::Text("Player %d", i + 1);
+			changed |= ImGui::SliderFloat("Hip sway", &g_PlayerExtCfg[i].hipsway, 0.0f, 4.0f, "%.2f");
+			changed |= ImGui::SliderFloat("Reticle wander", &g_PlayerExtCfg[i].reticlewander, 0.0f, 4.0f, "%.2f");
+
+			if (changed) {
+				saveQueueMarkConfig();
+			}
+
+			ImGui::PopID();
+		}
+
+		ImGui::TextDisabled("Game options on each player's save file. 0 is off.");
+		ImGui::TextDisabled("Reticle wander rides Weighty Aim's reticle: the Classic preset has none.");
+	}
+
+	if (ImGui::CollapsingHeader("Hip sway curve", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float stride[96];
+		float speed[48];
+
+		imguiOverlayStanceKnob("Side (units)", &g_HipSwaySide, 0.0f, 20.0f, "%.1f",
+				"How far the eye shifts over each foot at a full run, at a\n"
+				"gain of 1. Out along the camera's right.");
+		imguiOverlayStanceKnob("Roll (deg)", &g_HipSwayRoll, 0.0f, 5.0f, "%.2f",
+				"How far the picture rolls toward the planted foot at a full\n"
+				"run, at a gain of 1. Adds to Camera Tilt's lean.");
+		imguiOverlayStanceKnob("Shape", &g_HipSwayShape, 0.0f, 1.0f, "%.2f",
+				"0 is a sine. Toward 1 the hips linger over each foot and\n"
+				"cross quickly between them.");
+		imguiOverlayStanceKnob("Phase (deg)", &g_HipSwayPhase, -180.0f, 180.0f, "%.0f",
+				"How far into the stride after a foot lands the sway peaks.\n"
+				"0 puts the eye furthest over a foot as it strikes, which is\n"
+				"the low point of Camera Bob's lift.");
+		imguiOverlayStanceKnob("Speed curve", &g_HipSwaySpeedCurve, 0.25f, 4.0f, "%.2f",
+				"Exponent on ground speed (0 to 1). Above 1 a walk barely\n"
+				"sways and a run does; below 1 even a walk sways most of\n"
+				"the way.");
+
+		for (s32 k = 0; k < 96; k++) {
+			stride[k] = playerHipSwayShape((f32)k / 96.0f * 2.0f * (f32)M_PI);
+		}
+
+		for (s32 k = 0; k < 48; k++) {
+			speed[k] = powf((f32)k / 47.0f, g_HipSwaySpeedCurve);
+		}
+
+		ImGui::PlotLines("##stride", stride, 96, 0, "one stride: right foot, left foot", -1.1f, 1.1f, ImVec2(0, 64));
+		ImGui::PlotLines("##hipspeed", speed, 48, 0, "share of it vs ground speed", 0.0f, 1.0f, ImVec2(0, 48));
+	}
+
+	if (ImGui::CollapsingHeader("Reticle wander curve", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float amount[48];
+		float trace[160];
+		f32 top = g_WanderRest + g_WanderMove;
+
+		imguiOverlayStanceKnob("At rest (deg)", &g_WanderRest, 0.0f, 5.0f, "%.2f",
+				"How far the reticle drifts standing still, at a gain of 1.");
+		imguiOverlayStanceKnob("Moving (deg)", &g_WanderMove, 0.0f, 10.0f, "%.2f",
+				"How much more at a full run, at a gain of 1.");
+		imguiOverlayStanceKnob("Noise speed (Hz)", &g_WanderRate, 0.05f, 3.0f, "%.2f",
+				"How quickly the drift moves. Low is a slow sway, high\n"
+				"is a tremor.");
+		imguiOverlayStanceKnob("Speed curve", &g_WanderSpeedCurve, 0.25f, 4.0f, "%.2f",
+				"Exponent on ground speed (0 to 1) before it scales the\n"
+				"moving share.");
+		imguiOverlayStanceKnob("Stride coupling", &g_WanderStride, 0.0f, 1.0f, "%.2f",
+				"Share of the moving wander that rocks with the hips and\n"
+				"dips as each foot lands, instead of drifting on the noise.");
+
+		for (s32 k = 0; k < 48; k++) {
+			amount[k] = g_WanderRest + powf((f32)k / 47.0f, g_WanderSpeedCurve) * g_WanderMove;
+		}
+
+		// ten seconds of the sideways drift standing still, the same sum of
+		// sines the game runs (port/src/weightyaim.c, step 3c)
+		for (s32 k = 0; k < 160; k++) {
+			f32 t = (f32)k / 16.0f * 2.0f * (f32)M_PI * g_WanderRate;
+
+			trace[k] = g_WanderRest * (0.6f * sinf(t) + 0.4f * sinf(t * 1.37f + 0.9f));
+		}
+
+		ImGui::PlotLines("##wanderamount", amount, 48, 0, "degrees vs ground speed", 0.0f, top > 0.01f ? top : 0.01f, ImVec2(0, 48));
+		ImGui::PlotLines("##wandertrace", trace, 160, 0, "10 s at rest, sideways", -(g_WanderRest + 0.01f), g_WanderRest + 0.01f, ImVec2(0, 48));
+	}
+
+	if (ImGui::CollapsingHeader("Gun follow curve", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float speed[64];
+		float ours[120];
+		float stock[120];
+
+		imguiOverlayStanceKnob("Near (x stock)", &g_GunFollowNear, 0.1f, 8.0f, "%.2f",
+				"How fast the view gun closes on the reticle when it is\n"
+				"nearly there, against stock's speed. Low is a heavy gun\n"
+				"that settles slowly; high snaps the last bit.");
+		imguiOverlayStanceKnob("Far (x stock)", &g_GunFollowFar, 0.1f, 8.0f, "%.2f",
+				"How fast it closes when it is far off - a flick, or the\n"
+				"reticle at the edge of the zone. High keeps up with fast\n"
+				"turns; low lets it trail them.");
+		imguiOverlayStanceKnob("Far starts at", &g_GunFollowGap, 0.05f, 2.0f, "%.2f",
+				"The gap, in half-screens, at which Far applies. Gaps\n"
+				"beyond it stay at Far.");
+		imguiOverlayStanceKnob("Curve", &g_GunFollowCurve, 0.25f, 4.0f, "%.2f",
+				"Exponent on the gap between Near and Far. Above 1 stays\n"
+				"near Near until the gap is big; below 1 reaches Far early.");
+
+		for (s32 k = 0; k < 64; k++) {
+			speed[k] = gunFollowSpeed((f32)k / 63.0f * 2.0f);
+		}
+
+		// half a second at 240Hz after the reticle jumps Far-starts-at
+		// half-screens away: ours, and stock (both at 1 is the same line)
+		{
+			const f32 d = 0.9269697f;
+			f32 p = 0.0f;
+			f32 q = 0.0f;
+			f32 target = g_GunFollowGap;
+
+			for (s32 k = 0; k < 120; k++) {
+				f32 kk = (1.0f - d) * gunFollowSpeed(target - p);
+
+				if (kk > 1.0f) {
+					kk = 1.0f;
+				}
+
+				p += (target - p) * kk;
+				q += (target - q) * (1.0f - d);
+				ours[k] = p / (target > 0.0001f ? target : 1.0f);
+				stock[k] = q / (target > 0.0001f ? target : 1.0f);
+			}
+		}
+
+		ImGui::PlotLines("##followspeed", speed, 64, 0, "speed (x stock) vs gap, 0 to 2", 0.0f, 8.0f, ImVec2(0, 48));
+		ImGui::PlotLines("##followours", ours, 120, 0, "0.5 s onto a jump: this", 0.0f, 1.05f, ImVec2(0, 40));
+		ImGui::PlotLines("##followstock", stock, 120, 0, "0.5 s onto a jump: stock", 0.0f, 1.05f, ImVec2(0, 40));
+		ImGui::TextDisabled("Both at 1 is stock. Applies with or without Weighty Aim.");
+	}
+
+	if (ImGui::CollapsingHeader("COD aiming, Aim Lock off", ImGuiTreeNodeFlags_DefaultOpen)) {
+		imguiOverlayStanceKnob("Gun slide", &g_CodSlide, 0.0f, 1.0f, "%.2f",
+				"How much of the way the gun slides across to sit under a\n"
+				"roaming crosshair. 1 keeps the sights on it; 0 leaves the\n"
+				"gun in the middle, still turned to point at it.");
+		imguiOverlayStanceKnob("Lean roll (deg)", &g_CodLeanRoll, 0.0f, 15.0f, "%.1f",
+				"How far the view rolls toward the crosshair's side with it\n"
+				"at the edge of the screen, scaled by how far up the gun is.\n"
+				"Chased like Camera Tilt's lean.");
+		ImGui::TextDisabled("Per player: COD Style Aiming on, Aim Lock off.");
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::Button("Reset curves to defaults")) {
+		swayTuningReset();
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("The curve knobs only. Each player's gains are theirs.");
+	}
+}
+
 static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
-	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL },
-	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL },
-	{ "Entities",    "Fojo Entities",    &g_ImGuiOverlayShowEntities,    imguiOverlayDrawEntitiesPanel,    520.0f, 620.0f, 1.0f, 0.00f, NULL },
-	{ "Assets",      "Fojo Assets",      &g_ImGuiOverlayShowAssets,      imguiOverlayDrawAssetsPanel,      620.0f, 560.0f, 0.5f, 0.20f, NULL },
-	{ "Textures",    "Fojo Textures",    &g_ImGuiOverlayShowTextures,    imguiOverlayDrawTexturesPanel,    520.0f, 620.0f, 1.0f, 0.25f, NULL },
-	{ "SkinMatch",   "Fojo Skin Match",  &g_ImGuiOverlayShowSkinMatch,   imguiOverlayDrawSkinMatchPanel,   760.0f, 640.0f, 1.0f, 0.50f, NULL },
-	{ "Memory",      "Fojo Memory",      &g_ImGuiOverlayShowMemory,      imguiOverlayDrawMemoryPanel,      360.0f, 300.0f, 0.0f, 1.00f, NULL },
-	{ "Profiler",    "Fojo Profiler",    &g_ImGuiOverlayShowProfiler,    imguiOverlayDrawProfilerPanel,    620.0f, 360.0f, 0.5f, 1.00f, NULL },
-	{ "LookingAt",   "Fojo Looking At",  &g_ImGuiOverlayShowLookingAt,   imguiOverlayDrawLookingAtPanel,   430.0f, 340.0f, 1.0f, 0.00f, imguiOverlayCanAimInspect },
-	{ "Audio",       "Fojo Audio",       &g_ImGuiOverlayShowAudio,       imguiOverlayDrawAudioPanel,       440.0f, 560.0f, 0.5f, 0.50f, NULL },
-	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL },
-	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL },
-	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL },
-	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL },
-	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL },
-	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL },
-	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL },
-	{ "ExtOptions",  "Fojo Extended Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL },
-	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL },
-	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL },
+	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL, kFojoDev  },
+	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL, kFojoDev  },
+	{ "Entities",    "Fojo Entities",    &g_ImGuiOverlayShowEntities,    imguiOverlayDrawEntitiesPanel,    520.0f, 620.0f, 1.0f, 0.00f, NULL, kFojoDev  },
+	{ "Assets",      "Fojo Assets",      &g_ImGuiOverlayShowAssets,      imguiOverlayDrawAssetsPanel,      620.0f, 560.0f, 0.5f, 0.20f, NULL, kFojoDev  },
+	{ "Textures",    "Fojo Textures",    &g_ImGuiOverlayShowTextures,    imguiOverlayDrawTexturesPanel,    520.0f, 620.0f, 1.0f, 0.25f, NULL, kFojoDev  },
+	{ "SkinMatch",   "Fojo Skin Match",  &g_ImGuiOverlayShowSkinMatch,   imguiOverlayDrawSkinMatchPanel,   760.0f, 640.0f, 1.0f, 0.50f, NULL, kFojoDev  },
+	{ "Memory",      "Fojo Memory",      &g_ImGuiOverlayShowMemory,      imguiOverlayDrawMemoryPanel,      360.0f, 300.0f, 0.0f, 1.00f, NULL, kFojoDev  },
+	{ "Profiler",    "Fojo Profiler",    &g_ImGuiOverlayShowProfiler,    imguiOverlayDrawProfilerPanel,    620.0f, 360.0f, 0.5f, 1.00f, NULL, kFojoDev  },
+	{ "LookingAt",   "Fojo Looking At",  &g_ImGuiOverlayShowLookingAt,   imguiOverlayDrawLookingAtPanel,   430.0f, 340.0f, 1.0f, 0.00f, imguiOverlayCanAimInspect, kFojoDev  },
+	{ "Audio",       "Fojo Audio",       &g_ImGuiOverlayShowAudio,       imguiOverlayDrawAudioPanel,       440.0f, 560.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL, kFojoDev  },
+	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Sway",        "Fojo Sway",        &g_ImGuiOverlayShowSway,        imguiOverlayDrawSwayPanel,        420.0f, 640.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL, kFojoDev  },
+	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL, kFojoUser },
+	{ "ExtOptions",  "Fojo Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL, kFojoUser },
+	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL, kFojoUser },
+	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL, kFojoDev  },
 };
 
 // The change mask below is one bit per row, so the table has a ceiling of 32.
@@ -7234,6 +7460,26 @@ static bool g_ImGuiOverlayCtxOpen = false;
 static struct imguiOverlayWindowRt g_ImGuiOverlayWindowRt[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedOrder[kFojoWindowCount];
 static s32 g_ImGuiOverlayMinimisedCount = 0;
+
+// Developer mode. Off by default, so a player opening fojOS sees the user apps
+// only. The menu toggle is persisted in the ini; --dev turns it on for this
+// session without touching what the ini says.
+static bool g_ImGuiOverlayDevMode = false;
+static bool g_ImGuiOverlayDevModeCli = false;
+
+// Set once the first-open defaults (every app open, parked in the pile) have
+// been applied to this ini. Persisted, so they happen exactly once.
+static bool g_ImGuiOverlayWindowDefaultsDone = false;
+
+static bool imguiOverlayDevModeOn(void)
+{
+	return g_ImGuiOverlayDevMode || g_ImGuiOverlayDevModeCli;
+}
+
+static bool imguiOverlayWindowAvailable(s32 index)
+{
+	return !g_ImGuiOverlayWindowDefs[index].dev || imguiOverlayDevModeOn();
+}
 
 // ---------------------------------------------------------------------------
 // UI scale
@@ -7377,6 +7623,10 @@ static bool imguiOverlayWindowOnThisFloor(s32 index)
 {
 	const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[index];
 
+	if (!imguiOverlayWindowAvailable(index)) {
+		return false;
+	}
+
 	return rt.sticky || rt.ws == g_ImGuiOverlayWorkspace;
 }
 
@@ -7411,13 +7661,100 @@ static float imguiOverlayCollapsedTitleWidth(const char *name)
 	return ImGui::CalcTextSize(name).x + style.FramePadding.x * 2.0f + ImGui::GetFrameHeight() * 2.0f + style.ItemInnerSpacing.x * 2.0f;
 }
 
+/**
+ * One column of the minimised pile is as wide as the widest title that could
+ * be in it. With developer mode on the pile can hold twenty windows: about
+ * 630px at the 1.44 default, which fits 720p, but about 840px at 2.0, which
+ * does not -- so the pile wraps into columns. (Arithmetic from the font and
+ * frame padding, not measured on screen.)
+ */
+static float imguiOverlayMinimisedColumnWidth(void)
+{
+	float widest = 0.0f;
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		if (imguiOverlayWindowAvailable(i)) {
+			const float w = imguiOverlayCollapsedTitleWidth(g_ImGuiOverlayWindowDefs[i].title);
+			widest = w > widest ? w : widest;
+		}
+	}
+
+	return widest;
+}
+
 static ImVec2 imguiOverlayMinimisedSlotPos(s32 slot)
 {
 	const ImGuiViewport *viewport = ImGui::GetMainViewport();
 	const float titleH = ImGui::GetFrameHeight();
 	const float gap = 4.0f;
-	return ImVec2(viewport->WorkPos.x + 8.0f,
-		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (slot + 1) * (titleH + gap) + gap);
+	s32 perColumn = (s32)((viewport->WorkSize.y - 16.0f + gap) / (titleH + gap));
+
+	if (perColumn < 1) {
+		perColumn = 1;
+	}
+
+	const s32 column = slot / perColumn;
+	const s32 row = slot % perColumn;
+
+	return ImVec2(viewport->WorkPos.x + 8.0f + column * (imguiOverlayMinimisedColumnWidth() + gap),
+		viewport->WorkPos.y + viewport->WorkSize.y - 8.0f - (row + 1) * (titleH + gap) + gap);
+}
+
+/**
+ * Where a window goes the first time it is opened, or when its position is
+ * reset: its table size at the current scale, shrunk to fit the screen, placed
+ * by its anchors inside the area to the right of the minimised pile so it never
+ * lands on top of the pile. Rows sharing an anchor would sit exactly on top of
+ * one another, so each later one steps in from that corner by a title bar.
+ */
+static void imguiOverlayFirstOpenGeometry(s32 index, ImVec2 *pos, ImVec2 *size)
+{
+	const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[index];
+	const ImGuiViewport *viewport = ImGui::GetMainViewport();
+	const float margin = 8.0f * g_ImGuiOverlayUiScale;
+	const float step = ImGui::GetFrameHeight();
+	const float pileW = imguiOverlayMinimisedColumnWidth() + margin * 2.0f;
+	const float minW = 200.0f * g_ImGuiOverlayUiScale;
+	const float minH = 150.0f * g_ImGuiOverlayUiScale;
+	float availW = viewport->WorkSize.x - pileW - margin;
+	float availH = viewport->WorkSize.y - margin * 2.0f;
+	float left = viewport->WorkPos.x + pileW;
+	s32 cascade = 0;
+
+	// a screen too narrow for the pile and a window both gives up the pile
+	if (availW < minW) {
+		availW = viewport->WorkSize.x - margin * 2.0f;
+		left = viewport->WorkPos.x + margin;
+	}
+
+	if (availH < minH) {
+		availH = minH;
+	}
+
+	size->x = def->defaultW * g_ImGuiOverlayUiScale;
+	size->y = def->defaultH * g_ImGuiOverlayUiScale;
+	size->x = size->x > availW ? availW : size->x;
+	size->y = size->y > availH ? availH : size->y;
+
+	for (s32 j = 0; j < index; ++j) {
+		if (g_ImGuiOverlayWindowDefs[j].xAnchor == def->xAnchor
+				&& g_ImGuiOverlayWindowDefs[j].yAnchor == def->yAnchor) {
+			cascade++;
+		}
+	}
+
+	pos->x = left + (availW - size->x) * def->xAnchor
+		+ cascade * step * (def->xAnchor > 0.5f ? -1.0f : 1.0f);
+	pos->y = viewport->WorkPos.y + margin + (availH - size->y) * def->yAnchor
+		+ cascade * step * (def->yAnchor > 0.5f ? -1.0f : 1.0f);
+
+	// whatever the cascade did, the whole window stays on screen
+	const float maxX = viewport->WorkPos.x + viewport->WorkSize.x - size->x;
+	const float maxY = viewport->WorkPos.y + viewport->WorkSize.y - size->y;
+	pos->x = pos->x > maxX ? maxX : pos->x;
+	pos->y = pos->y > maxY ? maxY : pos->y;
+	pos->x = pos->x < viewport->WorkPos.x ? viewport->WorkPos.x : pos->x;
+	pos->y = pos->y < viewport->WorkPos.y ? viewport->WorkPos.y : pos->y;
 }
 
 static s32 imguiOverlayMinimisedSlot(s32 index)
@@ -7653,6 +7990,7 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 
 		if (sscanf(line, "ShowTiles=%d", &mode) == 1) tilesRenderSetMode(mode);
 		if (sscanf(line, "ShowTilesAllRooms=%d", &mode) == 1) g_TilesRenderAllRooms = mode != 0;
+		if (sscanf(line, "RenderBg=%d", &mode) == 1) g_BgRenderEnabled = mode != 0;
 	}
 
 	{
@@ -7685,6 +8023,8 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 	{
 		int flag;
 
+		if (sscanf(line, "DevMode=%d", &flag) == 1) g_ImGuiOverlayDevMode = flag != 0;
+		if (sscanf(line, "WindowDefaults=%d", &flag) == 1) g_ImGuiOverlayWindowDefaultsDone = flag != 0;
 		if (sscanf(line, "ShowProps=%d", &flag) == 1) g_ImGuiOverlayShowPropMarkers = flag != 0;
 		if (sscanf(line, "ShowPads=%d", &flag) == 1) g_ImGuiOverlayShowPadMarkers = flag != 0;
 		if (sscanf(line, "ShowPadsAllRooms=%d", &flag) == 1) g_ImGuiOverlayPadMarkersAllRooms = flag != 0;
@@ -7711,9 +8051,12 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 
 	buffer->appendf("ShowTiles=%d\n", tilesRenderGetMode());
 	buffer->appendf("ShowTilesAllRooms=%d\n", g_TilesRenderAllRooms);
+	buffer->appendf("RenderBg=%d\n", g_BgRenderEnabled);
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
 	buffer->appendf("LoreScale=%.5f\n", g_ImGuiPropLoreScale);
 	buffer->appendf("UiScale=%.5f\n", g_ImGuiOverlayUiScale);
+	buffer->appendf("DevMode=%d\n", g_ImGuiOverlayDevMode);
+	buffer->appendf("WindowDefaults=%d\n", g_ImGuiOverlayWindowDefaultsDone);
 	buffer->appendf("ShowProps=%d\n", g_ImGuiOverlayShowPropMarkers);
 	buffer->appendf("ShowPads=%d\n", g_ImGuiOverlayShowPadMarkers);
 	buffer->appendf("ShowPadsAllRooms=%d\n\n", g_ImGuiOverlayPadMarkersAllRooms);
@@ -7815,7 +8158,12 @@ static void imguiOverlayDrawWindowContextMenu(void)
 	}
 
 	if (ImGui::MenuItem("Reset position")) {
-		rt.haveGeometry = false;
+		// haveGeometry = false used to fall through to FirstUseEver, which
+		// ImGui ignores for a window it has already seen, so reset did nothing
+		// visible. Put it on its first-open spot instead.
+		imguiOverlayFirstOpenGeometry(index, &rt.pos, &rt.size);
+		rt.haveGeometry = true;
+		rt.collapsed = false;
 		rt.minimised = false;
 		imguiOverlayMinimisedErase(index);
 		rt.live = false;
@@ -7936,6 +8284,7 @@ static void imguiOverlayCmdResetPositions(void)
 // Tiles as geometry: off -> shaded -> solid -> off. Stage panel has radios.
 static void imguiOverlayCmdShowTiles(void)   { tilesRenderSetMode((tilesRenderGetMode() + 1) % 3); imguiOverlaySaveWindowState(); }
 static void imguiOverlayCmdShowTilesAll(void) { g_TilesRenderAllRooms = !g_TilesRenderAllRooms; imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdRenderBg(void)     { g_BgRenderEnabled = !g_BgRenderEnabled; imguiOverlaySaveWindowState(); }
 
 static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
@@ -8020,6 +8369,7 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Reset window positions",   imguiOverlayCmdResetPositions },
 	{ "Show tiles",               imguiOverlayCmdShowTiles },
 	{ "Show tiles: every room",   imguiOverlayCmdShowTilesAll },
+	{ "Toggle render bg",         imguiOverlayCmdRenderBg },
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },
@@ -8540,7 +8890,7 @@ static void imguiOverlayBarSearch(void)
 			const char *label = imguiOverlayWindowLabel(def);
 			char detail[32];
 
-			if (def->gate && !def->gate()) {
+			if ((def->gate && !def->gate()) || !imguiOverlayWindowAvailable(i)) {
 				continue;
 			}
 
@@ -9049,11 +9399,13 @@ static void imguiOverlayDrawWindowMenu(void)
 		}
 	}
 
-	ImGui::SeparatorText("Markers");
+	if (imguiOverlayDevModeOn()) {
+		ImGui::SeparatorText("Markers");
 
-	if (ImGui::MenuItem("Show props", NULL, &g_ImGuiOverlayShowPropMarkers)) imguiOverlaySaveWindowState();
-	if (ImGui::MenuItem("Show pads", NULL, &g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
-	if (ImGui::MenuItem("  every room", NULL, &g_ImGuiOverlayPadMarkersAllRooms, g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+		if (ImGui::MenuItem("Show props", NULL, &g_ImGuiOverlayShowPropMarkers)) imguiOverlaySaveWindowState();
+		if (ImGui::MenuItem("Show pads", NULL, &g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+		if (ImGui::MenuItem("  every room", NULL, &g_ImGuiOverlayPadMarkersAllRooms, g_ImGuiOverlayShowPadMarkers)) imguiOverlaySaveWindowState();
+	}
 
 	ImGui::SeparatorText("Fojo Windows");
 
@@ -9062,6 +9414,10 @@ static void imguiOverlayDrawWindowMenu(void)
 		const struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
 		const bool wasOpen = *def->open;
 		char label[64];
+
+		if (!imguiOverlayWindowAvailable(i)) {
+			continue;
+		}
 
 		// say where it is, so a window that is open but on another floor does
 		// not read as broken
@@ -9076,6 +9432,15 @@ static void imguiOverlayDrawWindowMenu(void)
 		if (!wasOpen && *def->open) {
 			imguiOverlayBringToCurrentWorkspace(i);
 		}
+	}
+
+	ImGui::Separator();
+
+	// --dev wins for the session; the menu shows it on and cannot turn it off
+	if (g_ImGuiOverlayDevModeCli) {
+		ImGui::MenuItem("Developer mode (--dev)", NULL, true, false);
+	} else if (ImGui::MenuItem("Developer mode", NULL, &g_ImGuiOverlayDevMode)) {
+		imguiOverlaySaveWindowState();
 	}
 
 	ImGui::EndPopup();
@@ -9100,6 +9465,7 @@ void imguiOverlayInit(void *window)
 	settingsHandler.ReadLineFn = imguiOverlaySettingsReadLine;
 	settingsHandler.WriteAllFn = imguiOverlaySettingsWriteAll;
 	ImGui::AddSettingsHandler(&settingsHandler);
+	g_ImGuiOverlayDevModeCli = sysArgCheck("--dev") != 0;
 
 	ImGui::StyleColorsDark();
 
@@ -9195,11 +9561,57 @@ void imguiOverlayStartFrame(void)
 	ImGui::NewFrame();
 }
 
+/**
+ * Every app starts open and parked in the minimised pile, so the first look at
+ * fojOS is a list of what there is rather than an empty screen or twenty
+ * windows on top of each other. Each one gets a first-open placement to come
+ * back to when it is un-minimised.
+ *
+ * Runs once per ini: WindowDefaults=1 is written after it. On an ini from
+ * before this existed it opens, parked, only the windows that were closed;
+ * windows already open are left exactly where they are.
+ *
+ * Called from the render, not from init, because imgui reads the ini lazily
+ * in the first NewFrame -- before that the open flags are still the defaults.
+ */
+static void imguiOverlayApplyFirstOpenDefaults(void)
+{
+	if (g_ImGuiOverlayWindowDefaultsDone) {
+		return;
+	}
+
+	for (s32 i = 0; i < kFojoWindowCount; ++i) {
+		const struct imguiOverlayWindowDef *def = &g_ImGuiOverlayWindowDefs[i];
+		struct imguiOverlayWindowRt &rt = g_ImGuiOverlayWindowRt[i];
+
+		if (*def->open) {
+			continue;
+		}
+
+		*def->open = true;
+
+		if (!rt.haveGeometry) {
+			imguiOverlayFirstOpenGeometry(i, &rt.pos, &rt.size);
+			rt.haveGeometry = true;
+		}
+
+		rt.collapsed = true;
+		rt.minimised = true;
+		rt.live = false;
+		imguiOverlayMinimisedPush(i);
+	}
+
+	g_ImGuiOverlayWindowDefaultsDone = true;
+	ImGui::MarkIniSettingsDirty();
+}
+
 void imguiOverlayRender(void)
 {
 	if (!g_ImGuiOverlayInitialized) {
 		return;
 	}
+
+	imguiOverlayApplyFirstOpenDefaults();
 
 	if (g_ImGuiOverlayVisible) {
 		// The game re-locks the mouse behind the overlay: inputAutoLockMouse(true)
@@ -9367,6 +9779,7 @@ void imguiOverlayRender(void)
 	imguiOverlayRunLuaRequests();
 	imguiOverlayRunSaveRequests();
 	imguiOverlayRunPlayerRequests();
+	imguiProfilesRunRequests();
 }
 
 bool imguiOverlayCapturesKeyboard(void)

@@ -80,10 +80,14 @@ s32 playerGetMissionTime(void);
 s32 playerTickBeams(struct prop *prop);
 s32 playerTickThirdPerson(struct prop *prop);
 bool playerIsThirdPerson(struct player *player);
+bool playerBodyIsAnimated(struct player *player);
 f32 playerGetCutsceneBodyAlphaFrac(struct prop *prop);
 f32 playerGetShotOriginPullback(void);
 #ifndef PLATFORM_N64
 bool playerGetCameraToEyeOffset(struct coord *offset);
+f32 playerGetStridePhase(struct player *player);
+f32 playerHipSwayShape(f32 stridephase);
+f32 playerHipSwayAt(struct player *player);
 #endif
 void playerChooseThirdPersonAnimation(struct chrdata *chr, s32 crouchpos, f32 speedsideways, f32 speedforwards, f32 speedtheta, f32 *angleoffset, struct attackanimconfig **animcfg);
 Gfx *playerRender(struct prop *prop, Gfx *gdl, bool xlupass);

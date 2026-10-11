@@ -1,0 +1,2113 @@
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+#include <ultra64.h>
+#include "platform.h"
+#include "constants.h"
+#include "types.h"
+#include "data.h"
+#include "bss.h"
+#include <math.h>
+#include "lib/vi.h"
+#include "lib/mtx.h"
+#include "game/camera.h"
+#include "game/gunfx.h"
+#include "game/game_0b0fd0.h"
+#include "game/bondgun.h"
+#include "game/bondmove.h"
+#include "game/options.h"
+#include "game/prop.h"
+#include "game/player.h"
+#include "game/stancetuning.h"
+#include "input.h"
+#include "config.h"
+#include "system.h"
+#include "utils.h"
+#include "fs.h"
+#include "weightyaim.h"
+
+/*
+ * Units used in this file
+ * -----------------------
+ * PD's look code works in "speed units": the camera yaws by
+ * speedtheta * 3.5 degrees per 60Hz tick (see bwalkUpdateTheta) and pitches by
+ * speedverta * 3.5 degrees per tick (see bmoveProcessInput). We convert the
+ * requested look input into degrees for this frame, run the free-aim model in
+ * degrees, and convert the leftover back into speed units for the camera.
+ *
+ * Gun offsets (target/display) are yaw/pitch angles in degrees relative to the
+ * camera: +yaw = right, +pitch = up.
+ */
+
+// PD's own math.h shadows the C library one, so use the compiler builtins
+#define bc_fmodf __builtin_fmodf
+#define bc_ceilf __builtin_ceilf
+#define bc_expf  __builtin_expf
+#define bc_tanf  __builtin_tanf
+#define bc_sqrtf __builtin_sqrtf
+#define bc_sinf  __builtin_sinf
+#define bc_fabsf __builtin_fabsf
+#define bc_atanf __builtin_atanf
+
+#define DEG_PER_SPEED_TICK 3.5f
+#define SPRING_STEP (1.f / 240.f)
+
+struct weightyaimcfg g_WeightyAimCfg[4];
+// fojo: Custom 1-3 are shared by every seat, [WeightyAim.Custom<n>]. Which
+// preset a player is on, their aim assist strength and Smooth Reticle are
+// Game options that follow their save file (seatprofile.c), read off
+// g_PlayerExtCfg: weightyaimpreset, weightyaimassist, smoothreticle.
+struct weightyaimcfg g_WeightyAimCustomCfg[WEIGHTYAIM_NUM_CUSTOM];
+s32 g_WeightyAimShowAdvancedFeel = 0; // Aim & Camera Feel: show the fine-tuning sliders too
+s32 g_WeightyAimForceOriginal = 0;     // Force Original Aim & Settings: 1:1 with the original game for everyone
+s32 g_WeightyAimForceMouseGyroStick = 0; // with Force Original Aim & Settings: mouse and gyro act as a stick
+struct weightyaimgyrocfg g_WeightyAimGyroCfg[4];
+
+const char *g_WeightyAimGyroModeNames[WEIGHTYAIM_NUM_GYROMODES] = {
+	"Off",
+	"Always On",
+	"While Aiming",
+};
+
+const char *g_WeightyAimGyroSpaceNames[WEIGHTYAIM_NUM_GYROSPACES] = {
+	"Player",
+	"Local",
+};
+
+static const struct weightyaimgyrocfg g_WeightyAimGyroDefaults = {
+	.mode = WEIGHTYAIM_GYRO_OFF,
+	.sensitivity = 2.5f,
+	.vertical = 0.9f,
+	.space = WEIGHTYAIM_GYROSPACE_PLAYER,
+	.inverty = 0,
+	.acceleration = 1.f,
+	.accelthreshold = 75.f,
+	.tightening = 0.f,
+	.smoothing = 4.f,
+	.autocalibrate = 1,
+	.pausewithstick = 0,
+};
+
+void weightyAimResetGyroDefaults(s32 cfgindex)
+{
+	const s32 mode = g_WeightyAimGyroCfg[cfgindex & 3].mode;
+	g_WeightyAimGyroCfg[cfgindex & 3] = g_WeightyAimGyroDefaults;
+	g_WeightyAimGyroCfg[cfgindex & 3].mode = mode; // resetting the tuning shouldn't switch gyro off
+}
+
+/*
+ * Gyro state, per player
+ */
+struct weightyaimgyrostate {
+	bool available;      // the controller reported a gyro last time we asked
+	f32 bias[3];         // calibration offset, deg/s
+	bool calibrated;
+	f32 calibtime;       // > 0 while calibrating
+	f32 calibsum[3];
+	s32 calibcount;
+	f32 stilltime;       // how long the controller has been held still (auto-calibration)
+	f32 grav[3];         // smoothed "up" direction from the accelerometer
+	f32 smooth[2];       // smoothed small movements
+	u64 lastmenutick;
+};
+
+static struct weightyaimgyrostate g_WeightyAimGyroState[MAX_PLAYERS];
+s32 g_WeightyAimLastCustom[4];
+struct weightyaimstickcfg g_WeightyAimStickCfg[4];
+
+const char *g_WeightyAimCurveNames[WEIGHTYAIM_NUM_CURVES] = {
+	"Original",
+	"Linear",
+	"Balanced",
+	"Custom 1",
+	"Custom 2",
+	"Custom 3",
+	"Source Port",
+};
+
+const char *g_WeightyAimBoostNames[WEIGHTYAIM_NUM_BOOSTS] = {
+	"Off",
+	"Instant",
+	"Ramped",
+};
+
+static const struct weightyaimstickcfg g_WeightyAimStickDefaults = {
+	.curve = WEIGHTYAIM_CURVE_BALANCED,
+	.innerdeadzone = 0.01f,
+	.outerdeadzone = 0.95f,
+	.bezier = { 0.4f, 0.0f, 0.75f, 1.0f },
+	.bezierprofile = {
+		{ 0.4f, 0.0f, 0.75f, 1.0f },
+		{ 0.4f, 0.0f, 0.75f, 1.0f },
+		{ 0.4f, 0.0f, 0.75f, 1.0f },
+	},
+	.lastcustomcurve = 0,
+	.gamedeadzone = 1,
+	.turnspeed = 1.f,
+	.verticalsens = 0.8f,
+	.boostmode = WEIGHTYAIM_BOOST_RAMPED,
+	.boostamount = 2.f,
+	.boostthreshold = 0.9f,
+	.boostdelay = 0.1f,
+	.boosttime = 0.25f,
+	.boostvertical = 0.35f,
+};
+
+void weightyAimResetStickDefaults(s32 cfgindex)
+{
+	// curve, deadzones and max speed only; boost has its own reset
+	struct weightyaimstickcfg *sc = &g_WeightyAimStickCfg[cfgindex & 3];
+	const struct weightyaimstickcfg *d = &g_WeightyAimStickDefaults;
+
+	sc->curve = d->curve;
+	sc->innerdeadzone = d->innerdeadzone;
+	sc->outerdeadzone = d->outerdeadzone;
+	sc->turnspeed = d->turnspeed;
+	sc->gamedeadzone = d->gamedeadzone;
+	sc->verticalsens = d->verticalsens;
+	// custom curve profiles are kept; resetting shouldn't wipe your curves
+}
+
+/**
+ * Pick a look curve. Choosing Custom 1-3 loads that profile's points.
+ */
+void weightyAimSelectCurve(s32 cfgindex, s32 curve)
+{
+	struct weightyaimstickcfg *sc = &g_WeightyAimStickCfg[cfgindex & 3];
+
+	sc->curve = curve;
+
+	if (WEIGHTYAIM_IS_CUSTOM_CURVE(curve)) {
+		const s32 slot = curve - WEIGHTYAIM_CURVE_CUSTOM1;
+		memcpy(sc->bezier, sc->bezierprofile[slot], sizeof(sc->bezier));
+		sc->lastcustomcurve = slot;
+	}
+}
+
+/**
+ * The port maps a modern stick at full tilt to 127, but a real N64 stick only
+ * reaches about 80. The game's curve hits full speed at 70, so on the port it
+ * maxes out at about half tilt and feels twitchy. The Original curve and Force
+ * Original Aim & Settings scale the stick back to the N64's range (as emulators
+ * do), before the game reads it for turning, aiming and walking.
+ */
+s32 weightyAimStickRange(s32 v)
+{
+	const s32 cfgindex = g_Vars.currentplayerstats->mpindex & 3;
+
+	if (g_WeightyAimForceOriginal || g_WeightyAimStickCfg[cfgindex].curve == WEIGHTYAIM_CURVE_ORIGINAL) {
+		const f32 f = v * (WEIGHTYAIM_N64_STICK_MAX / 127.f);
+
+		return (s32)(f < 0.f ? f - 0.5f : f + 0.5f);
+	}
+
+	return v;
+}
+
+/**
+ * A curve point slider moved: make sure a custom curve is selected (the one
+ * last used if a built-in curve was on) and save the points into it.
+ */
+void weightyAimCurvePointsChanged(s32 cfgindex)
+{
+	struct weightyaimstickcfg *sc = &g_WeightyAimStickCfg[cfgindex & 3];
+	s32 slot;
+
+	if (!WEIGHTYAIM_IS_CUSTOM_CURVE(sc->curve)) {
+		sc->curve = WEIGHTYAIM_CURVE_CUSTOM1 + (sc->lastcustomcurve % 3);
+	}
+
+	slot = sc->curve - WEIGHTYAIM_CURVE_CUSTOM1;
+	memcpy(sc->bezierprofile[slot], sc->bezier, sizeof(sc->bezier));
+	sc->lastcustomcurve = slot;
+}
+
+void weightyAimResetBoostDefaults(s32 cfgindex)
+{
+	struct weightyaimstickcfg *sc = &g_WeightyAimStickCfg[cfgindex & 3];
+	const struct weightyaimstickcfg *d = &g_WeightyAimStickDefaults;
+
+	sc->boostmode = d->boostmode;
+	sc->boostamount = d->boostamount;
+	sc->boostthreshold = d->boostthreshold;
+	sc->boostdelay = d->boostdelay;
+	sc->boosttime = d->boosttime;
+	sc->boostvertical = d->boostvertical;
+}
+s32 g_WeightyAimDebugLog = 0;
+s32 g_WeightyAimDebugPattern = 0;
+
+#define WEIGHTYAIM_INPUT_STICK 0
+#define WEIGHTYAIM_INPUT_MOUSE 1
+#define WEIGHTYAIM_INPUT_GYRO  2
+#define WEIGHTYAIM_EDGE_TURN_DELAY 0.15f // seconds at the edge before Edge Auto-Turn starts
+#define WEIGHTYAIM_EDGE_TURN_EASE  0.2f  // seconds for it to reach full speed after that
+#define WEIGHTYAIM_EDGE_STICK_TILT 0.25f // stick tilt that counts as "using the stick" for Edge Auto-Turn
+#define WEIGHTYAIM_LEAD_EASE_IN 0.3f // seconds for Camera Lead to fade back in after an edge turn
+#define WEIGHTYAIM_LEAD_FULL_INPUT 0.5f // look speed (fraction of full stick) that gives full Camera Lead
+#define WEIGHTYAIM_LEAD_INPUT_SMOOTH 0.1f // seconds: Camera Lead follows your input with a short tail
+
+struct weightyaimstate {
+	f32 target[2];   // where the gun wants to point (yaw, pitch), degrees from camera centre
+	f32 display[2];  // where the gun actually points after inertia
+	f32 vel[2];      // spring velocity, degrees/second
+	f32 over[2];     // how far the gun is pushed past the edge of the zone, degrees (drains into camera turn)
+	f32 idletime;    // seconds since the last look input
+	f32 leadramp;    // 0..1: Camera Lead eases back in after an edge turn instead of kicking in at full strength
+	f32 leadinput;   // 0..1: how hard you're aiming (smoothed); Camera Lead scales with it
+	s32 lastinput;   // WEIGHTYAIM_INPUT_*: what moved the reticle last (Edge Auto-Turn)
+	f32 edgetime;    // seconds the reticle has rested in the edge band (Edge Auto-Turn)
+	f32 boostheld;   // seconds the stick has been held past the boost threshold
+	f32 boostlevel;  // current turn boost, 0..1
+	bool aiming;     // aim button held and Weighty Aim drives the look (Modern), this frame
+	bool adsheld;    // aim button held with aim down sights on (any aim mode), this frame
+	bool held;       // aim button held on a gun Weighty Aim applies to (any aim mode), this frame
+	f32 adsblend;    // 0 = hip, 1 = fully aiming (linear, see weightyAimAdsAmount)
+	f32 gunpos[3];   // where the gun model was placed last frame (camera space)
+	bool assistlock; // the game's auto-aim has a target this frame and may pull the crosshair
+	f32 assist[2];   // extra gun offset from auto-aim, degrees
+	bool gunposvalid;
+	f32 swayphase[3];// camera sway oscillator phases (breath, drift, footsteps)
+	f32 sway[2];     // camera sway offset applied last frame, degrees
+	bool active;     // Weighty Aim drove this player's crosshair on the last update
+	f32 barrelbias[3]; // laser: how far the barrel normally points off the aim line (camera space)
+	f32 wander[2];     // fojo: reticle wander offset applied last frame, degrees
+	f32 wanderphase[4];// fojo: reticle wander noise phases
+};
+
+static struct weightyaimstate g_WeightyAimState[MAX_PLAYERS];
+
+// telemetry
+static FILE *g_WeightyAimLogFile = NULL;
+static f32 g_WeightyAimLogTime = 0.f;
+static f32 g_WeightyAimPatternTime = 0.f;
+
+const char *g_WeightyAimPresetNames[WEIGHTYAIM_NUM_PRESETS] = {
+	"Weighty",
+	"Immersive",
+	"Boring",
+	"Classic",
+	"Custom 1",
+	"Custom 2",
+	"Custom 3",
+	"Arcade",
+};
+
+// Weighty: free-aim with a crosshair, a gun with some heft, a hint of sway.
+// Leans a little toward Boring: a steadier, stiffer gun for gameplay, while
+// keeping the free-aim crosshair that isn't locked to the centre.
+static const struct weightyaimcfg g_WeightyAimPresetWeighty = {
+	.preset = WEIGHTYAIM_PRESET_WEIGHTY,
+	.reticlespeed = 1.f,
+	.edgeturnspeed = 0.f,
+	.edgeband = 0.2f,
+	.edgeinfluence = 0.25f,
+	.edgevertical = 0.4f,
+	.edgemouse = 1,
+	.edgegyro = 1,
+	.edgestick = 0,
+	.reticleprofile = 0,
+	.deadzonex = 7.5f,
+	.deadzoney = 4.5f,
+	.camerashare = 0.5f,
+	.cameralead = 0.8f,
+	.recenterspeed = 1.f,
+	.recenterdelay = 0.25f,
+	.recentersmooth = 0.4f,
+	.gunresponse = 8.5f,
+	.gundamping = 0.7f,
+	.turndrag = 0.35f,
+	.edgesmoothing = 0.1f,
+	.camerasway = 0.08f,
+	.walksway = 0.25f,
+	.crosshair = WEIGHTYAIM_CROSSHAIR_ALWAYS,
+	.laser = 0,
+	.laserdot = 0,
+	.laserpersist = 1,
+	.aimmode = WEIGHTYAIM_AIMMODE_MODERN,
+	.aimmovement = WEIGHTYAIM_AIMMOVE_DPAD,
+	.aimkbmove = 1,
+	.aimcrosshair = 1,
+	.aimlaserdot = 0,
+	.aimlaserbeam = 0,
+	.ads = 1,
+	.adszoom = 1.3f,
+	.adstime = 0.18f,
+	.adssway = 0.35f,
+	.adszone = 1.f,
+	.adsheight = -4.f,
+	.adsmovespeed = 0.6f,
+	.adssens = 0.65f,
+};
+
+// Immersive: wide zone, heavy flowing gun, a camera that follows and never sits still
+// (the gun itself is kept a little steadier so it isn't too shaky)
+static const struct weightyaimcfg g_WeightyAimPresetImmersive = {
+	.preset = WEIGHTYAIM_PRESET_IMMERSIVE,
+	.reticlespeed = 1.f,
+	.edgeturnspeed = 0.f,
+	.edgeband = 0.2f,
+	.edgeinfluence = 0.25f,
+	.edgevertical = 0.4f,
+	.edgemouse = 1,
+	.edgegyro = 1,
+	.edgestick = 0,
+	.reticleprofile = 0,
+	.deadzonex = 11.f,
+	.deadzoney = 6.5f,
+	.camerashare = 0.5f,
+	.cameralead = 1.4f,
+	.recenterspeed = 1.3f,
+	.recenterdelay = 0.15f,
+	.recentersmooth = 0.6f,
+	.gunresponse = 4.6f,
+	.gundamping = 0.52f,
+	.turndrag = 0.6f,
+	.edgesmoothing = 0.2f,
+	.camerasway = 0.32f,
+	.walksway = 0.8f,
+	.crosshair = WEIGHTYAIM_CROSSHAIR_AIMONLY,
+	.laser = 1,
+	.laserdot = 1,
+	.laserpersist = 1,
+	.aimmode = WEIGHTYAIM_AIMMODE_MODERN,
+	.aimmovement = WEIGHTYAIM_AIMMOVE_STICK,
+	.aimkbmove = 1,
+	.aimcrosshair = 0,
+	.aimlaserdot = 1,
+	.aimlaserbeam = 1,
+	.ads = 1,
+	.adszoom = 1.25f,
+	.adstime = 0.26f,
+	.adssway = 0.5f,
+	.adszone = 1.f,
+	.adsheight = -4.f,
+	.adsmovespeed = 0.55f,
+	.adssens = 0.65f,
+};
+
+// Boring: what most shooters do. Crosshair locked to the centre, the camera
+// follows the stick directly, no gun lag, no sway.
+static const struct weightyaimcfg g_WeightyAimPresetBoring = {
+	.preset = WEIGHTYAIM_PRESET_BORING,
+	.reticlespeed = 1.f,
+	.edgeturnspeed = 0.f,
+	.edgeband = 0.2f,
+	.edgeinfluence = 0.25f,
+	.edgevertical = 0.4f,
+	.edgemouse = 1,
+	.edgegyro = 1,
+	.edgestick = 0,
+	.reticleprofile = 0,
+	.deadzonex = 0.f,
+	.deadzoney = 0.f,
+	.camerashare = 1.f,
+	.cameralead = 0.f,
+	.recenterspeed = 0.f,
+	.recenterdelay = 0.f,
+	.recentersmooth = 0.f,
+	.gunresponse = 20.f,
+	.gundamping = 1.f,
+	.turndrag = 0.f,
+	.edgesmoothing = 0.f,
+	.camerasway = 0.f,
+	.walksway = 0.f,
+	.crosshair = WEIGHTYAIM_CROSSHAIR_ALWAYS,
+	.laser = 0,
+	.laserdot = 0,
+	.laserpersist = 1,
+	.aimmode = WEIGHTYAIM_AIMMODE_MODERN,
+	.aimmovement = WEIGHTYAIM_AIMMOVE_BOTH,
+	.aimkbmove = 1,
+	.aimcrosshair = 1,
+	.aimlaserdot = 0,
+	.aimlaserbeam = 0,
+	.ads = 1,
+	.adszoom = 1.35f,
+	.adstime = 0.12f,
+	.adssway = 0.f,
+	.adszone = 1.f,
+	.adsheight = -4.f,
+	.adsmovespeed = 0.65f,
+	.adssens = 0.65f,
+};
+
+// Arcade: Wii and rail-shooter style. You point at the screen: a big free-aim
+// zone, no camera share or catch-up, a light gun that snaps to where you point,
+// and the view turns on its own while the reticle rests at the edge (mouse and
+// gyro). Has its own reticle settings: smooth, a size bigger, more opaque.
+static const struct weightyaimcfg g_WeightyAimPresetArcade = {
+	.preset = WEIGHTYAIM_PRESET_ARCADE,
+	.reticlespeed = 1.f,
+	.deadzonex = 28.f,
+	.deadzoney = 18.f,
+	.camerashare = 0.f,
+	.cameralead = 0.f,
+	.recenterspeed = 0.f,
+	.recenterdelay = 0.25f,
+	.recentersmooth = 0.4f,
+	.gunresponse = 14.f,
+	.gundamping = 0.85f,
+	.turndrag = 0.1f,
+	.edgesmoothing = 0.08f,
+	.camerasway = 0.03f,
+	.walksway = 0.1f,
+	.crosshair = WEIGHTYAIM_CROSSHAIR_ALWAYS,
+	.laser = 0,
+	.laserdot = 0,
+	.laserpersist = 1,
+	.aimmode = WEIGHTYAIM_AIMMODE_MODERN,
+	.aimmovement = WEIGHTYAIM_AIMMOVE_DPAD,
+	.aimkbmove = 1,
+	.aimcrosshair = 1,
+	.aimlaserdot = 0,
+	.aimlaserbeam = 0,
+	.ads = 1,
+	.adszoom = 1.3f,
+	.adstime = 0.18f,
+	.adssway = 0.35f,
+	.adszone = 1.f,
+	.adsheight = -4.f,
+	.adsmovespeed = 0.6f,
+	.adssens = 0.65f,
+	.edgeturnspeed = 120.f,
+	.edgeband = 0.3f,
+	.edgeinfluence = 0.8f,
+	.edgevertical = 0.4f,
+	.edgemouse = 1,
+	.edgegyro = 1,
+	.edgestick = 0,
+	.reticleprofile = 1,
+};
+
+/*
+ * Reticle profiles are not taken in fojo. His swap rewrites the seat's own
+ * reticle size and colour, which are save-file options here (seatprofile.c),
+ * so Arcade uses the player's reticle as it is.
+ */
+void weightyAimSyncReticle(s32 cfgindex)
+{
+}
+
+/**
+ * Reset Reticle Settings: size, opacity, colour, colour by health and Smooth
+ * Reticle back to the game's defaults.
+ */
+void weightyAimResetReticle(s32 cfgindex)
+{
+	struct extplayerconfig *pc = &g_PlayerExtCfg[cfgindex & 3];
+
+	pc->crosshairsize = 2;
+	pc->crosshaircolour = 0x00ff0028;
+	pc->crosshairhealth = CROSSHAIR_HEALTH_OFF;
+	pc->smoothreticle = 0;
+}
+
+void weightyAimApplyPreset(s32 cfgindex, s32 preset)
+{
+	const s32 idx = cfgindex & 3;
+	struct weightyaimcfg *cfg = &g_WeightyAimCfg[idx];
+
+	switch (preset) {
+	case WEIGHTYAIM_PRESET_WEIGHTY:
+		*cfg = g_WeightyAimPresetWeighty;
+		break;
+	case WEIGHTYAIM_PRESET_IMMERSIVE:
+		*cfg = g_WeightyAimPresetImmersive;
+		break;
+	case WEIGHTYAIM_PRESET_BORING:
+		*cfg = g_WeightyAimPresetBoring;
+		break;
+	case WEIGHTYAIM_PRESET_ARCADE:
+		*cfg = g_WeightyAimPresetArcade;
+		break;
+	case WEIGHTYAIM_PRESET_CLASSIC:
+		// keep the current values; Classic just switches the mod off, and shows
+		// the original aiming on the Aim Mode page
+		cfg->preset = preset;
+		cfg->aimmode = WEIGHTYAIM_AIMMODE_CLASSIC;
+		cfg->aimmovement = weightyAimDefaultAimMovement(WEIGHTYAIM_AIMMODE_CLASSIC);
+		cfg->aimkbmove = weightyAimDefaultAimKeyboardMove(WEIGHTYAIM_AIMMODE_CLASSIC);
+		cfg->reticleprofile = 0; // your normal reticle, not Arcade's
+		break;
+	default:
+		if (WEIGHTYAIM_IS_CUSTOM(preset) && preset < WEIGHTYAIM_NUM_PRESETS) {
+			const s32 slot = preset - WEIGHTYAIM_PRESET_CUSTOM1;
+			*cfg = g_WeightyAimCustomCfg[slot];
+			cfg->preset = preset;
+			g_WeightyAimLastCustom[idx] = slot;
+		}
+		break;
+	}
+
+	weightyAimSyncReticle(idx);
+}
+
+/**
+ * Something on the aim pages changed by hand. On a custom profile, save it
+ * there. On a built-in preset (or Classic), carry the current values over to
+ * the last custom profile you used, switch to it and save the change there.
+ */
+void weightyAimAimSettingsChanged(s32 cfgindex)
+{
+	const s32 idx = cfgindex & 3;
+	struct weightyaimcfg *cfg = &g_WeightyAimCfg[idx];
+	s32 slot;
+
+	if (!WEIGHTYAIM_IS_CUSTOM(cfg->preset)) {
+		cfg->preset = WEIGHTYAIM_PRESET_CUSTOM1 + (g_WeightyAimLastCustom[idx] % 3);
+	}
+
+	slot = cfg->preset - WEIGHTYAIM_PRESET_CUSTOM1;
+	g_WeightyAimCustomCfg[slot] = *cfg;
+	g_WeightyAimLastCustom[idx] = slot;
+	g_PlayerExtCfg[idx].weightyaimpreset = cfg->preset;
+}
+
+void weightyAimResetDefaults(s32 cfgindex)
+{
+	weightyAimApplyPreset(cfgindex, WEIGHTYAIM_PRESET_WEIGHTY);
+}
+
+static inline bool weightyAimCfgEnabled(const struct weightyaimcfg *cfg)
+{
+	// Force Original Aim & Settings turns every Weighty Aim feature off, whatever the preset
+	return !g_WeightyAimForceOriginal && cfg->preset != WEIGHTYAIM_PRESET_CLASSIC;
+}
+
+static inline f32 clampf(f32 v, f32 lo, f32 hi)
+{
+	return v < lo ? lo : (v > hi ? hi : v);
+}
+
+/**
+ * fojo: the preset is a Game option on the seat's save file. A seat whose file
+ * changed, or a preset changed from the overlay or pd.ini, comes back in here
+ * with a different number, and the live values are rebuilt from it. Built-in
+ * presets always come from the code, so a retune reaches existing players
+ * (his weightyAimInit() did that once at boot).
+ */
+static void weightyAimSyncSeat(s32 idx)
+{
+	const s32 want = g_PlayerExtCfg[idx].weightyaimpreset;
+
+	if (want >= 0 && want < WEIGHTYAIM_NUM_PRESETS && g_WeightyAimCfg[idx].preset != want) {
+		weightyAimApplyPreset(idx, want);
+	}
+}
+
+static inline struct weightyaimcfg *weightyAimCurCfg(void)
+{
+	const s32 idx = g_Vars.currentplayerstats->mpindex & 3;
+
+	weightyAimSyncSeat(idx);
+
+	return &g_WeightyAimCfg[idx];
+}
+
+static inline struct weightyaimstate *weightyAimCurState(void)
+{
+	return &g_WeightyAimState[g_Vars.currentplayernum & 3];
+}
+
+/**
+ * PD squares the analog stick (keeping its sign) before using it as a turn rate.
+ */
+static inline f32 weightyAimStickCurve(s32 analog)
+{
+	f32 v = clampf(analog / 70.f, -1.f, 1.f);
+	return v >= 0.f ? v * v : -v * v;
+}
+
+/**
+ * Force Mouse & Gyro as Stick: turns a look rate (1 = full stick) back into the
+ * stick value that would give it through the curve above. It's capped at full
+ * tilt and rounded to whole stick steps, like a real stick.
+ */
+static s32 weightyAimVirtualStick(f32 rate)
+{
+	const f32 v = bc_sqrtf(clampf(rate < 0.f ? -rate : rate, 0.f, 1.f)) * 70.f;
+	const s32 a = (s32)(v + 0.5f);
+
+	return rate < 0.f ? -a : a;
+}
+
+/**
+ * Cubic bezier through (0,0), (x1,y1), (x2,y2), (1,1): find t where x(t) = x
+ * by bisection (x(t) is monotonic while x1, x2 are within 0..1), return y(t).
+ */
+static f32 weightyAimBezier(const f32 *p, f32 x)
+{
+	const f32 x1 = clampf(p[0], 0.f, 1.f), y1 = clampf(p[1], 0.f, 1.f);
+	const f32 x2 = clampf(p[2], 0.f, 1.f), y2 = clampf(p[3], 0.f, 1.f);
+	f32 lo = 0.f, hi = 1.f, t = x, u;
+
+	for (s32 i = 0; i < 24; i++) {
+		u = 1.f - t;
+		const f32 xt = 3.f * u * u * t * x1 + 3.f * u * t * t * x2 + t * t * t;
+
+		if (xt < x) {
+			lo = t;
+		} else {
+			hi = t;
+		}
+
+		t = (lo + hi) * 0.5f;
+	}
+
+	u = 1.f - t;
+	return 3.f * u * u * t * y1 + 3.f * u * t * t * y2 + t * t * t;
+}
+
+/**
+ * Turn the look stick into turn rates in speed units (-1..1 per axis).
+ *
+ * Original: the game's own per-axis squared response.
+ * Others: radial deadzone (inner/outer) so diagonals behave like straight
+ * lines, then the chosen curve applied to how far the stick is pushed.
+ */
+/**
+ * Turn boost: extra turn speed while the stick is held near full deflection.
+ * Instant jumps straight to full boost; Ramped waits a moment and then builds
+ * up, so quick flicks to the edge stay precise but long holds turn fast.
+ * Looking up/down gets only part of the boost.
+ */
+static void weightyAimApplyBoost(const struct weightyaimstickcfg *sc, struct weightyaimstate *st,
+		f32 deflection, f32 dtsec, f32 *out)
+{
+	f32 extra;
+
+	if (sc->boostmode == WEIGHTYAIM_BOOST_OFF) {
+		st->boostheld = 0.f;
+		st->boostlevel = 0.f;
+		return;
+	}
+
+	if (deflection >= clampf(sc->boostthreshold, 0.3f, 1.f) - 0.0001f) {
+		f32 goal = 1.f;
+
+		st->boostheld += dtsec;
+
+		if (sc->boostmode == WEIGHTYAIM_BOOST_RAMPED) {
+			goal = (st->boostheld - sc->boostdelay) / (sc->boosttime > 0.01f ? sc->boosttime : 0.01f);
+			goal = clampf(goal, 0.f, 1.f);
+			goal = goal * goal * (3.f - 2.f * goal); // ease in and out
+		}
+
+		st->boostlevel = goal > st->boostlevel ? goal : st->boostlevel;
+	} else {
+		// let go of the edge: drop the boost quickly but not in a single frame
+		st->boostheld = 0.f;
+		st->boostlevel = clampf(st->boostlevel - dtsec / 0.1f, 0.f, 1.f);
+	}
+
+	extra = (clampf(sc->boostamount, 1.f, 4.f) - 1.f) * st->boostlevel;
+	out[0] *= 1.f + extra;
+	out[1] *= 1.f + extra * clampf(sc->boostvertical, 0.f, 1.f);
+}
+
+/**
+ * Turn the look stick into turn rates in speed units (-1..1 per axis, more with boost).
+ *
+ * Original: the game's own per-axis squared response.
+ * Others: radial deadzone (inner/outer) so diagonals behave like straight
+ * lines, then the chosen curve applied to how far the stick is pushed.
+ */
+static void weightyAimStickRates(const struct weightyaimstickcfg *sc, struct weightyaimstate *st,
+		s32 turn, s32 pitch, f32 dtsec, f32 *out)
+{
+	f32 rx, ry, mag, n, o, lo, hi;
+
+	// PD subtracts a small 5-unit safe zone; put it back so our own deadzone
+	// is the only one (full deflection is about 127). With the game's
+	// deadzone off the values arrive untouched.
+	{
+		const s32 safe = sc->gamedeadzone ? 5 : 0;
+		// the Original curve gets an N64-range stick (see weightyAimStickRange)
+		const f32 full = sc->curve == WEIGHTYAIM_CURVE_ORIGINAL ? WEIGHTYAIM_N64_STICK_MAX : 127.f;
+		rx = turn == 0 ? 0.f : (turn + (turn > 0 ? safe : -safe)) / full;
+		ry = pitch == 0 ? 0.f : (pitch + (pitch > 0 ? safe : -safe)) / full;
+	}
+	mag = bc_sqrtf(rx * rx + ry * ry);
+
+	if (WEIGHTYAIM_IS_NATIVE_CURVE(sc->curve)) {
+		// the game's own response, but sensitivity still applies
+		out[0] = weightyAimStickCurve(turn) * clampf(sc->turnspeed, 0.1f, 3.f);
+		out[1] = weightyAimStickCurve(pitch) * clampf(sc->turnspeed, 0.1f, 3.f) * clampf(sc->verticalsens, 0.1f, 3.f);
+		weightyAimApplyBoost(sc, st, clampf(mag, 0.f, 1.f), dtsec, out);
+		return;
+	}
+
+	if (mag < 0.0001f) {
+		out[0] = out[1] = 0.f;
+		weightyAimApplyBoost(sc, st, 0.f, dtsec, out);
+		return;
+	}
+
+	lo = clampf(sc->innerdeadzone, 0.f, 0.9f);
+	hi = clampf(sc->outerdeadzone, lo + 0.05f, 1.f);
+	n = clampf((mag - lo) / (hi - lo), 0.f, 1.f);
+
+	switch (sc->curve) {
+	case WEIGHTYAIM_CURVE_LINEAR:
+		o = n;
+		break;
+	case WEIGHTYAIM_CURVE_CUSTOM1:
+	case WEIGHTYAIM_CURVE_CUSTOM2:
+	case WEIGHTYAIM_CURVE_CUSTOM3:
+		o = weightyAimBezier(sc->bezier, n);
+		break;
+	case WEIGHTYAIM_CURVE_BALANCED:
+	default:
+		o = n * bc_sqrtf(n); // n^1.5, halfway between linear and squared
+		break;
+	}
+
+	o *= clampf(sc->turnspeed, 0.1f, 3.f);
+	out[0] = rx / mag * o;
+	out[1] = ry / mag * o * clampf(sc->verticalsens, 0.1f, 3.f);
+	weightyAimApplyBoost(sc, st, n, dtsec, out);
+}
+
+/**
+ * The curve on its own (no boost, no state): stick pushed straight right.
+ */
+f32 weightyAimCurveOutput(const struct weightyaimstickcfg *sc, f32 deflection)
+{
+	f32 n, o, lo, hi;
+	s32 analog;
+
+	deflection = clampf(deflection, 0.f, 1.f);
+
+	if (WEIGHTYAIM_IS_NATIVE_CURVE(sc->curve)) {
+		// the game's response, including its small 5-unit safe zone; Original
+		// on an N64-range stick, Source Port on the port's range
+		const f32 full = sc->curve == WEIGHTYAIM_CURVE_ORIGINAL ? WEIGHTYAIM_N64_STICK_MAX : 127.f;
+		analog = (s32)(deflection * full + 0.5f) - (sc->gamedeadzone ? 5 : 0);
+		return analog > 0 ? weightyAimStickCurve(analog) * clampf(sc->turnspeed, 0.1f, 3.f) : 0.f;
+	}
+
+	lo = clampf(sc->innerdeadzone, 0.f, 0.9f);
+	hi = clampf(sc->outerdeadzone, lo + 0.05f, 1.f);
+	n = clampf((deflection - lo) / (hi - lo), 0.f, 1.f);
+
+	switch (sc->curve) {
+	case WEIGHTYAIM_CURVE_LINEAR:
+		o = n;
+		break;
+	case WEIGHTYAIM_CURVE_CUSTOM1:
+	case WEIGHTYAIM_CURVE_CUSTOM2:
+	case WEIGHTYAIM_CURVE_CUSTOM3:
+		o = weightyAimBezier(sc->bezier, n);
+		break;
+	case WEIGHTYAIM_CURVE_BALANCED:
+	default:
+		o = n * bc_sqrtf(n);
+		break;
+	}
+
+	return o * clampf(sc->turnspeed, 0.1f, 3.f);
+}
+
+/**
+ * Scripted look input for repeatable testing, in speed units (-1..1).
+ * One cycle is 4.8 seconds:
+ *   fast turn right, stop, fast turn left, stop, slow sweep inside the zone, stop.
+ */
+bool weightyAimGameDeadzoneWanted(void)
+{
+	return g_WeightyAimForceOriginal || g_WeightyAimStickCfg[g_Vars.currentplayerstats->mpindex & 3].gamedeadzone != 0;
+}
+
+static f32 weightyAimPatternYaw(f32 t)
+{
+	t = bc_fmodf(t, 4.8f);
+
+	if (t < 0.4f) return 0.5f;
+	if (t < 1.6f) return 0.f;
+	if (t < 1.8f) return -1.f;
+	if (t < 3.0f) return 0.f;
+	if (t < 3.6f) return 0.12f;
+	return 0.f;
+}
+
+static void weightyAimLogOpen(void)
+{
+	if (g_WeightyAimLogFile) {
+		return;
+	}
+
+	g_WeightyAimLogFile = fopen(fsFullPath("$E/weightyaim_log.csv"), "w");
+
+	if (g_WeightyAimLogFile) {
+		fprintf(g_WeightyAimLogFile,
+			"time,dt,preset,active,in_yaw,in_pitch,target_yaw,target_pitch,"
+			"gun_yaw,gun_pitch,cam_yaw,cam_pitch,cross_x,cross_y,theta,verta,fovy\n");
+		g_WeightyAimLogTime = 0.f;
+		sysLogPrintf(LOG_NOTE, "weightyaim: logging to %s", fsFullPath("$E/weightyaim_log.csv"));
+	} else {
+		sysLogPrintf(LOG_WARNING, "weightyaim: could not open log file");
+		g_WeightyAimDebugLog = 0;
+	}
+}
+
+static void weightyAimLogClose(void)
+{
+	if (g_WeightyAimLogFile) {
+		fclose(g_WeightyAimLogFile);
+		g_WeightyAimLogFile = NULL;
+	}
+}
+
+/**
+ * Advance the gun's inertia spring towards its target.
+ * Fixed substeps keep it identical at any frame rate.
+ */
+static void weightyAimStepSpring(struct weightyaimstate *st, const struct weightyaimcfg *cfg, f32 dtsec)
+{
+	const f32 w = 2.f * (f32)M_PI * clampf(cfg->gunresponse, 0.5f, 40.f);
+	const f32 k = w * w;
+	const f32 c = 2.f * clampf(cfg->gundamping, 0.05f, 3.f) * w;
+	s32 steps = (s32)bc_ceilf(dtsec / SPRING_STEP);
+	f32 h;
+
+	if (steps < 1) {
+		steps = 1;
+	} else if (steps > 64) {
+		steps = 64;
+	}
+
+	h = dtsec / steps;
+
+	for (s32 s = 0; s < steps; s++) {
+		for (s32 i = 0; i < 2; i++) {
+			const f32 acc = k * (st->target[i] + st->over[i] + st->assist[i] - st->display[i]) - c * st->vel[i];
+			st->vel[i] += acc * h;
+			st->display[i] += st->vel[i] * h;
+		}
+	}
+}
+
+/**
+ * How far into aiming down sights we are, eased (0 = hip, 1 = aimed).
+ */
+static inline f32 weightyAimAdsAmount(const struct weightyaimstate *st)
+{
+	const f32 b = st->adsblend;
+	return b * b * (3.f - 2.f * b);
+}
+
+static void weightyAimGyroDegrees(s32 cfgindex, bool aiming, bool stickmoving, f32 dtsec, f32 *out);
+
+static void weightyAimResetState(struct weightyaimstate *st)
+{
+	st->target[0] = st->target[1] = 0.f;
+	st->display[0] = st->display[1] = 0.f;
+	st->vel[0] = st->vel[1] = 0.f;
+	st->over[0] = st->over[1] = 0.f;
+	st->assist[0] = st->assist[1] = 0.f;
+	st->idletime = 0.f;
+	st->leadramp = 0.f;
+	st->leadinput = 0.f;
+	st->edgetime = 0.f;
+	st->sway[0] = st->sway[1] = 0.f;
+	st->wander[0] = st->wander[1] = 0.f;
+}
+
+void weightyAimFilterLook(s32 *analogturn, s32 *analogpitch, f32 *freelookdx, f32 *freelookdy,
+		bool canlook, f32 mlookscale)
+{
+	struct weightyaimcfg *cfg = weightyAimCurCfg();
+	struct weightyaimstate *st = weightyAimCurState();
+	const struct weightyaimstickcfg *sc = &g_WeightyAimStickCfg[g_Vars.currentplayerstats->mpindex & 3];
+	const f32 dt60 = g_Vars.lvupdate60freal;
+	const f32 dtsec = dt60 / 60.f;
+	const f32 fovscale = viGetFovY() / PLAYER_DEFAULT_FOV;
+	const bool isfirstplayer = (g_Vars.currentplayernum == 0);
+	f32 gyrodeg[2] = { 0.f, 0.f };
+	f32 stickrate[2], stickdeg[2], mousedeg[2], reqdeg[2], camdeg[2] = { 0.f, 0.f };
+	bool active;
+
+	// Arcade's own reticle settings (or yours) follow the current preset
+	weightyAimSyncReticle(g_Vars.currentplayerstats->mpindex);
+
+	if (dt60 <= 0.f || mlookscale <= 0.f || fovscale <= 0.f) {
+		// paused or no time passed; keep the crosshair where it is
+		return;
+	}
+
+	// Debug: scripted input replaces the player's look input
+	if (g_WeightyAimDebugPattern && isfirstplayer && canlook) {
+		g_WeightyAimPatternTime += dtsec;
+		*analogturn = 0;
+		*analogpitch = 0;
+		*freelookdx = weightyAimPatternYaw(g_WeightyAimPatternTime) / mlookscale;
+		*freelookdy = 0.f;
+	}
+
+	// Requested rotation this frame in degrees, exactly as PD would apply it.
+	// Pitch: PD sets speedverta = -(stick + mouse), and +speedverta looks up.
+	weightyAimStickRates(sc, st, *analogturn, *analogpitch, dtsec, stickrate);
+
+	// how far the look stick is pushed (0..1), for Edge Auto-Turn's input check
+	const f32 stickfull = sc->curve == WEIGHTYAIM_CURVE_ORIGINAL ? WEIGHTYAIM_N64_STICK_MAX : 127.f;
+	const f32 sticktilt = bc_sqrtf((f32)(*analogturn * *analogturn + *analogpitch * *analogpitch)) / stickfull;
+	stickdeg[0] = stickrate[0] * fovscale * DEG_PER_SPEED_TICK * dt60;
+	mousedeg[0] = *freelookdx * mlookscale * fovscale * DEG_PER_SPEED_TICK * dt60;
+	stickdeg[1] = -stickrate[1] * fovscale * DEG_PER_SPEED_TICK * dt60;
+	mousedeg[1] = -*freelookdy * mlookscale * fovscale * DEG_PER_SPEED_TICK * dt60;
+	// Gyro counts like the mouse: it goes through the free-aim zone too
+	{
+		const s32 cfgindex = g_Vars.currentplayerstats->mpindex & 3;
+		const bool aiming = g_Vars.currentplayer->insightaimmode != 0;
+		const bool stickmoving = bc_fabsf(stickrate[0]) + bc_fabsf(stickrate[1]) > 0.02f;
+
+		weightyAimGyroDegrees(cfgindex, aiming, stickmoving, dtsec, gyrodeg);
+
+		if (!canlook) {
+			gyrodeg[0] = gyrodeg[1] = 0.f;
+		}
+
+		mousedeg[0] += gyrodeg[0];
+		mousedeg[1] += gyrodeg[1];
+	}
+
+	reqdeg[0] = stickdeg[0] + mousedeg[0];
+	reqdeg[1] = stickdeg[1] + mousedeg[1];
+
+	// Ease into and out of aiming (and bring the gun up, with aim down sights)
+	{
+		const f32 goal = st->held ? 1.f : 0.f;
+		const f32 step = dtsec / (cfg->adstime > 0.01f ? cfg->adstime : 0.01f);
+
+		if (st->adsblend < goal) {
+			st->adsblend = clampf(st->adsblend + step, 0.f, goal);
+		} else if (st->adsblend > goal) {
+			st->adsblend = clampf(st->adsblend - step, goal, 1.f);
+		}
+	}
+
+	// Lower sensitivity while aiming (stick, mouse and gyro alike), eased in.
+	// Classic aim mode uses the game's own aiming, so it's left alone there.
+	if (weightyAimCfgEnabled(cfg) && cfg->aimmode != WEIGHTYAIM_AIMMODE_CLASSIC) {
+		const f32 mult = 1.f + (clampf(cfg->adssens, 0.1f, 1.f) - 1.f) * weightyAimAdsAmount(st);
+
+		reqdeg[0] *= mult;
+		reqdeg[1] *= mult;
+	}
+
+	active = weightyAimCfgEnabled(cfg)
+		&& canlook
+		&& g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK
+		&& (!g_Vars.currentplayer->insightaimmode || st->aiming)
+		&& !g_Vars.currentplayer->isdead
+		&& g_Vars.tickmode == TICKMODE_NORMAL;
+
+	if (!active) {
+		weightyAimResetState(st);
+		st->active = false;
+
+		// Aim mod off (Classic) but a custom stick response chosen (a different
+		// curve, turn boost, or a sensitivity other than 1x): still apply it.
+		// With analog zeroed, PD computes speed = (freelook * mlookscale) * fovscale.
+		if (g_WeightyAimForceOriginal) {
+			// Force Original Aim & Settings: the game's own stick handling, no custom
+			// stick response, Look Acceleration or gyro. The mouse stays as the
+			// port has it unless Mouse & Gyro as Stick is on: then mouse and gyro
+			// are folded into the stick value, so they can't turn faster than a
+			// stick at full tilt.
+			if (canlook && g_WeightyAimForceMouseGyroStick
+					&& (*freelookdx != 0.f || *freelookdy != 0.f || gyrodeg[0] != 0.f || gyrodeg[1] != 0.f)) {
+				const f32 gyroscale = DEG_PER_SPEED_TICK * dt60 * fovscale;
+				const f32 x = weightyAimStickCurve(*analogturn) + *freelookdx * mlookscale + gyrodeg[0] / gyroscale;
+				const f32 y = weightyAimStickCurve(*analogpitch) + *freelookdy * mlookscale - gyrodeg[1] / gyroscale;
+
+				*analogturn = weightyAimVirtualStick(x);
+				*analogpitch = weightyAimVirtualStick(y);
+				*freelookdx = 0.f;
+				*freelookdy = 0.f;
+			}
+		} else if (canlook && (!WEIGHTYAIM_IS_NATIVE_CURVE(sc->curve) || st->boostlevel > 0.f
+					|| bc_fabsf(sc->turnspeed - 1.f) > 0.001f || bc_fabsf(sc->verticalsens - 1.f) > 0.001f)) {
+			*analogturn = 0;
+			*analogpitch = 0;
+			*freelookdx += stickrate[0] / mlookscale;
+			*freelookdy += stickrate[1] / mlookscale;
+		}
+
+		// gyro works with the Classic preset too (not with Force Original Aim & Settings)
+		if (canlook && !g_WeightyAimForceOriginal && (gyrodeg[0] != 0.f || gyrodeg[1] != 0.f)) {
+			*freelookdx += gyrodeg[0] / (DEG_PER_SPEED_TICK * dt60 * mlookscale * fovscale);
+			*freelookdy -= gyrodeg[1] / (DEG_PER_SPEED_TICK * dt60 * mlookscale * fovscale);
+		}
+	} else {
+		// While aiming the zone shrinks, the camera takes over more of the turning,
+		// sway calms down and the gun steadies. Aim Feel While Aiming (adszone)
+		// sets how much of the hip-fire feel is kept: at 1 aiming feels the same.
+		const f32 ads = cfg->aimmode != WEIGHTYAIM_AIMMODE_CLASSIC ? weightyAimAdsAmount(st) : 0.f;
+		const f32 align = clampf(cfg->adszone, 0.f, 2.f);
+		struct weightyaimcfg effcfg = *cfg;
+		struct weightyaimcfg *ec = &effcfg;
+
+		// Aim Feel While Aiming above 100% (up to 200%) exaggerates it instead:
+		// a bigger zone, less camera share, more drag and a heavier gun
+		ec->deadzonex *= 1.f + (align - 1.f) * ads;
+		ec->deadzoney *= 1.f + (align - 1.f) * ads;
+		ec->camerashare += (1.f - ec->camerashare) * ads * (1.f - align);
+		ec->camerasway *= 1.f + (clampf(cfg->adssway, 0.f, 1.f) - 1.f) * ads;
+		ec->walksway *= 1.f + (clampf(cfg->adssway, 0.f, 1.f) - 1.f) * ads;
+		ec->turndrag *= 1.f - 0.6f * ads * (1.f - align);
+		ec->gunresponse *= 1.f + 0.8f * ads * (1.f - align);
+
+		const f32 zx = clampf(ec->deadzonex, 0.05f, 45.f);
+		const f32 zy = clampf(ec->deadzoney, 0.05f, 45.f);
+		f32 reqlen, ellipse;
+		bool autoedge;
+
+		// Edge Auto-Turn applies to the input that moved the reticle last
+		// (by default mouse and gyro; a held stick keeps turning by itself)
+		{
+			// a resting thumb or a little drift doesn't count as using the stick:
+			// it only takes over past WEIGHTYAIM_EDGE_STICK_TILT
+			const f32 sm = sticktilt >= WEIGHTYAIM_EDGE_STICK_TILT ? bc_fabsf(stickdeg[0]) + bc_fabsf(stickdeg[1]) : 0.f;
+			const f32 gm = bc_fabsf(gyrodeg[0]) + bc_fabsf(gyrodeg[1]);
+			const f32 mm = bc_fabsf(mousedeg[0] - gyrodeg[0]) + bc_fabsf(mousedeg[1] - gyrodeg[1]);
+
+			if (sm + gm + mm > 0.0001f) {
+				st->lastinput = sm >= gm && sm >= mm ? WEIGHTYAIM_INPUT_STICK
+					: gm >= mm ? WEIGHTYAIM_INPUT_GYRO : WEIGHTYAIM_INPUT_MOUSE;
+			}
+
+			autoedge = ec->edgeturnspeed > 0.001f
+				&& (st->lastinput == WEIGHTYAIM_INPUT_MOUSE ? ec->edgemouse
+					: st->lastinput == WEIGHTYAIM_INPUT_GYRO ? ec->edgegyro : ec->edgestick);
+		}
+
+		// 1. Every look movement is split: part turns the camera right away (so the
+		//    view always answers the stick), the rest moves the gun inside the zone.
+		//    The two always add up to exactly the input, so aim speed never changes.
+		const f32 share = clampf(ec->camerashare, 0.f, 1.f);
+		const f32 drag = clampf(ec->turndrag, 0.f, 1.f);
+		// Free-Aim Reticle Speed: 1 keeps the reticle 1:1 with the camera; other
+		// values let it move faster or slower than your input inside the zone,
+		// for an older, uneven aiming feel. Turning past the edge stays at your
+		// input's speed.
+		const f32 rs = ec->reticlespeed > 0.001f ? clampf(ec->reticlespeed, 0.25f, 3.f) : 1.f;
+
+		reqlen = bc_sqrtf(reqdeg[0] * reqdeg[0] + reqdeg[1] * reqdeg[1]);
+
+		if (reqlen > 0.0001f) {
+			for (s32 i = 0; i < 2; i++) {
+				const f32 direct = reqdeg[i] * share;
+
+				camdeg[i] += direct;
+				st->display[i] -= direct * drag; // the gun lags a touch behind the turn
+				st->target[i] += (reqdeg[i] - direct) * rs;
+			}
+
+			// 2. Whatever pushes the gun past the edge of the zone goes into the
+			//    overflow, and the camera eases into it below (edge smoothing).
+			//    With Edge Auto-Turn the auto-turn does the turning, and only a
+			//    small share of your own push still adds to it (Edge Input Influence).
+			ellipse = (st->target[0] / zx) * (st->target[0] / zx) + (st->target[1] / zy) * (st->target[1] / zy);
+
+			if (ellipse > 1.f) {
+				const f32 scale = 1.f / bc_sqrtf(ellipse);
+				const f32 keep = autoedge ? clampf(ec->edgeinfluence, 0.f, 1.f) : 1.f;
+
+				st->over[0] += (st->target[0] - st->target[0] * scale) * keep / rs;
+				st->over[1] += (st->target[1] - st->target[1] * scale) * keep / rs;
+				st->target[0] *= scale;
+				st->target[1] *= scale;
+			}
+		}
+
+		// If the zone shrank (aiming down sights, or a menu change), the part of the
+		// gun that's now outside it becomes overflow, so the camera eases toward
+		// it and the gun keeps pointing at the same spot
+		ellipse = (st->target[0] / zx) * (st->target[0] / zx) + (st->target[1] / zy) * (st->target[1] / zy);
+
+		if (ellipse > 1.f) {
+			const f32 scale = 1.f / bc_sqrtf(ellipse);
+
+			st->over[0] += st->target[0] - st->target[0] * scale;
+			st->over[1] += st->target[1] - st->target[1] * scale;
+			st->target[0] *= scale;
+			st->target[1] *= scale;
+		}
+
+		// 3. Edge smoothing: the camera turns toward the overflow over a short time
+		//    instead of instantly, so hitting the edge eases in and out. The more
+		//    the gun is pushed past the edge, the harder the camera follows, so
+		//    fast turns still keep up. The gun holds its aim in the world while
+		//    the camera turns, and lags a little extra (turn drag).
+		{
+			const f32 softcap = 0.25f * (zx + zy);
+			const f32 overlen = bc_sqrtf(st->over[0] * st->over[0] + st->over[1] * st->over[1]);
+			f32 k = 1.f;
+
+			if (ec->edgesmoothing > 0.001f && overlen > 0.f) {
+				const f32 pressure = overlen / softcap;
+				const f32 rate = (1.f / ec->edgesmoothing) * (1.f + pressure * pressure);
+				k = 1.f - bc_expf(-rate * dtsec);
+			}
+
+			for (s32 i = 0; i < 2; i++) {
+				const f32 c = st->over[i] * k;
+				st->over[i] -= c;
+				camdeg[i] += c;
+				st->display[i] -= c * (1.f + drag);
+			}
+
+			// finish off tiny leftovers so catch-up and lead can take over again
+			if (bc_fabsf(st->over[0]) + bc_fabsf(st->over[1]) < 0.01f) {
+				for (s32 i = 0; i < 2; i++) {
+					camdeg[i] += st->over[i];
+					st->display[i] -= st->over[i] * (1.f + drag);
+					st->over[i] = 0.f;
+				}
+			}
+
+			// never let the gun run away past the edge
+			if (overlen > softcap * 3.f) {
+				const f32 keep = softcap * 3.f / overlen;
+
+				for (s32 i = 0; i < 2; i++) {
+					const f32 excess = st->over[i] * (1.f - keep);
+					st->over[i] -= excess;
+					camdeg[i] += excess;
+					st->display[i] -= excess * (1.f + drag);
+				}
+			}
+		}
+
+		// 3b. Edge Auto-Turn (Wii-shooter style): while the reticle rests in a band
+		//     at the edge of the zone, the view keeps turning on its own, faster
+		//     the closer to the edge, so mouse and gyro players don't have to keep
+		//     moving and re-centring. It waits a moment first, so aiming at
+		//     something near the edge doesn't swing the view straight away. The
+		//     reticle stays put on screen while the view turns under it.
+		bool autoturning = false;
+		{
+			const f32 nx = st->target[0] / zx;
+			const f32 ny = st->target[1] / zy;
+			const f32 e = bc_sqrtf(nx * nx + ny * ny);
+			const f32 band = clampf(ec->edgeband, 0.05f, 0.9f);
+			const f32 t = autoedge && e > 0.0001f ? clampf((e - (1.f - band)) / band, 0.f, 1.f) : 0.f;
+
+			st->edgetime = t > 0.f ? st->edgetime + dtsec : 0.f;
+
+			if (t > 0.f && st->edgetime > WEIGHTYAIM_EDGE_TURN_DELAY) {
+				const f32 ease = clampf((st->edgetime - WEIGHTYAIM_EDGE_TURN_DELAY) / WEIGHTYAIM_EDGE_TURN_EASE, 0.f, 1.f);
+				// while aiming it slows down like everything else (Aim Sensitivity)
+				const f32 aimslow = 1.f + (clampf(cfg->adssens, 0.1f, 1.f) - 1.f) * ads;
+				const f32 speed = ec->edgeturnspeed * t * t * (3.f - 2.f * t) * ease * aimslow;
+
+				camdeg[0] += nx / e * speed * dtsec;
+				camdeg[1] += ny / e * speed * dtsec * clampf(ec->edgevertical, 0.f, 1.f);
+				autoturning = true;
+			}
+		}
+
+		// 3c. fojo: reticle wander. The hip-fire reticle drifts on slow noise
+		//     inside the zone - [Sway] WanderRest standing still, WanderMove more
+		//     at speed through WanderSpeedCurve - and WanderStride of the moving
+		//     share rocks with the stride (playerHipSwayAt, the same hips the
+		//     view sways on) instead of the noise. Applied as this frame's offset
+		//     less last frame's, like the camera sway below, so it wanders round
+		//     where she points and never walks away. The spring smooths it and
+		//     the shot goes where the reticle is. Gain is the seat's
+		//     ReticleWander Game option; 0 is off.
+		{
+			const f32 gain = clampf(PLAYER_EXTCFG().reticlewander, 0.f, 4.f);
+			f32 want[2] = { 0.f, 0.f };
+
+			if (gain > 0.f) {
+				struct player *pl = g_Vars.currentplayer;
+				const f32 tau = 2.f * (f32)M_PI;
+				const f32 rate = clampf(g_WanderRate, 0.05f, 3.f) * tau * dtsec;
+				const f32 speed = clampf(pl->camstridespeed, 0.f, 1.f);
+				const f32 moving = __builtin_powf(speed, clampf(g_WanderSpeedCurve, 0.25f, 4.f)) * g_WanderMove;
+				const f32 stride = clampf(g_WanderStride, 0.f, 1.f);
+				const f32 noise = gain * (g_WanderRest + moving * (1.f - stride));
+				const f32 rock = gain * moving * stride;
+
+				st->wanderphase[0] = bc_fmodf(st->wanderphase[0] + rate, tau);
+				st->wanderphase[1] = bc_fmodf(st->wanderphase[1] + rate * 1.37f, tau);
+				st->wanderphase[2] = bc_fmodf(st->wanderphase[2] + rate * 0.71f, tau);
+				st->wanderphase[3] = bc_fmodf(st->wanderphase[3] + rate * 0.53f, tau);
+
+				// sideways on the hips, and a dip as each foot lands
+				want[0] = noise * (0.6f * bc_sinf(st->wanderphase[0]) + 0.4f * bc_sinf(st->wanderphase[1] + 0.9f))
+					+ rock * playerHipSwayAt(pl);
+				want[1] = noise * 0.6f * (0.6f * bc_sinf(st->wanderphase[2] + 1.1f) + 0.4f * bc_sinf(st->wanderphase[3] + 2.3f))
+					+ rock * 0.4f * bc_sinf(pl->camstepphase);
+			}
+
+			for (s32 i = 0; i < 2; i++) {
+				st->target[i] += want[i] - st->wander[i];
+				st->wander[i] = want[i];
+			}
+		}
+
+		// 4. The camera drifts toward where the gun points, so it never sits dead still.
+		//    While aiming it leads gently (stronger near the edge of the zone), and
+		//    after a moment idle it catches up. The gun stays on the same spot in the
+		//    world while the camera moves toward it.
+		if (reqlen > 0.0001f) {
+			st->idletime = 0.f;
+		} else {
+			st->idletime += dtsec;
+		}
+
+		{
+			const f32 edgeness = bc_sqrtf(clampf((st->target[0] / zx) * (st->target[0] / zx)
+						+ (st->target[1] / zy) * (st->target[1] / zy), 0.f, 1.f));
+			f32 rate = 0.f;
+			const bool edgeturn = st->over[0] != 0.f || st->over[1] != 0.f;
+
+			// Lead is off while turning from the edge, then eases back in over
+			// WEIGHTYAIM_LEAD_EASE_IN seconds. Switching straight back on at the edge
+			// (where it's strongest) felt like a sudden snap back toward the centre.
+			st->leadramp = edgeturn ? 0.f : clampf(st->leadramp + dtsec / WEIGHTYAIM_LEAD_EASE_IN, 0.f, 1.f);
+
+			// Lead also scales with how hard you're aiming, so a small correction at
+			// the edge barely pulls the camera while a big sweep drags it along.
+			// Measured against full-stick speed so mouse and gyro count the same way.
+			{
+				const f32 fullspeed = fovscale * DEG_PER_SPEED_TICK * dt60;
+				const f32 input = fullspeed > 0.0001f
+					? clampf(reqlen / (fullspeed * WEIGHTYAIM_LEAD_FULL_INPUT), 0.f, 1.f) : 0.f;
+
+				st->leadinput += (input - st->leadinput) * (1.f - bc_expf(-dtsec / WEIGHTYAIM_LEAD_INPUT_SMOOTH));
+			}
+
+			if (edgeturn || autoturning) {
+				// already turning from the edge; leading or catching up as well would
+				// slow that turn down (and would pull the reticle out of the auto-turn band)
+				rate = 0.f;
+			} else if (st->idletime > ec->recenterdelay) {
+				// catch-up eases in instead of kicking in at full speed
+				rate = ec->recenterspeed;
+
+				if (ec->recentersmooth > 0.001f) {
+					f32 e = clampf((st->idletime - ec->recenterdelay) / ec->recentersmooth, 0.f, 1.f);
+					rate *= e * e * (3.f - 2.f * e);
+				}
+			} else {
+				const f32 r = st->leadramp;
+				rate = ec->cameralead * edgeness * st->leadinput * r * r * (3.f - 2.f * r);
+			}
+
+			if (rate > 0.f) {
+				const f32 k = 1.f - bc_expf(-rate * dtsec);
+				const f32 ry = st->target[0] * k;
+				const f32 rp = st->target[1] * k;
+
+				st->target[0] -= ry;
+				st->target[1] -= rp;
+				st->display[0] -= ry;
+				st->display[1] -= rp;
+				camdeg[0] += ry;
+				camdeg[1] += rp;
+			}
+		}
+
+		// 4b. Starting to aim: the camera swings toward where the gun points, so
+		//     your aim doesn't jump. The more aim feel is kept, the less it pulls
+		//     the crosshair to the centre (none at all at 100%).
+		if (ads > 0.f && align < 0.999f) {
+			const f32 rate = ads * (1.f - align) * 5.f / (cfg->adstime > 0.05f ? cfg->adstime : 0.05f);
+			const f32 k = 1.f - bc_expf(-rate * dtsec);
+
+			for (s32 i = 0; i < 2; i++) {
+				const f32 r = st->target[i] * k;
+				st->target[i] -= r;
+				st->display[i] -= r;
+				camdeg[i] += r;
+			}
+		}
+
+		// 5. Camera sway: slow breathing drift plus a footstep rhythm while moving.
+		//    Applied as a bounded offset (this frame's value minus last frame's) so
+		//    the view wobbles around where you point it and never drifts away.
+		if (ec->camerasway > 0.f || ec->walksway > 0.f) {
+			const struct player *pl = g_Vars.currentplayer;
+			const f32 movefrac = clampf(bc_sqrtf(pl->speedforwards * pl->speedforwards
+						+ pl->speedsideways * pl->speedsideways), 0.f, 1.f);
+			const f32 tau = 2.f * (f32)M_PI;
+			f32 sway[2];
+
+			st->swayphase[0] = bc_fmodf(st->swayphase[0] + dtsec * 0.27f * tau, tau);             // breathing
+			st->swayphase[1] = bc_fmodf(st->swayphase[1] + dtsec * 0.61f * tau, tau);             // slow drift
+			st->swayphase[2] = bc_fmodf(st->swayphase[2] + dtsec * (0.9f + movefrac) * tau, tau); // footsteps
+
+			sway[0] = ec->camerasway * (0.55f * bc_sinf(st->swayphase[1]) + 0.25f * bc_sinf(st->swayphase[0] * 0.5f + 1.3f))
+				+ ec->walksway * movefrac * 0.6f * bc_sinf(st->swayphase[2]);
+			sway[1] = ec->camerasway * (0.6f * bc_sinf(st->swayphase[0]) + 0.2f * bc_sinf(st->swayphase[1] * 1.7f + 0.7f))
+				- ec->walksway * movefrac * 0.5f * bc_fabsf(bc_sinf(st->swayphase[2]));
+
+			for (s32 i = 0; i < 2; i++) {
+				const f32 delta = sway[i] - st->sway[i];
+				camdeg[i] += delta;
+				st->display[i] -= delta * clampf(ec->turndrag, 0.f, 1.f) * 0.5f; // hands lag the body a little
+				st->sway[i] = sway[i];
+			}
+		}
+
+		// 6. Aim assist: the game's auto-aim moves the crosshair (not the camera)
+		//    onto the target it picked, just like it does without the mod, so
+		//    it's never stronger than the game and difficulty allow
+		{
+			f32 want[2] = { 0.f, 0.f };
+
+			if (st->assistlock) {
+				const f32 tanhalfy = bc_tanf(DEG2RAD(viGetFovY() * 0.5f));
+				const f32 tanhalfx = tanhalfy * (viGetAspect() > 0.f ? viGetAspect() : 1.333f);
+				const f32 tx = clampf(g_Vars.currentplayer->autoaimx, -1.f, 1.f);
+				const f32 ty = clampf(g_Vars.currentplayer->autoaimy, -1.f, 1.f);
+				const f32 targetyaw = RAD2DEG(bc_atanf(tx * tanhalfx));
+				const f32 targetpitch = -RAD2DEG(bc_atanf(ty * tanhalfy));
+
+				want[0] = targetyaw - (st->target[0] + st->over[0]);
+				want[1] = targetpitch - (st->target[1] + st->over[1]);
+			}
+
+			// eases on and off at about the speed the game's own auto-aim moves
+			const f32 k = 1.f - bc_expf(-dtsec / 0.35f);
+			st->assist[0] += (want[0] - st->assist[0]) * k;
+			st->assist[1] += (want[1] - st->assist[1]) * k;
+		}
+
+		weightyAimStepSpring(st, ec, dtsec);
+
+		// Never let the gun trail your aim by more than a little: gun weight and
+		// turn drag should be felt, but on a fast spin the lag otherwise grows
+		// with turn speed and the crosshair falls well behind where you aim.
+		{
+			const f32 maxlag = 0.35f * (zx < zy ? zx : zy) + 1.5f;
+			f32 lag[2], laglen;
+
+			for (s32 i = 0; i < 2; i++) {
+				lag[i] = st->display[i] - (st->target[i] + st->over[i] + st->assist[i]);
+			}
+
+			laglen = bc_sqrtf(lag[0] * lag[0] + lag[1] * lag[1]);
+
+			if (laglen > maxlag) {
+				const f32 keep = maxlag / laglen;
+
+				for (s32 i = 0; i < 2; i++) {
+					st->display[i] -= lag[i] * (1.f - keep);
+					st->vel[i] *= keep;
+				}
+			}
+		}
+
+		// keep the gun on screen even after a violent turn
+		st->display[0] = clampf(st->display[0], -zx * 2.f - 10.f, zx * 2.f + 10.f);
+		st->display[1] = clampf(st->display[1], -zy * 2.f - 10.f, zy * 2.f + 10.f);
+
+		// 5. Hand only the leftover turning to PD's camera code.
+		//    With analog zeroed, PD computes speed = freelook * mlookscale * fovscale.
+		*analogturn = 0;
+		*analogpitch = 0;
+		*freelookdx = camdeg[0] / (DEG_PER_SPEED_TICK * dt60 * mlookscale * fovscale);
+		*freelookdy = -camdeg[1] / (DEG_PER_SPEED_TICK * dt60 * mlookscale * fovscale);
+
+		st->active = true;
+	}
+
+	// Telemetry (first player only)
+	if (g_WeightyAimDebugLog && isfirstplayer) {
+		weightyAimLogOpen();
+
+		if (g_WeightyAimLogFile) {
+			const struct player *pl = g_Vars.currentplayer;
+			const f32 sw = viGetViewWidth() * 0.5f;
+			const f32 sh = viGetViewHeight() * 0.5f;
+
+			g_WeightyAimLogTime += dtsec;
+			fprintf(g_WeightyAimLogFile,
+				"%.4f,%.4f,%d,%d,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.3f,%.3f,%.2f\n",
+				g_WeightyAimLogTime, dtsec, cfg->preset, st->active,
+				reqdeg[0], reqdeg[1], st->target[0], st->target[1],
+				st->display[0], st->display[1], camdeg[0], camdeg[1],
+				sw > 0.f ? (pl->crosspos[0] - sw) / sw : 0.f,
+				sh > 0.f ? (pl->crosspos[1] - sh) / sh : 0.f,
+				pl->vv_theta, pl->vv_verta, viGetFovY());
+		}
+	} else if (!g_WeightyAimDebugLog && g_WeightyAimLogFile) {
+		weightyAimLogClose();
+	}
+}
+
+bool weightyAimIsActive(void)
+{
+	return weightyAimCfgEnabled(weightyAimCurCfg()) && weightyAimCurState()->active;
+}
+
+/**
+ * Holding aim with Weighty Aim on (any aim mode, any gun it applies to).
+ */
+static bool weightyAimHoldingAim(const struct weightyaimcfg *cfg)
+{
+	return weightyAimCfgEnabled(cfg) && g_Vars.currentplayer->insightaimmode;
+}
+
+bool weightyAimHideCrosshair(void)
+{
+	const struct weightyaimcfg *cfg = weightyAimCurCfg();
+
+	if (!weightyAimCfgEnabled(cfg)) {
+		return false;
+	}
+
+	// fojo: aiming belongs to the game and COD Style Aiming, crosshair included
+	if (g_Vars.currentplayer->insightaimmode) {
+		return false;
+	}
+
+	// hip-fire: Crosshair
+	return cfg->crosshair == WEIGHTYAIM_CROSSHAIR_AIMONLY && weightyAimIsActive();
+}
+
+bool weightyAimForceCrosshair(void)
+{
+	const struct weightyaimcfg *cfg = weightyAimCurCfg();
+	bool wanted;
+
+	if (!weightyAimCfgEnabled(cfg)
+			|| g_Vars.currentplayer->insightaimmode
+			|| g_Vars.tickmode != TICKMODE_NORMAL
+			|| g_Vars.currentplayer->bondmovemode != MOVEMODE_WALK
+			|| g_Vars.currentplayer->isdead
+			|| weightyAimHideCrosshair()) {
+		return false;
+	}
+
+	// The hip-fire crosshair is the game's "target", which it only draws with its
+	// own Always Show Target option on, and the aiming crosshair only while
+	// every sight flag is clear (taking damage clears it for a moment, for one).
+	// When the setting says on, it's on.
+	wanted = cfg->crosshair == WEIGHTYAIM_CROSSHAIR_ALWAYS;
+
+	return wanted;
+}
+
+void weightyAimGetCrosshair(f32 *x, f32 *y)
+{
+	const struct weightyaimstate *st = weightyAimCurState();
+	const f32 fovy = viGetFovY();
+	const f32 aspect = viGetAspect();
+	const f32 tanhalfy = bc_tanf(DEG2RAD(fovy * 0.5f));
+	const f32 tanhalfx = tanhalfy * (aspect > 0.f ? aspect : 1.333f);
+
+	// project the gun direction onto the screen; +y is down in bgunSwivel units
+	*x = clampf(bc_tanf(DEG2RAD(st->display[0])) / tanhalfx, -0.97f, 0.97f);
+	*y = clampf(-bc_tanf(DEG2RAD(st->display[1])) / tanhalfy, -0.97f, 0.97f);
+}
+
+/*
+ * Aim assist limits
+ */
+
+bool weightyAimSmoothReticle(void)
+{
+	// Force Original Aim & Settings keeps the original whole-pixel reticle
+	return !g_WeightyAimForceOriginal && PLAYER_EXTCFG().smoothreticle != 0;
+}
+
+bool weightyAimAssistAllowed(void)
+{
+	if (g_WeightyAimForceOriginal) {
+		return true;
+	}
+
+	return PLAYER_EXTCFG().weightyaimassist > 0.001f;
+}
+
+f32 weightyAimAssistScale(void)
+{
+	// capped at 1: can weaken the game's aim assist, never strengthen it
+	if (g_WeightyAimForceOriginal) {
+		return 1.f;
+	}
+
+	return clampf(PLAYER_EXTCFG().weightyaimassist, 0.f, 1.f);
+}
+
+/*
+ * Gyro aiming
+ *
+ * Follows JibbSmart's GyroWiki (and what Steam Input does):
+ * - sensitivity 1 = 1 real degree turns you 1 in-game degree
+ * - "player space": turning the controller flat or leaning it left/right both
+ *   turn you, whichever way you naturally hold it; up/down is always pitch
+ * - optional acceleration, tightening and soft tiered smoothing, all applied
+ *   only where the GyroWiki says they belong (smoothing only on small moves)
+ * - calibration on demand, plus automatic calibration while held still
+ */
+
+#define GYRO_CALIB_SECONDS 1.5f
+#define GYRO_STILL_DEG     2.0f   // deg/s: slower than this counts as "held still"
+#define GYRO_YAW_RELAX     1.41f  // player space: ~45 degrees of freedom
+
+static inline struct weightyaimgyrostate *weightyAimGyroState(s32 cfgindex)
+{
+	return &g_WeightyAimGyroState[cfgindex & 3];
+}
+
+void weightyAimGyroStartCalibration(s32 cfgindex)
+{
+	struct weightyaimgyrostate *gs = weightyAimGyroState(cfgindex);
+
+	gs->calibtime = GYRO_CALIB_SECONDS;
+	gs->calibsum[0] = gs->calibsum[1] = gs->calibsum[2] = 0.f;
+	gs->calibcount = 0;
+}
+
+/**
+ * Read the controller and update calibration. Returns false without a gyro.
+ * rate[3] gets calibrated angular velocity in deg/s (pitch, yaw, roll).
+ */
+static bool weightyAimGyroSample(s32 cfgindex, f32 dtsec, f32 *rate)
+{
+	const struct weightyaimgyrocfg *gc = &g_WeightyAimGyroCfg[cfgindex & 3];
+	struct weightyaimgyrostate *gs = weightyAimGyroState(cfgindex);
+	const s32 pad = optionsGetContpadNum1(cfgindex & 3);
+	f32 gyro[3], accel[3], raw[3], alen;
+
+	gs->available = inputControllerGetMotion(pad, gyro, accel) != 0;
+
+	if (!gs->available) {
+		return false;
+	}
+
+	for (s32 i = 0; i < 3; i++) {
+		raw[i] = gyro[i] * (180.f / (f32)M_PI);
+	}
+
+	// smoothed gravity (points up) for player space
+	alen = bc_sqrtf(accel[0] * accel[0] + accel[1] * accel[1] + accel[2] * accel[2]);
+
+	if (alen > 0.1f) {
+		const f32 k = 1.f - bc_expf(-dtsec / 0.1f);
+
+		for (s32 i = 0; i < 3; i++) {
+			gs->grav[i] += (accel[i] / alen - gs->grav[i]) * k;
+		}
+	}
+
+	// manual calibration: average while the player holds still
+	if (gs->calibtime > 0.f) {
+		for (s32 i = 0; i < 3; i++) {
+			gs->calibsum[i] += raw[i];
+		}
+
+		gs->calibcount++;
+		gs->calibtime -= dtsec;
+
+		if (gs->calibtime <= 0.f && gs->calibcount > 0) {
+			for (s32 i = 0; i < 3; i++) {
+				gs->bias[i] = gs->calibsum[i] / gs->calibcount;
+			}
+
+			gs->calibrated = true;
+		}
+	} else if (gc->autocalibrate) {
+		// automatic: after a second of being held still, slowly settle the bias
+		const f32 dx = raw[0] - gs->bias[0], dy = raw[1] - gs->bias[1], dz = raw[2] - gs->bias[2];
+
+		if (bc_fabsf(dx) < GYRO_STILL_DEG && bc_fabsf(dy) < GYRO_STILL_DEG && bc_fabsf(dz) < GYRO_STILL_DEG) {
+			gs->stilltime += dtsec;
+		} else {
+			gs->stilltime = 0.f;
+		}
+
+		if (gs->stilltime > 1.f) {
+			const f32 k = 1.f - bc_expf(-dtsec / 1.f);
+
+			for (s32 i = 0; i < 3; i++) {
+				gs->bias[i] += (raw[i] - gs->bias[i]) * k;
+			}
+
+			gs->calibrated = true;
+		}
+	}
+
+	for (s32 i = 0; i < 3; i++) {
+		rate[i] = raw[i] - gs->bias[i];
+	}
+
+	return true;
+}
+
+/**
+ * Degrees to turn this frame from the gyro (+yaw = right, +pitch = up).
+ */
+static void weightyAimGyroDegrees(s32 cfgindex, bool aiming, bool stickmoving, f32 dtsec, f32 *out)
+{
+	const struct weightyaimgyrocfg *gc = &g_WeightyAimGyroCfg[cfgindex & 3];
+	struct weightyaimgyrostate *gs = weightyAimGyroState(cfgindex);
+	f32 rate[3], yaw, pitch, speed, sens;
+
+	out[0] = out[1] = 0.f;
+
+	if (gc->mode == WEIGHTYAIM_GYRO_OFF || !weightyAimGyroSample(cfgindex, dtsec, rate)) {
+		return;
+	}
+
+	if (gs->calibtime > 0.f
+			|| (gc->mode == WEIGHTYAIM_GYRO_AIMING && !aiming)
+			|| (gc->pausewithstick && stickmoving)) {
+		gs->smooth[0] = gs->smooth[1] = 0.f;
+		return;
+	}
+
+	// SDL: x = pitch (+ = tilt the far edge up), y = yaw (+ = turn left), z = roll
+	pitch = rate[0];
+
+	if (gc->space == WEIGHTYAIM_GYROSPACE_PLAYER && (gs->grav[0] != 0.f || gs->grav[1] != 0.f || gs->grav[2] != 0.f)) {
+		const f32 worldyaw = rate[1] * gs->grav[1] + rate[2] * gs->grav[2];
+		const f32 len = bc_sqrtf(rate[1] * rate[1] + rate[2] * rate[2]);
+		const f32 mag = bc_fabsf(worldyaw) * GYRO_YAW_RELAX;
+
+		yaw = (worldyaw < 0.f ? -1.f : 1.f) * (mag < len ? mag : len);
+	} else {
+		yaw = rate[1];
+	}
+
+	speed = bc_sqrtf(yaw * yaw + pitch * pitch);
+
+	// tightening: scale down tiny movements (hand shake) without a hard cutoff
+	if (gc->tightening > 0.f && speed < gc->tightening) {
+		const f32 k = speed / gc->tightening;
+		yaw *= k;
+		pitch *= k;
+	}
+
+	// soft tiered smoothing: only small movements are smoothed, big ones pass straight through
+	if (gc->smoothing > 0.f) {
+		const f32 half = gc->smoothing * 0.5f;
+		const f32 direct = clampf((speed - half) / half, 0.f, 1.f);
+		const f32 k = 1.f - bc_expf(-dtsec / 0.1f);
+
+		gs->smooth[0] += (yaw - gs->smooth[0]) * k;
+		gs->smooth[1] += (pitch - gs->smooth[1]) * k;
+		yaw = yaw * direct + gs->smooth[0] * (1.f - direct);
+		pitch = pitch * direct + gs->smooth[1] * (1.f - direct);
+	}
+
+	// acceleration: faster motion gets more sensitivity
+	sens = gc->sensitivity;
+
+	if (gc->acceleration > 1.f) {
+		sens *= 1.f + (gc->acceleration - 1.f) * clampf(speed / (gc->accelthreshold > 1.f ? gc->accelthreshold : 1.f), 0.f, 1.f);
+	}
+
+	out[0] = -yaw * sens * dtsec;
+	out[1] = pitch * sens * clampf(gc->vertical, 0.f, 2.f) * dtsec * (gc->inverty ? -1.f : 1.f);
+}
+
+/**
+ * Keeps calibration running while the Gyro Aim page is open (the game is
+ * paused then, so the aiming code isn't running).
+ */
+void weightyAimGyroMenuTick(s32 cfgindex)
+{
+	struct weightyaimgyrostate *gs = weightyAimGyroState(cfgindex);
+	const u64 now = sysGetMicroseconds();
+	f32 dt = gs->lastmenutick ? (now - gs->lastmenutick) / 1000000.f : 0.f;
+	f32 rate[3];
+
+	gs->lastmenutick = now;
+
+	if (dt <= 0.f || dt > 0.25f) {
+		dt = 1.f / 60.f;
+	}
+
+	weightyAimGyroSample(cfgindex, dt, rate);
+}
+
+const char *weightyAimGyroStatusText(s32 cfgindex)
+{
+	const struct weightyaimgyrostate *gs = weightyAimGyroState(cfgindex);
+
+	if (!gs->available) {
+		return "No gyro found on this controller\n";
+	}
+
+	if (gs->calibtime > 0.f) {
+		return "Calibrating... keep the controller still\n";
+	}
+
+	return gs->calibrated ? "Gyro ready (calibrated)\n" : "Gyro found - calibrate for best results\n";
+}
+
+/*
+ * Aim down sights, Move While Aiming and the aiming walk speed are not taken.
+ * In fojo aim mode belongs to the game and to COD Style Aiming (codaimfrac,
+ * viSetPerspectiveWithFov, bondmove's own move-while-aiming), and the speed
+ * cost of aiming to the stance (bwalkApplyAimSpeed, Stance.AimSpeed). What
+ * is left here is the auto-aim lock the hip-fire reticle needs.
+ */
+
+bool weightyAimPrepareMove(struct movedata *movedata)
+{
+	struct weightyaimstate *st = weightyAimCurState();
+
+	// Weighty Aim never takes over aim mode here, so it never eases into it
+	st->held = false;
+	st->aiming = false;
+	st->adsheld = false;
+
+	// Aim assist: the same conditions under which the game itself would pull the
+	// crosshair onto a target (auto-aim on for this weapon, not in aim mode, a
+	// target inside the game's difficulty-scaled window)
+	{
+		const s32 weaponnum = bgunGetWeaponNum(HAND_RIGHT);
+		const struct player *pl = g_Vars.currentplayer;
+
+		st->assistlock = movedata->canautoaim
+			&& (bmoveIsAutoAimXEnabledForCurrentWeapon() || bmoveIsAutoAimYEnabledForCurrentWeapon())
+			&& pl->autoxaimprop && pl->autoyaimprop
+			&& weaponHasAimFlag(weaponnum, INVAIMFLAG_AUTOAIM);
+	}
+
+	return false;
+}
+
+s32 weightyAimDefaultAimMovement(s32 aimmode)
+{
+	switch (aimmode) {
+	case WEIGHTYAIM_AIMMODE_CLASSIC: return WEIGHTYAIM_AIMMOVE_OFF;
+	default:                         return WEIGHTYAIM_AIMMOVE_DPAD;
+	}
+}
+
+s32 weightyAimDefaultAimKeyboardMove(s32 aimmode)
+{
+	return aimmode != WEIGHTYAIM_AIMMODE_CLASSIC;
+}
+
+/*
+ * RE4-style laser sight
+ */
+
+bool weightyAimLaserBeamShown(void)
+{
+	const struct weightyaimcfg *cfg = weightyAimCurCfg();
+
+	if (!weightyAimCfgEnabled(cfg)) {
+		return false;
+	}
+
+	return weightyAimHoldingAim(cfg) ? cfg->aimlaserbeam : cfg->laser;
+}
+
+bool weightyAimLaserDotShown(void)
+{
+	const struct weightyaimcfg *cfg = weightyAimCurCfg();
+
+	if (!weightyAimCfgEnabled(cfg)) {
+		return false;
+	}
+
+	return weightyAimHoldingAim(cfg) ? cfg->aimlaserdot : cfg->laserdot;
+}
+
+bool weightyAimLaserEnhanced(void)
+{
+	return weightyAimLaserBeamShown() || weightyAimLaserDotShown();
+}
+
+static bool weightyAimIsFirearm(s32 weaponnum)
+{
+	return (weaponnum >= WEAPON_FALCON2 && weaponnum <= WEAPON_SLAYER)
+		|| (weaponnum >= WEAPON_CROSSBOW && weaponnum <= WEAPON_LASER)
+		|| (weaponnum >= WEAPON_PP9I && weaponnum <= WEAPON_PSYCHOSISGUN);
+}
+
+/**
+ * The gun is busy with something other than shooting: reloading, switching
+ * weapons or modes. Firing animations (a shotgun pump, a bolt) don't count.
+ */
+static bool weightyAimHandBusyNotFiring(const struct hand *hand)
+{
+	switch (hand->state) {
+	case HANDSTATE_RELOAD:
+	case HANDSTATE_CHANGEGUN:
+	case HANDSTATE_CHANGEFUNC:
+	case HANDSTATE_AUTOSWITCH:
+		return true;
+	}
+
+	return false;
+}
+
+bool weightyAimLaserWanted(struct hand *hand, s32 handnum, s32 weaponnum)
+{
+	const struct weightyaimcfg *cfg = weightyAimCurCfg();
+	bool hidden;
+
+	if (cfg->laserpersist) {
+		// only hide it while reloading or switching, not after every shot
+		hidden = weightyAimHandBusyNotFiring(hand);
+	} else {
+		// hide it while any gun animation plays, firing included
+		hidden = hand->animmode == HANDANIMMODE_BUSY;
+	}
+
+	return handnum == HAND_RIGHT
+		&& PLAYERCOUNT() == 1 && IS8MB() // the game only draws laser sights in single player
+		&& hand->visible
+		&& !hidden
+		&& weightyAimIsFirearm(weaponnum)
+		&& weightyAimLaserEnhanced();
+}
+
+/**
+ * Beam from the gun's muzzle to where the shot would land, with a dot there.
+ * The game traces the aim every frame in single player (hand->dotpos).
+ */
+void weightyAimUpdateLaser(struct hand *hand, s32 handnum)
+{
+	struct coord beamnear, beamfar;
+
+	// Each shot re-traces the aim with the gun's random spread and leaves the
+	// dot where that bullet went, or nowhere if it flew into open space, so the
+	// dot flickers and blinks out while firing. Trace the steady aim line again
+	// so the dot stays where you're pointing.
+	if (weightyAimCurCfg()->laserpersist && (hand->firing || hand->state == HANDSTATE_ATTACK)) {
+		propFindAimingAt(HAND_RIGHT, false, FINDPROPCONTEXT_QUERY);
+	}
+
+	beamnear.x = hand->muzzlepos.x;
+	beamnear.y = hand->muzzlepos.y;
+	beamnear.z = hand->muzzlepos.z;
+
+	if (hand->hasdotinfo) {
+		// The beam runs from the muzzle to the dot, but kicks up with the gun's
+		// recoil and settles back, while the dot stays on the target. The kick is
+		// how far the barrel turns away from its usual line while a shot's
+		// animation plays (its usual offset is learned the rest of the time).
+		struct weightyaimstate *st = weightyAimCurState();
+		const Mtxf *mm = &hand->muzzlemat;
+		const f32 mc[3] = { mm->m[3][0], mm->m[3][1], mm->m[3][2] };
+		struct coord dotworld = hand->dotpos, dotcam;
+		f32 line[3], barrel[3], dir[3], len, blen, dlen;
+		const bool kicking = hand->animmode == HANDANIMMODE_BUSY && hand->state == HANDSTATE_ATTACK;
+
+		mtx4TransformVec(camGetWorldToScreenMtxf(), &dotworld, &dotcam);
+
+		line[0] = dotcam.x - mc[0];
+		line[1] = dotcam.y - mc[1];
+		line[2] = dotcam.z - mc[2];
+		len = bc_sqrtf(line[0] * line[0] + line[1] * line[1] + line[2] * line[2]);
+		blen = bc_sqrtf(mm->m[2][0] * mm->m[2][0] + mm->m[2][1] * mm->m[2][1] + mm->m[2][2] * mm->m[2][2]);
+
+		beamfar = dotworld;
+
+		if (len > 1.f && blen > 0.0001f) {
+			for (s32 i = 0; i < 3; i++) {
+				line[i] /= len;
+				barrel[i] = mm->m[2][i] / blen; // the gun model's forward axis, camera space
+			}
+
+			if (!kicking) {
+				const f32 k = 1.f - bc_expf(-g_Vars.lvupdate60freal / 60.f / 0.1f);
+
+				for (s32 i = 0; i < 3; i++) {
+					st->barrelbias[i] += (barrel[i] - line[i] - st->barrelbias[i]) * k;
+					dir[i] = line[i];
+				}
+			} else {
+				for (s32 i = 0; i < 3; i++) {
+					dir[i] = barrel[i] - st->barrelbias[i];
+				}
+			}
+
+			dlen = bc_sqrtf(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+
+			if (kicking && dlen > 0.0001f) {
+				beamfar.x = mc[0] + dir[0] / dlen * len;
+				beamfar.y = mc[1] + dir[1] / dlen * len;
+				beamfar.z = mc[2] + dir[2] / dlen * len;
+				mtx4TransformVecInPlace(camGetProjectionMtxF(), &beamfar);
+			}
+		}
+	} else {
+		// nothing in range: aim far along the crosshair direction
+		cam0f0b4c3c(g_Vars.currentplayer->crosspos, &beamfar, 1);
+		beamfar.x *= 5000.0f;
+		beamfar.y *= 5000.0f;
+		beamfar.z *= 5000.0f;
+		mtx4TransformVecInPlace(camGetProjectionMtxF(), &beamfar);
+	}
+
+	lasersightSetBeam(handnum, 1, &beamnear, &beamfar);
+
+	if (hand->hasdotinfo) {
+		struct coord dotpos = hand->dotpos;
+		struct coord dotrot = hand->dotrot;
+		const struct coord *campos = &g_Vars.currentplayer->cam_pos;
+		const f32 dx = campos->x - dotpos.x, dy = campos->y - dotpos.y, dz = campos->z - dotpos.z;
+		const f32 dist = bc_sqrtf(dx * dx + dy * dy + dz * dz);
+
+		// lift the dot a touch off the surface, toward the eye, so bullet holes
+		// and other wall marks at the same spot can't cover it
+		if (dist > 10.f) {
+			const f32 lift = 2.f / dist;
+			dotpos.x += dx * lift;
+			dotpos.y += dy * lift;
+			dotpos.z += dz * lift;
+		}
+
+		lasersightSetDot(handnum, &dotpos, &dotrot);
+	}
+}
+
+/*
+ * Settings file (pd.ini). The aim settings are registered once for the live
+ * values and once per custom profile, from one table.
+ */
+
+struct weightyaimcfgfield {
+	const char *name;
+	size_t offset;
+	s32 isint;
+	f32 min;
+	f32 max;
+};
+
+#define WA_FLOAT(name, field, lo, hi) { name, offsetof(struct weightyaimcfg, field), 0, lo, hi }
+#define WA_INT(name, field, lo, hi)   { name, offsetof(struct weightyaimcfg, field), 1, lo, hi }
+
+static const struct weightyaimcfgfield g_WeightyAimCfgFields[] = {
+	WA_FLOAT("DeadzoneX",     deadzonex,     0.f, 45.f),
+	WA_FLOAT("DeadzoneY",     deadzoney,     0.f, 45.f),
+	WA_FLOAT("CameraShare",   camerashare,   0.f, 1.f),
+	WA_FLOAT("CameraLead",    cameralead,    0.f, 10.f),
+	WA_FLOAT("RecenterSpeed", recenterspeed, 0.f, 10.f),
+	WA_FLOAT("RecenterDelay", recenterdelay, 0.f, 5.f),
+	WA_FLOAT("RecenterSmooth", recentersmooth, 0.f, 2.f),
+	WA_FLOAT("GunResponse",   gunresponse,   0.5f, 40.f),
+	WA_FLOAT("GunDamping",    gundamping,    0.05f, 3.f),
+	WA_FLOAT("TurnDrag",      turndrag,      0.f, 1.f),
+	WA_FLOAT("EdgeSmoothing", edgesmoothing, 0.f, 1.f),
+	WA_FLOAT("CameraSway",    camerasway,    0.f, 5.f),
+	WA_FLOAT("WalkSway",      walksway,      0.f, 5.f),
+	WA_INT  ("Crosshair",     crosshair,     0, 1),
+	WA_INT  ("LaserSight",    laser,         0, 1),
+	WA_INT  ("LaserDot",      laserdot,      0, 1),
+	WA_INT  ("LaserPersist",  laserpersist,  0, 1),
+	WA_INT  ("AimMode",       aimmode,       0, WEIGHTYAIM_NUM_AIMMODES - 1),
+	WA_INT  ("AimMovement",   aimmovement,   0, WEIGHTYAIM_NUM_AIMMOVES - 1),
+	WA_INT  ("AimKeyboardMove", aimkbmove,   0, 1),
+	WA_INT  ("AimCrosshair",  aimcrosshair,  0, 1),
+	WA_INT  ("AimLaserDot",   aimlaserdot,   0, 1),
+	WA_INT  ("AimLaserBeam",  aimlaserbeam,  0, 1),
+	WA_INT  ("AimDownSights", ads,           0, 1),
+	WA_FLOAT("AdsZoom",       adszoom,       1.f, 3.f),
+	WA_FLOAT("AdsTime",       adstime,       0.f, 1.f),
+	WA_FLOAT("AdsSway",       adssway,       0.f, 1.f),
+	WA_FLOAT("AdsZone",       adszone,       0.f, 2.f),
+	WA_FLOAT("AdsHeight",     adsheight,     -10.f, 10.f),
+	WA_FLOAT("AdsMoveSpeed",  adsmovespeed,  0.1f, 1.f),
+	WA_FLOAT("AdsSensitivity", adssens,      0.1f, 1.f),
+	WA_FLOAT("EdgeTurnSpeed", edgeturnspeed, 0.f, 360.f),
+	WA_FLOAT("EdgeBand",      edgeband,      0.05f, 0.9f),
+	WA_FLOAT("EdgeInfluence", edgeinfluence, 0.f, 1.f),
+	WA_FLOAT("EdgeVertical",  edgevertical,  0.f, 1.f),
+	WA_INT  ("EdgeMouse",     edgemouse,     0, 1),
+	WA_INT  ("EdgeGyro",      edgegyro,      0, 1),
+	WA_INT  ("EdgeStick",     edgestick,     0, 1),
+	WA_INT  ("ReticleProfile", reticleprofile, 0, 1),
+	WA_FLOAT("ReticleSpeed",  reticlespeed,  0.25f, 3.f),
+};
+
+static void weightyAimRegisterCfg(const char *prefix, struct weightyaimcfg *cfg)
+{
+	for (s32 f = 0; f < (s32)ARRAYCOUNT(g_WeightyAimCfgFields); f++) {
+		const struct weightyaimcfgfield *fd = &g_WeightyAimCfgFields[f];
+		void *ptr = (u8 *)cfg + fd->offset;
+
+		if (fd->isint) {
+			configRegisterInt(strFmt("%s.%s", prefix, fd->name), (s32 *)ptr, (s32)fd->min, (s32)fd->max);
+		} else {
+			configRegisterFloat(strFmt("%s.%s", prefix, fd->name), (f32 *)ptr, fd->min, fd->max);
+		}
+	}
+}
+
+PD_CONSTRUCTOR static void weightyAimConfigInit(void)
+{
+	static const char *pointnames[4] = { "X1", "Y1", "X2", "Y2" };
+	char prefix[64];
+
+	configRegisterInt("WeightyAim.ShowAdvancedFeel", &g_WeightyAimShowAdvancedFeel, 0, 1);
+	configRegisterInt("WeightyAim.ForceOriginalAiming", &g_WeightyAimForceOriginal, 0, 1);
+	configRegisterInt("WeightyAim.ForceMouseGyroAsStick", &g_WeightyAimForceMouseGyroStick, 0, 1);
+
+	// fojo: Custom 1-3, shared by every seat
+	for (s32 c = 0; c < WEIGHTYAIM_NUM_CUSTOM; c++) {
+		g_WeightyAimCustomCfg[c] = g_WeightyAimPresetWeighty;
+		g_WeightyAimCustomCfg[c].preset = WEIGHTYAIM_PRESET_CUSTOM1 + c;
+		snprintf(prefix, sizeof(prefix), "WeightyAim.Custom%d", c + 1);
+		weightyAimRegisterCfg(prefix, &g_WeightyAimCustomCfg[c]);
+	}
+
+	// Stick and gyro tuning is about the pad, not the person, so it stays with
+	// the seat, as Input.Player<n> does. The preset, aim assist strength and
+	// Smooth Reticle follow the save file instead (seatprofile.c).
+	for (s32 j = 0; j < MAX_PLAYERS; ++j) {
+		const s32 i = j + 1;
+
+		weightyAimResetDefaults(j);
+		g_WeightyAimStickCfg[j] = g_WeightyAimStickDefaults;
+		g_WeightyAimLastCustom[j] = 0;
+
+		g_WeightyAimGyroCfg[j] = g_WeightyAimGyroDefaults;
+		configRegisterInt(strFmt("WeightyAim.Player%d.GyroMode", i), &g_WeightyAimGyroCfg[j].mode, 0, WEIGHTYAIM_NUM_GYROMODES - 1);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroSensitivity", i), &g_WeightyAimGyroCfg[j].sensitivity, 0.1f, 20.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroVertical", i), &g_WeightyAimGyroCfg[j].vertical, 0.f, 2.f);
+		configRegisterInt(strFmt("WeightyAim.Player%d.GyroSpace", i), &g_WeightyAimGyroCfg[j].space, 0, WEIGHTYAIM_NUM_GYROSPACES - 1);
+		configRegisterInt(strFmt("WeightyAim.Player%d.GyroInvertY", i), &g_WeightyAimGyroCfg[j].inverty, 0, 1);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroAcceleration", i), &g_WeightyAimGyroCfg[j].acceleration, 1.f, 4.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroAccelThreshold", i), &g_WeightyAimGyroCfg[j].accelthreshold, 5.f, 500.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroTightening", i), &g_WeightyAimGyroCfg[j].tightening, 0.f, 30.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroSmoothing", i), &g_WeightyAimGyroCfg[j].smoothing, 0.f, 30.f);
+		configRegisterInt(strFmt("WeightyAim.Player%d.GyroAutoCalibrate", i), &g_WeightyAimGyroCfg[j].autocalibrate, 0, 1);
+		configRegisterInt(strFmt("WeightyAim.Player%d.GyroPauseWithStick", i), &g_WeightyAimGyroCfg[j].pausewithstick, 0, 1);
+
+		configRegisterInt(strFmt("WeightyAim.Player%d.StickCurve", i), &g_WeightyAimStickCfg[j].curve, 0, WEIGHTYAIM_NUM_CURVES - 1);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.StickInnerDeadzone", i), &g_WeightyAimStickCfg[j].innerdeadzone, 0.f, 0.9f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.StickOuterDeadzone", i), &g_WeightyAimStickCfg[j].outerdeadzone, 0.1f, 1.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.StickTurnSpeed", i), &g_WeightyAimStickCfg[j].turnspeed, 0.1f, 3.f);
+		configRegisterInt(strFmt("WeightyAim.Player%d.StickGameDeadzone", i), &g_WeightyAimStickCfg[j].gamedeadzone, 0, 1);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.StickVerticalSensitivity", i), &g_WeightyAimStickCfg[j].verticalsens, 0.1f, 3.f);
+		configRegisterInt(strFmt("WeightyAim.Player%d.StickLastCustomCurve", i), &g_WeightyAimStickCfg[j].lastcustomcurve, 0, 2);
+
+		for (s32 k = 0; k < 4; k++) {
+			configRegisterFloat(strFmt("WeightyAim.Player%d.StickCurve%s", i, pointnames[k]), &g_WeightyAimStickCfg[j].bezier[k], 0.f, 1.f);
+		}
+
+		for (s32 c = 0; c < 3; c++) {
+			for (s32 k = 0; k < 4; k++) {
+				configRegisterFloat(strFmt("WeightyAim.Player%d.StickCustom%d%s", i, c + 1, pointnames[k]),
+						&g_WeightyAimStickCfg[j].bezierprofile[c][k], 0.f, 1.f);
+			}
+		}
+
+		configRegisterInt(strFmt("WeightyAim.Player%d.BoostMode", i), &g_WeightyAimStickCfg[j].boostmode, 0, WEIGHTYAIM_NUM_BOOSTS - 1);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.BoostAmount", i), &g_WeightyAimStickCfg[j].boostamount, 1.f, 4.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.BoostThreshold", i), &g_WeightyAimStickCfg[j].boostthreshold, 0.3f, 1.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.BoostDelay", i), &g_WeightyAimStickCfg[j].boostdelay, 0.f, 2.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.BoostRampTime", i), &g_WeightyAimStickCfg[j].boosttime, 0.f, 2.f);
+		configRegisterFloat(strFmt("WeightyAim.Player%d.BoostVertical", i), &g_WeightyAimStickCfg[j].boostvertical, 0.f, 1.f);
+	}
+
+	configRegisterInt("WeightyAim.Debug.Log", &g_WeightyAimDebugLog, 0, 1);
+	configRegisterInt("WeightyAim.Debug.TestPattern", &g_WeightyAimDebugPattern, 0, 1);
+}

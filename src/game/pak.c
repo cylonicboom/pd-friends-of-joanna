@@ -27,6 +27,7 @@
 #include "input.h"
 #include "rumbleshake.h"
 #include "mpk.h"
+#include "system.h"
 #endif
 
 /**
@@ -3565,7 +3566,18 @@ s32 pak0f11b86c(s8 device, u32 offset, u8 *data, struct pakfileheader *header, s
 	u32 blocksize;
 	u32 alignedfilelen;
 	u32 stack[3];
+#ifdef PLATFORM_N64
 	u8 buffer[16];
+#else
+	// A whole block, which is what pakRetrieveBlockFromCache() copies in: 16
+	// bytes on the game pak and 32 on a controller pak. The decomp's 16 is
+	// only right for the game pak. On a controller pak the copy ran 16 bytes
+	// past the end, and the loop below then reads its answer out of exactly
+	// those 16 bytes (buffer[16 + i]) - so it worked, on a stack with nothing
+	// guarding it. The port had no controller paks until pages; with them,
+	// listing a file whose block is in the cache is a stack check abort.
+	u8 buffer[0x20];
+#endif
 	s32 offsetinblock;
 	s32 blocknum;
 	u8 sp58[128];
@@ -4486,8 +4498,19 @@ void pak0f11c6d0(void)
 		case PAKSTATE_MEM_POST_PREPARE:
 			g_Paks[i].state = PAKSTATE_UNPLUGGING;
 			g_PaksPlugged &= ~(1 << i);
+#ifdef PLATFORM_N64
 			g_MpPlayerNum = i;
 			menuSetBanner(-1, true);
+#else
+			// as PAKSTATE_MEM_PRE_PREPARE: the index is given back
+			{
+				const s32 prevplayernum = g_MpPlayerNum;
+
+				g_MpPlayerNum = i;
+				menuSetBanner(-1, true);
+				g_MpPlayerNum = prevplayernum;
+			}
+#endif
 			break;
 		}
 	}
@@ -5629,9 +5652,27 @@ void pakTickState(s8 device)
 	default:
 		break;
 	case PAKSTATE_MEM_PRE_PREPARE:
+#ifdef PLATFORM_N64
 		g_MpPlayerNum = device;
 
 		SETBANNER(MENUBANNER_CHECKINGPAK);
+#else
+		// Stock leaves g_MpPlayerNum on the pak's number: on a console the
+		// pak in port two is player two's, the banner is for their menu, and
+		// the next menu tick puts the index back. Here the paks are pages
+		// from a pool and belong to no seat, and at boot nothing puts it back
+		// before the title's profile picker reads it - so once a second page
+		// existed, the picker was pushed into menu 1, then again into menu 0
+		// a frame later, and the stray one was drawn over everything menu 0
+		// opened. The banner still goes up; the index is given back.
+		{
+			const s32 prevplayernum = g_MpPlayerNum;
+
+			g_MpPlayerNum = device;
+			SETBANNER(MENUBANNER_CHECKINGPAK);
+			g_MpPlayerNum = prevplayernum;
+		}
+#endif
 
 		g_Paks[device].state = PAKSTATE_MEM_PREPARE;
 		break;
@@ -6086,21 +6127,13 @@ static u8 pakPinnedChannels(void)
 	return pinned;
 }
 
-s8 pakFindBySerial(s32 findserial)
+/*
+ * The pak state machine's walk from a swapped pak to a usable one (PROBE ->
+ * MEM_DISPATCH -> PREPARE -> READY), which it takes over several frames,
+ * done on the spot for a channel whose page has just changed.
+ */
+static void pakReprobeNow(s32 channel)
 {
-	s8 device = pakFindMountedBySerial(findserial);
-	s32 channel;
-
-	if (device >= 0 || findserial == 0) {
-		return device;
-	}
-
-	channel = mpkMountBySerial(findserial, pakPinnedChannels());
-
-	if (channel < 0) {
-		return -1;
-	}
-
 	joyDisableCyclicPolling();
 
 	g_Paks[channel].type = PAKTYPE_NONE;
@@ -6117,8 +6150,111 @@ s8 pakFindBySerial(s32 findserial)
 	}
 
 	joyEnableCyclicPolling();
+}
+
+s8 pakFindBySerial(s32 findserial)
+{
+	s8 device = pakFindMountedBySerial(findserial);
+	s32 channel;
+
+	if (device >= 0 || findserial == 0) {
+		return device;
+	}
+
+	channel = mpkMountBySerial(findserial, pakPinnedChannels());
+
+	if (channel < 0) {
+		return -1;
+	}
+
+	pakReprobeNow(channel);
 
 	return pakFindMountedBySerial(findserial);
+}
+
+/*
+ * fojo: how many vacant files of a type a device has. A vacant file is a
+ * header of the type with nothing in it, which reads back as 10 - the same
+ * count filelistUpdate makes for its "spaces" column. -1 if the device could
+ * not be read.
+ */
+static s32 pakCountVacantFiles(s8 device, u32 pakfiletype)
+{
+	static u32 fileids[1024];
+	struct savebuffer buffer;
+	s32 count = 0;
+
+	if (pakGetFileIdsByType(device, pakfiletype, fileids) != 0) {
+		return -1;
+	}
+
+	for (s32 i = 0; fileids[i] != 0; i++) {
+		if (pakReadBodyAtGuid(device, fileids[i], buffer.bytes, 0) == 10) {
+			count++;
+		}
+	}
+
+	return count;
+}
+
+/*
+ * fojo: a controller pak device with room for a new file of this type, for a
+ * save that should not have to ask where. The game pak is never the answer:
+ * player saves live on pages.
+ *
+ * Room means two vacant files, not one. _pakSaveAtGuid writes into a vacant
+ * file of the same type and then vacates the old one, so the last vacant file
+ * on a pak is what every later save of that type needs to work at all.
+ *
+ * The paks that are mounted are asked first, then every other page in the
+ * pool, each mounted in turn the way pakFindBySerial mounts one, and when
+ * none of them has room the pool grows by a page. -1 only if that fails too:
+ * every channel pinned, or the page file could not be written.
+ */
+s8 pakFindDeviceForNewFile(u32 pakfiletype)
+{
+	const s32 numpages = mpkNumPages();
+	s32 channel;
+
+	for (s8 device = SAVEDEVICE_CONTROLLERPAK1; device <= SAVEDEVICE_CONTROLLERPAK4; device++) {
+		if (mempakIsReady(device) && pakCountVacantFiles(device, pakfiletype) >= 2) {
+			return device;
+		}
+	}
+
+	for (s32 i = 0; i < numpages; i++) {
+		const s32 serial = mpkPageSerialAt(i);
+		s8 device;
+
+		if (serial <= 0 || pakFindMountedBySerial(serial) >= 0) {
+			continue;
+		}
+
+		device = pakFindBySerial(serial);
+
+		if (device >= SAVEDEVICE_CONTROLLERPAK1 && device <= SAVEDEVICE_CONTROLLERPAK4
+				&& pakCountVacantFiles(device, pakfiletype) >= 2) {
+			return device;
+		}
+	}
+
+	channel = mpkMountBlankPage(pakPinnedChannels());
+
+	if (channel < 0) {
+		sysLogPrintf(LOG_ERROR, "pak: no page has room for a new file and the pool could not grow");
+		return -1;
+	}
+
+	pakReprobeNow(channel);
+
+	if (mempakIsReady(channel) && pakCountVacantFiles(channel, pakfiletype) >= 2) {
+		return channel;
+	}
+
+	sysLogPrintf(LOG_ERROR, "pak: new page on controller pak %d did not come up with room (state %d)",
+			channel + 1, g_Paks[channel].state);
+
+	return -1;
 }
 #else
 s8 pakFindBySerial(s32 findserial)

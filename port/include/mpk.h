@@ -33,6 +33,16 @@ s32 mpkAllocSerial(u32 seed);
 // put the page with this PD serial on a channel; see mpk.c. -1 if none.
 s32 mpkMountBySerial(s32 serial, u8 pinned);
 
+// how many pages the pool has, mounted or not
+s32 mpkNumPages(void);
+
+// the PD serial of the page at this index, -1 if it has no PD filesystem yet
+s32 mpkPageSerialAt(s32 index);
+
+// put a page with no PD filesystem on a channel, making a new page file if
+// the pool has none spare; see mpk.c. -1 if it could not.
+s32 mpkMountBlankPage(u8 pinned);
+
 #ifdef __cplusplus
 }
 #endif

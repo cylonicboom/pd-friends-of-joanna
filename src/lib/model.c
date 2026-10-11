@@ -4462,6 +4462,18 @@ void modelInit(struct model *model, struct modeldef *modeldef, u32 *rwdatas, boo
 	struct modelnode *node;
 
 	model->unk00 = 0;
+#ifndef PLATFORM_N64
+	// Nobody's until someone says so. Stock leaves unk01 and the chr/obj
+	// union as whatever the memory held: a chr's model and an object's model
+	// both get them written straight afterwards, and stock never reads them
+	// for anything else. modelSetMatrices() does now - unk01 == 1 means "this
+	// is a chr's, follow model->chr" - and the models that are neither (the
+	// player's head bob model, the gun and hand models, the menu's, gunfx's
+	// stack one) were being read with whatever was there. A second, third or
+	// fourth player's head model in fresh memory is where that went wrong.
+	model->unk01 = 0;
+	model->chr = NULL;
+#endif
 	model->definition = modeldef;
 	model->rwdatas = rwdatas;
 	model->rwdatalen = -1;

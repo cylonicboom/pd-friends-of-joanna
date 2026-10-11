@@ -23,6 +23,7 @@
 #include "savequeue.h"
 #include "optionsmenu.h"
 #include "config.h"
+#include "weightyaim.h"
 
 static s32 g_ExtMenuPlayer = 0;
 static struct menudialogdef *g_ExtNextDialog = NULL;
@@ -1570,6 +1571,96 @@ static MenuItemHandlerResult menuhandlerCameraBob(s32 operation, struct menuitem
 }
 
 /**
+ * Weighty Aim: which preset this player aims with, Classic being off. The
+ * list leads with Off and keeps his built-ins together ahead of the customs;
+ * the stored number is WEIGHTYAIM_PRESET_*, a Game option on the save file
+ * (seatprofile.c), and weightyAimSyncSeat() rebuilds the live values from it
+ * on the next frame.
+ */
+static const s32 g_WeightyAimMenuOrder[] = {
+	WEIGHTYAIM_PRESET_CLASSIC,
+	WEIGHTYAIM_PRESET_WEIGHTY,
+	WEIGHTYAIM_PRESET_IMMERSIVE,
+	WEIGHTYAIM_PRESET_ARCADE,
+	WEIGHTYAIM_PRESET_BORING,
+	WEIGHTYAIM_PRESET_CUSTOM1,
+	WEIGHTYAIM_PRESET_CUSTOM2,
+	WEIGHTYAIM_PRESET_CUSTOM3,
+};
+
+static MenuItemHandlerResult menuhandlerWeightyAim(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GETOPTIONCOUNT:
+		data->dropdown.value = ARRAYCOUNT(g_WeightyAimMenuOrder);
+		break;
+	case MENUOP_GETOPTIONTEXT:
+		if (g_WeightyAimMenuOrder[data->dropdown.value] == WEIGHTYAIM_PRESET_CLASSIC) {
+			return (intptr_t)"Off";
+		}
+		return (intptr_t)g_WeightyAimPresetNames[g_WeightyAimMenuOrder[data->dropdown.value]];
+	case MENUOP_SET:
+		g_PlayerExtCfg[g_ExtMenuPlayer].weightyaimpreset = g_WeightyAimMenuOrder[data->dropdown.value];
+		saveQueueMarkConfig();
+		break;
+	case MENUOP_GETSELECTEDINDEX:
+		data->dropdown.value = 0;
+
+		for (s32 i = 0; i < ARRAYCOUNT(g_WeightyAimMenuOrder); i++) {
+			if (g_WeightyAimMenuOrder[i] == g_PlayerExtCfg[g_ExtMenuPlayer].weightyaimpreset) {
+				data->dropdown.value = i;
+				break;
+			}
+		}
+		break;
+	}
+
+	return 0;
+}
+
+/**
+ * Hip Sway: the eye riding the hips, once per stride, on Camera Bob's step.
+ * The curve is [Sway] in pd.ini and the Fojo Sway window; this is how much of
+ * it the player gets. 0 is off.
+ */
+static MenuItemHandlerResult menuhandlerHipSway(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GETSLIDER:
+		data->slider.value = g_PlayerExtCfg[g_ExtMenuPlayer].hipsway * 10.f + 0.5f;
+		break;
+	case MENUOP_SET:
+		g_PlayerExtCfg[g_ExtMenuPlayer].hipsway = (f32)data->slider.value / 10.f;
+		saveQueueMarkConfig();
+		break;
+	}
+
+	return 0;
+}
+
+/**
+ * Reticle Wander: the hip-fire reticle drifting inside Weighty Aim's free-aim
+ * zone, part of it rocking with the hips. Nothing with Weighty Aim off, so it
+ * greys out then.
+ */
+static MenuItemHandlerResult menuhandlerReticleWander(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GETSLIDER:
+		data->slider.value = g_PlayerExtCfg[g_ExtMenuPlayer].reticlewander * 10.f + 0.5f;
+		break;
+	case MENUOP_SET:
+		g_PlayerExtCfg[g_ExtMenuPlayer].reticlewander = (f32)data->slider.value / 10.f;
+		saveQueueMarkConfig();
+		break;
+	case MENUOP_CHECKDISABLED:
+		return g_PlayerExtCfg[g_ExtMenuPlayer].weightyaimpreset == WEIGHTYAIM_PRESET_CLASSIC;
+	}
+
+	return 0;
+}
+
+/**
  * Gun Sway With Bob: the gun's own step motion scaled up with the bob, by one
  * more than the bob setting, so the two move as one body. Nothing without
  * Camera Bob itself.
@@ -1865,6 +1956,30 @@ struct menuitem g_ExtendedGameMenuItems[] = {
 		(uintptr_t)"Gun Sway With Bob",
 		0,
 		menuhandlerGunSwayWithBob,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SLIDER_WIDE,
+		(uintptr_t)"Hip Sway",
+		40,
+		menuhandlerHipSway,
+	},
+	{
+		MENUITEMTYPE_DROPDOWN,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Weighty Aim",
+		0,
+		menuhandlerWeightyAim,
+	},
+	{
+		MENUITEMTYPE_SLIDER,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT | MENUITEMFLAG_SLIDER_WIDE,
+		(uintptr_t)"Reticle Wander",
+		40,
+		menuhandlerReticleWander,
 	},
 	{
 		MENUITEMTYPE_CHECKBOX,

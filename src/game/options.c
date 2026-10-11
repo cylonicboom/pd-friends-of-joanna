@@ -13,6 +13,7 @@
 u8 g_InGameSubtitles = 1;
 u8 g_CutsceneSubtitles = 0;
 u8 g_ShowPlayerNameFallback[MAX_PLAYERS] = {1, 1, 1, 1};
+u8 g_ShowOperativeNameFallback[MAX_PLAYERS] = {1, 1, 1, 1};
 u32 var8007fa98 = 0x00000000;
 u32 var8007fa9c = 0x00000001;
 u32 var8007faa0 = 0x00000000;
@@ -317,6 +318,28 @@ void optionsSetShowMissionTime(s32 mpchrnum, bool enable)
 		g_PlayerConfigsArray[mpchrnum].options |= OPTION_SHOWMISSIONTIME;
 	} else {
 		g_PlayerConfigsArray[mpchrnum].options &= ~OPTION_SHOWMISSIONTIME;
+	}
+}
+
+/**
+ * Whether this player's name label is their operative's name, where they have
+ * one, in place of their profile's.
+ */
+s32 optionsGetShowOperativeName(s32 mpchrnum)
+{
+	if (g_PlayerConfigsArray[mpchrnum].showoperativename) {
+		return *g_PlayerConfigsArray[mpchrnum].showoperativename != 0;
+	}
+
+	return g_ShowOperativeNameFallback[mpchrnum] != 0;
+}
+
+void optionsSetShowOperativeName(s32 mpchrnum, bool enable)
+{
+	if (g_PlayerConfigsArray[mpchrnum].showoperativename) {
+		*g_PlayerConfigsArray[mpchrnum].showoperativename = enable ? 1 : 0;
+	} else {
+		g_ShowOperativeNameFallback[mpchrnum] = enable ? 1 : 0;
 	}
 }
 

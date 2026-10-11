@@ -11,6 +11,9 @@
 #include "lib/lib_39c80.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 
 #define RESULT_FAIL     0
 #define RESULT_OK_NEXT  1
@@ -347,12 +350,53 @@ const char var70053f38[] = "MUSIC : Tick -> Channel %d (State=%d) has faded to s
 const char var70053f7c[] = "MUSIC : WARNING -> Force fade termination\n";
 const char var70053fa8[] = "MUSIC TICK : Job Guid = %u\n";
 
+#ifndef PLATFORM_N64
+/**
+ * How many events a sequence player's queue can still take.
+ *
+ * n_alEvtqPostEvent() drops what it is given when the free list is empty, and
+ * also when there is one item left unless the caller asks for that one - and
+ * n_alSeqpStop() and the MIDI sends that make a fade do not ask. Nothing is
+ * reported either way. A stop that is dropped leaves the track playing with
+ * the music code believing it gone.
+ */
+static s32 musicSeqpFreeEvents(N_ALCSPlayer *seqp)
+{
+	ALLink *link;
+	s32 count = 0;
+
+	for (link = seqp->evtq.freeList.next; link != NULL && count < 4096; link = link->next) {
+		count++;
+	}
+
+	return count;
+}
+#endif
+
 s32 musicHandleStopEvent(struct musicevent *event, s32 result)
 {
 	s32 i;
 
 	for (i = 0; i < 3; i++) {
 		if (event->tracktype == g_SeqChannels[i].tracktype) {
+#ifndef PLATFORM_N64
+			{
+				// MUSICDIAG (#396) - the count is the probe; the flush is not
+				const s32 freeevents = musicSeqpFreeEvents(g_SeqInstances[i].seqp);
+
+				sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   stop ch%d t=%d track=%d: %d free events, state=%d",
+						g_Vars.lvframenum, i, (s32)g_SeqChannels[i].tracktype, g_SeqInstances[i].tracknum,
+						freeevents, (s32)n_alCSPGetState(g_SeqInstances[i].seqp));
+
+				if (freeevents < 2) {
+					// The stop would be dropped. Pending MIDI events are what a
+					// stopping player throws away first anyway.
+					n_alEvtqFlushType(&g_SeqInstances[i].seqp->evtq, AL_SEQP_MIDI_EVT);
+					sysLogPrintf(LOG_WARNING, "music: channel %d had no room for a stop, flushed its midi events (%d free now)",
+							i, musicSeqpFreeEvents(g_SeqInstances[i].seqp));
+				}
+			}
+#endif
 			n_alSeqpStop((N_ALSeqPlayer *)g_SeqInstances[i].seqp);
 
 			g_SeqChannels[i].tracktype = TRACKTYPE_NONE;
@@ -1080,6 +1124,50 @@ void musicTickEvents(void)
 	if (!g_SndDisabled) {
 		if (g_MusicEventQueueLength);
 
+#ifndef PLATFORM_N64
+		// MUSICDIAG (#396) - temporary probe: every sequence player, twice a
+		// second, whoever the music code thinks owns it
+		{
+			static s32 dumpage60;
+
+			dumpage60 += g_Vars.diffframe60;
+
+			if (dumpage60 >= 30) {
+				dumpage60 = 0;
+
+				{
+					extern void n_alSynDiagVoices(s32 *out);
+					s32 sv[5];
+
+					n_alSynDiagVoices(sv);
+					sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   synth alloc=%d playing=%d ownerless=%d lame=%d lameplaying=%d",
+							g_Vars.lvframenum, sv[0], sv[1], sv[2], sv[3], sv[4]);
+				}
+
+				for (i = 0; i < 3; i++) {
+					// voices: what this player still has sounding, whatever
+					// state it says it is in
+					N_ALVoiceState *vs;
+					s32 voices = 0;
+
+					for (vs = g_SeqInstances[i].seqp->vAllocHead; vs != NULL && voices < 512; vs = vs->next) {
+						voices++;
+					}
+
+					if (voices > 0 || n_alCSPGetState(g_SeqInstances[i].seqp) != AL_STOPPED || g_SeqChannels[i].tracktype != TRACKTYPE_NONE) {
+						sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   player ch%d t=%d use=%d keep=%d state=%d track=%d vol=%d free=%d fade=%d/%d voices=%d",
+								g_Vars.lvframenum, i, (s32)g_SeqChannels[i].tracktype, (s32)g_SeqChannels[i].inuse,
+								(s32)g_SeqChannels[i].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[i].seqp),
+								g_SeqInstances[i].tracknum, (s32)g_SeqInstances[i].volume,
+								musicSeqpFreeEvents(g_SeqInstances[i].seqp),
+								(s32)g_SeqInstances[i].seqp->chanState[0].unk0d,
+								(s32)g_SeqInstances[i].seqp->chanState[0].unk0e, voices);
+					}
+				}
+			}
+		}
+#endif
+
 		// Release channels if their track has finished fading out
 		for (i = 0; i < 3; i++) {
 			if (!g_SeqChannels[i].inuse && n_alCSPGetState(g_SeqInstances[i].seqp) == AL_PLAYING) {
@@ -1204,6 +1292,19 @@ void musicTickEvents(void)
 				}
 
 				if (result);
+
+#ifndef PLATFORM_N64
+				// MUSICDIAG (#396) - temporary probe: what the queue did with
+				// each event, and the three sequence channels afterwards
+				if (result != RESULT_FAIL || event->numattempts == 1 || (event->numattempts % 60) == 0) {
+					sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   tick ev=%d type=%d track=%d try=%d -> %d left=%d | ch0 t=%d use=%d keep=%d st=%d | ch1 t=%d use=%d keep=%d st=%d | ch2 t=%d use=%d keep=%d st=%d",
+							g_Vars.lvframenum, (s32)event->eventtype, (s32)event->tracktype, (s32)event->tracknum,
+							(s32)event->numattempts, result, g_MusicEventQueueLength,
+							(s32)g_SeqChannels[0].tracktype, (s32)g_SeqChannels[0].inuse, (s32)g_SeqChannels[0].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[0].seqp),
+							(s32)g_SeqChannels[1].tracktype, (s32)g_SeqChannels[1].inuse, (s32)g_SeqChannels[1].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[1].seqp),
+							(s32)g_SeqChannels[2].tracktype, (s32)g_SeqChannels[2].inuse, (s32)g_SeqChannels[2].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[2].seqp));
+				}
+#endif
 
 				if (result != RESULT_FAIL) {
 					// Remove the item from the queue

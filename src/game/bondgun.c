@@ -5477,8 +5477,31 @@ void bgunSwivel(f32 screenx, f32 screeny, f32 crossdamp, f32 aimdamp)
 
 		for (h = 0; h < 2; h++) {
 			hand = &player->hands[h];
+#ifndef PLATFORM_N64
+			// Gun follow: stock's chase is sum = d * sum + x, which is the
+			// gun's position p = sum * (1 - d) closing (1 - d) of its gap to
+			// x each tick. Here that share is scaled by gunFollowSpeed() of
+			// the gap, so the curve decides how the gun swings onto the
+			// reticle. At its defaults the scale is 1 and this is stock.
+			{
+				const f32 d = PAL ? 0.913f : 0.9269697f;
+				f32 px = hand->guncrosspossum[0] * (1.0f - d);
+				f32 py = hand->guncrosspossum[1] * (1.0f - d);
+				f32 dx = x[h] - px;
+				f32 dy = y[h] - py;
+				f32 k = (1.0f - d) * gunFollowSpeed(sqrtf(dx * dx + dy * dy));
+
+				if (k > 1.0f) {
+					k = 1.0f;
+				}
+
+				hand->guncrosspossum[0] = (px + dx * k) / (1.0f - d);
+				hand->guncrosspossum[1] = (py + dy * k) / (1.0f - d);
+			}
+#else
 			hand->guncrosspossum[0] = (PAL ? 0.913f : 0.9269697f) * hand->guncrosspossum[0] + x[h];
 			hand->guncrosspossum[1] = (PAL ? 0.913f : 0.9269697f) * hand->guncrosspossum[1] + y[h];
+#endif
 		}
 	}
 
@@ -8177,6 +8200,27 @@ void bgun0f0a5550(s32 handnum)
 		sp274.f[0] += (inx - func0f0b131c(handnum)) * player->codaimfrac;
 		sp274.f[1] += 3.5f * player->codaimfrac;
 		sp274.f[2] += 3.0f * player->codaimfrac;
+
+		// With Aim Lock off the crosshair roams the screen, and the gun goes
+		// with it: onto the line from the eye through where it is aiming
+		// (the hand's crosshair, so the follow curve shapes the slide too),
+		// at the gun's own depth. The turn below then points it along that
+		// line. Nothing with Aim Lock on, where the crosshair stays put.
+		if (!bmoveIsCodAimLock() && g_CodSlide > 0.0f) {
+			struct coord dir;
+			f32 depth = -sp274.f[2];
+
+			if (depth < 5.0f) {
+				depth = 5.0f;
+			}
+
+			cam0f0b4c3c(player->hands[handnum].crosspos, &dir, 1.0f);
+
+			if (dir.z < -0.05f) {
+				sp274.f[0] += dir.x / -dir.z * depth * player->codaimfrac * g_CodSlide;
+				sp274.f[1] += dir.y / -dir.z * depth * player->codaimfrac * g_CodSlide;
+			}
+		}
 	}
 #endif
 
@@ -8279,8 +8323,9 @@ void bgun0f0a5550(s32 handnum)
 	sp1a4.x = bgun0f0a2498(sp118.y, sp118.z, sp274.f[1], sp274.f[2]);
 
 #ifndef PLATFORM_N64
-	// COD Style Aiming: the turn towards the crosshair goes with the sway
-	if (player->codaimfrac > 0.0f) {
+	// COD Style Aiming: the turn towards the crosshair goes with the sway.
+	// Not with Aim Lock off, where the crosshair is somewhere worth pointing.
+	if (player->codaimfrac > 0.0f && bmoveIsCodAimLock()) {
 		sp1a4.x *= 1.0f - player->codaimfrac;
 		sp1a4.y *= 1.0f - player->codaimfrac;
 	}

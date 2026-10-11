@@ -97,6 +97,34 @@ extern f32 g_BuildCrouchMix;
 
 void stanceTuningReset(void);
 
+// Hip sway and reticle wander: the shape of the curves (constants.h has what
+// each is). How much of them a player gets is their HipSway / ReticleWander
+// Game options.
+extern f32 g_HipSwaySide;
+extern f32 g_HipSwayRoll;
+extern f32 g_HipSwayShape;
+extern f32 g_HipSwayPhase;
+extern f32 g_HipSwaySpeedCurve;
+extern f32 g_WanderRest;
+extern f32 g_WanderMove;
+extern f32 g_WanderRate;
+extern f32 g_WanderSpeedCurve;
+extern f32 g_WanderStride;
+
+// Gun follow and COD Style Aiming with Aim Lock off (constants.h has what each
+// is). gunFollowSpeed() is the curve: follow speed against stock's for a gap
+// in half-screens.
+extern f32 g_GunFollowNear;
+extern f32 g_GunFollowFar;
+extern f32 g_GunFollowGap;
+extern f32 g_GunFollowCurve;
+extern f32 g_CodSlide;
+extern f32 g_CodLeanRoll;
+
+f32 gunFollowSpeed(f32 gap);
+
+void swayTuningReset(void);
+
 #endif
 
 #endif

@@ -10,6 +10,14 @@
 #include "lib/music.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+// MUSICDIAG (#396) - temporary probe: who asks the music for what, in order
+#define MUSICDIAG(fmt, ...) sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d stage=%02x root=%d menutrack=%d " fmt, \
+		g_Vars.lvframenum, g_Vars.stagenum, (s32)g_MenuData.root, g_MenuTrack, ##__VA_ARGS__)
+#else
+#define MUSICDIAG(fmt, ...)
+#endif
 
 #define FADETYPE_STOP  0
 #define FADETYPE_PAUSE 1
@@ -224,6 +232,7 @@ s32 musicGetChannelByTrackType(s32 tracktype)
 
 void musicQueueStartEvent(u32 tracktype, u32 tracknum, f32 arg2, u16 volume)
 {
+	MUSICDIAG("  queue PLAY type=%d track=%d fade=%.2f vol=%d", (s32)tracktype, (s32)tracknum, (f64)arg2, (s32)volume);
 	if (!g_SndDisabled) {
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].tracknum = tracknum;
@@ -239,6 +248,7 @@ void musicQueueStartEvent(u32 tracktype, u32 tracknum, f32 arg2, u16 volume)
 
 void musicQueueStopEvent(s32 tracktype)
 {
+	MUSICDIAG("  queue STOP type=%d", tracktype);
 	if (!g_SndDisabled) {
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].eventtype = MUSICEVENTTYPE_STOP;
@@ -251,6 +261,7 @@ void musicQueueStopEvent(s32 tracktype)
 
 void musicQueueFadeEvent(s32 tracktype, f32 arg1, bool keepafterfade)
 {
+	MUSICDIAG("  queue FADE type=%d secs=%.2f keep=%d", tracktype, (f64)arg1, (s32)keepafterfade);
 	if (!g_SndDisabled) {
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].unk0c = arg1;
@@ -265,6 +276,7 @@ void musicQueueFadeEvent(s32 tracktype, f32 arg1, bool keepafterfade)
 
 void musicReset(void)
 {
+	MUSICDIAG("musicReset");
 	s32 i;
 
 	if (!g_SndDisabled) {
@@ -293,6 +305,7 @@ void musicReset(void)
 
 void musicQueueStopAllEvent(void)
 {
+	MUSICDIAG("musicQueueStopAllEvent");
 #if VERSION >= VERSION_NTSC_1_0
 	g_MusicEventQueue[0].tracktype = TRACKTYPE_6;
 #endif
@@ -331,8 +344,53 @@ void musicRestoreInterval(void)
 #define PRIMARYTRACK() (g_TemporaryPrimaryTrack != -1 ? g_TemporaryPrimaryTrack : stageGetPrimaryTrack(g_MusicStageNum))
 #define AMBIENTTRACK() (g_TemporaryAmbientTrack != -1 ? g_TemporaryAmbientTrack : stageGetAmbientTrack(g_MusicStageNum))
 
+/**
+ * From the pausing-optional mod (neonnyan-github-public/mod/pausing-optional,
+ * aae9e4805), which is where this was already worked out: with pausing off
+ * the level's music must not start while a menu is up, because nothing will
+ * pause it again.
+ *
+ * reason 0: stock callers. Not while a menu root is active, and not in the
+ * Institute while any stage flag other than CI_IN_TRAINING is set.
+ * reason 1: coming back from training, which starts it regardless.
+ */
+static void musicStartPrimaryNow(f32 arg0);
+
+void musicStartPrimaryWithReason(f32 arg0, s8 reason)
+{
+	MUSICDIAG("musicStartPrimaryWithReason reason=%d menuroot=%d stageflags=%08x", (s32)reason, (s32)menuGetRoot(), g_StageFlags);
+#ifndef PLATFORM_N64
+	if (g_MusicSuppressed) {
+		return;
+	}
+
+	if (reason == 1) {
+		musicStartPrimaryNow(arg0);
+		return;
+	}
+
+	if (g_Vars.stagenum == STAGE_CITRAINING) {
+		if (g_StageFlags & ~STAGEFLAG_CI_IN_TRAINING) {
+			return;
+		}
+	}
+
+	if (menuGetRoot()) {
+		return;
+	}
+#endif
+
+	musicStartPrimaryNow(arg0);
+}
+
 void musicStartPrimary(f32 arg0)
 {
+	musicStartPrimaryWithReason(arg0, 0);
+}
+
+static void musicStartPrimaryNow(f32 arg0)
+{
+	MUSICDIAG("musicStartPrimary");
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
 		return;
@@ -351,6 +409,7 @@ void musicStartPrimary(f32 arg0)
 
 void musicStartAmbient(f32 arg0)
 {
+	MUSICDIAG("musicStartAmbient");
 	s32 pass = false;
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
@@ -446,12 +505,50 @@ void musicStartWatch(f32 arg0)
  *
  * Used in credits and the soundtrack dialog in MP setup.
  */
+#ifndef PLATFORM_N64
+/**
+ * What musicEndMenu() last did to the queue, so that a menu which closes and
+ * reopens inside one frame can have it undone.
+ *
+ * One menu root handing over to another - the file select to the Perfect Menu
+ * is the one every boot goes through - is an end and a start on the same
+ * frame, for the same track. Played out as queued, that fades the menu track
+ * out, starts the level's primary track, then stops the menu track, fades the
+ * primary to paused and starts the menu track from the top: the menu theme
+ * restarts, and the pause is aimed at a primary track that was only asked for
+ * a few events earlier.
+ *
+ * The record is only good while nothing else has touched the queue: the length
+ * and the next event id both have to be exactly what the end left them at.
+ */
+static s32 g_MenuEndedTrack = -1;
+static s32 g_MenuEndQueueLenBefore = 0;
+static s32 g_MenuEndQueueLenAfter = -1;
+static u32 g_MenuEndNextEventId = 0;
+#endif
+
 void musicStartTrackAsMenu(s32 tracknum)
 {
+	MUSICDIAG("musicStartTrackAsMenu track=%d", tracknum);
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
 		return;
 	}
+
+	if (g_MenuTrack == -1
+			&& tracknum == g_MenuEndedTrack
+			&& g_MusicEventQueueLength == g_MenuEndQueueLenAfter
+			&& g_MusicNextEventId == g_MenuEndNextEventId) {
+		// The end this undoes is still sitting at the back of the queue.
+		MUSICDIAG("  menu track %d carried over, %d events taken back", tracknum,
+				g_MenuEndQueueLenAfter - g_MenuEndQueueLenBefore);
+		g_MusicEventQueueLength = g_MenuEndQueueLenBefore;
+		g_MenuEndQueueLenAfter = -1;
+		g_MenuTrack = tracknum;
+		return;
+	}
+
+	g_MenuEndQueueLenAfter = -1;
 #endif
 	if (tracknum != g_MenuTrack) {
 		musicQueueStopEvent(TRACKTYPE_MENU);
@@ -470,6 +567,7 @@ void musicStartTrackAsMenu(s32 tracknum)
  */
 void musicSetStageAndStartMusic(s32 stagenum)
 {
+	MUSICDIAG("musicSetStageAndStartMusic newstage=%02x", stagenum);
 	g_MusicStageNum = stagenum;
 
 	musicStartPrimary(0);
@@ -489,6 +587,7 @@ void musicSetStage(s32 stagenum)
 
 void musicStop(void)
 {
+	MUSICDIAG("musicStop");
 #if VERSION >= VERSION_NTSC_1_0
 	musicSaveInterval();
 	musicQueueStopAllEvent();
@@ -544,7 +643,24 @@ void musicStartMenu(void)
 
 void musicEndMenu(void)
 {
+#ifndef PLATFORM_N64
+	s32 lenbefore = g_MusicEventQueueLength;
+	s32 endedtrack = g_MenuTrack;
+#endif
+
+	MUSICDIAG("musicEndMenu");
+#ifdef PLATFORM_N64
 	musicQueueFadeEvent(TRACKTYPE_MENU, 1, FADETYPE_STOP);
+#else
+	// A cut, where stock fades the menu track out over a second. The fade out
+	// is the one thing here that does not reliably end: the channel is handed
+	// back as not in use while its track is still playing, and it is only
+	// released if the sequence player's fade runs all the way down. When it
+	// did not, the menu theme carried on into the level until the next menu
+	// stopped it by name. A stop always lands. What was paused underneath is
+	// resumed below exactly as before.
+	musicQueueStopEvent(TRACKTYPE_MENU);
+#endif
 
 	if (musicIsTrackState(TRACKTYPE_NRG, AL_PLAYING)) {
 		musicStartNrg(1);
@@ -553,6 +669,13 @@ void musicEndMenu(void)
 	}
 
 	g_MenuTrack = -1;
+
+#ifndef PLATFORM_N64
+	g_MenuEndedTrack = endedtrack;
+	g_MenuEndQueueLenBefore = lenbefore;
+	g_MenuEndQueueLenAfter = g_MusicEventQueueLength;
+	g_MenuEndNextEventId = g_MusicNextEventId;
+#endif
 }
 
 void musicStartSoloDeath(void)
@@ -642,6 +765,7 @@ void musicEndDeath(void)
  */
 void musicPlayTrackIsolated(s32 tracknum)
 {
+	MUSICDIAG("musicPlayTrackIsolated track=%d", tracknum);
 #if VERSION >= VERSION_NTSC_1_0
 	musicSaveInterval();
 #endif
@@ -666,9 +790,10 @@ void musicPlayTrackIsolated(s32 tracknum)
  */
 void musicPlayDefaultTracks(void)
 {
+	MUSICDIAG("musicPlayDefaultTracks");
 	musicQueueStopEvent(TRACKTYPE_PRIMARY);
 	musicQueueStopEvent(TRACKTYPE_AMBIENT);
-	musicStartPrimary(0.5f);
+	musicStartPrimaryWithReason(0.5f, 1);
 }
 
 /**
@@ -676,6 +801,7 @@ void musicPlayDefaultTracks(void)
  */
 void musicStartTemporaryPrimary(s32 tracknum)
 {
+	MUSICDIAG("musicStartTemporaryPrimary track=%d", tracknum);
 	musicQueueStopEvent(TRACKTYPE_PRIMARY);
 
 	g_TemporaryPrimaryTrack = tracknum;
@@ -692,6 +818,7 @@ void musicStartTemporaryPrimary(s32 tracknum)
  */
 void musicStartCutscene(s32 tracknum)
 {
+	MUSICDIAG("musicStartCutscene track=%d", tracknum);
 	u32 volume;
 
 	musicQueueStopEvent(TRACKTYPE_MENU);
@@ -716,6 +843,7 @@ void musicStartCutscene(s32 tracknum)
  */
 void musicEndCutscene(void)
 {
+	MUSICDIAG("musicEndCutscene");
 	g_Vars.dontplaynrg = false;
 
 	if (!g_IsTitleDemo) {

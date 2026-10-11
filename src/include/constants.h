@@ -435,6 +435,50 @@
 #define THIRDPERSON_CAMHEIGHT    0.0f // straight up in the world
 
 /**
+ * Hip sway and reticle wander, the Fojo Sway panel's knobs (pd.ini [Sway]).
+ *
+ * Hip sway is the eye riding the hips: a shift to one side and a little roll
+ * toward the planted foot, once per stride - two of the step bob's cycles,
+ * sharing its phase, so the two read as one walk. Reticle wander is the
+ * hip-fire reticle drifting on slow noise inside Weighty Aim's free-aim zone,
+ * more when moving, part of it rocking with the stride.
+ *
+ * Both are scaled per player by the HipSway / ReticleWander Game options
+ * (0 by default, which is off). These are the shape of the curves, not how
+ * much of them a player gets. The defines are the defaults.
+ */
+#define HIPSWAY_SIDE        2.0f  // units the eye shifts either way at a full run, at a gain of 1
+#define HIPSWAY_ROLL        0.6f  // degrees of roll toward the planted foot at a full run, gain 1
+#define HIPSWAY_SHAPE       0.0f  // 0 is a sine; toward 1 the hips linger over each foot
+#define HIPSWAY_PHASE       0.0f  // degrees of stride after a foot strike that the sway peaks
+#define HIPSWAY_SPEEDCURVE  1.0f  // exponent on ground speed (0 to 1) before it scales the sway
+#define WANDER_REST         0.25f // degrees the reticle drifts standing still, gain 1
+#define WANDER_MOVE         1.2f  // degrees more at a full run, gain 1
+#define WANDER_RATE         0.35f // Hz of the slow noise
+#define WANDER_SPEEDCURVE   1.5f  // exponent on ground speed before it scales the moving share
+#define WANDER_STRIDE       0.5f  // share of the moving wander that rocks with the stride instead
+
+/**
+ * Gun follow: how the view gun swings onto its target. Stock chases it at a
+ * fixed 0.9269697 (PAL 0.913) per 240Hz tick in bgunSwivel(), the same
+ * speed whatever the distance. Here that speed is multiplied by a curve of
+ * how far the gun is from where it is going: GUNFOLLOW_NEAR right on it,
+ * GUNFOLLOW_FAR at GUNFOLLOW_GAP or further (half-screens, 0 to 2), shaped by
+ * GUNFOLLOW_CURVE in between. Both at 1 is stock exactly.
+ *
+ * COD Style Aiming with Aim Lock off lets the crosshair roam the screen, so
+ * the gun follows it there: it keeps its turn toward the crosshair, slides
+ * under it by COD_SLIDE of the way, and the view rolls toward it, up to
+ * COD_LEANROLL degrees with the crosshair at the side of the screen.
+ */
+#define GUNFOLLOW_NEAR      1.0f  // follow speed right on the target, times stock's
+#define GUNFOLLOW_FAR       1.0f  // follow speed at GUNFOLLOW_GAP or further, times stock's
+#define GUNFOLLOW_GAP       0.5f  // half-screens from the target where FAR applies
+#define GUNFOLLOW_CURVE     1.0f  // exponent on the gap (0 to 1 of GUNFOLLOW_GAP) between them
+#define COD_SLIDE           1.0f  // share of the way the gun slides under a roaming crosshair
+#define COD_LEANROLL        4.0f  // degrees of roll with the crosshair at the side of the screen
+
+/**
  * Camera Tether: the third person camera as a pole attached to the body rather
  * than bolted to the back of its head. The right stick orbits the camera round
  * the body, the left stick moves the body in screen space and the body turns to

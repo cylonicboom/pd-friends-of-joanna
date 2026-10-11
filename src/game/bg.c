@@ -157,6 +157,16 @@ struct bgroom *g_BgRooms;
  */
 s32 g_BgRoomsLoaded = 0;
 s32 g_BgRoomsRefused = 0;
+
+/**
+ * Whether the room geometry is drawn at all (port only, the Stage panel's
+ * "render bg"). Off, the portal walk, room loading and every prop still run
+ * exactly as they would; only the rooms' own display lists are skipped, so
+ * the tiles render (tilesrender.c) is left standing on its own - a level
+ * seen as its collision mesh, for blocking one out. Session state, like the
+ * tiles mode; nothing in a level or a mod touches it.
+ */
+s32 g_BgRenderEnabled = 1;
 #endif
 struct bgportal *g_BgPortals;
 struct portalmetric *g_PortalMetrics;
@@ -924,6 +934,13 @@ Gfx *bgRenderRoomInXray(Gfx *gdl, s32 roomnum)
 	sp40[0] = sp54.f[0];
 	sp40[1] = sp54.f[1];
 	sp40[2] = sp54.f[2];
+
+#ifndef PLATFORM_N64
+	if (!g_BgRenderEnabled) {
+		g_Rooms[roomnum].loaded240 = 1;
+		return gdl;
+	}
+#endif
 
 	gdl = roomApplyMtx(gdl, roomnum);
 	gdl = bgRenderRoomXrayPass(gdl, roomnum, g_Rooms[roomnum].gfxdata->opablocks, true, sp40);
@@ -3455,6 +3472,13 @@ Gfx *bgRenderRoomOpaque(Gfx *gdl, s32 roomnum)
 		return gdl;
 	}
 
+#ifndef PLATFORM_N64
+	if (!g_BgRenderEnabled) {
+		g_Rooms[roomnum].loaded240 = 1;
+		return gdl;
+	}
+#endif
+
 	gdl = roomApplyMtx(gdl, roomnum);
 
 	gdl = lightsSetForRoom(gdl, roomnum);
@@ -3486,6 +3510,13 @@ Gfx *bgRenderRoomXlu(Gfx *gdl, s32 roomnum)
 
 		if (g_Rooms[roomnum].gfxdata);
 		if (g_Rooms[roomnum].gfxdata);
+
+#ifndef PLATFORM_N64
+		if (!g_BgRenderEnabled) {
+			g_Rooms[roomnum].loaded240 = 1;
+			return gdl;
+		}
+#endif
 
 		gdl = roomApplyMtx(gdl, roomnum);
 		gdl = bgRenderRoomPass(gdl, roomnum, g_Rooms[roomnum].gfxdata->xlublocks, true);

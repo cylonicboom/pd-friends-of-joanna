@@ -10,6 +10,7 @@
 #include "game/cheats.h"
 #include "game/modspectate.h"
 #include "game/chraction.h"
+#include "game/debug.h"
 #include "game/footstep.h"
 #include "game/game_006900.h"
 #include "game/chr.h"
@@ -45,6 +46,7 @@
 #ifndef PLATFORM_N64
 #include <math.h>
 #include "input.h"
+#include "weightyaim.h" // [weightyaim]
 #include "video.h"
 
 static void bgunProcessQuickDetonate(struct movedata *data, u32 c1buttons, u32 c1buttonsthisframe, u32 buttons1, u32 buttons2) {
@@ -148,6 +150,13 @@ bool bmoveIsAutoAimYEnabledForCurrentWeapon(void)
 {
 	struct weaponfunc *func = currentPlayerGetWeaponFunction(0);
 
+#ifndef PLATFORM_N64
+	// [weightyaim] aim assist turned off in Weighty Aim: off on every difficulty
+	if (!weightyAimAssistAllowed()) {
+		return false;
+	}
+#endif
+
 	if (func) {
 		if (func->flags & FUNCFLAG_NOAUTOAIM) {
 			return false;
@@ -228,6 +237,13 @@ bool bmoveIsAutoAimXEnabled(void)
 bool bmoveIsAutoAimXEnabledForCurrentWeapon(void)
 {
 	struct weaponfunc *func = currentPlayerGetWeaponFunction(0);
+
+#ifndef PLATFORM_N64
+	// [weightyaim] aim assist turned off in Weighty Aim: off on every difficulty
+	if (!weightyAimAssistAllowed()) {
+		return false;
+	}
+#endif
 
 	if (func) {
 		if (func->flags & FUNCFLAG_NOAUTOAIM) {
@@ -820,6 +836,12 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 #ifndef PLATFORM_N64
 	c2stickx = allowc1x ? (s8) joyGetRStickX(contpad1) : 0;
 	c2sticky = allowc1y ? (s8) joyGetRStickY(contpad1) : 0;
+
+	// [weightyaim] Original curve / Force Original Aim & Settings: N64 stick range
+	c1stickx = weightyAimStickRange(c1stickx);
+	c1sticky = weightyAimStickRange(c1sticky);
+	c2stickx = weightyAimStickRange(c2stickx);
+	c2sticky = weightyAimStickRange(c2sticky);
 #endif
 
 	c1buttons = allowc1buttons ? joyGetButtons(contpad1, 0xffffffff) : 0;
@@ -877,6 +899,14 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	} else {
 		movedata.c1stickysafe = 0;
 	}
+
+#ifndef PLATFORM_N64
+	// [weightyaim] Game's Built-In Deadzone off: use the stick as it comes
+	if (!weightyAimGameDeadzoneWanted()) {
+		movedata.c1stickxsafe = c1stickx;
+		movedata.c1stickysafe = c1sticky;
+	}
+#endif
 
 	movedata.c1stickxraw = c1stickx;
 	movedata.c1stickyraw = c1sticky;
@@ -989,6 +1019,10 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 				contpad2 = (s8) optionsGetContpadNum2(g_Vars.currentplayerstats->mpindex);
 				c2stickx = (s8) joyGetStickX(contpad2);
 				c2sticky = (joyGetStickY(contpad2) << 24) >> 24;
+#ifndef PLATFORM_N64
+				c2stickx = weightyAimStickRange(c2stickx); // [weightyaim] N64 stick range
+				c2sticky = weightyAimStickRange(c2sticky);
+#endif
 				c2buttons = joyGetButtons(contpad2, 0xffffffff);
 				c2buttonsthisframe = joyGetButtonsPressedThisFrame(contpad2, 0xffffffff);
 
@@ -2599,6 +2633,18 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 
 	bmoveApplyMoveData(&movedata);
 
+#ifndef PLATFORM_N64
+	// [weightyaim] whether the game's auto-aim has a target to pull the
+	// free-aim reticle onto this frame. Aim mode itself stays the game's
+	// (and COD Style Aiming's): Weighty Aim only drives the hip.
+	weightyAimPrepareMove(&movedata);
+
+	// [weightyaim] Free-aim: look input moves the gun inside a deadzone first,
+	// only the leftover reaches the camera code below.
+	weightyAimFilterLook(&movedata.analogturn, &movedata.analogpitch, &movedata.freelookdx, &movedata.freelookdy,
+			movedata.cannaturalturn && movedata.cannaturalpitch, mlookscale);
+#endif
+
 	// Speed boost
 	// After 3 seconds of holding forward at max speed, apply boost multiplier.
 	// The multiplier starts at 1 and reaches 1.25 after about 0.1 seconds.
@@ -2817,6 +2863,14 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 
 		bgunSetAimType(0);
 
+#ifndef PLATFORM_N64
+		if (weightyAimIsActive()) {
+			// [weightyaim] crosshair follows the gun's free-aim position; the
+			// spring in weightyaim.c already provides the smoothing
+			weightyAimGetCrosshair(&x, &y);
+			bgunSwivel(x, y, 0.f, 0.f);
+		} else
+#endif
 		if (
 				(
 				 movedata.canautoaim
@@ -3034,9 +3088,29 @@ void bmoveTick(bool allowc1x, bool allowc1y, bool allowc1buttons, bool ignorec2)
 	}
 
 	// Update footstep sounds
+	//
+	// These are the ones for a player with no legs to look at: one every 150
+	// units walked. A body that is being animated makes its own, off the frames
+	// of its walk - footstepCheckDefault(), from chraTick() - and stock never
+	// had both because its third person was CAMERAMODE_THIRDPERSON, which the
+	// test below turns away. This fork's is CAMERAMODE_DEFAULT with a body, so
+	// it has to be asked about by name or she walks on four feet.
+	//
+	// footstepCheckDefault() only speaks when there is one player, and only for
+	// an animation in its table, which it records in magicanim each time it is
+	// asked. A crouched walk and the sidesteps are not in the table, so the
+	// body is silent for those and these carry on.
 	if ((g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK || g_Vars.currentplayer->bondmovemode == MOVEMODE_GRAB)
 			&& (g_Vars.currentplayer->speedforwards || g_Vars.currentplayer->speedsideways)
-			&& (!g_Vars.normmplayerisrunning || PLAYERCOUNT() == 1)) {
+			&& (!g_Vars.normmplayerisrunning || PLAYERCOUNT() == 1)
+#ifndef PLATFORM_N64
+			&& !(PLAYERCOUNT() == 1
+				&& debugIsFootstepsEnabled()
+				&& playerIsThirdPerson(g_Vars.currentplayer)
+				&& g_Vars.currentplayer->prop->chr
+				&& g_Vars.currentplayer->prop->chr->magicanim >= 0)
+#endif
+			) {
 		chr = g_Vars.currentplayer->prop->chr;
 
 		if (g_Vars.currentplayer->cameramode == CAMERAMODE_DEFAULT

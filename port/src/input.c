@@ -249,13 +249,12 @@ void inputSetDefaultKeyBinds(s32 cidx, s32 n64mode)
 		{ CK_ZTRIG,  VK_JOY1_RTRIG - VK_JOY1_BEGIN       },
 		{ CK_START,  SDL_CONTROLLER_BUTTON_START         },
 		{ CK_0100,   SDL_CONTROLLER_BUTTON_DPAD_UP       },
-		{ CK_0200,   SDL_CONTROLLER_BUTTON_DPAD_DOWN     },
 		{ CK_ACCEPT, SDL_CONTROLLER_BUTTON_A             },
 		{ CK_CANCEL, SDL_CONTROLLER_BUTTON_B             },
 		{ CK_8000,   SDL_CONTROLLER_BUTTON_LEFTSTICK     },
 		{ CK_1000,   SDL_CONTROLLER_BUTTON_BACK          },
 		{ CK_0800,   SDL_CONTROLLER_BUTTON_RIGHTSTICK    },
-		{ CK_DROPITEM, SDL_CONTROLLER_BUTTON_RIGHTSTICK  },
+		{ CK_DROPITEM, SDL_CONTROLLER_BUTTON_DPAD_DOWN   },
 		{ CK_0040,   SDL_CONTROLLER_BUTTON_BACK,         } // blinking
 	};
 
@@ -1001,17 +1000,47 @@ static inline s32 inputVkIsKbm(const u32 vk)
 	return vk < VK_JOY_BEGIN;
 }
 
+// Does this pad's bind set have any keyboard or mouse keys at all? The
+// engine's per-seat defaults for players 2-4 have none; a profile made at
+// player 1's seat carries player 1's.
+static s32 inputPadHasKbmBinds(const s32 idx)
+{
+	for (u32 ck = 0; ck < CK_TOTAL_COUNT; ck++) {
+		for (s32 i = 0; i < INPUT_MAX_BINDS; i++) {
+			const u32 vk = binds[idx][ck][i];
+			if (vk && inputVkIsKbm(vk)) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * The keyboard and mouse belong to one pad, the one whose seat holds them
+ * (inputKbmPad). Every other pad ignores keyboard and mouse keys in its binds.
+ *
+ * That used to be true only of pad 0. Binds follow the profile now, not the
+ * seat (seatprofile.h), and every profile made at player 1's seat carries
+ * player 1's keyboard and mouse binds, so a 4-player team mission with four
+ * profiles seated read the keyboard on all four pads at once.
+ *
+ * The holder reads its own keyboard binds, or, if its bind set has none (a
+ * seat default for players 2-4), player 1's.
+ */
 static inline s32 inputBindPressed(const s32 idx, const u32 ck)
 {
 	const s32 kbmpad = inputKbmPad();
+	s32 kbmsrc = -1;
+
+	if (idx == kbmpad) {
+		kbmsrc = (idx == 0 || inputPadHasKbmBinds(idx)) ? idx : 0;
+	}
 
 	for (s32 i = 0; i < INPUT_MAX_BINDS; ++i) {
 		const u32 vk = binds[idx][ck][i];
-		if (!vk) {
-			continue;
-		}
-		// player 1's keyboard and mouse have been handed to another pad
-		if (idx == 0 && kbmpad != 0 && inputVkIsKbm(vk)) {
+		if (!vk || inputVkIsKbm(vk)) {
 			continue;
 		}
 		if (inputKeyPressed(vk)) {
@@ -1019,11 +1048,9 @@ static inline s32 inputBindPressed(const s32 idx, const u32 ck)
 		}
 	}
 
-	// ...and this is that pad: read them from player 1's bind set. The pad's
-	// own keyboard binds, if anyone set any, still count above.
-	if (idx == kbmpad && idx != 0) {
+	if (kbmsrc >= 0) {
 		for (s32 i = 0; i < INPUT_MAX_BINDS; ++i) {
-			const u32 vk = binds[0][ck][i];
+			const u32 vk = binds[kbmsrc][ck][i];
 			if (vk && inputVkIsKbm(vk) && inputKeyPressed(vk)) {
 				return 1;
 			}
@@ -1098,6 +1125,49 @@ static void inputChaosDelayApply(s32 idx, OSContPad *npad)
 	chaosDelayRing[idx][chaosDelayHead[idx] % CHAOS_DELAY_RING] = *npad;
 	*npad = chaosDelayRing[idx][(chaosDelayHead[idx] + CHAOS_DELAY_RING - (u32)chaosInputDelay) % CHAOS_DELAY_RING];
 	chaosDelayHead[idx]++;
+}
+
+// [weightyaim] Motion sensors for gyro aiming. Fills gyro[3] (rad/s: pitch, yaw,
+// roll) and accel[3] (m/s^2, points up when the controller is at rest).
+// Returns 1 if the controller has a gyro, 0 otherwise.
+s32 inputControllerGetMotion(s32 idx, f32 *gyro, f32 *accel)
+{
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+	if (idx < 0 || idx >= INPUT_MAX_CONTROLLERS || !pads[idx]) {
+		return 0;
+	}
+
+	SDL_GameController *pad = pads[idx];
+
+	if (!SDL_GameControllerHasSensor(pad, SDL_SENSOR_GYRO)) {
+		return 0;
+	}
+
+	if (!SDL_GameControllerIsSensorEnabled(pad, SDL_SENSOR_GYRO)) {
+		SDL_GameControllerSetSensorEnabled(pad, SDL_SENSOR_GYRO, SDL_TRUE);
+	}
+
+	if (SDL_GameControllerGetSensorData(pad, SDL_SENSOR_GYRO, gyro, 3) != 0) {
+		return 0;
+	}
+
+	if (accel) {
+		accel[0] = 0.f;
+		accel[1] = 9.81f;
+		accel[2] = 0.f;
+
+		if (SDL_GameControllerHasSensor(pad, SDL_SENSOR_ACCEL)) {
+			if (!SDL_GameControllerIsSensorEnabled(pad, SDL_SENSOR_ACCEL)) {
+				SDL_GameControllerSetSensorEnabled(pad, SDL_SENSOR_ACCEL, SDL_TRUE);
+			}
+			SDL_GameControllerGetSensorData(pad, SDL_SENSOR_ACCEL, accel, 3);
+		}
+	}
+
+	return 1;
+#else
+	return 0;
+#endif
 }
 
 static inline s32 inputAxisScale(s32 x, s32 deadzone, const f32 scale)

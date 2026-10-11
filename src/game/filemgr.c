@@ -3020,8 +3020,11 @@ bool filemgrConsiderPushingFileSelectDialog(void)
 {
 	if (g_Menus[g_MpPlayerNum].openinhibit == 0) {
 		g_Menus[g_MpPlayerNum].playernum = 0;
+		// fojo: the player profile hub used to be pushed on top of this, so
+		// the typing scene opened on it. The title's profile picker does that
+		// job now, before the Institute loads, so by here the player already
+		// has a profile and the scene goes straight to the file select.
 		menuPushRootDialog(&g_FilemgrFileSelectMenuDialog, MENUROOT_FILEMGR);
-		menuPushDialog(teamPlayerProfilesHubDialog(g_MpPlayerNum));
 
 #if PAL
 		if (g_Vars.language >= 6) {

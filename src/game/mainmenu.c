@@ -246,8 +246,17 @@ MenuItemHandlerResult menuhandler001024fc(s32 operation, struct menuitem *item,
   return menuhandlerControlStyleImpl(operation, item, data, 5);
 }
 
+// Set by a front end that is not the std menu (fojOS) to say whose options it
+// is reading and writing. -1 leaves the std resolution below alone.
+s32 g_MenuOptionPlayerOverride = -1;
+
 static u32 menuResolveOptionMpChrNum(struct menuitem *item) {
   u32 mpchrnum;
+
+  if (g_MenuOptionPlayerOverride >= 0 &&
+      g_MenuOptionPlayerOverride < MAX_PLAYERS) {
+    return g_MenuOptionPlayerOverride;
+  }
 
   if (item->param3 >= 4 && item->param3 < 4 + MAX_PLAYERS) {
     mpchrnum = item->param3 - 4;
@@ -653,6 +662,27 @@ MenuItemHandlerResult menuhandlerShowMissionTime(s32 operation,
     return optionsGetShowMissionTime(mpchrnum);
   case MENUOP_SET:
     optionsSetShowMissionTime(mpchrnum, data->checkbox.value);
+    g_Vars.modifiedfiles |= MODFILE_GAME;
+  }
+
+  return 0;
+}
+
+MenuItemHandlerResult menuhandlerShowOperativeName(s32 operation,
+                                                   struct menuitem *item,
+                                                   union handlerdata *data) {
+  u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+  if (g_PlayerConfigsArray[mpchrnum].showoperativename == NULL) {
+    iniRegisterPlayerSave(&g_PlayerConfigsArray[mpchrnum].fileguid, 1,
+                          mpchrnum);
+  }
+
+  switch (operation) {
+  case MENUOP_GET:
+    return optionsGetShowOperativeName(mpchrnum);
+  case MENUOP_SET:
+    optionsSetShowOperativeName(mpchrnum, data->checkbox.value);
     g_Vars.modifiedfiles |= MODFILE_GAME;
   }
 
@@ -1964,14 +1994,51 @@ static char *fojoTitleProfileGetMarquee(void *dialogritem) {
   return g_FojoTitleProfileMarqueeBuf;
 }
 
+extern struct menudialogdef g_FojoNewPlayerMenuDialog;
+
+/**
+ * The row that leaves the picker.
+ *
+ * titleTickProfileSelect() moves on when the menu is empty and player one has
+ * a file, so leaving is closing the dialog: the same thing backing out does,
+ * and has always done. This is that, with a name on it and greyed until there
+ * is a player to leave with.
+ */
+static MenuItemHandlerResult fojoTitleStartMenuHandler(s32 operation,
+                                                       struct menuitem *item,
+                                                       union handlerdata *data) {
+  switch (operation) {
+  case MENUOP_CHECKDISABLED:
+    return g_PlayerConfigsArray[0].fileguid.fileid == 0;
+  case MENUOP_SET:
+    if (g_PlayerConfigsArray[0].fileguid.fileid != 0) {
+      menuPopDialog();
+    }
+    break;
+  }
+
+  return 0;
+}
+
+// Three rows: take a player that exists, make one, go. The labels are the
+// stock strings for those three things and are placeholders in that sense -
+// what this menu calls them is Catherine's.
 struct menuitem g_FojoTitleProfileSelectMenuItems[] = {
     {
         MENUITEMTYPE_SELECTABLE,
         0,
         MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-        L_MPMENU_030, // "Name"
-        (uintptr_t)&mpGetCurrentPlayerName,
-        (void *)&g_MpPlayerNameMenuDialog,
+        L_MPMENU_029, // "Load Player"
+        0,
+        (void *)&g_MpLoadPlayerMenuDialog,
+    },
+    {
+        MENUITEMTYPE_SELECTABLE,
+        0,
+        MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+        L_OPTIONS_402, // "New..."
+        0,
+        (void *)&g_FojoNewPlayerMenuDialog,
     },
     {
         MENUITEMTYPE_SEPARATOR,
@@ -1984,18 +2051,10 @@ struct menuitem g_FojoTitleProfileSelectMenuItems[] = {
     {
         MENUITEMTYPE_SELECTABLE,
         0,
-        MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-        L_MPMENU_029, // "Load Player"
         0,
-        (void *)&g_MpLoadPlayerMenuDialog,
-    },
-    {
-        MENUITEMTYPE_SELECTABLE,
+        L_MPMENU_036, // "Start Game"
         0,
-        0,
-        (uintptr_t)&mpMenuTextSavePlayerOrCopy,
-        0,
-        menuhandlerMpSavePlayer,
+        fojoTitleStartMenuHandler,
     },
     {
         MENUITEMTYPE_MARQUEE,
@@ -2248,6 +2307,33 @@ static const char *fojoHeadDisplayName(s32 optionindex) {
   default:
     return "Unknown";
   }
+}
+
+/**
+ * The display name of the operative this seat has picked, or NULL when it has
+ * none to speak of: the carousel's last slot is "my own head", which is the
+ * player and not an operative, and an index outside the roster is nobody.
+ * Team missions only - nobody is an operative anywhere else.
+ */
+const char *fojoGetPlayerOperativeName(s32 playernum) {
+  s32 index;
+
+  if (!g_MissionConfig.isteam || playernum < 0 || playernum >= MAX_PLAYERS) {
+    return NULL;
+  }
+
+  // a counter-operative is not on the roster's side: no operative name
+  if (g_Vars.playerroles[playernum] == PLAYERROLE_ANTI) {
+    return NULL;
+  }
+
+  index = g_PlayerConfigsArray[playernum].teamagentindex;
+
+  if (index < 0 || index >= g_FojoHeadCount) {
+    return NULL;
+  }
+
+  return fojoHeadDisplayName(index);
 }
 
 // Get the name for a head option in the carousel
@@ -3951,6 +4037,36 @@ MenuItemHandlerResult menuhandlerMissionList(s32 operation,
   return 0;
 }
 
+/**
+ * Write out whatever the options handlers marked in g_Vars.modifiedfiles: the
+ * game file (solo only) and the boss file. What the Options dialog does when
+ * it closes, and what fojOS's options panel does after a change. Returns false
+ * when the game file save failed; the flags are cleared either way, as they
+ * always were.
+ */
+bool menuCommitOptionChanges(void) {
+  bool ok = true;
+
+  if (g_Vars.modifiedfiles & MODFILE_GAME) {
+    saveQueueMarkConfig();
+
+    if (g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
+      if (filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_001, 0) == 0) {
+        ok = false;
+      }
+    }
+
+    g_Vars.modifiedfiles &= ~MODFILE_GAME;
+  }
+
+  if (g_Vars.modifiedfiles & MODFILE_BOSS) {
+    bossfileSave();
+    g_Vars.modifiedfiles &= ~MODFILE_BOSS;
+  }
+
+  return ok;
+}
+
 MenuDialogHandlerResult menudialog0010559c(s32 operation,
                                            struct menudialogdef *dialogdef,
                                            union handlerdata *data) {
@@ -3958,21 +4074,8 @@ MenuDialogHandlerResult menudialog0010559c(s32 operation,
   case MENUOP_OPEN:
     break;
   case MENUOP_CLOSE:
-    if (g_Vars.modifiedfiles & MODFILE_GAME) {
-      saveQueueMarkConfig();
-
-      if (g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
-        if (filemgrSaveOrLoad(&g_GameFileGuid, FILEOP_SAVE_GAME_001, 0) == 0) {
-          data->dialog1.preventclose = true;
-        }
-      }
-
-      g_Vars.modifiedfiles &= ~MODFILE_GAME;
-    }
-
-    if (g_Vars.modifiedfiles & MODFILE_BOSS) {
-      bossfileSave();
-      g_Vars.modifiedfiles &= ~MODFILE_BOSS;
+    if (!menuCommitOptionChanges()) {
+      data->dialog1.preventclose = true;
     }
     break;
   }
@@ -5083,6 +5186,15 @@ struct menuitem g_CiDisplayMenuItems[] = {
         menuhandlerShowPlayerName,
     },
     {
+        // PLACEHOLDER label - what this row is called is Catherine's.
+        MENUITEMTYPE_CHECKBOX,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"Operative Name",
+        0,
+        menuhandlerShowOperativeName,
+    },
+    {
         MENUITEMTYPE_SEPARATOR,
         0,
         0,
@@ -5127,6 +5239,15 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
         (uintptr_t)"Show Player Name",
         0,
         menuhandlerShowPlayerName,
+    },
+    {
+        // PLACEHOLDER label - what this row is called is Catherine's.
+        MENUITEMTYPE_CHECKBOX,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"Operative Name",
+        0,
+        menuhandlerShowOperativeName,
     },
     {
         MENUITEMTYPE_SEPARATOR,
@@ -5568,6 +5689,15 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
         (uintptr_t)"Show Player Name",
         0x00000004,
         menuhandlerShowPlayerName,
+    },
+    {
+        // PLACEHOLDER label - what this row is called is Catherine's.
+        MENUITEMTYPE_CHECKBOX,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"Operative Name",
+        0x00000004,
+        menuhandlerShowOperativeName,
     },
     {
         MENUITEMTYPE_SEPARATOR,
