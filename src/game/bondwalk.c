@@ -8,6 +8,9 @@
 #include "game/chraction.h"
 #include "game/debug.h"
 #include "game/footstep.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 #include "game/game_006900.h"
 #include "game/chr.h"
 #include "game/prop.h"
@@ -1380,6 +1383,12 @@ void bwalkUpdateVertical(void)
 			chr->footstep = 1;
 
 			sound = footstepChooseSound(chr, true);
+
+#ifndef PLATFORM_N64
+			// FOOTDIAG (#394) - temporary probe
+			sysLogPrintf(LOG_NOTE, "FOOTDIAG: landing f=%d dy=%.2f snd=%04x",
+					g_Vars.lvframenum, (f64)g_Vars.currentplayer->bdeltapos.y, (u32)sound & 0xffff);
+#endif
 
 			if (sound != -1) {
 				if (sound != -1) {
