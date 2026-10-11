@@ -3,7 +3,7 @@
  * every entry say where its bytes come from.
  *
  *   slugmod <mod-name> [--workspace <dir>] [--output <dir>] [--slug <s>]
- *           [--apply] [--help]
+ *           [--keep-paths] [--apply] [--help]
  *
  * Three stage mods ship 3134 fragment entries between them and not one declares
  * a source: every entry is a bare loose path. romdataFileLoad takes a file's
@@ -26,6 +26,14 @@
  * bare name or path belongs to - for romdataFileGetNumForNameAnyMod, for a
  * human reading `ls`, and for an engine built before the flag existed, which
  * ignores it and walks.
+ *
+ * --keep-paths does the first half only in the manifest: every entry still
+ * declares `source: { self: true }` and authored names are still slugged (the
+ * engine keeps name and path apart - a PDFT entry carries both, and bytes come
+ * from the path inside the owning mod's directory once the flag is set), but
+ * the file on disk is left exactly where the upstream drop put it. That is the
+ * shape for a mod whose bytes are someone else's release: the metadata can be
+ * handed around on its own and laid over an untouched copy of the drop.
  *
  * Nothing is written without --apply, and nothing is ever deleted: a rename
  * whose destination exists is refused rather than performed.
@@ -64,7 +72,7 @@ static void usage(FILE *out)
 {
 	fprintf(out,
 		"usage: slugmod <mod-dir> [--workspace <dir>] [--output <dir>]\n"
-		"               [--slug <s>] [--apply] [--help]\n"
+		"               [--slug <s>] [--keep-paths] [--apply] [--help]\n"
 		"\n"
 		"Rewrites a mod so every file entry declares where its bytes come from\n"
 		"and no two mods can claim the same path.\n"
@@ -79,6 +87,9 @@ static void usage(FILE *out)
 		"               collide because mod directory names cannot. Shorter is\n"
 		"               nicer to read - 'kakariko' for mod_kakariko_stages -\n"
 		"               but a short slug is yours to keep unique.\n"
+		"  --keep-paths slug names and declare sources, but leave every file\n"
+		"               where it is on disk. The manifest is the only thing\n"
+		"               that changes.\n"
 		"  --apply      perform the plan. Without it nothing is written.\n"
 		"\n"
 		"Where the slug goes:\n"
@@ -188,7 +199,7 @@ int main(int argc, char **argv)
 	const char *modName = NULL, *workspace = ".", *output = NULL, *slug = NULL;
 	char slugBuf[SLUGMAX];
 	char manifestPath[PATHMAX], modconfigPath[PATHMAX];
-	bool apply = false;
+	bool apply = false, keepPaths = false;
 	JSON_Value *manifestVal;
 	JSON_Object *manifest;
 	JSON_Array *files;
@@ -205,6 +216,8 @@ int main(int argc, char **argv)
 			slug = argv[++arg];
 		} else if (!strcmp(argv[arg], "--apply")) {
 			apply = true;
+		} else if (!strcmp(argv[arg], "--keep-paths")) {
+			keepPaths = true;
 		} else if (!strcmp(argv[arg], "--help") || !strcmp(argv[arg], "-h")) {
 			usage(stdout);
 			return 0;
@@ -377,12 +390,16 @@ int main(int argc, char **argv)
 					"of something that is not there", manifestPath, name, path, mv->from);
 		}
 
-		if (isFile(mv->to)) {
-			die("%s: '%s' would move to %s, which already exists. Nothing here overwrites "
-					"or deletes", manifestPath, name, mv->to);
-		}
+		if (keepPaths) {
+			snprintf(mv->to, sizeof(mv->to), "%s", mv->from);
+		} else {
+			if (isFile(mv->to)) {
+				die("%s: '%s' would move to %s, which already exists. Nothing here overwrites "
+						"or deletes", manifestPath, name, mv->to);
+			}
 
-		json_object_set_string(e, "path", newPath);
+			json_object_set_string(e, "path", newPath);
+		}
 
 		{
 			JSON_Value *srcVal = json_value_init_object();
@@ -448,10 +465,19 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (keepPaths) {
+		printf("  --keep-paths: files stay where they are; only the manifest changes\n");
+	}
+
 	if (!apply) {
 		for (i = 0; i < numMoves && i < 6; ++i) {
-			printf("  move  %s\n     -> %s%s%s\n", moves[i].from, moves[i].to,
-					moves[i].newName[0] ? "   name -> " : "", moves[i].newName);
+			if (keepPaths) {
+				printf("  keep  %s%s%s\n", moves[i].from,
+						moves[i].newName[0] ? "   name -> " : "", moves[i].newName);
+			} else {
+				printf("  move  %s\n     -> %s%s%s\n", moves[i].from, moves[i].to,
+						moves[i].newName[0] ? "   name -> " : "", moves[i].newName);
+			}
 		}
 
 		if (numMoves > 6) {
@@ -462,7 +488,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	for (i = 0; i < numMoves; ++i) {
+	for (i = 0; i < numMoves && !keepPaths; ++i) {
 		if (rename(moves[i].from, moves[i].to)) {
 			die("could not move %s to %s (%zu of %zu done; the manifest is untouched)",
 					moves[i].from, moves[i].to, i, numMoves);
