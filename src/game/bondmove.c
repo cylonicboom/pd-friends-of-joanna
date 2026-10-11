@@ -10,6 +10,7 @@
 #include "game/cheats.h"
 #include "game/modspectate.h"
 #include "game/chraction.h"
+#include "game/debug.h"
 #include "game/footstep.h"
 #include "game/game_006900.h"
 #include "game/chr.h"
@@ -3034,9 +3035,29 @@ void bmoveTick(bool allowc1x, bool allowc1y, bool allowc1buttons, bool ignorec2)
 	}
 
 	// Update footstep sounds
+	//
+	// These are the ones for a player with no legs to look at: one every 150
+	// units walked. A body that is being animated makes its own, off the frames
+	// of its walk - footstepCheckDefault(), from chraTick() - and stock never
+	// had both because its third person was CAMERAMODE_THIRDPERSON, which the
+	// test below turns away. This fork's is CAMERAMODE_DEFAULT with a body, so
+	// it has to be asked about by name or she walks on four feet.
+	//
+	// footstepCheckDefault() only speaks when there is one player, and only for
+	// an animation in its table, which it records in magicanim each time it is
+	// asked. A crouched walk and the sidesteps are not in the table, so the
+	// body is silent for those and these carry on.
 	if ((g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK || g_Vars.currentplayer->bondmovemode == MOVEMODE_GRAB)
 			&& (g_Vars.currentplayer->speedforwards || g_Vars.currentplayer->speedsideways)
-			&& (!g_Vars.normmplayerisrunning || PLAYERCOUNT() == 1)) {
+			&& (!g_Vars.normmplayerisrunning || PLAYERCOUNT() == 1)
+#ifndef PLATFORM_N64
+			&& !(PLAYERCOUNT() == 1
+				&& debugIsFootstepsEnabled()
+				&& playerIsThirdPerson(g_Vars.currentplayer)
+				&& g_Vars.currentplayer->prop->chr
+				&& g_Vars.currentplayer->prop->chr->magicanim >= 0)
+#endif
+			) {
 		chr = g_Vars.currentplayer->prop->chr;
 
 		if (g_Vars.currentplayer->cameramode == CAMERAMODE_DEFAULT
