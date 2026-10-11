@@ -605,7 +605,18 @@ void musicEndMenu(void)
 #endif
 
 	MUSICDIAG("musicEndMenu");
+#ifdef PLATFORM_N64
 	musicQueueFadeEvent(TRACKTYPE_MENU, 1, FADETYPE_STOP);
+#else
+	// A cut, where stock fades the menu track out over a second. The fade out
+	// is the one thing here that does not reliably end: the channel is handed
+	// back as not in use while its track is still playing, and it is only
+	// released if the sequence player's fade runs all the way down. When it
+	// did not, the menu theme carried on into the level until the next menu
+	// stopped it by name. A stop always lands. What was paused underneath is
+	// resumed below exactly as before.
+	musicQueueStopEvent(TRACKTYPE_MENU);
+#endif
 
 	if (musicIsTrackState(TRACKTYPE_NRG, AL_PLAYING)) {
 		musicStartNrg(1);
