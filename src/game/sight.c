@@ -26,6 +26,7 @@
 #ifndef PLATFORM_N64
 #include <math.h>
 #include "video.h"
+#include "weightyaim.h" // [weightyaim]
 
 #define SIGHT_COLOUR ((PLAYER_EXTCFG().crosshairhealth >= CROSSHAIR_HEALTH_ON_GREEN) ? sightGetCrosshairHealthColor(g_Vars.currentplayer->bondhealth, g_Vars.currentplayer->prop->chr->cshield * 0.125f) : hudTintCrosshair(PLAYER_EXTCFG().crosshaircolour))
 #define SIGHT_SCALE PLAYER_EXTCFG().crosshairsize
@@ -505,6 +506,47 @@ Gfx *sightDrawTargetBox(Gfx *gdl, struct trackedprop *trackedprop, s32 textid, s
 	return gdl;
 }
 
+#ifndef PLATFORM_N64
+/**
+ * [weightyaim] Smooth Reticle: the reticle normally snaps to whole N64 pixels
+ * (about 4.5 screen pixels at 1080p). The renderer takes quarter-pixel
+ * positions, so the reticle is drawn at its whole-pixel spot plus a
+ * quarter-pixel offset (on top of the usual -2,-2 centring offset).
+ */
+static bool g_SightSmooth = false;
+static f32 g_SightSmoothPos[2];
+static s32 g_SightSub[2]; // quarter pixels
+
+static s32 sightFloorToInt(f32 v)
+{
+	const s32 i = (s32)v;
+
+	return v < (f32)i ? i - 1 : i;
+}
+
+static s32 sightSplitQuarters(f32 v, s32 *sub)
+{
+	const s32 q = sightFloorToInt(v * 4.f + 0.5f);
+	const s32 whole = q >= 0 ? q / 4 : -((-q + 3) / 4);
+
+	*sub = q - whole * 4;
+	return whole;
+}
+
+// Replace the whole-pixel reticle position with the smooth one, if it's on
+static void sightApplySmooth(s32 *x, s32 *y)
+{
+	g_SightSub[0] = g_SightSub[1] = 0;
+
+	if (g_SightSmooth && g_ScaleX == 1) {
+		const f32 cx = (g_SightSmoothPos[0] - (f32)(SCREEN_WIDTH_LO / 2)) * sightGetScaleX() + (f32)(SCREEN_WIDTH_LO / 2);
+
+		*x = sightSplitQuarters(cx, &g_SightSub[0]);
+		*y = sightSplitQuarters(g_SightSmoothPos[1], &g_SightSub[1]);
+	}
+}
+#endif
+
 Gfx *sightDrawAimer(Gfx *gdl, s32 x, s32 y, s32 radius, s32 cornergap, u32 colour)
 {
 	s32 viewleft = viGetViewLeft() / g_ScaleX;
@@ -518,8 +560,9 @@ Gfx *sightDrawAimer(Gfx *gdl, s32 x, s32 y, s32 radius, s32 cornergap, u32 colou
 
 #ifndef PLATFORM_N64
 	x = sightGetAdjustedX(x);
+	sightApplySmooth(&x, &y); // [weightyaim]
 	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
-	gDPSetSubpixelOffsetEXT(gdl++, -2, -2);
+	gDPSetSubpixelOffsetEXT(gdl++, -2 + g_SightSub[0], -2 + g_SightSub[1]);
 #endif
 
 	// Draw the lines that span most of the viewport
@@ -1576,8 +1619,9 @@ Gfx *sightDrawTarget(Gfx *gdl, f32 crossx, f32 crossy)
 	gdl = textSetPrimColour(gdl, SIGHT_COLOUR);
 
 #ifndef PLATFORM_N64
+	sightApplySmooth(&x, &y); // [weightyaim]
 	gSPSetExtraGeometryModeEXT(gdl++, G_ASPECT_CENTER_EXT);
-	gDPSetSubpixelOffsetEXT(gdl++, -2, -2);
+	gDPSetSubpixelOffsetEXT(gdl++, -2 + g_SightSub[0], -2 + g_SightSub[1]);
 	if (SIGHT_SCALE == 0) {
 		// Draw single rectangle to preserve intended opacity
 		gDPHudRectangle(gdl++, x, y, x, y);
@@ -1679,6 +1723,11 @@ Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight)
 	// an up and/or left direction.
 	const f32 crossx = roundf(g_Vars.currentplayer->crosspos[0]);
 	const f32 crossy = roundf(g_Vars.currentplayer->crosspos[1]);
+
+	// [weightyaim] Smooth Reticle: keep the unrounded position for the aimer and target
+	g_SightSmooth = weightyAimSmoothReticle();
+	g_SightSmoothPos[0] = g_Vars.currentplayer->crosspos[0];
+	g_SightSmoothPos[1] = g_Vars.currentplayer->crosspos[1];
 #else
 	const f32 crossx = g_Vars.currentplayer->crosspos[0];
 	const f32 crossy = g_Vars.currentplayer->crosspos[1];
@@ -1701,6 +1750,12 @@ Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight)
 #ifndef PLATFORM_N64
 	if (g_Vars.currentplayer->bondhealth <= 0.0f) {
 		// Hide crosshair during death animation
+		sight = SIGHT_NONE;
+	}
+
+	// [weightyaim] hide the crosshair while hip-firing with "Only When Aiming".
+	// Aiming keeps the game's own (and COD Style Aiming's) crosshair.
+	if (weightyAimHideCrosshair() && sight != SIGHT_ZOOM) {
 		sight = SIGHT_NONE;
 	}
 #endif
@@ -1737,8 +1792,18 @@ Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight)
 	}
 
 	if (sight != SIGHT_NONE && optionsGetSightOnScreen(g_Vars.currentplayerstats->mpindex)) {
-		if ((optionsGetAlwaysShowTarget(g_Vars.currentplayerstats->mpindex) && !sighton)
-				|| (sighton && sightHasTargetWhileAiming(sight))) {
+		bool showtarget = (optionsGetAlwaysShowTarget(g_Vars.currentplayerstats->mpindex) && !sighton)
+				|| (sighton && sightHasTargetWhileAiming(sight));
+
+#ifndef PLATFORM_N64
+		// [weightyaim] "Always" crosshair: draw it whatever Always Show Target
+		// and the sight flags (such as the short hide after taking damage) say
+		if (weightyAimForceCrosshair()) {
+			showtarget = true;
+		}
+#endif
+
+		if (showtarget) {
 			gdl = sightDrawTarget(gdl, crossx, crossy);
 		}
 	}

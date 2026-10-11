@@ -3799,6 +3799,45 @@ void playerConfigureVi(void)
 #define CAMTILT_RUN_SPEED     10.0f // units per 60Hz tick, bwalk's full stick
 #define CAMTILT_TELEPORT      100.0f // further than this in a tick is not a step
 
+/**
+ * Hip sway's stride: two steps, the step bob's phase plus a half turn on the
+ * odd step, 0 to 2pi. Locked to the bob by construction, so the hips and the
+ * eye's lift can never drift apart.
+ */
+f32 playerGetStridePhase(struct player *player)
+{
+	return (player->camstepphase + (player->camstrideodd ? M_BADTAU : 0)) * 0.5f;
+}
+
+/**
+ * Where the hips are in the stride, -1 (over the left foot) to 1 (the right),
+ * shaped by [Sway] HipShape and HipPhase. playerHipSwayShape() is the curve on
+ * its own, for a stride phase; the Fojo Sway panel plots it.
+ *
+ * The bob's lift is 0.3 + 0.7 sin(step), so a foot strikes where that is
+ * lowest, step 3pi/2, which is stride 3pi/4 and 7pi/4. sin(stride - pi/4)
+ * peaks on exactly those: the eye is furthest over a foot as it lands.
+ * HipPhase moves the peak later in the stride. HipShape bends the sine
+ * toward a square, sign(s)|s|^e with e from 1 down to 0.15, so the hips
+ * linger over each foot and cross quickly between them.
+ */
+f32 playerHipSwayShape(f32 stridephase)
+{
+	f32 s = sinf(stridephase - M_PI * 0.25f - g_HipSwayPhase * (M_PI / 180.0f));
+	f32 e = 1.0f - 0.85f * g_HipSwayShape;
+
+	if (e >= 0.999f) {
+		return s;
+	}
+
+	return s < 0 ? -__builtin_powf(-s, e) : __builtin_powf(s, e);
+}
+
+f32 playerHipSwayAt(struct player *player)
+{
+	return playerHipSwayShape(playerGetStridePhase(player));
+}
+
 static void playerTiltCamera(struct coord *campos, struct coord *camup, struct coord *camlook)
 {
 	struct player *player = g_Vars.currentplayer;
@@ -3807,6 +3846,9 @@ static void playerTiltCamera(struct coord *campos, struct coord *camup, struct c
 	f32 rolltarget = 0;
 	f32 pitchtarget = 0;
 	f32 bobtarget = 0;
+	f32 speedtarget = 0;
+	f32 hipscale = PLAYER_EXTCFG().hipsway;
+	f32 hiproll = 0;
 	f32 rate;
 	f32 roll;
 	f32 pitch;
@@ -3855,7 +3897,9 @@ static void playerTiltCamera(struct coord *campos, struct coord *camup, struct c
 		}
 	}
 
-	if (bobscale > 0 && !player->isdead && player->bondmovemode == MOVEMODE_WALK
+	// Ground speed as 0 to 1, whatever the bob setting: hip sway and the
+	// hip-fire reticle's wander read it as well as the bob.
+	if (!player->isdead && player->bondmovemode == MOVEMODE_WALK
 			&& !player->isfalling && g_Vars.lvupdate60freal > 0) {
 		f32 dx = player->prop->pos.x - player->bondprevpos.x;
 		f32 dz = player->prop->pos.z - player->bondprevpos.z;
@@ -3868,8 +3912,12 @@ static void playerTiltCamera(struct coord *campos, struct coord *camup, struct c
 				speed = 1;
 			}
 
-			bobtarget = speed * CAMTILT_BOB_UNITS * bobscale;
+			speedtarget = speed;
 		}
+	}
+
+	if (bobscale > 0) {
+		bobtarget = speedtarget * CAMTILT_BOB_UNITS * bobscale;
 	}
 
 	rate = CAMTILT_RATE * g_Vars.lvupdate60freal;
@@ -3881,11 +3929,13 @@ static void playerTiltCamera(struct coord *campos, struct coord *camup, struct c
 	player->camtiltroll += (rolltarget - player->camtiltroll) * rate;
 	player->camtiltpitch += (pitchtarget - player->camtiltpitch) * rate;
 	player->camstepamp += (bobtarget - player->camstepamp) * rate;
+	player->camstridespeed += (speedtarget - player->camstridespeed) * rate;
 
 	player->camstepphase += g_Vars.lvupdate60freal * (M_BADTAU / CAMTILT_BOB_CYCLE);
 
 	if (player->camstepphase > M_BADTAU) {
 		player->camstepphase -= M_BADTAU;
+		player->camstrideodd = !player->camstrideodd;
 	}
 
 	if (player->camstepamp > 0.001f) {
@@ -3894,14 +3944,34 @@ static void playerTiltCamera(struct coord *campos, struct coord *camup, struct c
 		player->camstepamp = 0;
 	}
 
+	// Hip sway: the eye over whichever foot is planted, out along the
+	// camera's right, and a roll toward it. Rides the same chased ground speed
+	// as the bob, through [Sway] HipSpeedCurve, so it stops when she does.
+	if (hipscale > 0 && player->camstridespeed > 0.001f) {
+		f32 amount = hipscale * __builtin_powf(player->camstridespeed, g_HipSwaySpeedCurve) * playerHipSwayAt(player);
+		f32 side = amount * g_HipSwaySide;
+		struct coord r;
+
+		r.x = camlook->y * camup->z - camlook->z * camup->y;
+		r.y = camlook->z * camup->x - camlook->x * camup->z;
+		r.z = camlook->x * camup->y - camlook->y * camup->x;
+
+		campos->x += r.x * side;
+		campos->y += r.y * side;
+		campos->z += r.z * side;
+
+		hiproll = amount * g_HipSwayRoll;
+	}
+
 	if (player->camtiltroll > -0.001f && player->camtiltroll < 0.001f
-			&& player->camtiltpitch > -0.001f && player->camtiltpitch < 0.001f) {
+			&& player->camtiltpitch > -0.001f && player->camtiltpitch < 0.001f
+			&& hiproll > -0.001f && hiproll < 0.001f) {
 		player->camtiltroll = 0;
 		player->camtiltpitch = 0;
 		return;
 	}
 
-	roll = player->camtiltroll * (M_PI / 180.0f);
+	roll = (player->camtiltroll + hiproll) * (M_PI / 180.0f);
 	pitch = player->camtiltpitch * (M_PI / 180.0f);
 
 	up = *camup;
@@ -6154,6 +6224,85 @@ void playerAllocateMatrices(struct coord *cam_pos, struct coord *cam_look, struc
 	playerSetGlobalDrawCameraOffset();
 }
 
+#ifndef PLATFORM_N64
+/**
+ * Third person: point the body's gun at what the reticle is over, not along
+ * the reticle's ray.
+ *
+ * shootrotx/shootroty are read off the crosshair's ray from the camera, which
+ * is right while the camera is the eye. With the camera pulled back, the body
+ * aiming along that same ray points parallel to the shot and to one side of
+ * it by the camera distance times the sine of how far off-centre the reticle
+ * is - most of a body width at the edge of a free-aim zone. So the direction
+ * is rebuilt from the eye to a point down the reticle's ray, in the camera
+ * space the caller expects. The point is the one the first person view gun
+ * aims at, 1000 units out (bgunSwivel's bgunSetAimPos), so near walls still
+ * see the same small error the view gun does.
+ *
+ * Leaves dir alone outside third person.
+ */
+static void playerConvergeShootDir(struct coord *dir)
+{
+	struct player *player = g_Vars.currentplayer;
+	struct coord off;
+	struct coord look = player->cam_look;
+	struct coord up = player->cam_up;
+	struct coord right;
+	struct coord eye;
+	f32 len;
+	f32 d;
+
+	if (!playerGetCameraToEyeOffset(&off)) {
+		return;
+	}
+
+	// an orthonormal camera basis from look and up
+	len = sqrtf(look.x * look.x + look.y * look.y + look.z * look.z);
+
+	if (len < 0.0001f) {
+		return;
+	}
+
+	look.x /= len;
+	look.y /= len;
+	look.z /= len;
+
+	right.x = look.y * up.z - look.z * up.y;
+	right.y = look.z * up.x - look.x * up.z;
+	right.z = look.x * up.y - look.y * up.x;
+	len = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
+
+	if (len < 0.0001f) {
+		return;
+	}
+
+	right.x /= len;
+	right.y /= len;
+	right.z /= len;
+
+	up.x = right.y * look.z - right.z * look.y;
+	up.y = right.z * look.x - right.x * look.z;
+	up.z = right.x * look.y - right.y * look.x;
+
+	// the eye in camera space: +x right, +y up, -z forward
+	eye.x = off.x * right.x + off.y * right.y + off.z * right.z;
+	eye.y = off.x * up.x + off.y * up.y + off.z * up.z;
+	eye.z = -(off.x * look.x + off.y * look.y + off.z * look.z);
+
+	len = sqrtf(dir->x * dir->x + dir->y * dir->y + dir->z * dir->z);
+
+	if (len < 0.0001f) {
+		return;
+	}
+
+	d = 1000.0f / len;
+
+	dir->x = dir->x * d - eye.x;
+	dir->y = dir->y * d - eye.y;
+	dir->z = dir->z * d - eye.z;
+}
+#endif
+
 Gfx *playerUpdateShootRot(Gfx *gdl)
 {
 	struct coord sp3c;
@@ -6167,6 +6316,9 @@ Gfx *playerUpdateShootRot(Gfx *gdl)
 			&g_Vars.currentplayer->cam_look,
 			&g_Vars.currentplayer->cam_up);
 	bgun0f0a0c08(&sp30, &sp3c);
+#ifndef PLATFORM_N64
+	playerConvergeShootDir(&sp3c);
+#endif
 	y = sp3c.y;
 
 	value = sqrtf(sp3c.z * sp3c.z + sp3c.x * sp3c.x);

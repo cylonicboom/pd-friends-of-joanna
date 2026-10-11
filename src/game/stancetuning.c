@@ -46,6 +46,17 @@ s32 g_BuildSpeedEnabled = true;
 f32 g_BuildSpeedRef = BUILD_SPEED_REF;
 f32 g_BuildCrouchMix = BUILD_CROUCH_MIX;
 
+f32 g_HipSwaySide = HIPSWAY_SIDE;
+f32 g_HipSwayRoll = HIPSWAY_ROLL;
+f32 g_HipSwayShape = HIPSWAY_SHAPE;
+f32 g_HipSwayPhase = HIPSWAY_PHASE;
+f32 g_HipSwaySpeedCurve = HIPSWAY_SPEEDCURVE;
+f32 g_WanderRest = WANDER_REST;
+f32 g_WanderMove = WANDER_MOVE;
+f32 g_WanderRate = WANDER_RATE;
+f32 g_WanderSpeedCurve = WANDER_SPEEDCURVE;
+f32 g_WanderStride = WANDER_STRIDE;
+
 /**
  * Whether fojo movement is on.
  *
@@ -104,6 +115,24 @@ void stanceTuningReset(void)
 	g_BuildSpeedEnabled = true;
 	g_BuildSpeedRef = BUILD_SPEED_REF;
 	g_BuildCrouchMix = BUILD_CROUCH_MIX;
+}
+
+/**
+ * The Fojo Sway panel's reset: the curve knobs back where they shipped. The
+ * per-player gains are Game options and are left alone.
+ */
+void swayTuningReset(void)
+{
+	g_HipSwaySide = HIPSWAY_SIDE;
+	g_HipSwayRoll = HIPSWAY_ROLL;
+	g_HipSwayShape = HIPSWAY_SHAPE;
+	g_HipSwayPhase = HIPSWAY_PHASE;
+	g_HipSwaySpeedCurve = HIPSWAY_SPEEDCURVE;
+	g_WanderRest = WANDER_REST;
+	g_WanderMove = WANDER_MOVE;
+	g_WanderRate = WANDER_RATE;
+	g_WanderSpeedCurve = WANDER_SPEEDCURVE;
+	g_WanderStride = WANDER_STRIDE;
 }
 
 #endif
