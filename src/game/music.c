@@ -344,7 +344,51 @@ void musicRestoreInterval(void)
 #define PRIMARYTRACK() (g_TemporaryPrimaryTrack != -1 ? g_TemporaryPrimaryTrack : stageGetPrimaryTrack(g_MusicStageNum))
 #define AMBIENTTRACK() (g_TemporaryAmbientTrack != -1 ? g_TemporaryAmbientTrack : stageGetAmbientTrack(g_MusicStageNum))
 
+/**
+ * From the pausing-optional mod (neonnyan-github-public/mod/pausing-optional,
+ * aae9e4805), which is where this was already worked out: with pausing off
+ * the level's music must not start while a menu is up, because nothing will
+ * pause it again.
+ *
+ * reason 0: stock callers. Not while a menu root is active, and not in the
+ * Institute while any stage flag other than CI_IN_TRAINING is set.
+ * reason 1: coming back from training, which starts it regardless.
+ */
+static void musicStartPrimaryNow(f32 arg0);
+
+void musicStartPrimaryWithReason(f32 arg0, s8 reason)
+{
+	MUSICDIAG("musicStartPrimaryWithReason reason=%d menuroot=%d stageflags=%08x", (s32)reason, (s32)menuGetRoot(), g_StageFlags);
+#ifndef PLATFORM_N64
+	if (g_MusicSuppressed) {
+		return;
+	}
+
+	if (reason == 1) {
+		musicStartPrimaryNow(arg0);
+		return;
+	}
+
+	if (g_Vars.stagenum == STAGE_CITRAINING) {
+		if (g_StageFlags & ~STAGEFLAG_CI_IN_TRAINING) {
+			return;
+		}
+	}
+
+	if (menuGetRoot()) {
+		return;
+	}
+#endif
+
+	musicStartPrimaryNow(arg0);
+}
+
 void musicStartPrimary(f32 arg0)
+{
+	musicStartPrimaryWithReason(arg0, 0);
+}
+
+static void musicStartPrimaryNow(f32 arg0)
 {
 	MUSICDIAG("musicStartPrimary");
 #ifndef PLATFORM_N64
@@ -749,7 +793,7 @@ void musicPlayDefaultTracks(void)
 	MUSICDIAG("musicPlayDefaultTracks");
 	musicQueueStopEvent(TRACKTYPE_PRIMARY);
 	musicQueueStopEvent(TRACKTYPE_AMBIENT);
-	musicStartPrimary(0.5f);
+	musicStartPrimaryWithReason(0.5f, 1);
 }
 
 /**
@@ -805,26 +849,7 @@ void musicEndCutscene(void)
 	if (!g_IsTitleDemo) {
 		musicQueueStopEvent(TRACKTYPE_PRIMARY);
 		musicQueueStopEvent(TRACKTYPE_AMBIENT);
-
 		musicStartPrimary(0.5f);
-
-#ifndef PLATFORM_N64
-		// A menu that opened over the last frames of the cutscene has already
-		// faded the primary track to paused and started its own, and that
-		// pause went to the cutscene's track, which the stop above has just
-		// taken away. The level's track is started regardless, and paused the
-		// way musicStartTrackAsMenu() would have paused it had it been there.
-		//
-		// Not starting it at all was tried and is worse: musicEndMenu() then
-		// has to start it from nothing, where every other close of a menu
-		// resumes a paused one, and with a track being started on the same
-		// tick the menu track's fade out never finished - the channel sat
-		// there not in use and still playing until the next menu stopped it.
-		if (g_MenuTrack != -1) {
-			MUSICDIAG("  menu track %d is up, primary started paused", g_MenuTrack);
-			musicQueueFadeEvent(TRACKTYPE_PRIMARY, 0.5f, FADETYPE_PAUSE);
-		}
-#endif
 	}
 }
 

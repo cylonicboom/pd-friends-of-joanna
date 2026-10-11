@@ -2783,7 +2783,11 @@ void playerTickPauseMenu(void)
 		if (g_Vars.currentplayer->pausetime60 >= 20) {
 			lvSetPaused(false);
 			g_Vars.currentplayer->pausemode = PAUSEMODE_UNPAUSED;
-			musicEndMenu();
+
+			// pausing-optional mod: only when no menu is left open
+			if (!g_MenuData.count) {
+				musicEndMenu();
+			}
 		}
 		break;
 	}
@@ -2802,7 +2806,14 @@ void playerUnpause(void)
 {
 	if (g_Vars.currentplayer->pausemode == PAUSEMODE_PAUSED) {
 		lvSetPaused(false);
-		musicEndMenu();
+
+		// pausing-optional mod: a menu root handing over to the next one
+		// comes through here with a dialog still open, and ending the menu
+		// music then is what started the level's under it.
+		if (!g_MenuData.count) {
+			musicEndMenu();
+		}
+
 		g_Vars.currentplayer->pausemode = PAUSEMODE_UNPAUSED;
 	}
 }
