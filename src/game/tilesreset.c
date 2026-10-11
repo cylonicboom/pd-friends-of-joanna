@@ -23,6 +23,11 @@ void tilesReset(void)
 	g_TileRooms = g_TileFileData.u32 + 1;
 
 	stageParseTiles();
+
+#ifndef PLATFORM_N64
+	// the editor's tile mesh was built from the previous file (tilesrender.c)
+	tilesRenderInvalidate();
+#endif
 }
 
 #define mult6(a) (((a) << 1) + ((a) << 2))
