@@ -188,6 +188,31 @@ void _n_collectPVoices(void)
 	}
 }
 
+#ifndef PLATFORM_N64
+// MUSICDIAG (#396) - temporary probe: what the synth itself has, whoever
+// thinks they own it. out: alloc, alloc playing, alloc ownerless, lame,
+// lame playing
+void n_alSynDiagVoices(s32 *out)
+{
+	ALLink *dl;
+
+	out[0] = out[1] = out[2] = out[3] = out[4] = 0;
+
+	for (dl = n_syn->pAllocList.next; dl != 0 && out[0] < 512; dl = dl->next) {
+		N_PVoice *pv = (N_PVoice *)dl;
+		out[0]++;
+		if (pv->em_motion == AL_PLAYING) out[1]++;
+		if (pv->vvoice == NULL) out[2]++;
+	}
+
+	for (dl = n_syn->pLameList.next; dl != 0 && out[3] < 512; dl = dl->next) {
+		N_PVoice *pv = (N_PVoice *)dl;
+		out[3]++;
+		if (pv->em_motion == AL_PLAYING) out[4]++;
+	}
+}
+#endif
+
 void _n_freePVoice(N_PVoice *pvoice)
 {
 	/*
