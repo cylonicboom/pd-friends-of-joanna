@@ -2777,6 +2777,30 @@ void titleTickProfileSelect(void) {
 	menuTick();
 #ifndef PLATFORM_N64
 	{
+		// DLGDIAG (#398) - temporary probe: once a second while more than
+		// the picker is open anywhere, and whenever the total changes
+		extern void menuDiagDumpDialogs(const char *why);
+		static s32 lasttotal = -1;
+		static s32 since = 0;
+		s32 total = 0;
+		s32 m;
+
+		for (m = 0; m < MAX_PLAYERS; m++) {
+			total += g_Menus[m].numdialogs;
+		}
+
+		since++;
+
+		if (total != lasttotal) {
+			menuDiagDumpDialogs("change");
+			lasttotal = total;
+			since = 0;
+		} else if (total >= 2 && since >= 60) {
+			menuDiagDumpDialogs("second");
+			since = 0;
+		}
+	}
+	{
 		// NAMEDIAG (#352) - temporary probe: Player 1's name bytes, on change
 		static char last[15];
 		static s32 seen = 0;
