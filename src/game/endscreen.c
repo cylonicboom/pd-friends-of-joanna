@@ -460,6 +460,49 @@ char *endscreenMenuTextMissionStatus(struct menuitem *item)
 	return langGet(L_OPTIONS_294); // "Completed"
 }
 
+#ifndef PLATFORM_N64
+/**
+ * Whether anyone on this player's side of a team mission aborted.
+ *
+ * Sides are read from the slot arrays, which are the truth: a counter-op is a
+ * non-NULL antiplayers[slot], and everyone else - the operative and every
+ * coopplayers[slot] - is the other side. False outside team missions, where
+ * there is no side to speak of and stock's own answer stands.
+ */
+static bool endscreenIsTeamAborted(s32 playernum)
+{
+	s32 i;
+
+	if (!g_MissionConfig.isteam || playernum < 0 || playernum >= MAX_PLAYERS) {
+		return false;
+	}
+
+	if (g_Vars.antiplayers[playernum]) {
+		for (i = 0; i < MAX_PLAYERS; i++) {
+			if (g_Vars.antiplayers[i] && g_Vars.antiplayers[i]->aborted) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	if (g_Vars.bondplayernum >= 0 && g_Vars.bondplayernum < MAX_PLAYERS
+			&& g_Vars.players[g_Vars.bondplayernum]
+			&& g_Vars.players[g_Vars.bondplayernum]->aborted) {
+		return true;
+	}
+
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.coopplayers[i] && g_Vars.coopplayers[i]->aborted) {
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif
+
 char *endscreenMenuTextAgentStatus(struct menuitem *item)
 {
 #ifndef PLATFORM_N64
@@ -476,6 +519,15 @@ char *endscreenMenuTextAgentStatus(struct menuitem *item)
 	if (g_Vars.currentplayer->aborted) {
 		return langGet(L_OPTIONS_292); // "Disavowed"
 	}
+
+#ifndef PLATFORM_N64
+	// In a team mission an abort is the team's: anyone on this player's side
+	// walking out disavows all of them. Mission Status above has always read
+	// it that way; Agent Status only looked at the player whose screen it is.
+	if (endscreenIsTeamAborted(g_Vars.currentplayernum)) {
+		return langGet(L_OPTIONS_292); // "Disavowed"
+	}
+#endif
 
 	if (g_Vars.currentplayer->isdead) {
 		return langGet(L_OPTIONS_290); // "Deceased"
