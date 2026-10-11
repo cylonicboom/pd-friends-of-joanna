@@ -143,6 +143,23 @@ static inline s32 ftLookupInMod(const char *name, u32 nameLen, s32 modNum)
 	return fallback;
 }
 
+// Does `modNum`'s OWN table declare this name - as an entry's name or as its
+// alias? No global fallback: the question is whether the mod spoke for the
+// name itself. The loose-file walk asks it before serving a file out of a
+// mod's directory as some other mod's: a name the mod declared is that mod's
+// asset under that mod's id, however the file is spelled on disk, and is not
+// a loose override of whatever vanilla file happens to share the spelling.
+static inline bool ftDeclaredByMod(const char *name, u32 nameLen, s32 modNum)
+{
+	u32 bucket = ftHash(name, nameLen);
+	for (struct ftEntry *e = ftBuckets[bucket]; e; e = e->next) {
+		if (e->ownerMod == (s8)modNum && e->nameLen == nameLen && !strncmp(e->name, name, nameLen)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static inline void ftReset(void)
 {
 	memset(ftBuckets, 0, sizeof(ftBuckets));
@@ -3030,6 +3047,37 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 
 					if (resolvedName[0] == '\0') {
 						continue; // No match for this mod
+					}
+
+					// A file this mod DECLARED is not a loose file. A mod whose
+					// table names files/PwindowZ as Pwindow_<slug>Z (alias
+					// PwindowZ, self-sourced) has claimed that path for its own
+					// id; the bytes are its, under its name, and must not be
+					// served as mod 0's PwindowZ just because the spelling on
+					// disk matches. slugmod used to hide this by renaming the
+					// file; --keep-paths leaves upstream spellings in place and
+					// so the walk has to honour the declaration instead. A mod
+					// that means to override a vanilla file declares it on the
+					// vanilla id, and the declared-source lane above already
+					// served that. Only another mod's loose file is examined
+					// here: a mod's own directory is still its own.
+					if (i != modNum && ftPoolUsed > 0) {
+						const char *base = strrchr(resolvedName, '/');
+						base = base ? base + 1 : resolvedName;
+
+						if (ftDeclaredByMod(base, (u32)strlen(base) + 1, i)) {
+							static s32 s_declaredSkips = 0;
+
+							if (s_declaredSkips < 16) {
+								++s_declaredSkips;
+								sysLogPrintf(LOG_NOTE,
+										"romdataFileLoad: file %d (%s) is mod %d's; mod %d (%s) ships a %s but declares it as its own, so it is not an override%s",
+										fileNum, resolvedName, modNum, i, modName, base,
+										s_declaredSkips == 16 ? " [further declared-name skips not logged]" : "");
+							}
+
+							continue;
+						}
 					}
 
 					// If resolvedName already starts with "files/", don't prepend ROMDATA_FILEDIR
