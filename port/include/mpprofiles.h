@@ -41,6 +41,27 @@ s32 mpProfileSetHeadBody(const struct fileguid *guid, s32 head, s32 body);
 s32 mpProfileGetOperative(const struct fileguid *guid);
 s32 mpProfileSetOperative(const struct fileguid *guid, s32 index);
 
+// Seats. A seat holds one profile or its engine default (deviceserial
+// 0xFFFF). Seats only change between missions - in the institute, the title
+// or the menus stage - because the end of a match or mission saves whoever is
+// seated; mid-mission joins are hot join's.
+#define MPPROFILE_SEAT_OK         0
+#define MPPROFILE_SEAT_BADARGS   -1
+#define MPPROFILE_SEAT_PAKERROR  -2 // nothing moved
+#define MPPROFILE_SEAT_ELSEWHERE -3 // the profile is in another seat
+#define MPPROFILE_SEAT_LOCKED    -4 // a mission or match is running
+
+// nonzero while seats cannot change
+s32 mpProfileSeatsLocked(void);
+
+// Put the profile in the seat. Whoever was there is saved and released
+// first; if the profile then fails to load they are put back.
+s32 mpProfileSeat(const struct fileguid *guid, s32 seat);
+
+// Save the seat's profile and give the seat back its default. Refused, with
+// the profile still seated, if the save fails.
+s32 mpProfileUnseat(s32 seat);
+
 #ifdef __cplusplus
 }
 #endif

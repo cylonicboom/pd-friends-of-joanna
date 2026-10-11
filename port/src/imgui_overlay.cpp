@@ -7202,7 +7202,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL, kFojoDev  },
 	{ "Saves",       "Fojo Saves",       &g_ImGuiOverlayShowSaves,       imguiOverlayDrawSavesPanel,       520.0f, 420.0f, 0.5f, 0.50f, NULL, kFojoDev  },
 	{ "Players",     "Fojo Players",     &g_ImGuiOverlayShowPlayers,     imguiOverlayDrawPlayersPanel,     420.0f, 340.0f, 0.5f, 0.35f, NULL, kFojoUser },
-	{ "ExtOptions",  "Fojo Extended Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL, kFojoUser },
+	{ "ExtOptions",  "Fojo Options", &g_ImGuiOverlayShowExtOptions, imguiExtOptionsDrawPanel,  560.0f, 620.0f, 0.5f, 0.40f, NULL, kFojoUser },
 	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL, kFojoUser },
 	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL, kFojoDev  },
 };
@@ -9574,6 +9574,7 @@ void imguiOverlayRender(void)
 	imguiOverlayRunLuaRequests();
 	imguiOverlayRunSaveRequests();
 	imguiOverlayRunPlayerRequests();
+	imguiProfilesRunRequests();
 }
 
 bool imguiOverlayCapturesKeyboard(void)
