@@ -3,6 +3,7 @@
 #include "game/bondmove.h"
 #include "game/game_096b20.h"
 #include "game/bondhead.h"
+#include "game/player.h"
 #include "bss.h"
 #include "lib/rng.h"
 #include "lib/mtx.h"
@@ -289,6 +290,20 @@ void bheadAdjustAnimation(f32 speed)
 			break;
 		}
 	}
+
+#ifndef PLATFORM_N64
+	// oldframe is the frame footstepCheckDefault() last saw, and it is how a
+	// step is told from the frame after a step: "now past the footfall, and
+	// was not before". This writes the HEAD BOB's frame into it - a different
+	// model, on its own loop - which stock gets away with because nothing was
+	// reading a first person player's oldframe. A body that is being animated
+	// is read every tick, and with the bob's frame standing in for its own
+	// the answer is "was not before" for as long as the bob sits below the
+	// footfall: a step a frame, nine or ten in a row, twice a stride.
+	if (playerBodyIsAnimated(g_Vars.currentplayer)) {
+		return;
+	}
+#endif
 
 	chr->oldframe = g_Vars.currentplayer->model.anim->frame;
 }
