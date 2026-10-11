@@ -9037,6 +9037,38 @@ void chrTickPunchHit(struct chrdata *chr)
 	gsetPopulateFromCurrentPlayer(chr->punchhithand, &gset);
 	handInflictMeleeDamage(chr->punchhithand, &gset, false);
 }
+
+/**
+ * Land a player's owed blow without waiting for the frame.
+ *
+ * The wait is for an animation, and an animation only moves while something is
+ * ticking the body. A swing thrown in third person and still in the air when
+ * the view goes back to the eye is owed by a body that has just stopped: the
+ * frame it is waiting for does not arrive until the camera steps back again,
+ * which may be never, or may be minutes later and into whoever is standing
+ * there by then. So it lands now, on the gunscript's timing, which is the
+ * timing a first person swing has always had.
+ */
+void chrLandPunchHitNow(struct chrdata *chr)
+{
+	struct gset gset;
+	s32 handnum;
+
+	if (chr == NULL || chr->punchhitframe <= 0 || chr->punchhithand < 0) {
+		return;
+	}
+
+	if (g_Vars.currentplayer == NULL || g_Vars.currentplayer->prop == NULL
+			|| g_Vars.currentplayer->prop->chr != chr) {
+		return;
+	}
+
+	handnum = chr->punchhithand;
+	chr->punchhitframe = 0;
+
+	gsetPopulateFromCurrentPlayer(handnum, &gset);
+	handInflictMeleeDamage(handnum, &gset, false);
+}
 #endif
 
 #ifndef PLATFORM_N64
