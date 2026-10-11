@@ -1000,17 +1000,47 @@ static inline s32 inputVkIsKbm(const u32 vk)
 	return vk < VK_JOY_BEGIN;
 }
 
+// Does this pad's bind set have any keyboard or mouse keys at all? The
+// engine's per-seat defaults for players 2-4 have none; a profile made at
+// player 1's seat carries player 1's.
+static s32 inputPadHasKbmBinds(const s32 idx)
+{
+	for (u32 ck = 0; ck < CK_TOTAL_COUNT; ck++) {
+		for (s32 i = 0; i < INPUT_MAX_BINDS; i++) {
+			const u32 vk = binds[idx][ck][i];
+			if (vk && inputVkIsKbm(vk)) {
+				return 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * The keyboard and mouse belong to one pad, the one whose seat holds them
+ * (inputKbmPad). Every other pad ignores keyboard and mouse keys in its binds.
+ *
+ * That used to be true only of pad 0. Binds follow the profile now, not the
+ * seat (seatprofile.h), and every profile made at player 1's seat carries
+ * player 1's keyboard and mouse binds, so a 4-player team mission with four
+ * profiles seated read the keyboard on all four pads at once.
+ *
+ * The holder reads its own keyboard binds, or, if its bind set has none (a
+ * seat default for players 2-4), player 1's.
+ */
 static inline s32 inputBindPressed(const s32 idx, const u32 ck)
 {
 	const s32 kbmpad = inputKbmPad();
+	s32 kbmsrc = -1;
+
+	if (idx == kbmpad) {
+		kbmsrc = (idx == 0 || inputPadHasKbmBinds(idx)) ? idx : 0;
+	}
 
 	for (s32 i = 0; i < INPUT_MAX_BINDS; ++i) {
 		const u32 vk = binds[idx][ck][i];
-		if (!vk) {
-			continue;
-		}
-		// player 1's keyboard and mouse have been handed to another pad
-		if (idx == 0 && kbmpad != 0 && inputVkIsKbm(vk)) {
+		if (!vk || inputVkIsKbm(vk)) {
 			continue;
 		}
 		if (inputKeyPressed(vk)) {
@@ -1018,11 +1048,9 @@ static inline s32 inputBindPressed(const s32 idx, const u32 ck)
 		}
 	}
 
-	// ...and this is that pad: read them from player 1's bind set. The pad's
-	// own keyboard binds, if anyone set any, still count above.
-	if (idx == kbmpad && idx != 0) {
+	if (kbmsrc >= 0) {
 		for (s32 i = 0; i < INPUT_MAX_BINDS; ++i) {
-			const u32 vk = binds[0][ck][i];
+			const u32 vk = binds[kbmsrc][ck][i];
 			if (vk && inputVkIsKbm(vk) && inputKeyPressed(vk)) {
 				return 1;
 			}
