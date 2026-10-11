@@ -5244,7 +5244,9 @@ static void mpplayerfileWriteBlankWad(struct savebuffer *buffer, char *name) {
 }
 
 s32 mpProfileCreateBlank(const char *name, struct fileguid *out) {
-  const s8 device = SAVEDEVICE_GAMEPAK;
+  // A page from the controller pak pool, which makes room when it has none.
+  // The game pak takes no player saves.
+  const s8 device = pakFindDeviceForNewFile(PAKFILETYPE_MPPLAYER);
   struct savebuffer buffer;
   u32 fileids[1024];
   s32 blankid = 0;
@@ -5252,6 +5254,10 @@ s32 mpProfileCreateBlank(const char *name, struct fileguid *out) {
   s32 newfileid = 0;
   char wadname[MPPROFILE_NAME_MAX + 1];
   s32 i;
+
+  if (device < 0) {
+    return -2;
+  }
 
   if (pakGetFileIdsByType(device, PAKFILETYPE_MPPLAYER, fileids) != 0) {
     return -1;
