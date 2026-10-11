@@ -1099,28 +1099,6 @@ static void inputChaosDelayApply(s32 idx, OSContPad *npad)
 	chaosDelayHead[idx]++;
 }
 
-u32 inputKeyboardButtons(s32 idx)
-{
-	u32 out = 0;
-
-	if (idx < 0 || idx >= MAXCONTROLLERS) {
-		return 0;
-	}
-
-	for (u32 i = 0; i < CONT_NUM_BUTTONS; ++i) {
-		for (s32 b = 0; b < INPUT_MAX_BINDS; ++b) {
-			const u32 vk = binds[idx][i][b];
-
-			if (vk && vk < VK_MOUSE_BEGIN && inputKeyPressed(vk)) {
-				out |= 1U << i;
-				break;
-			}
-		}
-	}
-
-	return out;
-}
-
 // [weightyaim] Motion sensors for gyro aiming. Fills gyro[3] (rad/s: pitch, yaw,
 // roll) and accel[3] (m/s^2, points up when the controller is at rest).
 // Returns 1 if the controller has a gyro, 0 otherwise.

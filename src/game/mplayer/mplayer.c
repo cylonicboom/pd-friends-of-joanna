@@ -229,6 +229,9 @@ struct mpweapon g_MpWeapons[NUM_MPWEAPONS] = {
       .crosshairedgeboundary = 0.7f,                                           \
       .crosshairhealth = CROSSHAIR_HEALTH_OFF,                                 \
       .usereloads = false,                                                     \
+      .weightyaimpreset = 3, /* WEIGHTYAIM_PRESET_CLASSIC: off */             \
+      .weightyaimassist = 1.f,                                                 \
+      .smoothreticle = false,                                                  \
   }
 
 struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {

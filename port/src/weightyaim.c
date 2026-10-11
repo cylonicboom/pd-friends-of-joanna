@@ -51,9 +51,11 @@
 #define SPRING_STEP (1.f / 240.f)
 
 struct weightyaimcfg g_WeightyAimCfg[4];
-struct weightyaimcfg g_WeightyAimCustomCfg[4][3];
-f32 g_WeightyAimAssistStrength[4];
-s32 g_WeightyAimSmoothReticle[4];     // Smooth Reticle, per player
+// fojo: Custom 1-3 are shared by every seat, [WeightyAim.Custom<n>]. Which
+// preset a player is on, their aim assist strength and Smooth Reticle are
+// Game options that follow their save file (seatprofile.c), read off
+// g_PlayerExtCfg: weightyaimpreset, weightyaimassist, smoothreticle.
+struct weightyaimcfg g_WeightyAimCustomCfg[WEIGHTYAIM_NUM_CUSTOM];
 s32 g_WeightyAimShowAdvancedFeel = 0; // Aim & Camera Feel: show the fine-tuning sliders too
 s32 g_WeightyAimForceOriginal = 0;     // Force Original Aim & Settings: 1:1 with the original game for everyone
 s32 g_WeightyAimForceMouseGyroStick = 0; // with Force Original Aim & Settings: mouse and gyro act as a stick
@@ -475,62 +477,26 @@ static const struct weightyaimcfg g_WeightyAimPresetArcade = {
 };
 
 /*
- * Reticle profiles. Reticle size, opacity and Smooth Reticle are the port's
- * per-player settings, not part of a preset. Arcade (and custom profiles made
- * from it) keep their own set: switching to it saves your normal reticle and
- * loads Arcade's, switching away brings yours back. Tweaks are kept in
- * whichever profile is live.
+ * Reticle profiles are not taken in fojo. His swap rewrites the seat's own
+ * reticle size and colour, which are save-file options here (seatprofile.c),
+ * so Arcade uses the player's reticle as it is.
  */
-struct weightyaimreticle {
-	s32 size;
-	s32 opacity;
-	s32 smooth;
-};
-
-static struct weightyaimreticle g_WeightyAimReticleProfiles[4][2];
-static s32 g_WeightyAimReticleLive[4]; // which profile the live reticle settings belong to
-
 void weightyAimSyncReticle(s32 cfgindex)
 {
-	const s32 idx = cfgindex & 3;
-	const s32 want = g_WeightyAimCfg[idx].reticleprofile ? 1 : 0;
-	const s32 have = g_WeightyAimReticleLive[idx] ? 1 : 0;
-	struct extplayerconfig *pc = &g_PlayerExtCfg[idx];
-	struct weightyaimreticle *out = &g_WeightyAimReticleProfiles[idx][have];
-	const struct weightyaimreticle *in = &g_WeightyAimReticleProfiles[idx][want];
-
-	if (want == have) {
-		return;
-	}
-
-	out->size = pc->crosshairsize;
-	out->opacity = pc->crosshaircolour & 0xff;
-	out->smooth = g_WeightyAimSmoothReticle[idx];
-
-	pc->crosshairsize = in->size;
-	pc->crosshaircolour = (pc->crosshaircolour & 0xffffff00) | (u32)(in->opacity & 0xff);
-	g_WeightyAimSmoothReticle[idx] = in->smooth;
-
-	g_WeightyAimReticleLive[idx] = want;
 }
 
 /**
  * Reset Reticle Settings: size, opacity, colour, colour by health and Smooth
- * Reticle back to their defaults. On Arcade's reticle that's Arcade's own
- * (bigger, more opaque, smooth), otherwise the game's usual reticle. Whether
- * the reticle shows (hip-fire / while aiming) belongs to the preset and is
- * left alone.
+ * Reticle back to the game's defaults.
  */
 void weightyAimResetReticle(s32 cfgindex)
 {
-	const s32 idx = cfgindex & 3;
-	const s32 arcade = g_WeightyAimReticleLive[idx] ? 1 : 0;
-	struct extplayerconfig *pc = &g_PlayerExtCfg[idx];
+	struct extplayerconfig *pc = &g_PlayerExtCfg[cfgindex & 3];
 
-	pc->crosshairsize = arcade ? 3 : 2;
-	pc->crosshaircolour = 0x00ff0000 | (arcade ? 0x50 : 0x28);
+	pc->crosshairsize = 2;
+	pc->crosshaircolour = 0x00ff0028;
 	pc->crosshairhealth = CROSSHAIR_HEALTH_OFF;
-	g_WeightyAimSmoothReticle[idx] = arcade;
+	pc->smoothreticle = 0;
 }
 
 void weightyAimApplyPreset(s32 cfgindex, s32 preset)
@@ -563,7 +529,7 @@ void weightyAimApplyPreset(s32 cfgindex, s32 preset)
 	default:
 		if (WEIGHTYAIM_IS_CUSTOM(preset) && preset < WEIGHTYAIM_NUM_PRESETS) {
 			const s32 slot = preset - WEIGHTYAIM_PRESET_CUSTOM1;
-			*cfg = g_WeightyAimCustomCfg[idx][slot];
+			*cfg = g_WeightyAimCustomCfg[slot];
 			cfg->preset = preset;
 			g_WeightyAimLastCustom[idx] = slot;
 		}
@@ -589,29 +555,14 @@ void weightyAimAimSettingsChanged(s32 cfgindex)
 	}
 
 	slot = cfg->preset - WEIGHTYAIM_PRESET_CUSTOM1;
-	g_WeightyAimCustomCfg[idx][slot] = *cfg;
+	g_WeightyAimCustomCfg[slot] = *cfg;
 	g_WeightyAimLastCustom[idx] = slot;
+	g_PlayerExtCfg[idx].weightyaimpreset = cfg->preset;
 }
 
 void weightyAimResetDefaults(s32 cfgindex)
 {
 	weightyAimApplyPreset(cfgindex, WEIGHTYAIM_PRESET_WEIGHTY);
-}
-
-void weightyAimInit(void)
-{
-	for (s32 j = 0; j < MAX_PLAYERS; j++) {
-		const s32 preset = g_WeightyAimCfg[j].preset;
-
-		// pd.ini keeps the live values of whichever preset was on, so a retuned
-		// built-in preset would otherwise never reach existing players
-		if (preset == WEIGHTYAIM_PRESET_WEIGHTY
-				|| preset == WEIGHTYAIM_PRESET_IMMERSIVE
-				|| preset == WEIGHTYAIM_PRESET_BORING
-				|| preset == WEIGHTYAIM_PRESET_ARCADE) {
-			weightyAimApplyPreset(j, preset);
-		}
-	}
 }
 
 static inline bool weightyAimCfgEnabled(const struct weightyaimcfg *cfg)
@@ -625,9 +576,29 @@ static inline f32 clampf(f32 v, f32 lo, f32 hi)
 	return v < lo ? lo : (v > hi ? hi : v);
 }
 
+/**
+ * fojo: the preset is a Game option on the seat's save file. A seat whose file
+ * changed, or a preset changed from the overlay or pd.ini, comes back in here
+ * with a different number, and the live values are rebuilt from it. Built-in
+ * presets always come from the code, so a retune reaches existing players
+ * (his weightyAimInit() did that once at boot).
+ */
+static void weightyAimSyncSeat(s32 idx)
+{
+	const s32 want = g_PlayerExtCfg[idx].weightyaimpreset;
+
+	if (want >= 0 && want < WEIGHTYAIM_NUM_PRESETS && g_WeightyAimCfg[idx].preset != want) {
+		weightyAimApplyPreset(idx, want);
+	}
+}
+
 static inline struct weightyaimcfg *weightyAimCurCfg(void)
 {
-	return &g_WeightyAimCfg[g_Vars.currentplayerstats->mpindex & 3];
+	const s32 idx = g_Vars.currentplayerstats->mpindex & 3;
+
+	weightyAimSyncSeat(idx);
+
+	return &g_WeightyAimCfg[idx];
 }
 
 static inline struct weightyaimstate *weightyAimCurState(void)
@@ -1446,9 +1417,9 @@ bool weightyAimHideCrosshair(void)
 		return false;
 	}
 
-	// aiming: Crosshair While Aiming
-	if (weightyAimHoldingAim(cfg)) {
-		return !cfg->aimcrosshair;
+	// fojo: aiming belongs to the game and COD Style Aiming, crosshair included
+	if (g_Vars.currentplayer->insightaimmode) {
+		return false;
 	}
 
 	// hip-fire: Crosshair
@@ -1461,6 +1432,7 @@ bool weightyAimForceCrosshair(void)
 	bool wanted;
 
 	if (!weightyAimCfgEnabled(cfg)
+			|| g_Vars.currentplayer->insightaimmode
 			|| g_Vars.tickmode != TICKMODE_NORMAL
 			|| g_Vars.currentplayer->bondmovemode != MOVEMODE_WALK
 			|| g_Vars.currentplayer->isdead
@@ -1472,7 +1444,7 @@ bool weightyAimForceCrosshair(void)
 	// own Always Show Target option on, and the aiming crosshair only while
 	// every sight flag is clear (taking damage clears it for a moment, for one).
 	// When the setting says on, it's on.
-	wanted = weightyAimHoldingAim(cfg) ? cfg->aimcrosshair : cfg->crosshair == WEIGHTYAIM_CROSSHAIR_ALWAYS;
+	wanted = cfg->crosshair == WEIGHTYAIM_CROSSHAIR_ALWAYS;
 
 	return wanted;
 }
@@ -1497,7 +1469,7 @@ void weightyAimGetCrosshair(f32 *x, f32 *y)
 bool weightyAimSmoothReticle(void)
 {
 	// Force Original Aim & Settings keeps the original whole-pixel reticle
-	return !g_WeightyAimForceOriginal && g_WeightyAimSmoothReticle[g_Vars.currentplayerstats->mpindex & 3] != 0;
+	return !g_WeightyAimForceOriginal && PLAYER_EXTCFG().smoothreticle != 0;
 }
 
 bool weightyAimAssistAllowed(void)
@@ -1506,7 +1478,7 @@ bool weightyAimAssistAllowed(void)
 		return true;
 	}
 
-	return g_WeightyAimAssistStrength[g_Vars.currentplayerstats->mpindex & 3] > 0.001f;
+	return PLAYER_EXTCFG().weightyaimassist > 0.001f;
 }
 
 f32 weightyAimAssistScale(void)
@@ -1516,7 +1488,7 @@ f32 weightyAimAssistScale(void)
 		return 1.f;
 	}
 
-	return clampf(g_WeightyAimAssistStrength[g_Vars.currentplayerstats->mpindex & 3], 0.f, 1.f);
+	return clampf(PLAYER_EXTCFG().weightyaimassist, 0.f, 1.f);
 }
 
 /*
@@ -1728,41 +1700,21 @@ const char *weightyAimGyroStatusText(s32 cfgindex)
 }
 
 /*
- * Aim down sights
+ * Aim down sights, Move While Aiming and the aiming walk speed are not taken.
+ * In fojo aim mode belongs to the game and to COD Style Aiming (codaimfrac,
+ * viSetPerspectiveWithFov, bondmove's own move-while-aiming), and the speed
+ * cost of aiming to the stance (bwalkApplyAimSpeed, Stance.AimSpeed). What
+ * is left here is the auto-aim lock the hip-fire reticle needs.
  */
-
-static bool weightyAimIsFirearm(s32 weaponnum);
-
-static bool weightyAimAdsWeapon(s32 weaponnum)
-{
-	// the Farsight keeps its own auto-seeking aim mode
-	return weightyAimIsFirearm(weaponnum) && weaponnum != WEAPON_FARSIGHT;
-}
-
-/**
- * Can this player use Weighty Aim's aiming right now (walking, in control,
- * holding a gun that aiming applies to)?
- */
-static bool weightyAimCanAim(const struct weightyaimcfg *cfg)
-{
-	return weightyAimCfgEnabled(cfg)
-		&& g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK
-		&& g_Vars.tickmode == TICKMODE_NORMAL
-		&& weightyAimAdsWeapon(bgunGetWeaponNum(HAND_RIGHT));
-}
 
 bool weightyAimPrepareMove(struct movedata *movedata)
 {
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
 	struct weightyaimstate *st = weightyAimCurState();
-	const bool held = g_Vars.currentplayer->insightaimmode && weightyAimCanAim(cfg);
 
-	// Classic aim mode keeps the game's own aiming (the camera stops and the
-	// stick moves the crosshair); Modern keeps looking around
-	// with Weighty Aim. Aim down sights works on top of any of them.
-	st->held = held;
-	st->aiming = held && cfg->aimmode != WEIGHTYAIM_AIMMODE_CLASSIC;
-	st->adsheld = held && cfg->ads;
+	// Weighty Aim never takes over aim mode here, so it never eases into it
+	st->held = false;
+	st->aiming = false;
+	st->adsheld = false;
 
 	// Aim assist: the same conditions under which the game itself would pull the
 	// crosshair onto a target (auto-aim on for this weapon, not in aim mode, a
@@ -1777,20 +1729,7 @@ bool weightyAimPrepareMove(struct movedata *movedata)
 			&& weaponHasAimFlag(weaponnum, INVAIMFLAG_AUTOAIM);
 	}
 
-	if (st->aiming) {
-		// keep looking around normally instead of the game's aim mode, where
-		// the camera freezes and the stick moves the crosshair
-		movedata->cannaturalturn = true;
-		movedata->cannaturalpitch = true;
-		movedata->canswivelgun = true;
-		movedata->canmanualaim = false;
-		movedata->aimturnleftspeed = 0.f;
-		movedata->aimturnrightspeed = 0.f;
-		movedata->speedvertaup = 0.f;
-		movedata->speedvertadown = 0.f;
-	}
-
-	return st->aiming;
+	return false;
 }
 
 s32 weightyAimDefaultAimMovement(s32 aimmode)
@@ -1804,160 +1743,6 @@ s32 weightyAimDefaultAimMovement(s32 aimmode)
 s32 weightyAimDefaultAimKeyboardMove(s32 aimmode)
 {
 	return aimmode != WEIGHTYAIM_AIMMODE_CLASSIC;
-}
-
-bool weightyAimAimKeyboardMoveWanted(void)
-{
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
-
-	return cfg->aimkbmove && weightyAimCanAim(cfg);
-}
-
-u32 weightyAimKeyboardButtons(s32 contpadnum)
-{
-	return inputKeyboardButtons(contpadnum);
-}
-
-bool weightyAimAimDpadMoveWanted(void)
-{
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
-
-	return (cfg->aimmovement == WEIGHTYAIM_AIMMOVE_DPAD || cfg->aimmovement == WEIGHTYAIM_AIMMOVE_BOTH)
-		&& weightyAimCanAim(cfg);
-}
-
-bool weightyAimAimStickMoveWanted(void)
-{
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
-
-	return (cfg->aimmovement == WEIGHTYAIM_AIMMOVE_STICK || cfg->aimmovement == WEIGHTYAIM_AIMMOVE_BOTH)
-		&& weightyAimCanAim(cfg);
-}
-
-void weightyAimApplyMoveSpeed(void)
-{
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
-	const struct weightyaimstate *st = weightyAimCurState();
-	f32 mult;
-
-	// any aim mode, as long as something can walk while aiming
-	if (!st->held || (cfg->aimmovement == WEIGHTYAIM_AIMMOVE_OFF && !cfg->aimkbmove)) {
-		return;
-	}
-
-	mult = 1.f + (clampf(cfg->adsmovespeed, 0.1f, 1.f) - 1.f) * weightyAimAdsAmount(st);
-
-	g_Vars.currentplayer->speedforwards *= mult;
-	g_Vars.currentplayer->speedsideways *= mult;
-
-	// no building up the sprint boost while aiming
-	g_Vars.currentplayer->speedmaxtime60 = 0;
-}
-
-/**
- * How far the gun is brought up for aiming down sights (0..1, eased).
- */
-static f32 weightyAimSightsAmount(const struct weightyaimcfg *cfg, const struct weightyaimstate *st)
-{
-	return weightyAimCfgEnabled(cfg) && cfg->ads && st->adsheld ? weightyAimAdsAmount(st) : 0.f;
-}
-
-f32 weightyAimAdjustZoomFov(f32 zoomfov)
-{
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
-	const struct weightyaimstate *st = weightyAimCurState();
-	f32 amount, zoom;
-
-	// only zoom guns without their own scope zoom
-	if (!weightyAimCfgEnabled(cfg) || zoomfov < PLAYER_DEFAULT_FOV - 0.01f) {
-		return zoomfov;
-	}
-
-	// Sights Zoom applies to any aiming, with or without Aim Down Sights
-	amount = weightyAimAdsAmount(st);
-	zoom = cfg->adszoom;
-
-	if (amount <= 0.f) {
-		return zoomfov;
-	}
-
-	return zoomfov / (1.f + (clampf(zoom, 1.f, 3.f) - 1.f) * amount);
-}
-
-/**
- * Aim down sights: bring the gun in low and centred on its line of fire,
- * Doom style.
- *
- * The gun is moved onto the line from the eye to wherever you're aiming (the
- * crosshair doesn't have to be in the middle of the screen), then dropped by
- * Gun Height. The game turns the gun model to point at the spot it will hit
- * from wherever it ends up, so it keeps pointing where the shots go.
- *
- * Instead of hand-tuning every weapon, the barrel's offset from the gun's
- * origin is measured from last frame.
- */
-void weightyAimAdjustGunPos(struct hand *hand, s32 handnum, struct coord *pos)
-{
-	const struct weightyaimcfg *cfg = weightyAimCurCfg();
-	struct weightyaimstate *st = weightyAimCurState();
-	const f32 ads = weightyAimSightsAmount(cfg, st);
-	const f32 gunzoom = currentPlayerGetGunZoomFov();
-
-	if (handnum != HAND_RIGHT) {
-		return;
-	}
-
-	// scoped weapons keep their scope view; dual wielding keeps both guns apart
-	if (ads > 0.f && !(gunzoom > 0.f && gunzoom < PLAYER_DEFAULT_FOV - 0.01f)
-			&& !g_Vars.currentplayer->hands[HAND_LEFT].inuse) {
-		f32 rel[3];
-		f32 target[2];
-		f32 depth;
-		struct coord aimdir;
-		bool relok = false;
-
-		if (st->gunposvalid) {
-			rel[0] = hand->muzzlemat.m[3][0] - st->gunpos[0];
-			rel[1] = hand->muzzlemat.m[3][1] - st->gunpos[1];
-			rel[2] = hand->muzzlemat.m[3][2] - st->gunpos[2];
-			relok = bc_fabsf(rel[0]) < 60.f && bc_fabsf(rel[1]) < 60.f && bc_fabsf(rel[2]) < 120.f;
-		}
-
-		if (!relok) {
-			// no barrel to measure: a reasonable guess for a pistol-sized gun
-			rel[0] = 0.f;
-			rel[1] = 3.f;
-			rel[2] = -12.f;
-		}
-
-		depth = -(pos->z + rel[2]);
-
-		if (depth < 5.f) {
-			depth = 5.f;
-		}
-
-		// where the line of fire is at the barrel's depth (camera space, -z forward)
-		cam0f0b4c3c(g_Vars.currentplayer->crosspos, &aimdir, 1.f);
-
-		if (aimdir.z < -0.05f) {
-			target[0] = aimdir.x / -aimdir.z * depth;
-			target[1] = aimdir.y / -aimdir.z * depth;
-		} else {
-			target[0] = target[1] = 0.f;
-		}
-
-		// barrel on that line, a little below it, then Gun Height
-		target[0] += -rel[0];
-		target[1] += -rel[1] - depth * 0.021f + clampf(cfg->adsheight, -10.f, 10.f);
-
-		pos->x += (target[0] - pos->x) * ads;
-		pos->y += (target[1] - pos->y) * ads;
-	}
-
-	st->gunpos[0] = pos->x;
-	st->gunpos[1] = pos->y;
-	st->gunpos[2] = pos->z;
-	st->gunposvalid = true;
 }
 
 /*
@@ -2219,43 +2004,23 @@ PD_CONSTRUCTOR static void weightyAimConfigInit(void)
 	configRegisterInt("WeightyAim.ForceOriginalAiming", &g_WeightyAimForceOriginal, 0, 1);
 	configRegisterInt("WeightyAim.ForceMouseGyroAsStick", &g_WeightyAimForceMouseGyroStick, 0, 1);
 
+	// fojo: Custom 1-3, shared by every seat
+	for (s32 c = 0; c < WEIGHTYAIM_NUM_CUSTOM; c++) {
+		g_WeightyAimCustomCfg[c] = g_WeightyAimPresetWeighty;
+		g_WeightyAimCustomCfg[c].preset = WEIGHTYAIM_PRESET_CUSTOM1 + c;
+		snprintf(prefix, sizeof(prefix), "WeightyAim.Custom%d", c + 1);
+		weightyAimRegisterCfg(prefix, &g_WeightyAimCustomCfg[c]);
+	}
+
+	// Stick and gyro tuning is about the pad, not the person, so it stays with
+	// the seat, as Input.Player<n> does. The preset, aim assist strength and
+	// Smooth Reticle follow the save file instead (seatprofile.c).
 	for (s32 j = 0; j < MAX_PLAYERS; ++j) {
 		const s32 i = j + 1;
 
 		weightyAimResetDefaults(j);
 		g_WeightyAimStickCfg[j] = g_WeightyAimStickDefaults;
 		g_WeightyAimLastCustom[j] = 0;
-
-		for (s32 c = 0; c < WEIGHTYAIM_NUM_CUSTOM; c++) {
-			g_WeightyAimCustomCfg[j][c] = g_WeightyAimPresetWeighty;
-			g_WeightyAimCustomCfg[j][c].preset = WEIGHTYAIM_PRESET_CUSTOM1 + c;
-		}
-
-		configRegisterInt(strFmt("WeightyAim.Player%d.Preset", i), &g_WeightyAimCfg[j].preset, 0, WEIGHTYAIM_NUM_PRESETS - 1);
-		snprintf(prefix, sizeof(prefix), "WeightyAim.Player%d", i);
-		weightyAimRegisterCfg(prefix, &g_WeightyAimCfg[j]);
-
-		configRegisterInt(strFmt("WeightyAim.Player%d.LastCustom", i), &g_WeightyAimLastCustom[j], 0, WEIGHTYAIM_NUM_CUSTOM - 1);
-		g_WeightyAimAssistStrength[j] = 1.f;
-		configRegisterFloat(strFmt("WeightyAim.Player%d.AimAssistStrength", i), &g_WeightyAimAssistStrength[j], 0.f, 1.f);
-		g_WeightyAimSmoothReticle[j] = 0;
-		configRegisterInt(strFmt("WeightyAim.Player%d.SmoothReticle", i), &g_WeightyAimSmoothReticle[j], 0, 1);
-
-		// reticle profiles: your normal reticle, and Arcade's (smooth, a size up, more opaque)
-		g_WeightyAimReticleProfiles[j][0].size = 2;
-		g_WeightyAimReticleProfiles[j][0].opacity = 0x28;
-		g_WeightyAimReticleProfiles[j][0].smooth = 0;
-		g_WeightyAimReticleProfiles[j][1].size = 3;
-		g_WeightyAimReticleProfiles[j][1].opacity = 0x50;
-		g_WeightyAimReticleProfiles[j][1].smooth = 1;
-		g_WeightyAimReticleLive[j] = 0;
-		configRegisterInt(strFmt("WeightyAim.Player%d.ReticleLiveProfile", i), &g_WeightyAimReticleLive[j], 0, 1);
-		for (s32 r = 0; r < 2; r++) {
-			const char *name = r ? "Arcade" : "Normal";
-			configRegisterInt(strFmt("WeightyAim.Player%d.%sReticleSize", i, name), &g_WeightyAimReticleProfiles[j][r].size, 0, 4);
-			configRegisterInt(strFmt("WeightyAim.Player%d.%sReticleOpacity", i, name), &g_WeightyAimReticleProfiles[j][r].opacity, 0, 255);
-			configRegisterInt(strFmt("WeightyAim.Player%d.%sReticleSmooth", i, name), &g_WeightyAimReticleProfiles[j][r].smooth, 0, 1);
-		}
 
 		g_WeightyAimGyroCfg[j] = g_WeightyAimGyroDefaults;
 		configRegisterInt(strFmt("WeightyAim.Player%d.GyroMode", i), &g_WeightyAimGyroCfg[j].mode, 0, WEIGHTYAIM_NUM_GYROMODES - 1);
@@ -2269,11 +2034,6 @@ PD_CONSTRUCTOR static void weightyAimConfigInit(void)
 		configRegisterFloat(strFmt("WeightyAim.Player%d.GyroSmoothing", i), &g_WeightyAimGyroCfg[j].smoothing, 0.f, 30.f);
 		configRegisterInt(strFmt("WeightyAim.Player%d.GyroAutoCalibrate", i), &g_WeightyAimGyroCfg[j].autocalibrate, 0, 1);
 		configRegisterInt(strFmt("WeightyAim.Player%d.GyroPauseWithStick", i), &g_WeightyAimGyroCfg[j].pausewithstick, 0, 1);
-
-		for (s32 c = 0; c < WEIGHTYAIM_NUM_CUSTOM; c++) {
-			snprintf(prefix, sizeof(prefix), "WeightyAim.Player%d.Custom%d", i, c + 1);
-			weightyAimRegisterCfg(prefix, &g_WeightyAimCustomCfg[j][c]);
-		}
 
 		configRegisterInt(strFmt("WeightyAim.Player%d.StickCurve", i), &g_WeightyAimStickCfg[j].curve, 0, WEIGHTYAIM_NUM_CURVES - 1);
 		configRegisterFloat(strFmt("WeightyAim.Player%d.StickInnerDeadzone", i), &g_WeightyAimStickCfg[j].innerdeadzone, 0.f, 0.9f);

@@ -6576,6 +6576,9 @@ struct extplayerconfig {
   f32 crosshairedgeboundary;
   s32 crosshairhealth;
   s32 usereloads;
+  s32 weightyaimpreset; // Weighty Aim preset, WEIGHTYAIM_PRESET_*; 3 = Classic, off
+  f32 weightyaimassist; // Weighty Aim: share of the game's own aim assist, 0..1
+  s32 smoothreticle;    // Weighty Aim: draw the reticle at quarter-pixel steps
 };
 
 struct setupblock {

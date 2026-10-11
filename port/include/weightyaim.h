@@ -13,6 +13,12 @@
  * Everything lives in port/src/weightyaim.c and port/src/weightyaimmenu.c. The
  * game code only calls into it from a couple of marked hooks, and with
  * the Classic preset the original code path runs untouched.
+ *
+ * fojo: from Kabosune's Weighty Aim. Hip-fire only - aim mode, aim down
+ * sights and moving while aiming are the game's and COD Style Aiming's. The
+ * preset, aim assist strength and Smooth Reticle are Game options on the
+ * seat's save file (seatprofile.c, extplayerconfig); Custom 1-3 are shared.
+ * weightyaimmenu.c is not taken.
  */
 
 #include <PR/ultratypes.h>
@@ -139,7 +145,6 @@ s32 weightyAimStickRange(s32 v); // N64 stick range for the Original curve and F
 extern s32 g_WeightyAimForceOriginal;       // Force Original Aim & Settings (all players): 1:1 with the original game
 extern s32 g_WeightyAimForceMouseGyroStick; // with it: mouse and gyro act as a stick (capped at full tilt)
 extern s32 g_WeightyAimShowAdvancedFeel; // Aim & Camera Feel shows the fine-tuning sliders
-extern f32 g_WeightyAimAssistStrength[4]; // 0..1 of what the game and difficulty allow (1 = game default, 0 = off)
 
 #define WEIGHTYAIM_GYRO_OFF     0
 #define WEIGHTYAIM_GYRO_ALWAYS  1
@@ -179,7 +184,7 @@ void weightyAimGyroMenuTick(s32 cfgindex);
 const char *weightyAimGyroStatusText(s32 cfgindex);
 
 extern struct weightyaimcfg g_WeightyAimCfg[4];            // live settings
-extern struct weightyaimcfg g_WeightyAimCustomCfg[4][3];     // saved Custom 1-3 profiles
+extern struct weightyaimcfg g_WeightyAimCustomCfg[WEIGHTYAIM_NUM_CUSTOM]; // Custom 1-3, shared by every seat
 extern s32 g_WeightyAimLastCustom[4];                        // custom profile edited from a built-in preset
 extern struct weightyaimstickcfg g_WeightyAimStickCfg[4];
 extern const char *g_WeightyAimCurveNames[WEIGHTYAIM_NUM_CURVES];
@@ -188,12 +193,6 @@ extern s32 g_WeightyAimDebugLog;       // write per-frame telemetry to weightyai
 extern s32 g_WeightyAimDebugPattern;   // replace look input with a scripted test pattern
 
 extern const char *g_WeightyAimPresetNames[WEIGHTYAIM_NUM_PRESETS];
-
-/*
- * Called once after pd.ini is loaded: the built-in presets can't be edited
- * (edits move you to a custom profile), so re-apply them to pick up retunes.
- */
-void weightyAimInit(void);
 
 void weightyAimResetDefaults(s32 cfgindex);
 void weightyAimApplyPreset(s32 cfgindex, s32 preset);
@@ -227,29 +226,15 @@ void weightyAimFilterLook(s32 *analogturn, s32 *analogpitch, f32 *freelookdx, f3
 struct hand;
 
 /*
- * Hook 1a (bondmove.c, just before hook 1): when aiming down sights, keep the
- * normal look controls instead of the game's aim mode (which freezes the
- * camera and moves the crosshair). Returns true while aiming down sights.
+ * Hook 1a (bondmove.c, just before hook 1): notes whether the game's auto-aim
+ * has a target for the hip-fire reticle this frame. In fojo it never takes
+ * over aim mode, and always returns false.
  */
 struct movedata;
 bool weightyAimPrepareMove(struct movedata *movedata);
 
-/*
- * Hook 1d (bondmove.c, PC control style input): Move While Aiming, whether
- * the d-pad / C buttons (WASD) and the move stick walk while holding aim
- * instead of the original stand-still-and-lean.
- */
-bool weightyAimAimDpadMoveWanted(void);
-bool weightyAimAimStickMoveWanted(void);
-bool weightyAimAimKeyboardMoveWanted(void);
-u32 weightyAimKeyboardButtons(s32 contpadnum); // N64 buttons held on the keyboard
 s32 weightyAimDefaultAimMovement(s32 aimmode);
 s32 weightyAimDefaultAimKeyboardMove(s32 aimmode);
-
-/*
- * Hook 1e (bondwalk.c, after the crouch speed): slow walking down while aiming.
- */
-void weightyAimApplyMoveSpeed(void);
 
 /*
  * Hook 5b (gunfx.c): whether the laser's beam and dot are shown right now
@@ -257,17 +242,6 @@ void weightyAimApplyMoveSpeed(void);
  */
 bool weightyAimLaserBeamShown(void);
 bool weightyAimLaserDotShown(void);
-
-/*
- * Hook 1b (bondmove.c, zoom): the field of view to zoom to this frame.
- */
-f32 weightyAimAdjustZoomFov(f32 zoomfov);
-
-/*
- * Hook 1c (bondgun.c, gun placement): moves the gun model toward the centre
- * of the screen, lined up with its barrel, while aiming down sights.
- */
-void weightyAimAdjustGunPos(struct hand *hand, s32 handnum, struct coord *pos);
 
 /*
  * Hook 6 (bondmove.c auto-aim checks and prop.c auto-aim window): aim assist
@@ -297,8 +271,7 @@ bool weightyAimHideCrosshair(void);
 bool weightyAimForceCrosshair(void);
 bool weightyAimSmoothReticle(void);
 void weightyAimSyncReticle(s32 cfgindex);
-void weightyAimResetReticle(s32 cfgindex); // reticle size, opacity, colour and smoothing back to defaults // swap in the reticle settings of the preset's reticle profile // Smooth Reticle: draw at quarter-pixel steps instead of whole N64 pixels
-extern s32 g_WeightyAimSmoothReticle[4];
+void weightyAimResetReticle(s32 cfgindex); // reticle size, opacity, colour and smoothing back to defaults
 
 /*
  * Hook 4 (bondgun.c, per hand each frame): true if Weighty Aim wants a laser
