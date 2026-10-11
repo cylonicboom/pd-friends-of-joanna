@@ -3843,11 +3843,13 @@ void menuClose(void)
 	// backdrop raised there is nothing to fade, so the fade never starts and the
 	// player never gets control back. do it here instead. a pending transition
 	// still owns the handoff, so leave that case alone.
+	// count comes down first: playerUnpause only ends the menu music once
+	// no menu is left, and this one is on its way out.
+	g_MenuData.count--;
+
 	if (g_MenuData.bg == 0 && g_MenuData.nextbg == 255) {
 		func0f0fa6ac();
 	}
-
-	g_MenuData.count--;
 
 	if (g_MenuData.root == MENUROOT_MPPAUSE && g_Vars.currentplayer->activemenumode == AMMODE_EDIT) {
 		g_Vars.currentplayer->activemenumode = AMMODE_VIEW;
