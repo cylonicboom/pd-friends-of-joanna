@@ -95,6 +95,7 @@ MenuItemHandlerResult menuhandlerSoloDifficulty(s32 operation, struct menuitem *
 MenuItemHandlerResult menuhandlerSoundMode(s32 operation, struct menuitem *item, union handlerdata *data);
 
 s32 fojoGetPlayerHead(s32 playernum);
+const char *fojoGetPlayerOperativeName(s32 playernum);
 void fojoInitHeadOptions(void);
 
 extern s32 g_FojoHeadOptions[NUM_FOJO_HEADS];
