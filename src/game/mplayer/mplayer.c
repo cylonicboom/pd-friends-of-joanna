@@ -5483,3 +5483,191 @@ s32 mpProfileSetOperative(const struct fileguid *guid, s32 operative) {
 
   return 0;
 }
+
+/*
+ * Seating a profile, and taking it back out.
+ *
+ * The save queue's dirty bit is per SEAT (g_MpProfileDirty), not per
+ * profile. A swap that left the bit to the next flush would commit whoever
+ * is sitting there by then - the incoming profile - and the outgoing one's
+ * unflushed edits would go nowhere. So the outgoing profile is written here,
+ * on the spot, and the bit cleared. "Written" means into the pak image in
+ * RAM (the EEPROM shadow or the controller pak page); the disk write is
+ * still the queue's, at the next idle frame, like every other save.
+ *
+ * Seats only change between missions: the end of a match or mission saves
+ * whichever profile is seated, so a swap under a live player would hand
+ * their stats to someone else. Mid-mission joins and drops are hot join's
+ * (hotjoin.c), which seats a free slot and rolls a leaver's stats up.
+ */
+
+extern s32 g_MainChangeToStageNum;
+void updatePlayerNames();
+void hotjoinInvalidateProfiles(void);
+
+s32 mpProfileSeatsLocked(void) {
+  if (g_Vars.mplayerisrunning || g_MainChangeToStageNum >= 0) {
+    return 1;
+  }
+
+  return g_Vars.stagenum != STAGE_CITRAINING && g_Vars.stagenum != STAGE_TITLE &&
+         g_Vars.stagenum != STAGE_4MBMENU;
+}
+
+static bool mpProfileSeatHasFile(s32 seat) {
+  const struct fileguid *guid = &g_PlayerConfigsArray[seat].fileguid;
+
+  return (guid->fileid || guid->deviceserial) && guid->deviceserial != 0xFFFF;
+}
+
+// The seat's profile, written to its pak image as it stands. Leaves the
+// profile seated. -1 if its pak cannot be found or the write failed.
+static s32 mpProfileCommitSeat(s32 seat) {
+  const struct fileguid *guid = &g_PlayerConfigsArray[seat].fileguid;
+  s32 device;
+
+  // the pd.ini half: head and body by name, for any profile with a section
+  mpProfileFlushSlotHashes(seat);
+
+  if (!mpProfileSeatHasFile(seat)) {
+    g_MpProfileDirty[seat] = 0;
+    return 0;
+  }
+
+  // The page is pinned while the profile is seated, so this finds it
+  // mounted; if something moved it, pakFindBySerial mounts it again.
+  device = pakFindBySerial(guid->deviceserial);
+
+  if (device < 0) {
+    sysLogPrintf(LOG_ERROR, "seat %d: pak %x for %x not found, not saved", seat + 1,
+                 guid->deviceserial, guid->fileid);
+    return -1;
+  }
+
+  if (mpplayerfileSave(seat, device, guid->fileid, guid->deviceserial) != 0) {
+    sysLogPrintf(LOG_ERROR, "seat %d: save of %x-%x failed (pak error %d)", seat + 1,
+                 guid->deviceserial, guid->fileid, g_FilemgrLastPakError);
+    return -1;
+  }
+
+  g_MpProfileDirty[seat] = 0;
+  return 0;
+}
+
+// Load a profile into an empty seat, the same sequence the DefaultProfile
+// loader and hot join run, with the target seat on both sides of the ini
+// registration.
+static s32 mpProfileLoadIntoSeat(const struct fileguid *guid, s32 seat) {
+  const s32 device = pakFindBySerial(guid->deviceserial);
+
+  if (device < 0) {
+    return -1;
+  }
+
+  if (mpplayerfileLoad(seat, device, guid->fileid, guid->deviceserial) != 0) {
+    // mpplayerfileLoad only binds the guid on success, but the wad may be
+    // half read; put the seat back to a clean default
+    mpPlayerSetDefaults(seat, true);
+    return -1;
+  }
+
+  iniProcessPendingProfiles();
+  iniRegisterPlayerSave(&g_PlayerConfigsArray[seat].fileguid, 1, seat);
+
+  // a fresh load is what is on the pak already
+  g_MpProfileDirty[seat] = 0;
+  return 0;
+}
+
+s32 mpProfileUnseat(s32 seat) {
+  if (seat < 0 || seat >= MAX_PLAYERS) {
+    return MPPROFILE_SEAT_BADARGS;
+  }
+
+  if (mpProfileSeatsLocked()) {
+    return MPPROFILE_SEAT_LOCKED;
+  }
+
+  if (!mpProfileSeatHasFile(seat)) {
+    return MPPROFILE_SEAT_OK;
+  }
+
+  // nothing is released until it is safely written
+  if (mpProfileCommitSeat(seat) != 0) {
+    return MPPROFILE_SEAT_PAKERROR;
+  }
+
+  // back to the seat's stand-in: detaches the profile's pd.ini keys, which
+  // keep their values for the config write the mark below asks for
+  mpPlayerSetDefaults(seat, true);
+  g_MpProfileDirty[seat] = 0;
+  updatePlayerNames();
+  hotjoinInvalidateProfiles();
+  saveQueueMarkConfig();
+
+  return MPPROFILE_SEAT_OK;
+}
+
+s32 mpProfileSeat(const struct fileguid *guid, s32 seat) {
+  struct fileguid prev;
+  bool hadprev;
+  s32 other;
+  s32 ret;
+
+  if (seat < 0 || seat >= MAX_PLAYERS || !guid || (!guid->fileid && !guid->deviceserial) ||
+      guid->deviceserial == 0xFFFF) {
+    return MPPROFILE_SEAT_BADARGS;
+  }
+
+  if (mpProfileSeatsLocked()) {
+    return MPPROFILE_SEAT_LOCKED;
+  }
+
+  other = mpProfileSeatOf(guid);
+
+  if (other == seat) {
+    return MPPROFILE_SEAT_OK;
+  }
+
+  // Two seats on one file would each save over the other. Moving it is a
+  // separate call (unseat there, seat here), not something to do silently.
+  if (other >= 0) {
+    return MPPROFILE_SEAT_ELSEWHERE;
+  }
+
+  prev = g_PlayerConfigsArray[seat].fileguid;
+  hadprev = mpProfileSeatHasFile(seat);
+
+  // Out before in: the outgoing profile's page stays pinned while it is
+  // seated, and with four seats on four pages nothing else could mount.
+  ret = mpProfileUnseat(seat);
+
+  if (ret != MPPROFILE_SEAT_OK) {
+    return ret;
+  }
+
+  if (mpProfileLoadIntoSeat(guid, seat) != 0) {
+    sysLogPrintf(LOG_ERROR, "seat %d: load of %x-%x failed", seat + 1, guid->deviceserial,
+                 guid->fileid);
+
+    // Leave the seat as it was. The outgoing profile was just written, so
+    // this reads back exactly what it had.
+    if (hadprev && mpProfileLoadIntoSeat(&prev, seat) != 0) {
+      sysLogPrintf(LOG_ERROR, "seat %d: could not put %x-%x back either", seat + 1,
+                   prev.deviceserial, prev.fileid);
+    }
+
+    updatePlayerNames();
+    hotjoinInvalidateProfiles();
+    saveQueueMarkConfig();
+    return MPPROFILE_SEAT_PAKERROR;
+  }
+
+  updatePlayerNames();
+  hotjoinInvalidateProfiles();
+  saveQueueMarkConfig();
+
+  sysLogPrintf(LOG_NOTE, "seat %d: %x-%x seated", seat + 1, guid->deviceserial, guid->fileid);
+
+  return MPPROFILE_SEAT_OK;
+}

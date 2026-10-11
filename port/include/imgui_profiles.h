@@ -5,4 +5,8 @@
 // profiles on the gamepak and set their head and body, seated or not.
 void imguiProfilesDrawPanel(void);
 
+// Seat changes asked for in the panel, run after the overlay has rendered:
+// a profile must not change seats half way through a frame.
+void imguiProfilesRunRequests(void);
+
 #endif
