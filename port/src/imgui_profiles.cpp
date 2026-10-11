@@ -9,6 +9,11 @@
 //    never edited
 //  - a profile loaded in a seat cannot be deleted
 //  - create makes a blank profile; there is no copy
+//  - a profile is seated in one seat at a time; seating saves and releases
+//    whoever was there first (mpProfileSeat), and is deferred to after the
+//    overlay renders, like hot join
+//  - and is refused while the save queue holds anything: an edit that has
+//    not been flushed yet must not be in flight when a seat changes hands
 
 #include <stdio.h>
 #include <string.h>
@@ -23,6 +28,7 @@
 #include "types.h"
 #include "mod.h"
 #include "mpprofiles.h"
+#include "savequeue.h"
 // types.h defines bool as s32 for the C side; ImGui wants the real thing
 #undef bool
 #undef true
@@ -64,6 +70,13 @@ static char g_ProfNewName[MPPROFILE_NAME_MAX + 1] = "";
 static char g_ProfEditName[MPPROFILE_NAME_MAX + 1] = "";
 static bool g_ProfConfirmDelete = false;
 static char g_ProfMessage[128] = "";
+static s32 g_ProfSeatPick = 0;        // the seat the Seat button targets
+
+// one seat change, run by imguiProfilesRunRequests after the frame
+enum { PROFREQ_NONE, PROFREQ_SEAT, PROFREQ_UNSEAT };
+static s32 g_ProfReq = PROFREQ_NONE;
+static struct fileguid g_ProfReqGuid = { 0, 0 };
+static s32 g_ProfReqSeat = -1;
 
 static void profCopyName(char *out, size_t outlen, const char *in)
 {
@@ -272,6 +285,134 @@ static void profDrawTable(void)
 	ImGui::EndTable();
 }
 
+static const char *profSeatError(s32 ret)
+{
+	switch (ret) {
+	case MPPROFILE_SEAT_PAKERROR:  return "pak error, nothing moved";
+	case MPPROFILE_SEAT_ELSEWHERE: return "already in another seat";
+	case MPPROFILE_SEAT_LOCKED:    return "seats change between missions";
+	default:                       return "bad seat or profile";
+	}
+}
+
+// who is in a seat, for the seat picker
+static void profSeatLabel(s32 seat, char *out, size_t outlen)
+{
+	const struct mpplayerconfig *cfg = &g_PlayerConfigsArray[seat];
+	const bool isdefault = (!cfg->fileguid.fileid && !cfg->fileguid.deviceserial)
+		|| cfg->fileguid.deviceserial == 0xFFFF;
+	char name[16];
+
+	profCopyName(name, sizeof(name), cfg->base.name);
+	snprintf(out, outlen, "%d: %s%s", seat + 1, name[0] ? name : "-", isdefault ? " (default)" : "");
+}
+
+static void profDrawSeat(const profilerow &row)
+{
+	char label[48];
+	const bool locked = mpProfileSeatsLocked() != 0;
+	const bool unsaved = saveQueueIsDirty() != 0;
+	const bool pending = g_ProfReq != PROFREQ_NONE || unsaved;
+
+	if (g_ProfSeatPick < 0 || g_ProfSeatPick >= MAX_PLAYERS) {
+		g_ProfSeatPick = 0;
+	}
+
+	ImGui::BeginDisabled(locked || pending);
+
+	profSeatLabel(g_ProfSeatPick, label, sizeof(label));
+	ImGui::SetNextItemWidth(ImGui::GetFontSize() * 9.0f);
+	if (ImGui::BeginCombo("##seatpick", label)) {
+		for (s32 p = 0; p < MAX_PLAYERS; p++) {
+			char opt[48];
+			profSeatLabel(p, opt, sizeof(opt));
+			ImGui::PushID(p);
+			if (ImGui::Selectable(opt, p == g_ProfSeatPick)) {
+				g_ProfSeatPick = p;
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(row.seat >= 0);
+	if (ImGui::Button("Seat")) {
+		g_ProfReq = PROFREQ_SEAT;
+		g_ProfReqGuid = row.guid;
+		g_ProfReqSeat = g_ProfSeatPick;
+	}
+	ImGui::EndDisabled();
+	if (row.seat >= 0 && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("Already in seat %d. Unseat it there first.", row.seat + 1);
+	}
+
+	if (row.seat >= 0) {
+		ImGui::SameLine();
+		if (ImGui::Button("Unseat")) {
+			g_ProfReq = PROFREQ_UNSEAT;
+			g_ProfReqGuid = row.guid;
+			g_ProfReqSeat = row.seat;
+		}
+	}
+
+	ImGui::EndDisabled();
+
+	if (locked) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("seats change between missions");
+	} else if (unsaved) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("saving...");
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Edits are waiting to be written. Seats unlock when the save queue\n"
+					"flushes (next idle frame, %u frames at most).",
+					saveQueueDeadlineFrames() - saveQueueFramesPending());
+		}
+	}
+}
+
+void imguiProfilesRunRequests(void)
+{
+	const s32 req = g_ProfReq;
+	s32 ret;
+
+	if (req == PROFREQ_NONE) {
+		return;
+	}
+
+	g_ProfReq = PROFREQ_NONE;
+	g_ProfStale = true;
+
+	// the panel greys the buttons, but the request runs a frame later and
+	// something may have been edited in between
+	if (saveQueueIsDirty()) {
+		profSay("%s", "edits still waiting to be written; nothing done");
+		return;
+	}
+
+	if (req == PROFREQ_UNSEAT) {
+		// only if the profile asked about is still the one there
+		if (mpProfileSeatOf(&g_ProfReqGuid) != g_ProfReqSeat) {
+			profSay("%s", "seat changed under the request; nothing done");
+			return;
+		}
+
+		ret = mpProfileUnseat(g_ProfReqSeat);
+	} else {
+		ret = mpProfileSeat(&g_ProfReqGuid, g_ProfReqSeat);
+	}
+
+	if (ret == MPPROFILE_SEAT_OK) {
+		char msg[64];
+		snprintf(msg, sizeof(msg), req == PROFREQ_SEAT ? "seated in %d" : "seat %d back to its default",
+				g_ProfReqSeat + 1);
+		profSay("%s", msg);
+	} else {
+		profSay("%s", profSeatError(ret));
+	}
+}
+
 static void profDrawEdit(void)
 {
 	if (g_ProfSel < 0 || g_ProfSel >= (s32)g_ProfRows.size()) {
@@ -287,6 +428,8 @@ static void profDrawEdit(void)
 	if (row.seat >= 0) {
 		ImGui::TextDisabled("loaded in seat %d: changes apply live and save through the queue", row.seat + 1);
 	}
+
+	profDrawSeat(row);
 
 	// name
 	ImGui::SetNextItemWidth(ImGui::GetFontSize() * 9.0f);
@@ -397,7 +540,7 @@ static void profDrawEdit(void)
 	}
 	ImGui::EndDisabled();
 	if (row.seat >= 0 && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-		ImGui::SetTooltip("Loaded in seat %d. Drop it from the seat first.", row.seat + 1);
+		ImGui::SetTooltip("Loaded in seat %d. Unseat it first.", row.seat + 1);
 	}
 }
 

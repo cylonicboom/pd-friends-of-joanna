@@ -9574,6 +9574,7 @@ void imguiOverlayRender(void)
 	imguiOverlayRunLuaRequests();
 	imguiOverlayRunSaveRequests();
 	imguiOverlayRunPlayerRequests();
+	imguiProfilesRunRequests();
 }
 
 bool imguiOverlayCapturesKeyboard(void)
