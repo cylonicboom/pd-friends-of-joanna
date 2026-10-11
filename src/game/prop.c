@@ -1642,7 +1642,11 @@ void handTickAttack(s32 handnum)
 #ifndef PLATFORM_N64
 			{
 				struct chrdata *bodychr = g_Vars.currentplayer->prop->chr;
-				s32 hitframe = chrPlayPunchAnimation(bodychr);
+				// A body nobody is animating never reaches the frame, so it
+				// is not asked: see playerBodyIsAnimated().
+				s32 hitframe = playerBodyIsAnimated(g_Vars.currentplayer)
+					? chrPlayPunchAnimation(bodychr)
+					: 0;
 
 				if (hitframe > 0) {
 					chrArmPunchHit(bodychr, hitframe, handnum, 0, 0);

@@ -3960,6 +3960,33 @@ bool playerIsThirdPerson(struct player *player)
 #endif
 }
 
+/**
+ * Whether anything is running this player's body through its animations.
+ *
+ * Having a body is not the answer. In solo the only tick that animates our own
+ * body is our own, and playerTick() only takes the branch that does it while
+ * playerIsThirdPerson() says so: with the camera back on the eye - aiming, or
+ * the view switched off - the body is still built and still stands there in
+ * whatever pose it was left in. With more players every body is animated by the
+ * ticks of the players looking at it, whichever view its owner has.
+ *
+ * Anything that starts an animation on the body and then waits for a frame of
+ * it has to ask this first. chr->actiontype cannot answer it: ACT_BONDMULTI is
+ * written when the body is first driven and nothing writes it back.
+ */
+bool playerBodyIsAnimated(struct player *player)
+{
+	if (player == NULL || !player->haschrbody) {
+		return false;
+	}
+
+	if (PLAYERCOUNT() > 1) {
+		return true;
+	}
+
+	return playerIsThirdPerson(player);
+}
+
 #ifndef PLATFORM_N64
 /**
  * How much of the player's own body to draw while a cutscene's camera tweens
@@ -7403,7 +7430,11 @@ s32 playerTickThirdPerson(struct prop *prop)
 	// that throws it. This is the body's own tick, which is the only tick that
 	// knows how far through the swing it is.
 	if (player->haschrbody) {
-		chrTickPunchHit(chr);
+		if (playerBodyIsAnimated(player)) {
+			chrTickPunchHit(chr);
+		} else {
+			chrLandPunchHitNow(chr);
+		}
 
 		// And the reload animation gives the body back as soon as the gun is
 		// loaded, rather than holding it for an animation the weapon was never
