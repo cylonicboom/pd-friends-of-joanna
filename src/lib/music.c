@@ -11,6 +11,9 @@
 #include "lib/lib_39c80.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+#endif
 
 #define RESULT_FAIL     0
 #define RESULT_OK_NEXT  1
@@ -1204,6 +1207,19 @@ void musicTickEvents(void)
 				}
 
 				if (result);
+
+#ifndef PLATFORM_N64
+				// MUSICDIAG (#396) - temporary probe: what the queue did with
+				// each event, and the three sequence channels afterwards
+				if (result != RESULT_FAIL || event->numattempts == 1 || (event->numattempts % 60) == 0) {
+					sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   tick ev=%d type=%d track=%d try=%d -> %d left=%d | ch0 t=%d use=%d keep=%d st=%d | ch1 t=%d use=%d keep=%d st=%d | ch2 t=%d use=%d keep=%d st=%d",
+							g_Vars.lvframenum, (s32)event->eventtype, (s32)event->tracktype, (s32)event->tracknum,
+							(s32)event->numattempts, result, g_MusicEventQueueLength,
+							(s32)g_SeqChannels[0].tracktype, (s32)g_SeqChannels[0].inuse, (s32)g_SeqChannels[0].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[0].seqp),
+							(s32)g_SeqChannels[1].tracktype, (s32)g_SeqChannels[1].inuse, (s32)g_SeqChannels[1].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[1].seqp),
+							(s32)g_SeqChannels[2].tracktype, (s32)g_SeqChannels[2].inuse, (s32)g_SeqChannels[2].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[2].seqp));
+				}
+#endif
 
 				if (result != RESULT_FAIL) {
 					// Remove the item from the queue
