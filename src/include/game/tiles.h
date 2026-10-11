@@ -12,6 +12,7 @@ Gfx *tilesRender(Gfx *gdl);
 void tilesRenderSetMode(s32 mode);
 s32 tilesRenderGetMode(void);
 extern s32 g_TilesRenderAllRooms;
+void tilesRenderInvalidate(void);
 #endif
 
 #endif
