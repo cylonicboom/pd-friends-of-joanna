@@ -1,0 +1,135 @@
+# AIO 6.0 stage proposals - from jonaeru/perfect_dark @ d3e4205 (stagetable.c, mplayer/setup.c g_MpArenas, env.c, lang.c, pdmain.c, stagemusic.c) + the 6.0 packs' bgdata hashes
+# NOTHING HERE IS APPLIED. Blocks to paste are hers to accept (d-aio6-unclaimed-levels #367); the pack attribution is by elimination unless the note says otherwise.
+
+## Upstream grew: stagetable.c is 97 rows (the 09-29 fetch saw 87). New since then, all in the "Additional" section, all over vanilla bg names:
+#   0x57 EXTRA27 cat  Arctic Mine | 0x58 EXTRA28 stat Offices | 0x59 EXTRA29 lam Apex | 0x5a EXTRA30 len Courtyard | 0x5b EXTRA31 mp7 Frost Valley
+#   0x5c EXTRA32 sev  Void        | 0x5d EXTRA33 old  Residence | 0x5e EXTRA34 crad MI6 | 0x5f EXTRA35 oat Submarine | 0x60 EXTRA36 mp3 Silo Surprise
+
+## A. Levels the packs ship that no block declares - proposed blocks (slugmod will re-slug the file names; paste unslugged as here)
+
+### mod_aio6_darknoon  (dark_noon ships a new bg_crad in 6.0; gex's crad is Aztec (EXTRA5), goldfinger's is Mall (EXTRA22) - by elimination)
+stage "darknoon_mi6" {
+  bgfile "bgdata/bg_crad.seg"
+  tilesfile "bgdata/bg_crad_tilesZ"
+  padsfile "bgdata/bg_crad_padsZ"
+  mpsetupfile "Ump_setupcradZ"
+  kind mp
+  arenaname "MI6"
+  # from jonaeru @ d3e4205: row 0x5e STAGE_EXTRA34 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank CRAD   # lang.c:249
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:203
+  # no env.c row for this stage upstream
+}
+
+### mod_aio6_darknoon  (dark_noon ships a new bg_oat in 6.0; gex's oat is Temple/Archives 1F - by elimination)
+stage "darknoon_submarine" {
+  bgfile "bgdata/bg_oat.seg"
+  tilesfile "bgdata/bg_oat_tilesZ"
+  padsfile "bgdata/bg_oat_padsZ"
+  mpsetupfile "Ump_setupoatZ"
+  kind mp
+  arenaname "Submarine"
+  # from jonaeru @ d3e4205: row 0x5f STAGE_EXTRA35 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank OAT   # lang.c:250
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:204
+  # no env.c row for this stage upstream
+}
+
+### mod_aio6_darknoon  (dark_noon ships a new bg_mp3 in 6.0 and general.c g_DarkNoonModelStates names Silo Surprise props (PretinalockZ, Pttb_boxZ, both in the 6.0 dark_noon pack) - the one with direct evidence)
+stage "darknoon_silo_surprise" {
+  bgfile "bgdata/bg_mp3.seg"
+  tilesfile "bgdata/bg_mp3_tilesZ"
+  padsfile "bgdata/bg_mp3_padsZ"
+  mpsetupfile "Ump_setupmp3Z"
+  kind mp
+  arenaname "Silo Surprise"
+  # from jonaeru @ d3e4205: row 0x60 STAGE_EXTRA36 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank MP3   # lang.c:251
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:205
+  # no env.c row for this stage upstream
+}
+
+### mod_aio6_gex  (only mod_gex ships bg_old)
+stage "gex_residence" {
+  bgfile "bgdata/bg_old.seg"
+  tilesfile "bgdata/bg_old_tilesZ"
+  padsfile "bgdata/bg_old_padsZ"
+  mpsetupfile "Ump_setupoldZ"
+  kind mp
+  arenaname "Residence"
+  # from jonaeru @ d3e4205: row 0x5d STAGE_EXTRA33 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank OLD   # lang.c:248
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:202
+  # env env.c:185 (nofog, 'Residence (Same as Area 52 (MP))')
+  env {
+    near 15
+    far 10000
+    distfade 0 0 0
+    sky 0x000008
+    suns none
+    clouds 1 4500 0 0x46c7ba
+    water 0 -5000 0 0x000000
+    cloudsheight 0
+    transparency 0
+  }
+}
+
+### mod_aio6_pdplus  (only mod_allinone ships bg_arch; the parked block STAGE_TEST_ARCH carries allocation only (as upstream's modconfig does) and names no files)
+stage "pdplus_suburb" {
+  bgfile "bgdata/bg_arch.seg"
+  tilesfile "bgdata/bg_arch_tilesZ"
+  padsfile "bgdata/bg_arch_padsZ"
+  mpsetupfile "Ump_setuparchZ"
+  kind mp
+  arenaname "Suburb"
+  # from jonaeru @ d3e4205: row 0x04 STAGE_TEST_ARCH (vanilla table); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank ARCH   # lang.c:181
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:162
+  # env env.c:175 (nofog, 'Suburb (Same as Defection)')
+  env {
+    near 10
+    far 10000
+    distfade 0 0 0
+    sky 0x000000
+    suns none
+    clouds 0 5000 0 0x3a1100
+    water 0 0 0 0x000000
+    cloudsheight 0
+    transparency 1
+  }
+}
+
+## B. Existing blocks whose arenaname was a guess - the AIO name for that row, with what upstream keys the row to
+
+### mod_aio6_gex / STAGE_28 (bg_cat, arenaname "Snow Cavern?")  ->  arenaname "Arctic Mine"   (row 0x57 STAGE_EXTRA27; only mod_gex ships bg_cat)
+#   upstream: langbank CAT (lang.c:242); allocation '-ml0 -me0 -mgfx200 -mvtx200 -ma400' (pdmain.c:196); env none
+
+### mod_aio6_pdplus / pdplus_stat (arenaname "Offices?")  ->  arenaname "Offices"   (row 0x58 STAGE_EXTRA28; stat is shipped by allinone and gex; gex's is Paradox (EXTRA25, credited in gex's modconfig), so allinone's is Offices)
+#   upstream: langbank STAT (lang.c:243); allocation '-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma700' (pdmain.c:197); env none
+
+### mod_aio6_pdplus / pdplus_lam (arenaname "Egyptian/Villa?")  ->  arenaname "Apex"   (row 0x59 STAGE_EXTRA29; lam is shipped by allinone and gex; Grand Library (TEST_LAM) is EternallyAries' and credited in gex's modconfig, so gex's lam is Grand Library and allinone's is Apex)
+#   upstream: langbank LAM (lang.c:244); allocation '-ml0 -me0 -mgfx200 -mvtx200 -ma400' (pdmain.c:198); env env.c:184 nofog 'Apex (Same as Skedar (MP))'
+
+### mod_aio6_gex / gex_lam (arenaname "Stack?")  ->  arenaname "Grand Library"   (row 0x28 STAGE_TEST_LAM; see above)
+#   upstream: langbank LAM (lang.c:188); allocation '-ml0 -me0 -mgfx120 -mvtx98 -ma400' (pdmain.c:161); env env.c:180 nofog 'Grand Library (Same as Library)'
+
+### mod_aio6_gex / STAGE_TEST_LEN (arenaname "Village Well?")  ->  arenaname "Courtyard"   (row 0x5a STAGE_EXTRA30; only mod_gex ships bg_len)
+#   upstream: langbank LEN (lang.c:245); allocation '-ml0 -me0 -mgfx200 -mvtx200 -ma400' (pdmain.c:199); env env.c:82 fog 'Courtyard (Same as Egyptian)'
+
+### mod_aio6_gex / STAGE_TEST_MP7 (arenaname "Snowy Grove?")  ->  arenaname "Frost Valley"   (row 0x5b STAGE_EXTRA31; mp7 is shipped by dark_noon (Valley, TEST_MP7) and gex; env.c:83 gives EXTRA31 fog+snow sky - gex's mp7 by elimination)
+#   upstream: langbank MP7 (lang.c:246); allocation '-ml0 -me0 -mgfx200 -mvtx200 -ma400' (pdmain.c:200); env env.c:83 fog 'Frost Valley'
+
+### mod_aio6_gex / gex_sev (arenaname "Holodeck?")  ->  arenaname "Void"   (row 0x5c STAGE_EXTRA32; only mod_gex ships bg_sev)
+#   upstream: langbank SEV (lang.c:247); allocation '-ml0 -me0 -mgfx200 -mvtx200 -ma400' (pdmain.c:201); env env.c:84 fog 'Void (Same as Complex (GE-X))'
+
+## C. Shipped but NOT proposed
+
+#   mod_gex bg_cryp, bg_mp6, bg_mp17 (Train / Bunker / Facility BZ rows): all three files are byte-identical to each other (sha1 e5becc7f...) - a stub; gex's own modconfig redirects those arenas at bg_run / bg_tra / bg_mp5, which the parked blocks already carry.
+#   sevx (STAGE_24 "Kakariko Village"): no pack ships bg_sevx; kakariko's modconfig puts the village on bg_mp20, already declared.
+
+## D. Goldfinger stage NAMES vs AIO arena names (parked blocks named by count, AIO rows say otherwise; arenaname is right, the stage name is not):
+#   goldfinger_junkyard  carries bg_ref  = AIO "Steel Mill" (EXTRA21)   goldfinger_steelmill carries bg_crad = AIO "Mall" (EXTRA22)
+#   goldfinger_mall      carries bg_arec = AIO "Tunnels" (EXTRA23)      goldfinger_tunnels   carries bg_mp11 = AIO "Junkyard" (EXTRA20)
+#   Renaming the stage names is a pd.ini [MpStageSlots] key change; the arenanames already match AIO.
+
+## E. Dark Noon ships its own ModelStates table upstream (general.c g_DarkNoonModelStates): rows that differ from vanilla g_ModelStates would need a ModelStates block in mod_aio6_darknoon. Not diffed here.
