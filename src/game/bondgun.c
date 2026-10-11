@@ -4128,7 +4128,19 @@ void bgunTickGunLoad(void)
 		// DL binds unmapped: an all-in-one hand binding 0x1074 was read as
 		// vanilla 0x074 (a lava tile), and anything >= NUM_TEXTURES was skipped
 		// outright. Vanilla hands never showed it - their ids need no mapping.
-		modeldefRemapForMod(modeldef, player->gunctrl.loadfilenum);
+		//
+		// The remap gates on g_TexCurrentModelFileNum (a vanilla model keeps its
+		// vanilla binds), and everything drawn later is stamped with whatever
+		// that global holds, so it is set for exactly this call and put back -
+		// the same save/restore modeldefLoad does. Leaving it pointed at the
+		// hand model stamped every head in the previewer as the hand's.
+		{
+			extern s32 g_TexCurrentModelFileNum;
+			s32 prevModelFN = g_TexCurrentModelFileNum;
+			g_TexCurrentModelFileNum = MOD_FILEID_RAW(player->gunctrl.loadfilenum);
+			modeldefRemapForMod(modeldef, player->gunctrl.loadfilenum);
+			g_TexCurrentModelFileNum = prevModelFN;
+		}
 #endif
 
 		*player->gunctrl.loadtomodeldef = modeldef;
@@ -4154,11 +4166,11 @@ void bgunTickGunLoad(void)
 
 #ifndef PLATFORM_N64
 		// modeldefLoad names the model being loaded so a texture scoped to it
-		// ('<model>/<id>.bin') resolves; this path has to say so too.
-		{
-			extern s32 g_TexCurrentModelFileNum;
-			g_TexCurrentModelFileNum = MOD_FILEID_RAW(player->gunctrl.loadfilenum);
-		}
+		// ('<model>/<id>.bin') resolves; this path has to say so too, and has
+		// to put the previous value back on every way out of the loop.
+		extern s32 g_TexCurrentModelFileNum;
+		s32 prevModelFN = g_TexCurrentModelFileNum;
+		g_TexCurrentModelFileNum = MOD_FILEID_RAW(player->gunctrl.loadfilenum);
 #endif
 
 		for (i = player->gunctrl.nexttexturetoload; i < modeldef->numtexconfigs; i++) {
@@ -4173,6 +4185,9 @@ void bgunTickGunLoad(void)
 			numthistick++;
 
 			if (numthistick == 3) {
+#ifndef PLATFORM_N64
+				g_TexCurrentModelFileNum = prevModelFN;
+#endif
 				return;
 			}
 
@@ -4182,6 +4197,9 @@ void bgunTickGunLoad(void)
 			player->gunctrl.nexttexturetoload++;
 		}
 
+#ifndef PLATFORM_N64
+		g_TexCurrentModelFileNum = prevModelFN;
+#endif
 		*gunfileinfo = *fileinfo;
 
 		osSyncPrintf("BriGun:  Set Load State: GUN_LOADSTATE_DECOMPRESS_DLS\n");
@@ -4199,10 +4217,14 @@ void bgunTickGunLoad(void)
 #ifndef PLATFORM_N64
 		{
 			extern s32 g_TexCurrentModelFileNum;
+			s32 prevModelFN = g_TexCurrentModelFileNum;
 			g_TexCurrentModelFileNum = MOD_FILEID_RAW(player->gunctrl.loadfilenum);
+			modeldef0f1a7560(modeldef, player->gunctrl.loadfilenum, 0x05000000, modeldef, &player->gunctrl.texpool, false);
+			g_TexCurrentModelFileNum = prevModelFN;
 		}
-#endif
+#else
 		modeldef0f1a7560(modeldef, player->gunctrl.loadfilenum, 0x05000000, modeldef, &player->gunctrl.texpool, false);
+#endif
 
 		fileGetInflatedSize(player->gunctrl.loadfilenum, LOADTYPE_MODEL);
 		fileGetLoadedSize(player->gunctrl.loadfilenum);
