@@ -1,0 +1,8419 @@
+{
+ "changed_vanilla_rows": [
+  {
+   "index": 95,
+   "consts": [
+    "BODY_LABTECH"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_MRBLONDE",
+     "FILE_GHAND_LABTECH"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 101,
+   "consts": [
+    "BODY_SECRETARY"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_JOFROCK",
+     "FILE_GHAND_NATALYA"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 110,
+   "consts": [
+    "BODY_DD_GUARD"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_DDSECURITY",
+     "FILE_GHAND_DD_GUARD"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 112,
+   "consts": [
+    "BODY_TESTCHR"
+   ],
+   "diff": {
+    "height": [
+     159,
+     144
+    ],
+    "file": [
+     "FILE_CTESTCHR",
+     "FILE_CCARROLL2"
+    ],
+    "hand": [
+     "0",
+     "FILE_GHAND_CAROLL"
+    ]
+   },
+   "comment": "Dr. Caroll (Sinister)"
+  },
+  {
+   "index": 119,
+   "consts": [
+    "BODY_STEWARD"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_JOFROCK",
+     "FILE_GHAND_STEWARD"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 120,
+   "consts": [
+    "BODY_STEWARDESS"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_JOFROCK",
+     "FILE_GHAND_NATALYA"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 124,
+   "consts": [
+    "BODY_NSA_LACKEY"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_CARRINGTON",
+     "FILE_GHAND_NSA_LACKEY"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 125,
+   "consts": [
+    "BODY_PRES_SECURITY"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_CARRINGTON",
+     "FILE_GHAND_PRES_SECURITY"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 126,
+   "consts": [
+    "BODY_NEGOTIATOR"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_JOFROCK",
+     "FILE_GHAND_NATALYA"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 132,
+   "consts": [
+    "BODY_PRESIDENT_CLONE"
+   ],
+   "diff": {
+    "hasownhead": [
+     0,
+     1
+    ],
+    "height": [
+     159,
+     181
+    ],
+    "file": [
+     "FILE_CPRESIDENT_CLONE",
+     "FILE_CSKEDAR2"
+    ],
+    "animscale": [
+     "0.93896716833115",
+     "1"
+    ],
+    "hand": [
+     "FILE_GCOMBATHANDSLOD",
+     "FILE_GHAND_SKEDAR"
+    ]
+   },
+   "comment": "Skedar"
+  },
+  {
+   "index": 133,
+   "consts": [
+    "BODY_PRESIDENT_CLONE2"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_PRESIDENT",
+     "FILE_GHAND_PRESIDENT_CLONE"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 138,
+   "consts": [
+    "BODY_DARKLAB"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_MRBLONDE",
+     "FILE_GHAND_LABTECH"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 139,
+   "consts": [
+    "BODY_FEMLABTECH"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_MRBLONDE",
+     "FILE_GHAND_TECHWOMAN"
+    ]
+   },
+   "comment": ""
+  },
+  {
+   "index": 142,
+   "consts": [
+    "BODY_CILABTECH"
+   ],
+   "diff": {
+    "hand": [
+     "FILE_GHAND_CIFEMTECH",
+     "FILE_GHAND_CILABTECH"
+    ]
+   },
+   "comment": ""
+  }
+ ],
+ "rows": [
+  {
+   "idx_comment": 0,
+   "seq": 0,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CDJBOND",
+   "scale": "1",
+   "animscale": "1.0446009635925",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "",
+   "index": 0,
+   "consts": [
+    "BODY_DJBOND"
+   ]
+  },
+  {
+   "idx_comment": 1,
+   "seq": 1,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCONNERY",
+   "scale": "1",
+   "animscale": "1.0300469398499",
+   "hand": "FILE_GHAND_BONDWHITE",
+   "comment": "",
+   "index": 1,
+   "consts": [
+    "BODY_CONNERY"
+   ]
+  },
+  {
+   "idx_comment": 2,
+   "seq": 2,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 165,
+   "file": "FILE_CDALTON",
+   "scale": "1",
+   "animscale": "1.0572769641876",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "",
+   "index": 2,
+   "consts": [
+    "BODY_DALTON"
+   ]
+  },
+  {
+   "idx_comment": 3,
+   "seq": 3,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CMOORE",
+   "scale": "1",
+   "animscale": "1.0399061441422",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "",
+   "index": 3,
+   "consts": [
+    "BODY_MOORE"
+   ]
+  },
+  {
+   "idx_comment": 5,
+   "seq": 14,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 27,
+   "file": "FILE_CHEADELVIS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 5,
+   "consts": [
+    "HEAD_ELVIS"
+   ]
+  },
+  {
+   "idx_comment": 6,
+   "seq": 15,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADROSS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 6,
+   "consts": [
+    "HEAD_ROSS"
+   ]
+  },
+  {
+   "idx_comment": 7,
+   "seq": 16,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCARRINGTON",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 7,
+   "consts": [
+    "HEAD_CARRINGTON"
+   ]
+  },
+  {
+   "idx_comment": 8,
+   "seq": 17,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MRBLONDE",
+   "height": 13,
+   "file": "FILE_CHEADMRBLONDE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 8,
+   "consts": [
+    "HEAD_MRBLONDE"
+   ]
+  },
+  {
+   "idx_comment": 9,
+   "seq": 18,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADTRENT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 9,
+   "consts": [
+    "HEAD_TRENT"
+   ]
+  },
+  {
+   "idx_comment": 10,
+   "seq": 19,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDDSHOCK",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 10,
+   "consts": [
+    "HEAD_DDSHOCK"
+   ]
+  },
+  {
+   "idx_comment": 11,
+   "seq": 20,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGRAHAM",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 11,
+   "consts": [
+    "HEAD_GRAHAM"
+   ]
+  },
+  {
+   "idx_comment": 13,
+   "seq": 23,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADSECRETARY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 13,
+   "consts": [
+    "HEAD_SECRETARY"
+   ]
+  },
+  {
+   "idx_comment": 14,
+   "seq": 24,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_CASS",
+   "height": 13,
+   "file": "FILE_CHEADCASSANDRA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 14,
+   "consts": [
+    "HEAD_CASSANDRA"
+   ]
+  },
+  {
+   "idx_comment": 15,
+   "seq": 25,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 27,
+   "file": "FILE_CHEADTHEKING",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 15,
+   "consts": [
+    "HEAD_THEKING"
+   ]
+  },
+  {
+   "idx_comment": 16,
+   "seq": 26,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADFEM_GUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 16,
+   "consts": [
+    "HEAD_FEM_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 17,
+   "seq": 27,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJON",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 17,
+   "consts": [
+    "HEAD_JON"
+   ]
+  },
+  {
+   "idx_comment": 18,
+   "seq": 28,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMARK2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 18,
+   "consts": [
+    "HEAD_MARK2"
+   ]
+  },
+  {
+   "idx_comment": 19,
+   "seq": 29,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCHRIST",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 19,
+   "consts": [
+    "HEAD_CHRIST"
+   ]
+  },
+  {
+   "idx_comment": 20,
+   "seq": 30,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADRUSS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 20,
+   "consts": [
+    "HEAD_RUSS"
+   ]
+  },
+  {
+   "idx_comment": 21,
+   "seq": 32,
+   "arm": "other",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADDARK_US",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Joanna (US)",
+   "index": 21,
+   "consts": [
+    "HEAD_GREY"
+   ]
+  },
+  {
+   "idx_comment": 22,
+   "seq": 34,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDARLING",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 22,
+   "consts": [
+    "HEAD_DARLING"
+   ]
+  },
+  {
+   "idx_comment": 23,
+   "seq": 35,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADROBERT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 23,
+   "consts": [
+    "HEAD_ROBERT"
+   ]
+  },
+  {
+   "idx_comment": 24,
+   "seq": 36,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEAU",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 24,
+   "consts": [
+    "HEAD_BEAU1"
+   ]
+  },
+  {
+   "idx_comment": 25,
+   "seq": 37,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADFEM_GUARD2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 25,
+   "consts": [
+    "HEAD_FEM_GUARD2"
+   ]
+  },
+  {
+   "idx_comment": 26,
+   "seq": 38,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBRIAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 26,
+   "consts": [
+    "HEAD_BRIAN"
+   ]
+  },
+  {
+   "idx_comment": 27,
+   "seq": 39,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJAMIE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 27,
+   "consts": [
+    "HEAD_JAMIE"
+   ]
+  },
+  {
+   "idx_comment": 28,
+   "seq": 40,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDUNCAN2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 28,
+   "consts": [
+    "HEAD_DUNCAN2"
+   ]
+  },
+  {
+   "idx_comment": 29,
+   "seq": 41,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBIOTECH",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 29,
+   "consts": [
+    "HEAD_BIOTECH"
+   ]
+  },
+  {
+   "idx_comment": 30,
+   "seq": 42,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADNEIL2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 30,
+   "consts": [
+    "HEAD_NEIL2"
+   ]
+  },
+  {
+   "idx_comment": 31,
+   "seq": 43,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADEDMCG",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 31,
+   "consts": [
+    "HEAD_EDMCG"
+   ]
+  },
+  {
+   "idx_comment": 32,
+   "seq": 44,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADANKA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 32,
+   "consts": [
+    "HEAD_ANKA"
+   ]
+  },
+  {
+   "idx_comment": 33,
+   "seq": 45,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADLESLIE_S",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 33,
+   "consts": [
+    "HEAD_LESLIE_S"
+   ]
+  },
+  {
+   "idx_comment": 34,
+   "seq": 46,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMATT_C",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 34,
+   "consts": [
+    "HEAD_MATT_C"
+   ]
+  },
+  {
+   "idx_comment": 35,
+   "seq": 47,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPEER_S",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 35,
+   "consts": [
+    "HEAD_PEER_S"
+   ]
+  },
+  {
+   "idx_comment": 36,
+   "seq": 48,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADEILEEN_T",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 36,
+   "consts": [
+    "HEAD_EILEEN_T"
+   ]
+  },
+  {
+   "idx_comment": 37,
+   "seq": 49,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADANDY_R",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 37,
+   "consts": [
+    "HEAD_ANDY_R"
+   ]
+  },
+  {
+   "idx_comment": 38,
+   "seq": 50,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEN_R",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 38,
+   "consts": [
+    "HEAD_BEN_R"
+   ]
+  },
+  {
+   "idx_comment": 39,
+   "seq": 51,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSTEVE_K",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 39,
+   "consts": [
+    "HEAD_STEVE_K"
+   ]
+  },
+  {
+   "idx_comment": 40,
+   "seq": 52,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJONATHAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 40,
+   "consts": [
+    "HEAD_JONATHAN"
+   ]
+  },
+  {
+   "idx_comment": 41,
+   "seq": 53,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 27,
+   "file": "FILE_CHEADMAIAN_S",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 41,
+   "consts": [
+    "HEAD_MAIAN_S"
+   ]
+  },
+  {
+   "idx_comment": 42,
+   "seq": 54,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSHAUN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 42,
+   "consts": [
+    "HEAD_SHAUN"
+   ]
+  },
+  {
+   "idx_comment": 43,
+   "seq": 55,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEAU",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 43,
+   "consts": [
+    "HEAD_BEAU2"
+   ]
+  },
+  {
+   "idx_comment": 44,
+   "seq": 56,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADEILEEN_H",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 44,
+   "consts": [
+    "HEAD_EILEEN_H"
+   ]
+  },
+  {
+   "idx_comment": 45,
+   "seq": 57,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSCOTT_H",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 45,
+   "consts": [
+    "HEAD_SCOTT_H"
+   ]
+  },
+  {
+   "idx_comment": 46,
+   "seq": 58,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSANCHEZ",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 46,
+   "consts": [
+    "HEAD_SANCHEZ"
+   ]
+  },
+  {
+   "idx_comment": 48,
+   "seq": 61,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDDSNIPER",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 48,
+   "consts": [
+    "HEAD_DDSNIPER"
+   ]
+  },
+  {
+   "idx_comment": 49,
+   "seq": 62,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEAU",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 49,
+   "consts": [
+    "HEAD_BEAU3"
+   ]
+  },
+  {
+   "idx_comment": 50,
+   "seq": 63,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEAU",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 50,
+   "consts": [
+    "HEAD_BEAU4"
+   ]
+  },
+  {
+   "idx_comment": 51,
+   "seq": 64,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEAU",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 51,
+   "consts": [
+    "HEAD_BEAU5"
+   ]
+  },
+  {
+   "idx_comment": 52,
+   "seq": 65,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBEAU",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 52,
+   "consts": [
+    "HEAD_BEAU6"
+   ]
+  },
+  {
+   "idx_comment": 53,
+   "seq": 66,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGRIFFEY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 53,
+   "consts": [
+    "HEAD_GRIFFEY"
+   ]
+  },
+  {
+   "idx_comment": 54,
+   "seq": 67,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMOTO",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 54,
+   "consts": [
+    "HEAD_MOTO"
+   ]
+  },
+  {
+   "idx_comment": 55,
+   "seq": 68,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADKEITH",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 55,
+   "consts": [
+    "HEAD_KEITH"
+   ]
+  },
+  {
+   "idx_comment": 56,
+   "seq": 69,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADWINNER",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 56,
+   "consts": [
+    "HEAD_WINNER"
+   ]
+  },
+  {
+   "idx_comment": 57,
+   "seq": 70,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CA51FACEPLATE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 57,
+   "consts": [
+    "HEAD_A51FACEPLATE"
+   ]
+  },
+  {
+   "idx_comment": 58,
+   "seq": 71,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 27,
+   "file": "FILE_CHEADELVIS_GOGS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 58,
+   "consts": [
+    "HEAD_ELVIS_GOGS"
+   ]
+  },
+  {
+   "idx_comment": 59,
+   "seq": 72,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSTEVEM",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 59,
+   "consts": [
+    "HEAD_STEVEM"
+   ]
+  },
+  {
+   "idx_comment": 61,
+   "seq": 75,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPRESIDENT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 61,
+   "consts": [
+    "HEAD_PRESIDENT"
+   ]
+  },
+  {
+   "idx_comment": 62,
+   "seq": 76,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEAD_VD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 62,
+   "consts": [
+    "HEAD_VD"
+   ]
+  },
+  {
+   "idx_comment": 63,
+   "seq": 77,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADKEN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 63,
+   "consts": [
+    "HEAD_KEN"
+   ]
+  },
+  {
+   "idx_comment": 64,
+   "seq": 78,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJOEL",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 64,
+   "consts": [
+    "HEAD_JOEL"
+   ]
+  },
+  {
+   "idx_comment": 65,
+   "seq": 79,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADTIM",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 65,
+   "consts": [
+    "HEAD_TIM"
+   ]
+  },
+  {
+   "idx_comment": 66,
+   "seq": 80,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGRANT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 66,
+   "consts": [
+    "HEAD_GRANT"
+   ]
+  },
+  {
+   "idx_comment": 67,
+   "seq": 81,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPENNY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 67,
+   "consts": [
+    "HEAD_PENNY"
+   ]
+  },
+  {
+   "idx_comment": 68,
+   "seq": 82,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADROBIN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 68,
+   "consts": [
+    "HEAD_ROBIN"
+   ]
+  },
+  {
+   "idx_comment": 69,
+   "seq": 83,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALEGUARD",
+   "height": 13,
+   "file": "FILE_CHEADALEX",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 69,
+   "consts": [
+    "HEAD_ALEX"
+   ]
+  },
+  {
+   "idx_comment": 70,
+   "seq": 84,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALEGUARD",
+   "height": 13,
+   "file": "FILE_CHEADJULIANNE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 70,
+   "consts": [
+    "HEAD_JULIANNE"
+   ]
+  },
+  {
+   "idx_comment": 71,
+   "seq": 85,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALEGUARD",
+   "height": 13,
+   "file": "FILE_CHEADLAURA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 71,
+   "consts": [
+    "HEAD_LAURA"
+   ]
+  },
+  {
+   "idx_comment": 72,
+   "seq": 86,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDAVEC",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 72,
+   "consts": [
+    "HEAD_DAVEC"
+   ]
+  },
+  {
+   "idx_comment": 73,
+   "seq": 87,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCOOK",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 73,
+   "consts": [
+    "HEAD_COOK"
+   ]
+  },
+  {
+   "idx_comment": 74,
+   "seq": 88,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPRYCE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 74,
+   "consts": [
+    "HEAD_PRYCE"
+   ]
+  },
+  {
+   "idx_comment": 75,
+   "seq": 89,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSILKE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 75,
+   "consts": [
+    "HEAD_SILKE"
+   ]
+  },
+  {
+   "idx_comment": 76,
+   "seq": 90,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSMITH",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 76,
+   "consts": [
+    "HEAD_SMITH"
+   ]
+  },
+  {
+   "idx_comment": 77,
+   "seq": 91,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGARETH",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 77,
+   "consts": [
+    "HEAD_GARETH"
+   ]
+  },
+  {
+   "idx_comment": 78,
+   "seq": 92,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMURCHIE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 78,
+   "consts": [
+    "HEAD_MURCHIE"
+   ]
+  },
+  {
+   "idx_comment": 79,
+   "seq": 93,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADWONG",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 79,
+   "consts": [
+    "HEAD_WONG"
+   ]
+  },
+  {
+   "idx_comment": 80,
+   "seq": 94,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCARTER",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 80,
+   "consts": [
+    "HEAD_CARTER"
+   ]
+  },
+  {
+   "idx_comment": 81,
+   "seq": 95,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADTINTIN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 81,
+   "consts": [
+    "HEAD_TINTIN"
+   ]
+  },
+  {
+   "idx_comment": 82,
+   "seq": 96,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMUNTON",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 82,
+   "consts": [
+    "HEAD_MUNTON"
+   ]
+  },
+  {
+   "idx_comment": 83,
+   "seq": 97,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSTAMPER",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 83,
+   "consts": [
+    "HEAD_STAMPER"
+   ]
+  },
+  {
+   "idx_comment": 84,
+   "seq": 98,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJONES",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 84,
+   "consts": [
+    "HEAD_JONES"
+   ]
+  },
+  {
+   "idx_comment": 85,
+   "seq": 99,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPHELPS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 85,
+   "consts": [
+    "HEAD_PHELPS"
+   ]
+  },
+  {
+   "idx_comment": 87,
+   "seq": 102,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 106,
+   "file": "FILE_CELVIS1",
+   "scale": "1",
+   "animscale": "0.57276993989944",
+   "hand": "FILE_GHAND_ELVIS",
+   "comment": "",
+   "index": 87,
+   "consts": [
+    "BODY_ELVIS1"
+   ]
+  },
+  {
+   "idx_comment": 88,
+   "seq": 103,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_CAREA51GUARD",
+   "scale": "1",
+   "animscale": "0.92769956588745",
+   "hand": "FILE_GHAND_A51GUARD",
+   "comment": "",
+   "index": 88,
+   "consts": [
+    "BODY_AREA51GUARD"
+   ]
+  },
+  {
+   "idx_comment": 89,
+   "seq": 104,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_COVERALL",
+   "scale": "1",
+   "animscale": "0.92769956588745",
+   "hand": "FILE_GHAND_A51GUARD",
+   "comment": "",
+   "index": 89,
+   "consts": [
+    "BODY_OVERALL"
+   ]
+  },
+  {
+   "idx_comment": 90,
+   "seq": 105,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 154,
+   "file": "FILE_CCARRINGTON",
+   "scale": "1",
+   "animscale": "0.85915493965149",
+   "hand": "FILE_GHAND_CARRINGTON",
+   "comment": "",
+   "index": 90,
+   "consts": [
+    "BODY_CARRINGTON"
+   ]
+  },
+  {
+   "idx_comment": 91,
+   "seq": 106,
+   "arm": "other",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MRBLONDE",
+   "height": 169,
+   "file": "FILE_CMRBLONDE",
+   "scale": "1",
+   "animscale": "1.1032863855362",
+   "hand": "FILE_GHAND_MRBLONDE",
+   "comment": "",
+   "index": 91,
+   "consts": [
+    "BODY_MRBLONDE"
+   ]
+  },
+  {
+   "idx_comment": 92,
+   "seq": 108,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CSKEDAR",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 92,
+   "consts": [
+    "BODY_SKEDAR"
+   ]
+  },
+  {
+   "idx_comment": 93,
+   "seq": 109,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 161,
+   "file": "FILE_CTRENT",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_TRENT",
+   "comment": "",
+   "index": 93,
+   "consts": [
+    "BODY_TRENT"
+   ]
+  },
+  {
+   "idx_comment": 94,
+   "seq": 110,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_CDDSHOCK",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_DDFODDER",
+   "comment": "",
+   "index": 94,
+   "consts": [
+    "BODY_DDSHOCK"
+   ]
+  },
+  {
+   "idx_comment": 95,
+   "seq": 112,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_CLABTECH",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_LABTECH",
+   "comment": "",
+   "index": 95,
+   "consts": [
+    "BODY_LABTECH"
+   ]
+  },
+  {
+   "idx_comment": 96,
+   "seq": 113,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 158,
+   "file": "FILE_CSTRIPES",
+   "scale": "1",
+   "animscale": "0.92769956588745",
+   "hand": "FILE_GHAND_BLACKGUARD",
+   "comment": "",
+   "index": 96,
+   "consts": [
+    "BODY_STRIPES"
+   ]
+  },
+  {
+   "idx_comment": 98,
+   "seq": 116,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CDARK_TRENCH",
+   "scale": "1",
+   "animscale": "0.95305162668228",
+   "hand": "FILE_GHAND_JOTRENCH",
+   "comment": "",
+   "index": 98,
+   "consts": [
+    "BODY_DARK_TRENCH"
+   ]
+  },
+  {
+   "idx_comment": 99,
+   "seq": 117,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_COFFICEWORKER",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_JOFROCK",
+   "comment": "",
+   "index": 99,
+   "consts": [
+    "BODY_OFFICEWORKER"
+   ]
+  },
+  {
+   "idx_comment": 100,
+   "seq": 118,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_COFFICEWORKER2",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_JOFROCK",
+   "comment": "",
+   "index": 100,
+   "consts": [
+    "BODY_OFFICEWORKER2"
+   ]
+  },
+  {
+   "idx_comment": 101,
+   "seq": 120,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 140,
+   "file": "FILE_CSECRETARY",
+   "scale": "1",
+   "animscale": "0.87323945760727",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "",
+   "index": 101,
+   "consts": [
+    "BODY_SECRETARY"
+   ]
+  },
+  {
+   "idx_comment": 102,
+   "seq": 121,
+   "arm": "other",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_CASS",
+   "height": 167,
+   "file": "FILE_CCASSANDRA",
+   "scale": "1",
+   "animscale": "0.98591554164886",
+   "hand": "FILE_GHAND_VRIES",
+   "comment": "",
+   "index": 102,
+   "consts": [
+    "BODY_CASSANDRA"
+   ]
+  },
+  {
+   "idx_comment": 103,
+   "seq": 123,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 106,
+   "file": "FILE_CTHEKING",
+   "scale": "1",
+   "animscale": "0.57276993989944",
+   "hand": "FILE_GHAND_ELVIS",
+   "comment": "",
+   "index": 103,
+   "consts": [
+    "BODY_THEKING"
+   ]
+  },
+  {
+   "idx_comment": 104,
+   "seq": 124,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_FEMALEGUARD",
+   "height": 160,
+   "file": "FILE_CFEM_GUARD",
+   "scale": "1",
+   "animscale": "0.96713620424271",
+   "hand": "FILE_GHAND_JOTRENCH",
+   "comment": "",
+   "index": 104,
+   "consts": [
+    "BODY_FEM_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 105,
+   "seq": 125,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_CDD_LABTECH",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_DDLABTECH",
+   "comment": "",
+   "index": 105,
+   "consts": [
+    "BODY_DD_LABTECH"
+   ]
+  },
+  {
+   "idx_comment": 106,
+   "seq": 126,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 160,
+   "file": "FILE_CDD_SECGUARD",
+   "scale": "1",
+   "animscale": "0.93427228927612",
+   "hand": "FILE_GHAND_DDSECURITY",
+   "comment": "",
+   "index": 106,
+   "consts": [
+    "BODY_DD_SECGUARD"
+   ]
+  },
+  {
+   "idx_comment": 107,
+   "seq": 127,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CDRCARROLL",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 107,
+   "consts": [
+    "BODY_DRCAROLL"
+   ]
+  },
+  {
+   "idx_comment": 108,
+   "seq": 128,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CEYESPY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 108,
+   "consts": [
+    "BODY_EYESPY"
+   ]
+  },
+  {
+   "idx_comment": 110,
+   "seq": 132,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 160,
+   "file": "FILE_CDD_GUARD",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_DD_GUARD",
+   "comment": "",
+   "index": 110,
+   "consts": [
+    "BODY_DD_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 111,
+   "seq": 133,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_CDD_SHOCK_INF",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_DDSHOCK",
+   "comment": "",
+   "index": 111,
+   "consts": [
+    "BODY_DD_SHOCK_INF"
+   ]
+  },
+  {
+   "idx_comment": 112,
+   "seq": 135,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 144,
+   "file": "FILE_CCARROLL2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_CAROLL",
+   "comment": "Dr. Caroll (Sinister)",
+   "index": 112,
+   "consts": [
+    "BODY_TESTCHR"
+   ]
+  },
+  {
+   "idx_comment": 113,
+   "seq": 136,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 155,
+   "file": "FILE_CBIOTECH",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_DDBIO",
+   "comment": "",
+   "index": 113,
+   "consts": [
+    "BODY_BIOTECH"
+   ]
+  },
+  {
+   "idx_comment": 114,
+   "seq": 137,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CFBIGUY",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_FBIARM",
+   "comment": "",
+   "index": 114,
+   "consts": [
+    "BODY_FBIGUY"
+   ]
+  },
+  {
+   "idx_comment": 115,
+   "seq": 138,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CCIAGUY",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_CIA",
+   "comment": "",
+   "index": 115,
+   "consts": [
+    "BODY_CIAGUY"
+   ]
+  },
+  {
+   "idx_comment": 116,
+   "seq": 139,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CA51TROOPER",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_JOFROCK",
+   "comment": "",
+   "index": 116,
+   "consts": [
+    "BODY_A51TROOPER"
+   ]
+  },
+  {
+   "idx_comment": 117,
+   "seq": 140,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 157,
+   "file": "FILE_CA51AIRMAN",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_A51AIRMAN",
+   "comment": "",
+   "index": 117,
+   "consts": [
+    "BODY_A51AIRMAN"
+   ]
+  },
+  {
+   "idx_comment": 118,
+   "seq": 141,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CCHICROB",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "",
+   "index": 118,
+   "consts": [
+    "BODY_CHICROB"
+   ]
+  },
+  {
+   "idx_comment": 119,
+   "seq": 144,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 153,
+   "file": "FILE_CSTEWARD",
+   "scale": "1",
+   "animscale": "0.89201879501343",
+   "hand": "FILE_GHAND_STEWARD",
+   "comment": "",
+   "index": 119,
+   "consts": [
+    "BODY_STEWARD"
+   ]
+  },
+  {
+   "idx_comment": 120,
+   "seq": 145,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 143,
+   "file": "FILE_CSTEWARDESS",
+   "scale": "1",
+   "animscale": "0.85446006059647",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "",
+   "index": 120,
+   "consts": [
+    "BODY_STEWARDESS"
+   ]
+  },
+  {
+   "idx_comment": 121,
+   "seq": 146,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CPRESIDENT",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_PRESIDENT",
+   "comment": "",
+   "index": 121,
+   "consts": [
+    "BODY_PRESIDENT"
+   ]
+  },
+  {
+   "idx_comment": 122,
+   "seq": 147,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 143,
+   "file": "FILE_CSTEWARDESS_COAT",
+   "scale": "1",
+   "animscale": "0.85446006059647",
+   "hand": "FILE_GHAND_STEWARDESS_COAT",
+   "comment": "",
+   "index": 122,
+   "consts": [
+    "BODY_STEWARDESS_COAT"
+   ]
+  },
+  {
+   "idx_comment": 123,
+   "seq": 148,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CMINISKEDAR",
+   "scale": "0.75",
+   "animscale": "0.5",
+   "hand": "0",
+   "comment": "",
+   "index": 123,
+   "consts": [
+    "BODY_MINISKEDAR"
+   ]
+  },
+  {
+   "idx_comment": 124,
+   "seq": 152,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CNSA_LACKEY",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_NSA_LACKEY",
+   "comment": "",
+   "index": 124,
+   "consts": [
+    "BODY_NSA_LACKEY"
+   ]
+  },
+  {
+   "idx_comment": 125,
+   "seq": 153,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CPRES_SECURITY",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_PRES_SECURITY",
+   "comment": "",
+   "index": 125,
+   "consts": [
+    "BODY_PRES_SECURITY"
+   ]
+  },
+  {
+   "idx_comment": 126,
+   "seq": 154,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 142,
+   "file": "FILE_CNEGOTIATOR",
+   "scale": "1",
+   "animscale": "0.85446006059647",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "",
+   "index": 126,
+   "consts": [
+    "BODY_NEGOTIATOR"
+   ]
+  },
+  {
+   "idx_comment": 127,
+   "seq": 155,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CG5_GUARD",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_G5GUARD",
+   "comment": "",
+   "index": 127,
+   "consts": [
+    "BODY_G5_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 128,
+   "seq": 156,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CPELAGIC_GUARD",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_TRAGIC_PELAGIC",
+   "comment": "",
+   "index": 128,
+   "consts": [
+    "BODY_PELAGIC_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 129,
+   "seq": 157,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 158,
+   "file": "FILE_CG5_SWAT_GUARD",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_G5GUARD",
+   "comment": "",
+   "index": 129,
+   "consts": [
+    "BODY_G5_SWAT_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 130,
+   "seq": 158,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 158,
+   "file": "FILE_CALASKAN_GUARD",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_JOSNOW",
+   "comment": "",
+   "index": 130,
+   "consts": [
+    "BODY_ALASKAN_GUARD"
+   ]
+  },
+  {
+   "idx_comment": 131,
+   "seq": 159,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 106,
+   "file": "FILE_CMAIAN_SOLDIER",
+   "scale": "1",
+   "animscale": "0.57276993989944",
+   "hand": "FILE_GHAND_ELVIS",
+   "comment": "",
+   "index": 131,
+   "consts": [
+    "BODY_MAIAN_SOLDIER"
+   ]
+  },
+  {
+   "idx_comment": 132,
+   "seq": 162,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 181,
+   "file": "FILE_CSKEDAR2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_SKEDAR",
+   "comment": "Skedar",
+   "index": 132,
+   "consts": [
+    "BODY_PRESIDENT_CLONE"
+   ]
+  },
+  {
+   "idx_comment": 133,
+   "seq": 163,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CPRESIDENT_CLONE",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_PRESIDENT_CLONE",
+   "comment": "",
+   "index": 133,
+   "consts": [
+    "BODY_PRESIDENT_CLONE2"
+   ]
+  },
+  {
+   "idx_comment": 135,
+   "seq": 166,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CDARKWET",
+   "scale": "1",
+   "animscale": "0.95305162668228",
+   "hand": "FILE_GHAND_JOWETSUIT",
+   "comment": "",
+   "index": 135,
+   "consts": [
+    "BODY_DARKWET"
+   ]
+  },
+  {
+   "idx_comment": 136,
+   "seq": 167,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CDARKAQUALUNG",
+   "scale": "1",
+   "animscale": "0.95305162668228",
+   "hand": "FILE_GHAND_JOWETSUIT",
+   "comment": "",
+   "index": 136,
+   "consts": [
+    "BODY_DARKAQUALUNG"
+   ]
+  },
+  {
+   "idx_comment": 138,
+   "seq": 172,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CDARKLAB",
+   "scale": "1",
+   "animscale": "0.95305162668228",
+   "hand": "FILE_GHAND_LABTECH",
+   "comment": "",
+   "index": 138,
+   "consts": [
+    "BODY_DARKLAB"
+   ]
+  },
+  {
+   "idx_comment": 139,
+   "seq": 173,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CFEMLABTECH",
+   "scale": "1",
+   "animscale": "0.87323945760727",
+   "hand": "FILE_GHAND_TECHWOMAN",
+   "comment": "",
+   "index": 139,
+   "consts": [
+    "BODY_FEMLABTECH"
+   ]
+  },
+  {
+   "idx_comment": 140,
+   "seq": 174,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CDDSNIPER",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_DDSNIPER",
+   "comment": "",
+   "index": 140,
+   "consts": [
+    "BODY_DDSNIPER"
+   ]
+  },
+  {
+   "idx_comment": 141,
+   "seq": 175,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CPILOTAF1",
+   "scale": "1",
+   "animscale": "0.88262909650803",
+   "hand": "FILE_GHAND_JOPILOT",
+   "comment": "",
+   "index": 141,
+   "consts": [
+    "BODY_PILOTAF1"
+   ]
+  },
+  {
+   "idx_comment": 142,
+   "seq": 177,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CCILABTECH",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_CILABTECH",
+   "comment": "",
+   "index": 142,
+   "consts": [
+    "BODY_CILABTECH"
+   ]
+  },
+  {
+   "idx_comment": 143,
+   "seq": 178,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CCIFEMTECH",
+   "scale": "1",
+   "animscale": "0.86854463815689",
+   "hand": "FILE_GHAND_CIFEMTECH",
+   "comment": "",
+   "index": 143,
+   "consts": [
+    "BODY_CIFEMTECH"
+   ]
+  },
+  {
+   "idx_comment": 144,
+   "seq": 179,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CCARREVENINGSUIT",
+   "scale": "1",
+   "animscale": "0.85915493965149",
+   "hand": "FILE_GHAND_MRBLONDE",
+   "comment": "",
+   "index": 144,
+   "consts": [
+    "BODY_CARREVENINGSUIT"
+   ]
+  },
+  {
+   "idx_comment": 145,
+   "seq": 180,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CJONATHON",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_A51GUARD",
+   "comment": "",
+   "index": 145,
+   "consts": [
+    "BODY_JONATHAN"
+   ]
+  },
+  {
+   "idx_comment": 146,
+   "seq": 181,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CCISOLDIER",
+   "scale": "1",
+   "animscale": "0.93896716833115",
+   "hand": "FILE_GHAND_CISOLDIER",
+   "comment": "",
+   "index": 146,
+   "consts": [
+    "BODY_CISOLDIER"
+   ]
+  },
+  {
+   "idx_comment": 147,
+   "seq": 182,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CSKEDARKING",
+   "scale": "1",
+   "animscale": "1.25",
+   "hand": "0",
+   "comment": "",
+   "index": 147,
+   "consts": [
+    "BODY_SKEDARKING"
+   ]
+  },
+  {
+   "idx_comment": 148,
+   "seq": 183,
+   "arm": "common",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 106,
+   "file": "FILE_CELVISWAISTCOAT",
+   "scale": "1",
+   "animscale": "0.57276993989944",
+   "hand": "FILE_GHAND_ELVIS",
+   "comment": "",
+   "index": 148,
+   "consts": [
+    "BODY_ELVISWAISTCOAT"
+   ]
+  },
+  {
+   "idx_comment": 151,
+   "seq": 188,
+   "arm": "common",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 0,
+   "file": "0",
+   "scale": "1",
+   "animscale": "0",
+   "hand": "FILE_GCOMBATHANDSLOD",
+   "comment": "",
+   "index": 151,
+   "consts": []
+  },
+  {
+   "idx_comment": 152,
+   "seq": 189,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADNATALYA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Natalya",
+   "index": 152,
+   "consts": [
+    "HEAD_NATALYA"
+   ]
+  },
+  {
+   "idx_comment": 153,
+   "seq": 190,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADXENIA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Xenia",
+   "index": 153,
+   "consts": [
+    "HEAD_XENIA"
+   ]
+  },
+  {
+   "idx_comment": 154,
+   "seq": 191,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADTREVELYAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Trevelyan",
+   "index": 154,
+   "consts": [
+    "HEAD_TREVELYAN"
+   ]
+  },
+  {
+   "idx_comment": 155,
+   "seq": 192,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADOURUMOV",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Ourumov",
+   "index": 155,
+   "consts": [
+    "HEAD_OURUMOV"
+   ]
+  },
+  {
+   "idx_comment": 156,
+   "seq": 193,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBROSNAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Bond (Classic): Brosnan",
+   "index": 156,
+   "consts": [
+    "HEAD_BROSNAN"
+   ]
+  },
+  {
+   "idx_comment": 157,
+   "seq": 194,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDALTON",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Bond (Classic): Dalton",
+   "index": 157,
+   "consts": [
+    "HEAD_DALTON"
+   ]
+  },
+  {
+   "idx_comment": 158,
+   "seq": 195,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCONNERY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Bond (Classic): Connery",
+   "index": 158,
+   "consts": [
+    "HEAD_CONNERY"
+   ]
+  },
+  {
+   "idx_comment": 159,
+   "seq": 196,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMOORE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Bond (Classic): Moore",
+   "index": 159,
+   "consts": [
+    "HEAD_MOORE"
+   ]
+  },
+  {
+   "idx_comment": 160,
+   "seq": 197,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADLAZENBY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Bond (Classic): Lazenby",
+   "index": 160,
+   "consts": [
+    "HEAD_LAZENBY"
+   ]
+  },
+  {
+   "idx_comment": 161,
+   "seq": 198,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJAWS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Jaws",
+   "index": 161,
+   "consts": [
+    "HEAD_JAWS"
+   ]
+  },
+  {
+   "idx_comment": 162,
+   "seq": 199,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSNOWGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Siberian Special Forces",
+   "index": 162,
+   "consts": [
+    "HEAD_SNOWGUARD"
+   ]
+  },
+  {
+   "idx_comment": 163,
+   "seq": 200,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBROSNAN2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Bond (Arctic)",
+   "index": 163,
+   "consts": [
+    "HEAD_BROSNAN2"
+   ]
+  },
+  {
+   "idx_comment": 164,
+   "seq": 201,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADODDJOB",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Oddjob",
+   "index": 164,
+   "consts": [
+    "HEAD_ODDJOB"
+   ]
+  },
+  {
+   "idx_comment": 165,
+   "seq": 202,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDAVED",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Dr. Doak #1",
+   "index": 165,
+   "consts": [
+    "HEAD_DAVED"
+   ]
+  },
+  {
+   "idx_comment": 166,
+   "seq": 203,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDAVED2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Dr. Doak #2",
+   "index": 166,
+   "consts": [
+    "HEAD_DAVED2"
+   ]
+  },
+  {
+   "idx_comment": 167,
+   "seq": 204,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMISHKIN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Mishkin",
+   "index": 167,
+   "consts": [
+    "HEAD_MISHKIN"
+   ]
+  },
+  {
+   "idx_comment": 168,
+   "seq": 205,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBORIS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Boris",
+   "index": 168,
+   "consts": [
+    "HEAD_BORIS"
+   ]
+  },
+  {
+   "idx_comment": 169,
+   "seq": 206,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADVALENTIN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Valentin",
+   "index": 169,
+   "consts": [
+    "HEAD_VALENTIN"
+   ]
+  },
+  {
+   "idx_comment": 170,
+   "seq": 207,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMAYDAY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "May Day",
+   "index": 170,
+   "consts": [
+    "HEAD_MAYDAY"
+   ]
+  },
+  {
+   "idx_comment": 171,
+   "seq": 208,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBARONSAMEDI",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Baron Samedi",
+   "index": 171,
+   "consts": [
+    "HEAD_BARONSAMEDI"
+   ]
+  },
+  {
+   "idx_comment": 172,
+   "seq": 209,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBARONSAMEDI2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Baron Samedi (Death)",
+   "index": 172,
+   "consts": [
+    "HEAD_BARONSAMEDI2"
+   ]
+  },
+  {
+   "idx_comment": 173,
+   "seq": 210,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBALACLAVA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Terrorist",
+   "index": 173,
+   "consts": [
+    "HEAD_BALACLAVA"
+   ]
+  },
+  {
+   "idx_comment": 174,
+   "seq": 211,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDWAYNE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Dwayne",
+   "index": 174,
+   "consts": [
+    "HEAD_DWAYNE"
+   ]
+  },
+  {
+   "idx_comment": 175,
+   "seq": 212,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSANTA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Santa Claus",
+   "index": 175,
+   "consts": [
+    "HEAD_SANTA"
+   ]
+  },
+  {
+   "idx_comment": 176,
+   "seq": 213,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADELF",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Elf",
+   "index": 176,
+   "consts": [
+    "HEAD_ELF"
+   ]
+  },
+  {
+   "idx_comment": 177,
+   "seq": 214,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPILOT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Helicopter Pilot",
+   "index": 177,
+   "consts": [
+    "HEAD_PILOT"
+   ]
+  },
+  {
+   "idx_comment": 178,
+   "seq": 215,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMARION",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Rosika/Marion",
+   "index": 178,
+   "consts": [
+    "HEAD_MARION"
+   ]
+  },
+  {
+   "idx_comment": 179,
+   "seq": 216,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADKARL",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Karl Hilton #1",
+   "index": 179,
+   "consts": [
+    "HEAD_KARL"
+   ]
+  },
+  {
+   "idx_comment": 180,
+   "seq": 217,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADKARL2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Karl Hilton #2",
+   "index": 180,
+   "consts": [
+    "HEAD_KARL2"
+   ]
+  },
+  {
+   "idx_comment": 181,
+   "seq": 218,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMARTIN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Martin Hollis",
+   "index": 181,
+   "consts": [
+    "HEAD_MARTIN"
+   ]
+  },
+  {
+   "idx_comment": 182,
+   "seq": 219,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMARK0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Mark Edmonds",
+   "index": 182,
+   "consts": [
+    "HEAD_MARK0"
+   ]
+  },
+  {
+   "idx_comment": 183,
+   "seq": 220,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDUNCAN0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Duncan Botwood #1",
+   "index": 183,
+   "consts": [
+    "HEAD_DUNCAN0"
+   ]
+  },
+  {
+   "idx_comment": 184,
+   "seq": 221,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDUNCAN01",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Duncan Botwood #2",
+   "index": 184,
+   "consts": [
+    "HEAD_DUNCAN01"
+   ]
+  },
+  {
+   "idx_comment": 185,
+   "seq": 222,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJONES0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "B Jones",
+   "index": 185,
+   "consts": [
+    "HEAD_JONES0"
+   ]
+  },
+  {
+   "idx_comment": 186,
+   "seq": 223,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGRANT0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Grant Kirkhope",
+   "index": 186,
+   "consts": [
+    "HEAD_GRANT0"
+   ]
+  },
+  {
+   "idx_comment": 187,
+   "seq": 224,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADROBIN0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Robin Beanland",
+   "index": 187,
+   "consts": [
+    "HEAD_ROBIN0"
+   ]
+  },
+  {
+   "idx_comment": 188,
+   "seq": 225,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGRAEME",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Graeme Norgate #1",
+   "index": 188,
+   "consts": [
+    "HEAD_GRAEME"
+   ]
+  },
+  {
+   "idx_comment": 189,
+   "seq": 226,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGRAEME2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Graeme Norgate #2",
+   "index": 189,
+   "consts": [
+    "HEAD_GRAEME2"
+   ]
+  },
+  {
+   "idx_comment": 190,
+   "seq": 227,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSTEVE_E",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Steve Ellis",
+   "index": 190,
+   "consts": [
+    "HEAD_STEVE_E"
+   ]
+  },
+  {
+   "idx_comment": 191,
+   "seq": 228,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADKEN0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Ken Lobb",
+   "index": 191,
+   "consts": [
+    "HEAD_KEN0"
+   ]
+  },
+  {
+   "idx_comment": 192,
+   "seq": 229,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMANDY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Mandy '?'",
+   "index": 192,
+   "consts": [
+    "HEAD_MANDY"
+   ]
+  },
+  {
+   "idx_comment": 193,
+   "seq": 230,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADVIVIEN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Vivien '?'",
+   "index": 193,
+   "consts": [
+    "HEAD_VIVIEN"
+   ]
+  },
+  {
+   "idx_comment": 194,
+   "seq": 231,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSALLY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Sally '?'",
+   "index": 194,
+   "consts": [
+    "HEAD_SALLY"
+   ]
+  },
+  {
+   "idx_comment": 195,
+   "seq": 232,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJOEL0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Joel Hochberg",
+   "index": 195,
+   "consts": [
+    "HEAD_JOEL0"
+   ]
+  },
+  {
+   "idx_comment": 196,
+   "seq": 233,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJOE2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Joe '?'",
+   "index": 196,
+   "consts": [
+    "HEAD_JOE2"
+   ]
+  },
+  {
+   "idx_comment": 197,
+   "seq": 234,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJOE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Joe '?' (Altered)",
+   "index": 197,
+   "consts": [
+    "HEAD_JOE"
+   ]
+  },
+  {
+   "idx_comment": 198,
+   "seq": 235,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSCOTT_H0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Scott Hochberg",
+   "index": 198,
+   "consts": [
+    "HEAD_SCOTT_H0"
+   ]
+  },
+  {
+   "idx_comment": 199,
+   "seq": 236,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSTEVEH",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Steve Hurst",
+   "index": 199,
+   "consts": [
+    "HEAD_STEVEH"
+   ]
+  },
+  {
+   "idx_comment": 200,
+   "seq": 237,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJIM",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Jim '?' #1",
+   "index": 200,
+   "consts": [
+    "HEAD_JIM"
+   ]
+  },
+  {
+   "idx_comment": 201,
+   "seq": 238,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADJIM2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Jim '?' #2",
+   "index": 201,
+   "consts": [
+    "HEAD_JIM2"
+   ]
+  },
+  {
+   "idx_comment": 202,
+   "seq": 239,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADNEIL0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Neil Voss",
+   "index": 202,
+   "consts": [
+    "HEAD_NEIL0"
+   ]
+  },
+  {
+   "idx_comment": 203,
+   "seq": 240,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADLEE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Lee Ray",
+   "index": 203,
+   "consts": [
+    "HEAD_LEE"
+   ]
+  },
+  {
+   "idx_comment": 204,
+   "seq": 241,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCHRIS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Chris Dolan #1",
+   "index": 204,
+   "consts": [
+    "HEAD_CHRIS"
+   ]
+  },
+  {
+   "idx_comment": 205,
+   "seq": 242,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCHRIS2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Chris Dolan #2",
+   "index": 205,
+   "consts": [
+    "HEAD_CHRIS2"
+   ]
+  },
+  {
+   "idx_comment": 206,
+   "seq": 243,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDES",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Des Easen",
+   "index": 206,
+   "consts": [
+    "HEAD_DES"
+   ]
+  },
+  {
+   "idx_comment": 207,
+   "seq": 244,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSHAUN0",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Shaun Read",
+   "index": 207,
+   "consts": [
+    "HEAD_SHAUN0"
+   ]
+  },
+  {
+   "idx_comment": 208,
+   "seq": 245,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPETE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Pete Cox",
+   "index": 208,
+   "consts": [
+    "HEAD_PETE"
+   ]
+  },
+  {
+   "idx_comment": 209,
+   "seq": 246,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADALAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Alan Tipper",
+   "index": 209,
+   "consts": [
+    "HEAD_ALAN"
+   ]
+  },
+  {
+   "idx_comment": 210,
+   "seq": 247,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADBANDOVERFLOW",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Surface Glitch Head",
+   "index": 210,
+   "consts": [
+    "HEAD_BANDOVERFLOW"
+   ]
+  },
+  {
+   "idx_comment": 211,
+   "seq": 248,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADWRECK",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Wreck",
+   "index": 211,
+   "consts": [
+    "HEAD_WRECK"
+   ]
+  },
+  {
+   "idx_comment": 212,
+   "seq": 249,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSUBDRAG",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "SubDrag",
+   "index": 212,
+   "consts": [
+    "HEAD_SUBDRAG"
+   ]
+  },
+  {
+   "idx_comment": 213,
+   "seq": 250,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADGALORE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Galore (Plane)",
+   "index": 213,
+   "consts": [
+    "HEAD_GALORE"
+   ]
+  },
+  {
+   "idx_comment": 214,
+   "seq": 251,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSOGUN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Sogun",
+   "index": 214,
+   "consts": [
+    "HEAD_SOGUN"
+   ]
+  },
+  {
+   "idx_comment": 215,
+   "seq": 252,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMRKANE",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Mark Kane",
+   "index": 215,
+   "consts": [
+    "HEAD_MRKANE"
+   ]
+  },
+  {
+   "idx_comment": 216,
+   "seq": 253,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADPARIS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Paris Carver",
+   "index": 216,
+   "consts": [
+    "HEAD_PARIS"
+   ]
+  },
+  {
+   "idx_comment": 217,
+   "seq": 254,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDONKEY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Donkey Kong",
+   "index": 217,
+   "consts": [
+    "HEAD_DONKEY"
+   ]
+  },
+  {
+   "idx_comment": 218,
+   "seq": 255,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADCASEYDARK",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Casey Dark",
+   "index": 218,
+   "consts": [
+    "HEAD_CASEYDARK"
+   ]
+  },
+  {
+   "idx_comment": 219,
+   "seq": 256,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADHAMM",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Everett Hamm",
+   "index": 219,
+   "consts": [
+    "HEAD_HAMM"
+   ]
+  },
+  {
+   "idx_comment": 220,
+   "seq": 257,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADDRNO",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Dr. No",
+   "index": 220,
+   "consts": [
+    "HEAD_DRNO"
+   ]
+  },
+  {
+   "idx_comment": 221,
+   "seq": 258,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADWAILIN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Wai Lin",
+   "index": 221,
+   "consts": [
+    "HEAD_WAILIN"
+   ]
+  },
+  {
+   "idx_comment": 222,
+   "seq": 259,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADAURIC",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Auric Goldfinger",
+   "index": 222,
+   "consts": [
+    "HEAD_AURIC"
+   ]
+  },
+  {
+   "idx_comment": 223,
+   "seq": 260,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADELEKTRA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Elektra King",
+   "index": 223,
+   "consts": [
+    "HEAD_ELEKTRA"
+   ]
+  },
+  {
+   "idx_comment": 224,
+   "seq": 261,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MRBLONDE",
+   "height": 13,
+   "file": "FILE_CHEADMRX",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Tyrant Mr. X",
+   "index": 224,
+   "consts": [
+    "HEAD_MRX"
+   ]
+  },
+  {
+   "idx_comment": 225,
+   "seq": 262,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADSKEDAR",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Skedar",
+   "index": 225,
+   "consts": [
+    "HEAD_SKEDAR"
+   ]
+  },
+  {
+   "idx_comment": 226,
+   "seq": 263,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCARROLL",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Dr. Caroll",
+   "index": 226,
+   "consts": [
+    "HEAD_CARROLL"
+   ]
+  },
+  {
+   "idx_comment": 227,
+   "seq": 264,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCARROLL_SINISTER",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Dr. Caroll (Sinister)",
+   "index": 227,
+   "consts": [
+    "HEAD_CARROLL_SINISTER"
+   ]
+  },
+  {
+   "idx_comment": 228,
+   "seq": 265,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 13,
+   "file": "FILE_CHEADCHRISTMASJONES",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Christmas Jones",
+   "index": 228,
+   "consts": [
+    "HEAD_CHRISTMASJONES"
+   ]
+  },
+  {
+   "idx_comment": 229,
+   "seq": 266,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADCJ",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Carl Johnson \"CJ\"",
+   "index": 229,
+   "consts": [
+    "HEAD_CJ"
+   ]
+  },
+  {
+   "idx_comment": 230,
+   "seq": 267,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 13,
+   "file": "FILE_CHEADMACTONIGHT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "0",
+   "comment": "Moon Head",
+   "index": 230,
+   "consts": [
+    "HEAD_MACTONIGHT"
+   ]
+  },
+  {
+   "idx_comment": 231,
+   "seq": 268,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 162,
+   "file": "FILE_CNATALYA",
+   "scale": "1",
+   "animscale": "0.9660999775",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "Natalya (Russia)",
+   "index": 231,
+   "consts": [
+    "BODY_NATALYA"
+   ]
+  },
+  {
+   "idx_comment": 232,
+   "seq": 269,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CXENIA",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_XENIA",
+   "comment": "Xenia",
+   "index": 232,
+   "consts": [
+    "BODY_XENIA"
+   ]
+  },
+  {
+   "idx_comment": 233,
+   "seq": 270,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CTREVELYAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_TREVELYAN",
+   "comment": "Trevelyan (Janus)",
+   "index": 233,
+   "consts": [
+    "BODY_TREVELYAN"
+   ]
+  },
+  {
+   "idx_comment": 234,
+   "seq": 271,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 174,
+   "file": "FILE_COURUMOV",
+   "scale": "1",
+   "animscale": "1.0778000355",
+   "hand": "FILE_GHAND_OURUMOV",
+   "comment": "Ourumov",
+   "index": 234,
+   "consts": [
+    "BODY_OURUMOV"
+   ]
+  },
+  {
+   "idx_comment": 235,
+   "seq": 272,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 162,
+   "file": "FILE_CSPICEBOND",
+   "scale": "1",
+   "animscale": "0.9660999775",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "Natalya (Cuba)",
+   "index": 235,
+   "consts": [
+    "BODY_SPICEBOND"
+   ]
+  },
+  {
+   "idx_comment": 236,
+   "seq": 273,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CDJBOND2",
+   "scale": "1",
+   "animscale": "1.0446000099",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "Bond (Tuxedo): Brosnan",
+   "index": 236,
+   "consts": [
+    "BODY_DJBOND2"
+   ]
+  },
+  {
+   "idx_comment": 237,
+   "seq": 274,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CDALTON2",
+   "scale": "1",
+   "animscale": "1.0446000099",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "Bond (Classic): Dalton",
+   "index": 237,
+   "consts": [
+    "BODY_DALTON2"
+   ]
+  },
+  {
+   "idx_comment": 238,
+   "seq": 275,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCONNERY2",
+   "scale": "1",
+   "animscale": "1.0579999685",
+   "hand": "FILE_GHAND_BONDWHITE",
+   "comment": "Bond (Classic): Connery",
+   "index": 238,
+   "consts": [
+    "BODY_CONNERY2"
+   ]
+  },
+  {
+   "idx_comment": 239,
+   "seq": 276,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CMOORE2",
+   "scale": "1",
+   "animscale": "1.0446000099",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "Bond (Classic): Moore",
+   "index": 239,
+   "consts": [
+    "BODY_MOORE2"
+   ]
+  },
+  {
+   "idx_comment": 240,
+   "seq": 277,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CLAZENBY",
+   "scale": "1",
+   "animscale": "1.0446000099",
+   "hand": "FILE_GHAND_BOND",
+   "comment": "Bond (Classic): Lazenby",
+   "index": 240,
+   "consts": [
+    "BODY_LAZENBY"
+   ]
+  },
+  {
+   "idx_comment": 241,
+   "seq": 278,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 181,
+   "file": "FILE_CJAWS",
+   "scale": "1",
+   "animscale": "1.199000001",
+   "hand": "FILE_GHAND_JAWS",
+   "comment": "Jaws",
+   "index": 241,
+   "consts": [
+    "BODY_JAWS"
+   ]
+  },
+  {
+   "idx_comment": 242,
+   "seq": 279,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CSNOWGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_SNOWGUARD",
+   "comment": "Siberian Special Forces",
+   "index": 242,
+   "consts": [
+    "BODY_SNOWGUARD"
+   ]
+  },
+  {
+   "idx_comment": 243,
+   "seq": 280,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CSNOWBOND",
+   "scale": "1",
+   "animscale": "1.0437999964",
+   "hand": "FILE_GHAND_SNOWGUARD",
+   "comment": "Bond (Arctic)",
+   "index": 243,
+   "consts": [
+    "BODY_SNOWBOND"
+   ]
+  },
+  {
+   "idx_comment": 244,
+   "seq": 281,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 134,
+   "file": "FILE_CODDJOB",
+   "scale": "1",
+   "animscale": "0.787800014",
+   "hand": "FILE_GHAND_ODDJOB",
+   "comment": "Oddjob",
+   "index": 244,
+   "consts": [
+    "BODY_ODDJOB"
+   ]
+  },
+  {
+   "idx_comment": 245,
+   "seq": 282,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CTECHMAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_MRBLONDE",
+   "comment": "Male Scientist",
+   "index": 245,
+   "consts": [
+    "BODY_TECHMAN"
+   ]
+  },
+  {
+   "idx_comment": 246,
+   "seq": 283,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CGREATGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_MISHKIN",
+   "comment": "Mishkin",
+   "index": 246,
+   "consts": [
+    "BODY_GREATGUARD"
+   ]
+  },
+  {
+   "idx_comment": 247,
+   "seq": 284,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CSUITBOND",
+   "scale": "1",
+   "animscale": "1.0579999685",
+   "hand": "FILE_GHAND_BLUE_SUIT",
+   "comment": "Bond (Formal)",
+   "index": 247,
+   "consts": [
+    "BODY_SUITBOND"
+   ]
+  },
+  {
+   "idx_comment": 248,
+   "seq": 285,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBOILERBOND",
+   "scale": "1",
+   "animscale": "1.0403000116",
+   "hand": "FILE_GHAND_BLACKSTEALTH",
+   "comment": "Bond (Stealth)",
+   "index": 248,
+   "consts": [
+    "BODY_BOILERBOND"
+   ]
+  },
+  {
+   "idx_comment": 249,
+   "seq": 286,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBOILERTREV",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_BLACKSTEALTH",
+   "comment": "Trevelyan (006)",
+   "index": 249,
+   "consts": [
+    "BODY_BOILERTREV"
+   ]
+  },
+  {
+   "idx_comment": 250,
+   "seq": 287,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CTIMBERBOND",
+   "scale": "1",
+   "animscale": "1.0437999964",
+   "hand": "FILE_GHAND_TIMBERBOND",
+   "comment": "Bond (Jungle)",
+   "index": 250,
+   "consts": [
+    "BODY_TIMBERBOND"
+   ]
+  },
+  {
+   "idx_comment": 251,
+   "seq": 288,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MAIAN",
+   "height": 106,
+   "file": "FILE_CELTONWAISTCOAT",
+   "scale": "1",
+   "animscale": "0.5727699399",
+   "hand": "FILE_GHAND_ELVIS",
+   "comment": "Elton",
+   "index": 251,
+   "consts": [
+    "BODY_ELTONWAISTCOAT"
+   ]
+  },
+  {
+   "idx_comment": 252,
+   "seq": 289,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 163,
+   "file": "FILE_CBORIS",
+   "scale": "1",
+   "animscale": "0.9702000022",
+   "hand": "FILE_GHAND_BORIS",
+   "comment": "Boris",
+   "index": 252,
+   "consts": [
+    "BODY_BORIS"
+   ]
+  },
+  {
+   "idx_comment": 253,
+   "seq": 290,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 158,
+   "file": "FILE_CVALENTIN",
+   "scale": "1",
+   "animscale": "0.9323999882",
+   "hand": "FILE_GHAND_VALENTIN",
+   "comment": "Valentin",
+   "index": 253,
+   "consts": [
+    "BODY_VALENTIN"
+   ]
+  },
+  {
+   "idx_comment": 254,
+   "seq": 291,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CMAYDAY",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_MAYDAY",
+   "comment": "May Day",
+   "index": 254,
+   "consts": [
+    "BODY_MAYDAY"
+   ]
+  },
+  {
+   "idx_comment": 255,
+   "seq": 292,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBARONSAMEDI",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_SAMEDI",
+   "comment": "Baron Samedi",
+   "index": 255,
+   "consts": [
+    "BODY_BARONSAMEDI"
+   ]
+  },
+  {
+   "idx_comment": 0,
+   "seq": 293,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBARONSAMEDI2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_SAMEDI2",
+   "comment": "Baron Samedi (Death)",
+   "index": 256,
+   "consts": [
+    "BODY_BARONSAMEDI2"
+   ]
+  },
+  {
+   "idx_comment": 257,
+   "seq": 294,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 158,
+   "file": "FILE_CSANTA",
+   "scale": "1",
+   "animscale": "0.9323999882",
+   "hand": "FILE_GHAND_SANTA",
+   "comment": "Santa Claus",
+   "index": 257,
+   "consts": [
+    "BODY_SANTA"
+   ]
+  },
+  {
+   "idx_comment": 258,
+   "seq": 295,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 134,
+   "file": "FILE_CELF",
+   "scale": "1",
+   "animscale": "0.787800014",
+   "hand": "FILE_GHAND_ELF",
+   "comment": "Elf",
+   "index": 258,
+   "consts": [
+    "BODY_ELF"
+   ]
+  },
+  {
+   "idx_comment": 259,
+   "seq": 296,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_COLIVEGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_OLIVEGUARD",
+   "comment": "Russian Soldier",
+   "index": 259,
+   "consts": [
+    "BODY_OLIVEGUARD"
+   ]
+  },
+  {
+   "idx_comment": 260,
+   "seq": 297,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CPILOT",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_PILOT",
+   "comment": "Helicopter Pilot",
+   "index": 260,
+   "consts": [
+    "BODY_PILOT"
+   ]
+  },
+  {
+   "idx_comment": 261,
+   "seq": 298,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CTREVGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_MISHKIN",
+   "comment": "Janus Special Forces",
+   "index": 261,
+   "consts": [
+    "BODY_TREVGUARD"
+   ]
+  },
+  {
+   "idx_comment": 262,
+   "seq": 299,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CARMOURGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_ARMOURGUARD",
+   "comment": "Janus Marine",
+   "index": 262,
+   "consts": [
+    "BODY_ARMOURGUARD"
+   ]
+  },
+  {
+   "idx_comment": 263,
+   "seq": 300,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CGREATGUARD2",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_BROWN",
+   "comment": "Siberian Guard (Brown)",
+   "index": 263,
+   "consts": [
+    "BODY_GREATGUARD2"
+   ]
+  },
+  {
+   "idx_comment": 264,
+   "seq": 301,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBLUECAMGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_BLUECAMGUARD",
+   "comment": "Arctic Commando",
+   "index": 264,
+   "consts": [
+    "BODY_BLUECAMGUARD"
+   ]
+  },
+  {
+   "idx_comment": 265,
+   "seq": 302,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBLUEMAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_JOFROCK",
+   "comment": "Male Civilian (Blue)",
+   "index": 265,
+   "consts": [
+    "BODY_BLUEMAN"
+   ]
+  },
+  {
+   "idx_comment": 266,
+   "seq": 303,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CGREYMAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_GREYMAN",
+   "comment": "Male Civilian (Grey)",
+   "index": 266,
+   "consts": [
+    "BODY_GREYMAN"
+   ]
+  },
+  {
+   "idx_comment": 267,
+   "seq": 304,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CMOONGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_MOONGUARD",
+   "comment": "Male Moonraker Elite",
+   "index": 267,
+   "consts": [
+    "BODY_MOONGUARD"
+   ]
+  },
+  {
+   "idx_comment": 268,
+   "seq": 305,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 149,
+   "file": "FILE_CMOONFEMALE",
+   "scale": "1",
+   "animscale": "0.8852999806",
+   "hand": "FILE_GHAND_MOONFEMALE",
+   "comment": "Female Moonraker Elite",
+   "index": 268,
+   "consts": [
+    "BODY_MOONFEMALE"
+   ]
+  },
+  {
+   "idx_comment": 269,
+   "seq": 306,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCAMGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_CAMGUARD",
+   "comment": "Jungle Commando",
+   "index": 269,
+   "consts": [
+    "BODY_CAMGUARD"
+   ]
+  },
+  {
+   "idx_comment": 270,
+   "seq": 307,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CGREYGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_STPGUARD",
+   "comment": "St. Petersburg Guard",
+   "index": 270,
+   "consts": [
+    "BODY_GREYGUARD"
+   ]
+  },
+  {
+   "idx_comment": 271,
+   "seq": 308,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CRUSGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_RUSGUARD",
+   "comment": "Russian Infantry",
+   "index": 271,
+   "consts": [
+    "BODY_RUSGUARD"
+   ]
+  },
+  {
+   "idx_comment": 272,
+   "seq": 309,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCOMMGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_COMMGUARD",
+   "comment": "Russian Commandant",
+   "index": 272,
+   "consts": [
+    "BODY_COMMGUARD"
+   ]
+  },
+  {
+   "idx_comment": 273,
+   "seq": 310,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CNAVYGUARD",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_NAVYGUARD",
+   "comment": "Naval Officer",
+   "index": 273,
+   "consts": [
+    "BODY_NAVYGUARD"
+   ]
+  },
+  {
+   "idx_comment": 274,
+   "seq": 311,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 149,
+   "file": "FILE_CFATTECHWOMAN",
+   "scale": "1",
+   "animscale": "0.8852999806",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "Rosika/Marion",
+   "index": 274,
+   "consts": [
+    "BODY_FATTECHWOMAN"
+   ]
+  },
+  {
+   "idx_comment": 275,
+   "seq": 312,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 154,
+   "file": "FILE_CTECHWOMAN",
+   "scale": "1",
+   "animscale": "0.9160000086",
+   "hand": "FILE_GHAND_TECHWOMAN",
+   "comment": "Female Scientist",
+   "index": 275,
+   "consts": [
+    "BODY_TECHWOMAN"
+   ]
+  },
+  {
+   "idx_comment": 276,
+   "seq": 313,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 149,
+   "file": "FILE_CJEANWOMAN",
+   "scale": "1",
+   "animscale": "0.8852999806",
+   "hand": "FILE_GHAND_TECHWOMAN",
+   "comment": "Female Civilian (Jeans)",
+   "index": 276,
+   "consts": [
+    "BODY_JEANWOMAN"
+   ]
+  },
+  {
+   "idx_comment": 277,
+   "seq": 314,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 149,
+   "file": "FILE_CBLUEWOMAN",
+   "scale": "1",
+   "animscale": "0.8852999806",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "Female Civilian (Skirt)",
+   "index": 277,
+   "consts": [
+    "BODY_BLUEWOMAN"
+   ]
+  },
+  {
+   "idx_comment": 278,
+   "seq": 315,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCARDIMAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_JOFROCK",
+   "comment": "Male Civilian (Vest)",
+   "index": 278,
+   "consts": [
+    "BODY_CARDIMAN"
+   ]
+  },
+  {
+   "idx_comment": 279,
+   "seq": 316,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCHECKMAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_CHECKMAN",
+   "comment": "Male Civilian (Plaid)",
+   "index": 279,
+   "consts": [
+    "BODY_CHECKMAN"
+   ]
+  },
+  {
+   "idx_comment": 280,
+   "seq": 317,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CREDMAN",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_REDMAN",
+   "comment": "Male Civilian (Red)",
+   "index": 280,
+   "consts": [
+    "BODY_REDMAN"
+   ]
+  },
+  {
+   "idx_comment": 281,
+   "seq": 318,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBONDALPS",
+   "scale": "1",
+   "animscale": "1.0579999685",
+   "hand": "FILE_GHAND_BONDALPS",
+   "comment": "Bond (Classic, Alps)",
+   "index": 281,
+   "consts": [
+    "BODY_BONDALPS"
+   ]
+  },
+  {
+   "idx_comment": 282,
+   "seq": 319,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CBONDRANCH",
+   "scale": "1",
+   "animscale": "1.0446000099",
+   "hand": "FILE_GHAND_BONDRANCH",
+   "comment": "Bond (Classic, Ranch)",
+   "index": 282,
+   "consts": [
+    "BODY_BONDRANCH"
+   ]
+  },
+  {
+   "idx_comment": 283,
+   "seq": 320,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 162,
+   "file": "FILE_CGALOREPLANE",
+   "scale": "1",
+   "animscale": "0.96609998",
+   "hand": "FILE_GHAND_GALOREPLANE",
+   "comment": "Galore (Plane)",
+   "index": 283,
+   "consts": [
+    "BODY_GALOREPLANE"
+   ]
+  },
+  {
+   "idx_comment": 284,
+   "seq": 321,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 162,
+   "file": "FILE_CGALORERANCH",
+   "scale": "1",
+   "animscale": "0.96609998",
+   "hand": "FILE_GHAND_GALORERANCH",
+   "comment": "Galore (Ranch)",
+   "index": 284,
+   "consts": [
+    "BODY_GALORERANCH"
+   ]
+  },
+  {
+   "idx_comment": 285,
+   "seq": 322,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 159,
+   "file": "FILE_CSOGUNTRON",
+   "scale": "1",
+   "animscale": "0.9389671683",
+   "hand": "FILE_GHAND_SOGUNTRON",
+   "comment": "Sogun",
+   "index": 285,
+   "consts": [
+    "BODY_SOGUNTRON"
+   ]
+  },
+  {
+   "idx_comment": 286,
+   "seq": 323,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 1,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 144,
+   "file": "FILE_CCARROLL3",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_CAROLL",
+   "comment": "Dr. Caroll",
+   "index": 286,
+   "consts": [
+    "BODY_CARROLL3"
+   ]
+  },
+  {
+   "idx_comment": 287,
+   "seq": 324,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 162,
+   "file": "FILE_CNATALYA_XMAS",
+   "scale": "1",
+   "animscale": "0.9660999775",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "Natalya (Santa)",
+   "index": 287,
+   "consts": [
+    "BODY_NATALYA_XMAS"
+   ]
+  },
+  {
+   "idx_comment": 288,
+   "seq": 325,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 162,
+   "file": "FILE_CNATALYA_ELF",
+   "scale": "1",
+   "animscale": "0.9660999775",
+   "hand": "FILE_GHAND_NATALYA",
+   "comment": "Natalya (Elf)",
+   "index": 288,
+   "consts": [
+    "BODY_NATALYA_ELF"
+   ]
+  },
+  {
+   "idx_comment": 289,
+   "seq": 326,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_FEMALE",
+   "height": 159,
+   "file": "FILE_CCASEYDARK",
+   "scale": "1",
+   "animscale": "0.9530516267",
+   "hand": "FILE_GHAND_CASEYDARK",
+   "comment": "Casey Dark",
+   "index": 289,
+   "consts": [
+    "BODY_CASEYDARK"
+   ]
+  },
+  {
+   "idx_comment": 290,
+   "seq": 327,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CEVERETTHAMM",
+   "scale": "1",
+   "animscale": "1.0446009636",
+   "hand": "FILE_GHAND_BLUE_SUIT",
+   "comment": "Everett Hamm",
+   "index": 290,
+   "consts": [
+    "BODY_EVERETTHAMM"
+   ]
+  },
+  {
+   "idx_comment": 291,
+   "seq": 328,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CXENIA_XMAS",
+   "scale": "1",
+   "animscale": "1",
+   "hand": "FILE_GHAND_XENIA_XMAS",
+   "comment": "Xenia (Santa)",
+   "index": 291,
+   "consts": [
+    "BODY_XENIA_XMAS"
+   ]
+  },
+  {
+   "idx_comment": 292,
+   "seq": 329,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_MRBLONDE",
+   "height": 181,
+   "file": "FILE_CMRX",
+   "scale": "1.1499999762",
+   "animscale": "0.9750000238",
+   "hand": "FILE_GHAND_MRX",
+   "comment": "Tyrant Mr. X",
+   "index": 292,
+   "consts": [
+    "BODY_MRX"
+   ]
+  },
+  {
+   "idx_comment": 293,
+   "seq": 330,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 149,
+   "file": "FILE_CSILVERWOMAN",
+   "scale": "1",
+   "animscale": "0.8852999806",
+   "hand": "FILE_GHAND_TECHWOMAN",
+   "comment": "Estate Patron (Silver)",
+   "index": 293,
+   "consts": [
+    "BODY_SILVERWOMAN"
+   ]
+  },
+  {
+   "idx_comment": 294,
+   "seq": 331,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 181,
+   "file": "FILE_CJAWS_BLUE",
+   "scale": "1",
+   "animscale": "1.1990000010",
+   "hand": "FILE_GHAND_JAWS_BLUE",
+   "comment": "Jaws (Blazer)",
+   "index": 294,
+   "consts": [
+    "BODY_JAWS_BLUE"
+   ]
+  },
+  {
+   "idx_comment": 295,
+   "seq": 332,
+   "arm": "aio",
+   "active": true,
+   "ismale": 0,
+   "hasownhead": 0,
+   "canvaryheight": 1,
+   "type": "HEADBODYTYPE_FEMALEGUARD",
+   "height": 160,
+   "file": "FILE_CFEMSPY_BLU",
+   "scale": "1",
+   "animscale": "0.9389669895",
+   "hand": "FILE_GHAND_FEMSPY_BLU",
+   "comment": "Female Spy (Blue)",
+   "index": 295,
+   "consts": [
+    "BODY_FEMSPY_BLU"
+   ]
+  },
+  {
+   "idx_comment": 296,
+   "seq": 333,
+   "arm": "aio",
+   "active": true,
+   "ismale": 1,
+   "hasownhead": 0,
+   "canvaryheight": 0,
+   "type": "HEADBODYTYPE_DEFAULT",
+   "height": 167,
+   "file": "FILE_CCJ",
+   "scale": "1",
+   "animscale": "1.0000000000",
+   "hand": "FILE_GHAND_PRESIDENT_CLONE",
+   "comment": "Carl Johnson \"CJ\"",
+   "index": 296,
+   "consts": [
+    "BODY_CJ"
+   ]
+  }
+ ],
+ "files": {
+  "FILE_CCARROLL2": "Ccarroll2Z",
+  "FILE_CSKEDAR2": "Cskedar2Z",
+  "FILE_GHAND_CAROLL": "Ghand_carollZ",
+  "FILE_GHAND_SKEDAR": "Ghand_skedarZ",
+  "FILE_CHEADNATALYA": "CheadnatalyaZ",
+  "FILE_CNATALYA": "CnatalyaZ",
+  "FILE_CHEADXENIA": "CheadxeniaZ",
+  "FILE_CXENIA": "CxeniaZ",
+  "FILE_GHAND_XENIA": "Ghand_xeniaZ",
+  "FILE_CHEADTREVELYAN": "CheadtrevelyanZ",
+  "FILE_CTREVELYAN": "CtrevelyanZ",
+  "FILE_GHAND_TREVELYAN": "Ghand_trevelyanZ",
+  "FILE_CHEADOURUMOV": "CheadourumovZ",
+  "FILE_COURUMOV": "CourumovZ",
+  "FILE_GHAND_OURUMOV": "Ghand_ourumovZ",
+  "FILE_CSPICEBOND": "CspicebondZ",
+  "FILE_CHEADBROSNAN": "CheadbrosnanZ",
+  "FILE_CDJBOND2": "Cdjbond2Z",
+  "FILE_GHAND_BOND": "Ghand_bondZ",
+  "FILE_CHEADDALTON": "CheaddaltonZ",
+  "FILE_CDALTON2": "Cdalton2Z",
+  "FILE_CHEADCONNERY": "CheadconneryZ",
+  "FILE_CCONNERY2": "Cconnery2Z",
+  "FILE_GHAND_BONDWHITE": "Ghand_bondwhiteZ",
+  "FILE_CHEADMOORE": "CheadmooreZ",
+  "FILE_CMOORE2": "Cmoore2Z",
+  "FILE_CHEADLAZENBY": "CheadlazenbyZ",
+  "FILE_CLAZENBY": "ClazenbyZ",
+  "FILE_CHEADJAWS": "CheadjawsZ",
+  "FILE_CJAWS": "CjawsZ",
+  "FILE_CHEADSNOWGUARD": "CheadsnowguardZ",
+  "FILE_CSNOWGUARD": "CsnowguardZ",
+  "FILE_GHAND_SNOWGUARD": "Ghand_snowguardZ",
+  "FILE_CHEADBROSNAN2": "Cheadbrosnan2Z",
+  "FILE_CSNOWBOND": "CsnowbondZ",
+  "FILE_CHEADODDJOB": "CheadoddjobZ",
+  "FILE_CODDJOB": "CoddjobZ",
+  "FILE_GHAND_ODDJOB": "Ghand_oddjobZ",
+  "FILE_CHEADDAVED": "CheaddavedZ",
+  "FILE_CHEADDAVED2": "Cheaddaved2Z",
+  "FILE_CTECHMAN": "CtechmanZ",
+  "FILE_CHEADMISHKIN": "CheadmishkinZ",
+  "FILE_CGREATGUARD": "CgreatguardZ",
+  "FILE_GHAND_MISHKIN": "Ghand_mishkinZ",
+  "FILE_CSUITBOND": "CsuitbondZ",
+  "FILE_GHAND_BLUE_SUIT": "Ghand_blue_suitZ",
+  "FILE_CBOILERBOND": "CboilerbondZ",
+  "FILE_GHAND_BLACKSTEALTH": "Ghand_blackstealthZ",
+  "FILE_CBOILERTREV": "CboilertrevZ",
+  "FILE_CTIMBERBOND": "CtimberbondZ",
+  "FILE_CELTONWAISTCOAT": "CeltonwaistcoatZ",
+  "FILE_CHEADBORIS": "CheadborisZ",
+  "FILE_CBORIS": "CborisZ",
+  "FILE_GHAND_BORIS": "Ghand_borisZ",
+  "FILE_CHEADVALENTIN": "CheadvalentinZ",
+  "FILE_CVALENTIN": "CvalentinZ",
+  "FILE_CHEADMAYDAY": "CheadmaydayZ",
+  "FILE_CMAYDAY": "CmaydayZ",
+  "FILE_GHAND_MAYDAY": "Ghand_maydayZ",
+  "FILE_CHEADBARONSAMEDI": "CheadbaronsamediZ",
+  "FILE_CBARONSAMEDI": "CbaronsamediZ",
+  "FILE_GHAND_SAMEDI": "Ghand_samediZ",
+  "FILE_CHEADBARONSAMEDI2": "Cheadbaronsamedi2Z",
+  "FILE_CBARONSAMEDI2": "Cbaronsamedi2Z",
+  "FILE_GHAND_SAMEDI2": "Ghand_samedi2Z",
+  "FILE_CHEADBALACLAVA": "CheadbalaclavaZ",
+  "FILE_CHEADDWAYNE": "CheaddwayneZ",
+  "FILE_CHEADSANTA": "CheadsantaZ",
+  "FILE_CSANTA": "CsantaZ",
+  "FILE_GHAND_SANTA": "Ghand_santaZ",
+  "FILE_CHEADELF": "CheadelfZ",
+  "FILE_CELF": "CelfZ",
+  "FILE_GHAND_ELF": "Ghand_elfZ",
+  "FILE_COLIVEGUARD": "ColiveguardZ",
+  "FILE_GHAND_OLIVEGUARD": "Ghand_oliveguardZ",
+  "FILE_CHEADPILOT": "CheadpilotZ",
+  "FILE_CPILOT": "CpilotZ",
+  "FILE_GHAND_PILOT": "Ghand_pilotZ",
+  "FILE_CTREVGUARD": "CtrevguardZ",
+  "FILE_CARMOURGUARD": "CarmourguardZ",
+  "FILE_GHAND_GREYMAN": "Ghand_greymanZ",
+  "FILE_CGREATGUARD2": "Cgreatguard2Z",
+  "FILE_GHAND_BROWN": "Ghand_brownZ",
+  "FILE_CBLUECAMGUARD": "CbluecamguardZ",
+  "FILE_GHAND_BLUECAMGUARD": "Ghand_bluecamguardZ",
+  "FILE_CBLUEMAN": "CbluemanZ",
+  "FILE_CGREYMAN": "CgreymanZ",
+  "FILE_CMOONGUARD": "CmoonguardZ",
+  "FILE_GHAND_MOONGUARD": "Ghand_moonguardZ",
+  "FILE_CMOONFEMALE": "CmoonfemaleZ",
+  "FILE_CCAMGUARD": "CcamguardZ",
+  "FILE_GHAND_CAMGUARD": "Ghand_camguardZ",
+  "FILE_CGREYGUARD": "CgreyguardZ",
+  "FILE_GHAND_STPGUARD": "Ghand_stpguardZ",
+  "FILE_CRUSGUARD": "CrusguardZ",
+  "FILE_GHAND_RUSGUARD": "Ghand_rusguardZ",
+  "FILE_CCOMMGUARD": "CcommguardZ",
+  "FILE_GHAND_COMMGUARD": "Ghand_commguardZ",
+  "FILE_CNAVYGUARD": "CnavyguardZ",
+  "FILE_GHAND_NAVYGUARD": "Ghand_navyguardZ",
+  "FILE_CHEADMARION": "CheadmarionZ",
+  "FILE_CFATTECHWOMAN": "CfattechwomanZ",
+  "FILE_CTECHWOMAN": "CtechwomanZ",
+  "FILE_CJEANWOMAN": "CjeanwomanZ",
+  "FILE_CBLUEWOMAN": "CbluewomanZ",
+  "FILE_CCARDIMAN": "CcardimanZ",
+  "FILE_CCHECKMAN": "CcheckmanZ",
+  "FILE_GHAND_CHECKMAN": "Ghand_checkmanZ",
+  "FILE_CREDMAN": "CredmanZ",
+  "FILE_GHAND_REDMAN": "Ghand_redmanZ",
+  "FILE_CHEADKARL": "CheadkarlZ",
+  "FILE_CHEADKARL2": "Cheadkarl2Z",
+  "FILE_CHEADMARTIN": "CheadmartinZ",
+  "FILE_CHEADMARK0": "Cheadmark0Z",
+  "FILE_CHEADDUNCAN0": "Cheadduncan0Z",
+  "FILE_CHEADDUNCAN01": "Cheadduncan01Z",
+  "FILE_CHEADJONES0": "Cheadjones0Z",
+  "FILE_CHEADGRANT0": "Cheadgrant0Z",
+  "FILE_CHEADROBIN0": "Cheadrobin0Z",
+  "FILE_CHEADGRAEME": "CheadgraemeZ",
+  "FILE_CHEADGRAEME2": "Cheadgraeme2Z",
+  "FILE_CHEADSTEVE_E": "Cheadsteve_eZ",
+  "FILE_CHEADKEN0": "Cheadken0Z",
+  "FILE_CHEADMANDY": "CheadmandyZ",
+  "FILE_CHEADVIVIEN": "CheadvivienZ",
+  "FILE_CHEADSALLY": "CheadsallyZ",
+  "FILE_CHEADJOEL0": "Cheadjoel0Z",
+  "FILE_CHEADJOE2": "Cheadjoe2Z",
+  "FILE_CHEADJOE": "CheadjoeZ",
+  "FILE_CHEADSCOTT_H0": "Cheadscott_h0Z",
+  "FILE_CHEADSTEVEH": "CheadstevehZ",
+  "FILE_CHEADJIM": "CheadjimZ",
+  "FILE_CHEADJIM2": "Cheadjim2Z",
+  "FILE_CHEADNEIL0": "Cheadneil0Z",
+  "FILE_CHEADLEE": "CheadleeZ",
+  "FILE_CHEADCHRIS": "CheadchrisZ",
+  "FILE_CHEADCHRIS2": "Cheadchris2Z",
+  "FILE_CHEADDES": "CheaddesZ",
+  "FILE_CHEADSHAUN0": "Cheadshaun0Z",
+  "FILE_CHEADPETE": "CheadpeteZ",
+  "FILE_CHEADALAN": "CheadalanZ",
+  "FILE_CHEADBANDOVERFLOW": "CheadbandoverflowZ",
+  "FILE_CHEADWRECK": "CheadwreckZ",
+  "FILE_CHEADSUBDRAG": "CheadsubdragZ",
+  "FILE_CBONDALPS": "CbondalpsZ",
+  "FILE_GHAND_BONDALPS": "Ghand_bondalpsZ",
+  "FILE_CBONDRANCH": "CbondranchZ",
+  "FILE_GHAND_BONDRANCH": "Ghand_bondranchZ",
+  "FILE_CHEADGALORE": "CheadgaloreZ",
+  "FILE_CGALOREPLANE": "CgaloreplaneZ",
+  "FILE_CGALORERANCH": "CgaloreranchZ",
+  "FILE_GHAND_GALORERANCH": "Ghand_galoreranchZ",
+  "FILE_CHEADSOGUN": "CheadsogunZ",
+  "FILE_CSOGUNTRON": "CsoguntronZ",
+  "FILE_GHAND_SOGUNTRON": "Ghand_soguntronZ",
+  "FILE_CHEADMRKANE": "CheadmrkaneZ",
+  "FILE_CHEADPARIS": "CheadparisZ",
+  "FILE_CCARROLL3": "Ccarroll3Z",
+  "FILE_CNATALYA_XMAS": "Cnatalya_xmasZ",
+  "FILE_CNATALYA_ELF": "Cnatalya_elfZ",
+  "FILE_CHEADDONKEY": "CheaddonkeyZ",
+  "FILE_CHEADCASEYDARK": "CheadcaseydarkZ",
+  "FILE_CCASEYDARK": "CcaseydarkZ",
+  "FILE_CHEADHAMM": "CheadhammZ",
+  "FILE_CEVERETTHAMM": "CeveretthammZ",
+  "FILE_CHEADDRNO": "CheaddrnoZ",
+  "FILE_CHEADWAILIN": "CheadwailinZ",
+  "FILE_CHEADAURIC": "CheadauricZ",
+  "FILE_CHEADELEKTRA": "CheadelektraZ",
+  "FILE_CXENIA_XMAS": "Cxenia_xmasZ",
+  "FILE_GHAND_XENIA_XMAS": "Ghand_xenia_xmasZ",
+  "FILE_CHEADMRX": "CheadmrxZ",
+  "FILE_CMRX": "CmrxZ",
+  "FILE_GHAND_MRX": "Ghand_mrxZ",
+  "FILE_CHEADDARK_US": "Cheaddark_usZ",
+  "FILE_CHEADDARK_COMBAT_JP": "Cheaddark_combat_jpZ",
+  "FILE_CHEADDARK_FROCK_JP": "Cheaddark_frock_jpZ",
+  "FILE_CHEADDARKAQUA_JP": "Cheaddarkaqua_jpZ",
+  "FILE_CHEADDARK_SNOW_JP": "Cheaddark_snow_jpZ",
+  "FILE_CDARK_COMBAT_JP": "Cdark_combat_jpZ",
+  "FILE_CDARK_FROCK_JP": "Cdark_frock_jpZ",
+  "FILE_CDARK_RIPPED_JP": "Cdark_ripped_jpZ",
+  "FILE_CDARK_AF1_JP": "Cdark_af1_jpZ",
+  "FILE_CDARKSNOW_JP": "Cdarksnow_jpZ",
+  "FILE_CDARK_LEATHER_JP": "Cdark_leather_jpZ",
+  "FILE_CDARK_NEGOTIATOR_JP": "Cdark_negotiator_jpZ",
+  "FILE_GHAND_NATALYA": "Ghand_natalyaZ",
+  "FILE_GHAND_GALOREPLANE": "Ghand_galoreplaneZ",
+  "FILE_GHAND_TECHWOMAN": "Ghand_techwomanZ",
+  "FILE_GHAND_MOONFEMALE": "Ghand_moonfemaleZ",
+  "FILE_GHAND_CILABTECH": "Ghand_cilabtechZ",
+  "FILE_GHAND_TIMBERBOND": "Ghand_timberbondZ",
+  "FILE_GHAND_PRES_SECURITY": "Ghand_pres_securityZ",
+  "FILE_GHAND_NSA_LACKEY": "Ghand_nsa_lackeyZ",
+  "FILE_GHAND_VALENTIN": "Ghand_valentinZ",
+  "FILE_GHAND_CASEYDARK": "Ghand_caseydarkZ",
+  "FILE_GHAND_STEWARD": "Ghand_stewardZ",
+  "FILE_GHAND_ARMOURGUARD": "Ghand_armourguardZ",
+  "FILE_GHAND_LABTECH": "Ghand_labtechZ",
+  "FILE_GHAND_JAWS": "Ghand_jawsZ",
+  "FILE_GHAND_DD_GUARD": "Ghand_dd_guardZ",
+  "FILE_GHAND_PRESIDENT_CLONE": "Ghand_president_cloneZ",
+  "FILE_CHEADSKEDAR": "CheadskedarZ",
+  "FILE_CHEADCARROLL": "CheadcarrollZ",
+  "FILE_CHEADCARROLL_SINISTER": "Cheadcarroll_sinisterZ",
+  "FILE_CSILVERWOMAN": "CsilverwomanZ",
+  "FILE_CHEADCHRISTMASJONES": "CheadchristmasjonesZ",
+  "FILE_CJAWS_BLUE": "Cjaws_blueZ",
+  "FILE_GHAND_JAWS_BLUE": "Ghand_jaws_blueZ",
+  "FILE_CFEMSPY_BLU": "Cfemspy_bluZ",
+  "FILE_GHAND_FEMSPY_BLU": "Ghand_femspy_bluZ",
+  "FILE_CHEADCJ": "CheadcjZ",
+  "FILE_CCJ": "CcjZ",
+  "FILE_CHEADMACTONIGHT": "CheadmactonightZ"
+ },
+ "mpheads": [
+  {
+   "slot": 0,
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "0",
+   "comment": "Joanna Combat"
+  },
+  {
+   "slot": 1,
+   "head": "HEAD_DARK_FROCK",
+   "feature": "MPFEATURE_CHR_CI",
+   "comment": "Joanna Party Frock"
+  },
+  {
+   "slot": 2,
+   "head": "HEAD_DARKAQUA",
+   "feature": "MPFEATURE_CHR_PELAGIC",
+   "comment": "Joanna Wet Suit"
+  },
+  {
+   "slot": 3,
+   "head": "HEAD_DARK_SNOW",
+   "feature": "MPFEATURE_CHR_DARKSNOW",
+   "comment": "Joanna Arctic"
+  },
+  {
+   "slot": 4,
+   "head": "HEAD_ELVIS",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "Elvis"
+  },
+  {
+   "slot": 5,
+   "head": "HEAD_ELVIS_GOGS",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "* Elvis (Snorkle) (* is not defined head in g_MpBodies)"
+  },
+  {
+   "slot": 6,
+   "head": "HEAD_CARRINGTON",
+   "feature": "0",
+   "comment": "Daniel Carrington"
+  },
+  {
+   "slot": 7,
+   "head": "HEAD_MRBLONDE",
+   "feature": "MPFEATURE_CHR_MRBLONDE",
+   "comment": "Mr. Blonde"
+  },
+  {
+   "slot": 8,
+   "head": "HEAD_CASSANDRA",
+   "feature": "0",
+   "comment": "Cassandra De Vries"
+  },
+  {
+   "slot": 9,
+   "head": "HEAD_TRENT",
+   "feature": "MPFEATURE_CHR_TRENT",
+   "comment": "Trent Easton"
+  },
+  {
+   "slot": 10,
+   "head": "HEAD_JONATHAN",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "Jonathan"
+  },
+  {
+   "slot": 11,
+   "head": "HEAD_VD",
+   "feature": "0",
+   "comment": "* Velvet Dark"
+  },
+  {
+   "slot": 12,
+   "head": "HEAD_PRESIDENT",
+   "feature": "MPFEATURE_CHR_CI",
+   "comment": "The President"
+  },
+  {
+   "slot": 13,
+   "head": "HEAD_DDSHOCK",
+   "feature": "0",
+   "comment": "dataDyne Shock Trooper"
+  },
+  {
+   "slot": 14,
+   "head": "HEAD_BIOTECH",
+   "feature": "MPFEATURE_CHR_BIOTECH",
+   "comment": "Biotechnician"
+  },
+  {
+   "slot": 15,
+   "head": "HEAD_DDSNIPER",
+   "feature": "MPFEATURE_CHR_VILLACHRS",
+   "comment": "dataDyne Sniper"
+  },
+  {
+   "slot": 16,
+   "head": "HEAD_A51FACEPLATE",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "* Area 51 Faceplate"
+  },
+  {
+   "slot": 17,
+   "head": "HEAD_SECRETARY",
+   "feature": "0",
+   "comment": "* Secretary"
+  },
+  {
+   "slot": 18,
+   "head": "HEAD_FEM_GUARD",
+   "feature": "MPFEATURE_CHR_FEMGUARD",
+   "comment": "* Female Guard"
+  },
+  {
+   "slot": 19,
+   "head": "HEAD_FEM_GUARD2",
+   "feature": "MPFEATURE_CHR_FEMGUARD",
+   "comment": "* Female Guard 2 / Night Vision"
+  },
+  {
+   "slot": 20,
+   "head": "HEAD_MAIAN_S",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "Maian Soldier"
+  },
+  {
+   "slot": 21,
+   "head": "HEAD_JON",
+   "feature": "0",
+   "comment": "* Male, Jon"
+  },
+  {
+   "slot": 22,
+   "head": "HEAD_BEAU1",
+   "feature": "0",
+   "comment": "* Male, Beau"
+  },
+  {
+   "slot": 23,
+   "head": "HEAD_ROSS",
+   "feature": "0",
+   "comment": "* Male, Ross"
+  },
+  {
+   "slot": 24,
+   "head": "HEAD_MARK2",
+   "feature": "0",
+   "comment": "* Grimshaw (Mark 2)"
+  },
+  {
+   "slot": 25,
+   "head": "HEAD_CHRIST",
+   "feature": "0",
+   "comment": "* Foster (Chris T)"
+  },
+  {
+   "slot": 26,
+   "head": "HEAD_RUSS",
+   "feature": "0",
+   "comment": "* Male, Russ"
+  },
+  {
+   "slot": 27,
+   "head": "HEAD_DARLING",
+   "feature": "0",
+   "comment": "* Male, Darling"
+  },
+  {
+   "slot": 28,
+   "head": "HEAD_BRIAN",
+   "feature": "0",
+   "comment": "* Male, Brian"
+  },
+  {
+   "slot": 29,
+   "head": "HEAD_JAMIE",
+   "feature": "0",
+   "comment": "* Male, Jamie"
+  },
+  {
+   "slot": 30,
+   "head": "HEAD_DUNCAN2",
+   "feature": "0",
+   "comment": "* Male, Duncan"
+  },
+  {
+   "slot": 31,
+   "head": "HEAD_KEITH",
+   "feature": "0",
+   "comment": "* Male, Keith"
+  },
+  {
+   "slot": 32,
+   "head": "HEAD_STEVEM",
+   "feature": "0",
+   "comment": "* Male, Steve M"
+  },
+  {
+   "slot": 33,
+   "head": "HEAD_GRANT",
+   "feature": "0",
+   "comment": "* Male, Grant"
+  },
+  {
+   "slot": 34,
+   "head": "HEAD_PENNY",
+   "feature": "0",
+   "comment": "* Male, Penny"
+  },
+  {
+   "slot": 35,
+   "head": "HEAD_DAVEC",
+   "feature": "0",
+   "comment": "* Male, Dave C"
+  },
+  {
+   "slot": 36,
+   "head": "HEAD_JONES",
+   "feature": "0",
+   "comment": "* Male, Jones"
+  },
+  {
+   "slot": 37,
+   "head": "HEAD_GRAHAM",
+   "feature": "0",
+   "comment": "* Male, Graham"
+  },
+  {
+   "slot": 38,
+   "head": "HEAD_ROBERT",
+   "feature": "0",
+   "comment": "* Male, Robert"
+  },
+  {
+   "slot": 39,
+   "head": "HEAD_NEIL2",
+   "feature": "0",
+   "comment": "* Male, Neil"
+  },
+  {
+   "slot": 40,
+   "head": "HEAD_SHAUN",
+   "feature": "0",
+   "comment": "* Male, Shaun"
+  },
+  {
+   "slot": 41,
+   "head": "HEAD_ROBIN",
+   "feature": "0",
+   "comment": "* Male, Robin"
+  },
+  {
+   "slot": 42,
+   "head": "HEAD_COOK",
+   "feature": "0",
+   "comment": "* Male, Cook"
+  },
+  {
+   "slot": 43,
+   "head": "HEAD_PRYCE",
+   "feature": "0",
+   "comment": "* Male, Pryce"
+  },
+  {
+   "slot": 44,
+   "head": "HEAD_SILKE",
+   "feature": "0",
+   "comment": "* Male, Silke"
+  },
+  {
+   "slot": 45,
+   "head": "HEAD_SMITH",
+   "feature": "0",
+   "comment": "* Male, Smith"
+  },
+  {
+   "slot": 46,
+   "head": "HEAD_GARETH",
+   "feature": "0",
+   "comment": "* Male, Gareth"
+  },
+  {
+   "slot": 47,
+   "head": "HEAD_MURCHIE",
+   "feature": "0",
+   "comment": "* Male, Murchie"
+  },
+  {
+   "slot": 48,
+   "head": "HEAD_WONG",
+   "feature": "0",
+   "comment": "* Male, Wong"
+  },
+  {
+   "slot": 49,
+   "head": "HEAD_CARTER",
+   "feature": "0",
+   "comment": "* Male, Carter"
+  },
+  {
+   "slot": 50,
+   "head": "HEAD_TINTIN",
+   "feature": "0",
+   "comment": "* Male, Tintin"
+  },
+  {
+   "slot": 51,
+   "head": "HEAD_MUNTON",
+   "feature": "0",
+   "comment": "* Male, Munton"
+  },
+  {
+   "slot": 52,
+   "head": "HEAD_STAMPER",
+   "feature": "0",
+   "comment": "* Male, Stampler"
+  },
+  {
+   "slot": 53,
+   "head": "HEAD_PHELPS",
+   "feature": "0",
+   "comment": "* Male, Phelps"
+  },
+  {
+   "slot": 54,
+   "head": "HEAD_ALEX",
+   "feature": "0",
+   "comment": "* Female, Alex"
+  },
+  {
+   "slot": 55,
+   "head": "HEAD_JULIANNE",
+   "feature": "0",
+   "comment": "* Female, Julianne"
+  },
+  {
+   "slot": 56,
+   "head": "HEAD_LAURA",
+   "feature": "0",
+   "comment": "* Female, Laura"
+  },
+  {
+   "slot": 57,
+   "head": "HEAD_EDMCG",
+   "feature": "0",
+   "comment": "* Male, Ed McG"
+  },
+  {
+   "slot": 58,
+   "head": "HEAD_ANKA",
+   "feature": "0",
+   "comment": "* Female, Anka"
+  },
+  {
+   "slot": 59,
+   "head": "HEAD_LESLIE_S",
+   "feature": "0",
+   "comment": "* Female, Leslie S"
+  },
+  {
+   "slot": 60,
+   "head": "HEAD_MATT_C",
+   "feature": "0",
+   "comment": "* Male, Matt C"
+  },
+  {
+   "slot": 61,
+   "head": "HEAD_PEER_S",
+   "feature": "0",
+   "comment": "* Male, Peer S"
+  },
+  {
+   "slot": 62,
+   "head": "HEAD_EILEEN_T",
+   "feature": "0",
+   "comment": "* Female, Eileen T"
+  },
+  {
+   "slot": 63,
+   "head": "HEAD_ANDY_R",
+   "feature": "0",
+   "comment": "* Male, Andy R"
+  },
+  {
+   "slot": 64,
+   "head": "HEAD_BEN_R",
+   "feature": "0",
+   "comment": "* Male, Ben R"
+  },
+  {
+   "slot": 65,
+   "head": "HEAD_STEVE_K",
+   "feature": "0",
+   "comment": "* Male, Steve K"
+  },
+  {
+   "slot": 66,
+   "head": "HEAD_SANCHEZ",
+   "feature": "0",
+   "comment": "* Male, Sanchez"
+  },
+  {
+   "slot": 67,
+   "head": "HEAD_TIM",
+   "feature": "0",
+   "comment": "* Male, Tim"
+  },
+  {
+   "slot": 68,
+   "head": "HEAD_KEN",
+   "feature": "0",
+   "comment": "* Male, Ken"
+  },
+  {
+   "slot": 69,
+   "head": "HEAD_EILEEN_H",
+   "feature": "0",
+   "comment": "* Male, Eileen H"
+  },
+  {
+   "slot": 70,
+   "head": "HEAD_SCOTT_H",
+   "feature": "0",
+   "comment": "* Male, Scott H"
+  },
+  {
+   "slot": 71,
+   "head": "HEAD_JOEL",
+   "feature": "0",
+   "comment": "* Male, Joel"
+  },
+  {
+   "slot": 72,
+   "head": "HEAD_GRIFFEY",
+   "feature": "0",
+   "comment": "* Male, Griffey"
+  },
+  {
+   "slot": 73,
+   "head": "HEAD_MOTO",
+   "feature": "0",
+   "comment": "* Male, Shigeru Miyamoto"
+  },
+  {
+   "slot": 74,
+   "head": "HEAD_WINNER",
+   "feature": "0",
+   "comment": "* Male, Winner"
+  },
+  {
+   "slot": 75,
+   "head": "HEAD_GREY",
+   "feature": "0",
+   "comment": "Joanna (JP)"
+  },
+  {
+   "slot": 76,
+   "head": "HEAD_SKEDAR",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 77,
+   "head": "HEAD_CARROLL",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 78,
+   "head": "HEAD_CARROLL_SINISTER",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 79,
+   "head": "HEAD_CONNERY",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 80,
+   "head": "HEAD_LAZENBY",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 81,
+   "head": "HEAD_MOORE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 82,
+   "head": "HEAD_DALTON",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 83,
+   "head": "HEAD_BROSNAN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 84,
+   "head": "HEAD_BROSNAN2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 85,
+   "head": "HEAD_NATALYA",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 86,
+   "head": "HEAD_TREVELYAN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 87,
+   "head": "HEAD_XENIA",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 88,
+   "head": "HEAD_OURUMOV",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 89,
+   "head": "HEAD_BORIS",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 90,
+   "head": "HEAD_VALENTIN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 91,
+   "head": "HEAD_MISHKIN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 92,
+   "head": "HEAD_MAYDAY",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 93,
+   "head": "HEAD_JAWS",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 94,
+   "head": "HEAD_ODDJOB",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 95,
+   "head": "HEAD_BARONSAMEDI",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 96,
+   "head": "HEAD_BARONSAMEDI2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 97,
+   "head": "HEAD_PILOT",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 98,
+   "head": "HEAD_SNOWGUARD",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 99,
+   "head": "HEAD_BALACLAVA",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 100,
+   "head": "HEAD_KARL2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 101,
+   "head": "HEAD_DAVED2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 102,
+   "head": "HEAD_JIM2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 103,
+   "head": "HEAD_GRAEME2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 104,
+   "head": "HEAD_DUNCAN01",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 105,
+   "head": "HEAD_CHRIS2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 106,
+   "head": "HEAD_KARL",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 107,
+   "head": "HEAD_MARTIN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 108,
+   "head": "HEAD_MARK0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 109,
+   "head": "HEAD_DAVED",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 110,
+   "head": "HEAD_DUNCAN0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 111,
+   "head": "HEAD_JONES0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 112,
+   "head": "HEAD_STEVE_E",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 113,
+   "head": "HEAD_GRANT0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 114,
+   "head": "HEAD_GRAEME",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 115,
+   "head": "HEAD_KEN0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 116,
+   "head": "HEAD_ALAN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 117,
+   "head": "HEAD_PETE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 118,
+   "head": "HEAD_SHAUN0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 119,
+   "head": "HEAD_DWAYNE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 120,
+   "head": "HEAD_DES",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 121,
+   "head": "HEAD_CHRIS",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 122,
+   "head": "HEAD_LEE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 123,
+   "head": "HEAD_NEIL0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 124,
+   "head": "HEAD_JIM",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 125,
+   "head": "HEAD_ROBIN0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 126,
+   "head": "HEAD_STEVEH",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 127,
+   "head": "HEAD_JOEL0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 128,
+   "head": "HEAD_SCOTT_H0",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 129,
+   "head": "HEAD_JOE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 130,
+   "head": "HEAD_JOE2",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 131,
+   "head": "HEAD_SALLY",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 132,
+   "head": "HEAD_MARION",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 133,
+   "head": "HEAD_MANDY",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 134,
+   "head": "HEAD_VIVIEN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 135,
+   "head": "HEAD_BANDOVERFLOW",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 136,
+   "head": "HEAD_SANTA",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 137,
+   "head": "HEAD_ELF",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 138,
+   "head": "HEAD_SUBDRAG",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 139,
+   "head": "HEAD_WRECK",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 140,
+   "head": "HEAD_GALORE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 141,
+   "head": "HEAD_SOGUN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 142,
+   "head": "HEAD_MRKANE",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 143,
+   "head": "HEAD_PARIS",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 144,
+   "head": "HEAD_DONKEY",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 145,
+   "head": "HEAD_CJ",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 146,
+   "head": "HEAD_CASEYDARK",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 147,
+   "head": "HEAD_HAMM",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 148,
+   "head": "HEAD_DRNO",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 149,
+   "head": "HEAD_WAILIN",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 150,
+   "head": "HEAD_AURIC",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 151,
+   "head": "HEAD_ELEKTRA",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 152,
+   "head": "HEAD_CHRISTMASJONES",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 153,
+   "head": "HEAD_MACTONIGHT",
+   "feature": "0",
+   "comment": ""
+  },
+  {
+   "slot": 154,
+   "head": "HEAD_MRX",
+   "feature": "0",
+   "comment": ""
+  }
+ ],
+ "mpbodies": [
+  {
+   "slot": 0,
+   "body": "BODY_DARK_COMBAT",
+   "langid": "L_OPTIONS_016",
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "0",
+   "comment": "Joanna Combat"
+  },
+  {
+   "slot": 1,
+   "body": "BODY_DARK_TRENCH",
+   "langid": "L_OPTIONS_017",
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "MPFEATURE_CHR_JOTRENCH",
+   "comment": "Joanna Trench Coat"
+  },
+  {
+   "slot": 2,
+   "body": "BODY_DARK_FROCK",
+   "langid": "L_OPTIONS_018",
+   "head": "HEAD_DARK_FROCK",
+   "feature": "MPFEATURE_CHR_CI",
+   "comment": "Joanna Party Frock"
+  },
+  {
+   "slot": 3,
+   "body": "BODY_DARK_RIPPED",
+   "langid": "L_OPTIONS_019",
+   "head": "HEAD_DARK_FROCK",
+   "feature": "MPFEATURE_CHR_CI",
+   "comment": "Joanna Frock (Ripped)"
+  },
+  {
+   "slot": 4,
+   "body": "BODY_DARK_AF1",
+   "langid": "L_OPTIONS_020",
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "MPFEATURE_CHR_AF1",
+   "comment": "Joanna Stewardess"
+  },
+  {
+   "slot": 5,
+   "body": "BODY_DARK_LEATHER",
+   "langid": "L_MPWEAPONS_156",
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "MPFEATURE_CHR_G5",
+   "comment": "Joanna Leather"
+  },
+  {
+   "slot": 6,
+   "body": "BODY_DARK_NEGOTIATOR",
+   "langid": "L_MPWEAPONS_157",
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "MPFEATURE_CHR_VILLACHRS",
+   "comment": "Joanna Negotiator"
+  },
+  {
+   "slot": 7,
+   "body": "BODY_DARKWET",
+   "langid": "L_OPTIONS_021",
+   "head": "HEAD_DARKAQUA",
+   "feature": "MPFEATURE_CHR_PELAGIC",
+   "comment": "Joanna Wet Suit"
+  },
+  {
+   "slot": 8,
+   "body": "BODY_DARKAQUALUNG",
+   "langid": "L_OPTIONS_022",
+   "head": "HEAD_DARKAQUA",
+   "feature": "MPFEATURE_CHR_PELAGIC",
+   "comment": "Joanna Aqualung"
+  },
+  {
+   "slot": 9,
+   "body": "BODY_DARKSNOW",
+   "langid": "L_OPTIONS_023",
+   "head": "HEAD_DARK_SNOW",
+   "feature": "MPFEATURE_CHR_DARKSNOW",
+   "comment": "Joanna Arctic"
+  },
+  {
+   "slot": 10,
+   "body": "BODY_DARKLAB",
+   "langid": "L_OPTIONS_024",
+   "head": "HEAD_DARK_COMBAT",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "Joanna Lab Tech."
+  },
+  {
+   "slot": 11,
+   "body": "BODY_THEKING",
+   "langid": "L_OPTIONS_025",
+   "head": "HEAD_ELVIS",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "Elvis"
+  },
+  {
+   "slot": 12,
+   "body": "BODY_ELVIS1",
+   "langid": "L_OPTIONS_026",
+   "head": "HEAD_ELVIS",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "Maian"
+  },
+  {
+   "slot": 13,
+   "body": "BODY_ELVISWAISTCOAT",
+   "langid": "L_MPWEAPONS_158",
+   "head": "HEAD_ELVIS",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "Elvis (Waistcoat)"
+  },
+  {
+   "slot": 14,
+   "body": "BODY_CARRINGTON",
+   "langid": "L_OPTIONS_027",
+   "head": "HEAD_CARRINGTON",
+   "feature": "0",
+   "comment": "Daniel Carrington"
+  },
+  {
+   "slot": 15,
+   "body": "BODY_CARREVENINGSUIT",
+   "langid": "L_OPTIONS_028",
+   "head": "HEAD_CARRINGTON",
+   "feature": "MPFEATURE_CHR_CI",
+   "comment": "Carrington Evening Wear"
+  },
+  {
+   "slot": 16,
+   "body": "BODY_MRBLONDE",
+   "langid": "L_OPTIONS_029",
+   "head": "HEAD_MRBLONDE",
+   "feature": "MPFEATURE_CHR_MRBLONDE",
+   "comment": "Mr. Blonde"
+  },
+  {
+   "slot": 17,
+   "body": "BODY_CASSANDRA",
+   "langid": "L_OPTIONS_030",
+   "head": "HEAD_CASSANDRA",
+   "feature": "0",
+   "comment": "Cassandra De Vries"
+  },
+  {
+   "slot": 18,
+   "body": "BODY_TRENT",
+   "langid": "L_OPTIONS_031",
+   "head": "HEAD_TRENT",
+   "feature": "MPFEATURE_CHR_TRENT",
+   "comment": "Trent Easton"
+  },
+  {
+   "slot": 19,
+   "body": "BODY_JONATHAN",
+   "langid": "L_OPTIONS_032",
+   "head": "HEAD_JONATHAN",
+   "feature": "MPFEATURE_CHR_JONATHAN",
+   "comment": "Jonathan"
+  },
+  {
+   "slot": 20,
+   "body": "BODY_CILABTECH",
+   "langid": "L_OPTIONS_033",
+   "head": "1000",
+   "feature": "0",
+   "comment": "CI Male Lab Technician"
+  },
+  {
+   "slot": 21,
+   "body": "BODY_CIFEMTECH",
+   "langid": "L_OPTIONS_034",
+   "head": "1000",
+   "feature": "0",
+   "comment": "CI Female Lab Technician"
+  },
+  {
+   "slot": 22,
+   "body": "BODY_CISOLDIER",
+   "langid": "L_OPTIONS_035",
+   "head": "1000",
+   "feature": "0",
+   "comment": "CI Soldier"
+  },
+  {
+   "slot": 23,
+   "body": "BODY_DDSHOCK",
+   "langid": "L_OPTIONS_036",
+   "head": "HEAD_DDSHOCK",
+   "feature": "0",
+   "comment": "dataDyne Shock Trooper"
+  },
+  {
+   "slot": 24,
+   "body": "BODY_FEM_GUARD",
+   "langid": "L_OPTIONS_037",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_FEMGUARD",
+   "comment": "dataDyne Female Guard"
+  },
+  {
+   "slot": 25,
+   "body": "BODY_DD_SECGUARD",
+   "langid": "L_OPTIONS_038",
+   "head": "1000",
+   "feature": "0",
+   "comment": "dataDyne Security"
+  },
+  {
+   "slot": 26,
+   "body": "BODY_DD_GUARD",
+   "langid": "L_OPTIONS_039",
+   "head": "1000",
+   "feature": "0",
+   "comment": "dataDyne Infantry"
+  },
+  {
+   "slot": 27,
+   "body": "BODY_DD_SHOCK_INF",
+   "langid": "L_OPTIONS_040",
+   "head": "1000",
+   "feature": "0",
+   "comment": "dataDyne Trooper"
+  },
+  {
+   "slot": 28,
+   "body": "BODY_SECRETARY",
+   "langid": "L_OPTIONS_041",
+   "head": "1000",
+   "feature": "0",
+   "comment": "Secretary"
+  },
+  {
+   "slot": 29,
+   "body": "BODY_OFFICEWORKER",
+   "langid": "L_OPTIONS_042",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_OFFICEWORKER",
+   "comment": "Office Suit"
+  },
+  {
+   "slot": 30,
+   "body": "BODY_OFFICEWORKER2",
+   "langid": "L_OPTIONS_043",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_OFFICEWORKER",
+   "comment": "Office Casual"
+  },
+  {
+   "slot": 31,
+   "body": "BODY_NEGOTIATOR",
+   "langid": "L_OPTIONS_044",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_VILLACHRS",
+   "comment": "Negotiator"
+  },
+  {
+   "slot": 32,
+   "body": "BODY_DDSNIPER",
+   "langid": "L_OPTIONS_045",
+   "head": "HEAD_DDSNIPER",
+   "feature": "MPFEATURE_CHR_VILLACHRS",
+   "comment": "dataDyne Sniper"
+  },
+  {
+   "slot": 33,
+   "body": "BODY_G5_GUARD",
+   "langid": "L_OPTIONS_046",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_G5",
+   "comment": "G5 Guard"
+  },
+  {
+   "slot": 34,
+   "body": "BODY_G5_SWAT_GUARD",
+   "langid": "L_OPTIONS_047",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_G5",
+   "comment": "G5 SWAT Guard"
+  },
+  {
+   "slot": 35,
+   "body": "BODY_CIAGUY",
+   "langid": "L_OPTIONS_048",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_CIAFBI",
+   "comment": "CIA Agent"
+  },
+  {
+   "slot": 36,
+   "body": "BODY_FBIGUY",
+   "langid": "L_OPTIONS_049",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_CIAFBI",
+   "comment": "FBI Agent"
+  },
+  {
+   "slot": 37,
+   "body": "BODY_AREA51GUARD",
+   "langid": "L_OPTIONS_050",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "Area 51 Guard"
+  },
+  {
+   "slot": 38,
+   "body": "BODY_A51TROOPER",
+   "langid": "L_OPTIONS_051",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "Area 51 Trooper"
+  },
+  {
+   "slot": 39,
+   "body": "BODY_A51AIRMAN",
+   "langid": "L_OPTIONS_052",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "Pilot"
+  },
+  {
+   "slot": 40,
+   "body": "BODY_OVERALL",
+   "langid": "L_OPTIONS_053",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_INFILTRATION",
+   "comment": "Overalls"
+  },
+  {
+   "slot": 41,
+   "body": "BODY_STRIPES",
+   "langid": "L_OPTIONS_054",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_STRIPES",
+   "comment": "NSA Bodyguard"
+  },
+  {
+   "slot": 42,
+   "body": "BODY_LABTECH",
+   "langid": "L_OPTIONS_055",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_LABTECH",
+   "comment": "Male Lab Technician"
+  },
+  {
+   "slot": 43,
+   "body": "BODY_FEMLABTECH",
+   "langid": "L_OPTIONS_056",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_LABTECH",
+   "comment": "Female Lab Technician"
+  },
+  {
+   "slot": 44,
+   "body": "BODY_DD_LABTECH",
+   "langid": "L_OPTIONS_057",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_LABTECH",
+   "comment": "dataDyne Lab Technician"
+  },
+  {
+   "slot": 45,
+   "body": "BODY_BIOTECH",
+   "langid": "L_OPTIONS_058",
+   "head": "HEAD_BIOTECH",
+   "feature": "MPFEATURE_CHR_BIOTECH",
+   "comment": "Biotechnician"
+  },
+  {
+   "slot": 46,
+   "body": "BODY_ALASKAN_GUARD",
+   "langid": "L_OPTIONS_059",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_ALASKANGUARD",
+   "comment": "Alaskan Guard"
+  },
+  {
+   "slot": 47,
+   "body": "BODY_PILOTAF1",
+   "langid": "L_OPTIONS_060",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_AF1",
+   "comment": "Air Force One Pilot"
+  },
+  {
+   "slot": 48,
+   "body": "BODY_STEWARD",
+   "langid": "L_OPTIONS_061",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_AF1",
+   "comment": "Steward"
+  },
+  {
+   "slot": 49,
+   "body": "BODY_STEWARDESS",
+   "langid": "L_OPTIONS_062",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_AF1",
+   "comment": "Stewardess"
+  },
+  {
+   "slot": 50,
+   "body": "BODY_STEWARDESS_COAT",
+   "langid": "L_OPTIONS_063",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_AF1",
+   "comment": "Head Stewardess"
+  },
+  {
+   "slot": 51,
+   "body": "BODY_PRESIDENT",
+   "langid": "L_OPTIONS_064",
+   "head": "HEAD_PRESIDENT",
+   "feature": "MPFEATURE_CHR_CI",
+   "comment": "The President"
+  },
+  {
+   "slot": 52,
+   "body": "BODY_NSA_LACKEY",
+   "langid": "L_OPTIONS_065",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_NSALACKEY",
+   "comment": "NSA Lackey"
+  },
+  {
+   "slot": 53,
+   "body": "BODY_PRES_SECURITY",
+   "langid": "L_OPTIONS_066",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_PRESSECURITY",
+   "comment": "Presidential Security"
+  },
+  {
+   "slot": 54,
+   "body": "BODY_PRESIDENT_CLONE2",
+   "langid": "L_OPTIONS_067",
+   "head": "HEAD_PRESIDENT",
+   "feature": "MPFEATURE_CHR_PRESCLONE",
+   "comment": "President\"s Clone"
+  },
+  {
+   "slot": 55,
+   "body": "BODY_PELAGIC_GUARD",
+   "langid": "L_OPTIONS_068",
+   "head": "1000",
+   "feature": "MPFEATURE_CHR_PELAGIC",
+   "comment": "Pelagic II Guard"
+  },
+  {
+   "slot": 56,
+   "body": "BODY_MAIAN_SOLDIER",
+   "langid": "L_OPTIONS_069",
+   "head": "HEAD_MAIAN_S",
+   "feature": "MPFEATURE_CHR_ELVIS",
+   "comment": "Maian Soldier"
+  },
+  {
+   "slot": 57,
+   "body": "BODY_PRESIDENT_CLONE",
+   "langid": "L_OPTIONS_086",
+   "head": "HEAD_SKEDAR",
+   "feature": "0",
+   "comment": "Skedar"
+  },
+  {
+   "slot": 58,
+   "body": "BODY_CARROLL3",
+   "langid": "L_OPTIONS_090",
+   "head": "HEAD_CARROLL",
+   "feature": "0",
+   "comment": "Dr. Caroll"
+  },
+  {
+   "slot": 59,
+   "body": "BODY_TESTCHR",
+   "langid": "L_OPTIONS_091",
+   "head": "HEAD_CARROLL_SINISTER",
+   "feature": "0",
+   "comment": "Dr. Caroll (Sinister)"
+  },
+  {
+   "slot": 60,
+   "body": "BODY_CONNERY",
+   "langid": "L_OPTIONS_070",
+   "head": "1000",
+   "feature": "MPFEATURE_8BOTS",
+   "comment": "Dinner Jacket"
+  },
+  {
+   "slot": 61,
+   "body": "BODY_MOORE",
+   "langid": "L_OPTIONS_070",
+   "head": "1000",
+   "feature": "MPFEATURE_8BOTS",
+   "comment": "Dinner Jacket"
+  },
+  {
+   "slot": 62,
+   "body": "BODY_DALTON",
+   "langid": "L_OPTIONS_070",
+   "head": "1000",
+   "feature": "MPFEATURE_8BOTS",
+   "comment": "Dinner Jacket"
+  },
+  {
+   "slot": 63,
+   "body": "BODY_DJBOND",
+   "langid": "L_OPTIONS_070",
+   "head": "1000",
+   "feature": "MPFEATURE_8BOTS",
+   "comment": "Dinner Jacket"
+  },
+  {
+   "slot": 64,
+   "body": "BODY_CONNERY2",
+   "langid": "L_OPTIONS_092",
+   "head": "HEAD_CONNERY",
+   "feature": "0",
+   "comment": "Bond (Classic)"
+  },
+  {
+   "slot": 65,
+   "body": "BODY_BONDALPS",
+   "langid": "L_OPTIONS_094",
+   "head": "HEAD_CONNERY",
+   "feature": "0",
+   "comment": "Bond (Classic, Alps)"
+  },
+  {
+   "slot": 66,
+   "body": "BODY_BONDRANCH",
+   "langid": "L_OPTIONS_097",
+   "head": "HEAD_CONNERY",
+   "feature": "0",
+   "comment": "Bond (Classic, Ranch)"
+  },
+  {
+   "slot": 67,
+   "body": "BODY_LAZENBY",
+   "langid": "L_OPTIONS_092",
+   "head": "HEAD_LAZENBY",
+   "feature": "0",
+   "comment": "Bond (Classic)"
+  },
+  {
+   "slot": 68,
+   "body": "BODY_MOORE2",
+   "langid": "L_OPTIONS_092",
+   "head": "HEAD_MOORE",
+   "feature": "0",
+   "comment": "Bond (Classic)"
+  },
+  {
+   "slot": 69,
+   "body": "BODY_DALTON2",
+   "langid": "L_OPTIONS_092",
+   "head": "HEAD_DALTON",
+   "feature": "0",
+   "comment": "Bond (Classic)"
+  },
+  {
+   "slot": 70,
+   "body": "BODY_DJBOND2",
+   "langid": "L_OPTIONS_098",
+   "head": "HEAD_BROSNAN",
+   "feature": "0",
+   "comment": "Bond (Tuxedo)"
+  },
+  {
+   "slot": 71,
+   "body": "BODY_SUITBOND",
+   "langid": "L_OPTIONS_169",
+   "head": "HEAD_BROSNAN2",
+   "feature": "0",
+   "comment": "Bond (Formal)"
+  },
+  {
+   "slot": 72,
+   "body": "BODY_BOILERBOND",
+   "langid": "L_OPTIONS_186",
+   "head": "HEAD_BROSNAN2",
+   "feature": "0",
+   "comment": "Bond (Stealth)"
+  },
+  {
+   "slot": 73,
+   "body": "BODY_SNOWBOND",
+   "langid": "L_OPTIONS_211",
+   "head": "HEAD_BROSNAN2",
+   "feature": "0",
+   "comment": "Bond (Arctic)"
+  },
+  {
+   "slot": 74,
+   "body": "BODY_TIMBERBOND",
+   "langid": "L_OPTIONS_303",
+   "head": "HEAD_BROSNAN2",
+   "feature": "0",
+   "comment": "Bond (Jungle)"
+  },
+  {
+   "slot": 75,
+   "body": "BODY_NATALYA",
+   "langid": "L_OPTIONS_304",
+   "head": "HEAD_NATALYA",
+   "feature": "0",
+   "comment": "Natalya (Russia)"
+  },
+  {
+   "slot": 76,
+   "body": "BODY_SPICEBOND",
+   "langid": "L_OPTIONS_318",
+   "head": "HEAD_NATALYA",
+   "feature": "0",
+   "comment": "Natalya (Cuba)"
+  },
+  {
+   "slot": 77,
+   "body": "BODY_NATALYA_XMAS",
+   "langid": "L_OPTIONS_319",
+   "head": "HEAD_NATALYA",
+   "feature": "0",
+   "comment": "Natalya (Santa)"
+  },
+  {
+   "slot": 78,
+   "body": "BODY_NATALYA_ELF",
+   "langid": "L_OPTIONS_340",
+   "head": "HEAD_NATALYA",
+   "feature": "0",
+   "comment": "Natalya (Elf)"
+  },
+  {
+   "slot": 79,
+   "body": "BODY_BOILERTREV",
+   "langid": "L_OPTIONS_341",
+   "head": "HEAD_TREVELYAN",
+   "feature": "0",
+   "comment": "Trevelyan (006)"
+  },
+  {
+   "slot": 80,
+   "body": "BODY_TREVELYAN",
+   "langid": "L_OPTIONS_342",
+   "head": "HEAD_TREVELYAN",
+   "feature": "0",
+   "comment": "Trevelyan (Janus)"
+  },
+  {
+   "slot": 81,
+   "body": "BODY_XENIA",
+   "langid": "L_OPTIONS_343",
+   "head": "HEAD_XENIA",
+   "feature": "0",
+   "comment": "Xenia"
+  },
+  {
+   "slot": 82,
+   "body": "BODY_XENIA_XMAS",
+   "langid": "L_OPTIONS_344",
+   "head": "HEAD_XENIA",
+   "feature": "0",
+   "comment": "Xenia (Santa)"
+  },
+  {
+   "slot": 83,
+   "body": "BODY_OURUMOV",
+   "langid": "L_OPTIONS_355",
+   "head": "HEAD_OURUMOV",
+   "feature": "0",
+   "comment": "Ourumov"
+  },
+  {
+   "slot": 84,
+   "body": "BODY_BORIS",
+   "langid": "L_OPTIONS_356",
+   "head": "HEAD_BORIS",
+   "feature": "0",
+   "comment": "Boris"
+  },
+  {
+   "slot": 85,
+   "body": "BODY_VALENTIN",
+   "langid": "L_OPTIONS_357",
+   "head": "HEAD_VALENTIN",
+   "feature": "0",
+   "comment": "Valentin"
+  },
+  {
+   "slot": 86,
+   "body": "BODY_GREATGUARD",
+   "langid": "L_OPTIONS_358",
+   "head": "HEAD_MISHKIN",
+   "feature": "0",
+   "comment": "Mishkin"
+  },
+  {
+   "slot": 87,
+   "body": "BODY_MAYDAY",
+   "langid": "L_OPTIONS_364",
+   "head": "HEAD_MAYDAY",
+   "feature": "0",
+   "comment": "May Day"
+  },
+  {
+   "slot": 88,
+   "body": "BODY_JAWS",
+   "langid": "L_OPTIONS_437",
+   "head": "HEAD_JAWS",
+   "feature": "0",
+   "comment": "Jaws"
+  },
+  {
+   "slot": 89,
+   "body": "BODY_JAWS_BLUE",
+   "langid": "L_MPMENU_389",
+   "head": "HEAD_JAWS",
+   "feature": "0",
+   "comment": "Jaws (Blazer)"
+  },
+  {
+   "slot": 90,
+   "body": "BODY_ODDJOB",
+   "langid": "L_OPTIONS_449",
+   "head": "HEAD_ODDJOB",
+   "feature": "0",
+   "comment": "Oddjob"
+  },
+  {
+   "slot": 91,
+   "body": "BODY_BARONSAMEDI",
+   "langid": "L_OPTIONS_489",
+   "head": "HEAD_BARONSAMEDI",
+   "feature": "0",
+   "comment": "Baron Samedi"
+  },
+  {
+   "slot": 92,
+   "body": "BODY_BARONSAMEDI2",
+   "langid": "L_MPMENU_349",
+   "head": "HEAD_BARONSAMEDI2",
+   "feature": "0",
+   "comment": "Baron Samedi (Death)"
+  },
+  {
+   "slot": 93,
+   "body": "BODY_OLIVEGUARD",
+   "langid": "L_MPMENU_350",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Russian Soldier"
+  },
+  {
+   "slot": 94,
+   "body": "BODY_RUSGUARD",
+   "langid": "L_MPMENU_351",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Russian Infantry"
+  },
+  {
+   "slot": 95,
+   "body": "BODY_COMMGUARD",
+   "langid": "L_MPMENU_352",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Russian Commandant"
+  },
+  {
+   "slot": 96,
+   "body": "BODY_TECHMAN",
+   "langid": "L_MPMENU_353",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Scientist"
+  },
+  {
+   "slot": 97,
+   "body": "BODY_TECHWOMAN",
+   "langid": "L_MPMENU_354",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Female Scientist"
+  },
+  {
+   "slot": 98,
+   "body": "BODY_ARMOURGUARD",
+   "langid": "L_MPMENU_355",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Janus Marine"
+  },
+  {
+   "slot": 99,
+   "body": "BODY_NAVYGUARD",
+   "langid": "L_MPMENU_356",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Naval Officer"
+  },
+  {
+   "slot": 100,
+   "body": "BODY_PILOT",
+   "langid": "L_MPMENU_357",
+   "head": "HEAD_PILOT",
+   "feature": "0",
+   "comment": "Helicopter Pilot"
+  },
+  {
+   "slot": 101,
+   "body": "BODY_GREYGUARD",
+   "langid": "L_MPMENU_358",
+   "head": "1001",
+   "feature": "0",
+   "comment": "St. Petersburg Guard"
+  },
+  {
+   "slot": 102,
+   "body": "BODY_JEANWOMAN",
+   "langid": "L_MPMENU_359",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Female Civilian (Jeans)"
+  },
+  {
+   "slot": 103,
+   "body": "BODY_BLUEWOMAN",
+   "langid": "L_MPMENU_360",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Female Civilian (Skirt)"
+  },
+  {
+   "slot": 104,
+   "body": "BODY_CARDIMAN",
+   "langid": "L_MPMENU_361",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Civilian (Vest)"
+  },
+  {
+   "slot": 105,
+   "body": "BODY_CHECKMAN",
+   "langid": "L_MPMENU_362",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Civilian (Plaid)"
+  },
+  {
+   "slot": 106,
+   "body": "BODY_REDMAN",
+   "langid": "L_MPMENU_363",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Civilian (Red)"
+  },
+  {
+   "slot": 107,
+   "body": "BODY_BLUEMAN",
+   "langid": "L_MPMENU_364",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Civilian (Blue)"
+  },
+  {
+   "slot": 108,
+   "body": "BODY_GREYMAN",
+   "langid": "L_MPMENU_365",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Civilian (Grey)"
+  },
+  {
+   "slot": 109,
+   "body": "BODY_GREATGUARD2",
+   "langid": "L_MPMENU_366",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Siberian Guard (Brown)"
+  },
+  {
+   "slot": 110,
+   "body": "BODY_BLUECAMGUARD",
+   "langid": "L_MPMENU_367",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Arctic Commando"
+  },
+  {
+   "slot": 111,
+   "body": "BODY_SNOWGUARD",
+   "langid": "L_MPMENU_368",
+   "head": "HEAD_SNOWGUARD",
+   "feature": "0",
+   "comment": "Siberian Special Forces"
+  },
+  {
+   "slot": 112,
+   "body": "BODY_CAMGUARD",
+   "langid": "L_MPMENU_369",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Jungle Commando"
+  },
+  {
+   "slot": 113,
+   "body": "BODY_TREVGUARD",
+   "langid": "L_MPMENU_370",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Janus Special Forces"
+  },
+  {
+   "slot": 114,
+   "body": "BODY_MOONGUARD",
+   "langid": "L_MPMENU_371",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Male Moonraker Elite"
+  },
+  {
+   "slot": 115,
+   "body": "BODY_MOONFEMALE",
+   "langid": "L_MPMENU_372",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Female Moonraker Elite"
+  },
+  {
+   "slot": 116,
+   "body": "BODY_FATTECHWOMAN",
+   "langid": "L_MPMENU_373",
+   "head": "HEAD_MARION",
+   "feature": "0",
+   "comment": "Rosika"
+  },
+  {
+   "slot": 117,
+   "body": "BODY_ELTONWAISTCOAT",
+   "langid": "L_MPMENU_374",
+   "head": "HEAD_ELVIS",
+   "feature": "0",
+   "comment": "Elton"
+  },
+  {
+   "slot": 118,
+   "body": "BODY_SANTA",
+   "langid": "L_MPMENU_375",
+   "head": "HEAD_SANTA",
+   "feature": "0",
+   "comment": "Santa Claus"
+  },
+  {
+   "slot": 119,
+   "body": "BODY_ELF",
+   "langid": "L_MPMENU_376",
+   "head": "HEAD_ELF",
+   "feature": "0",
+   "comment": "Elf"
+  },
+  {
+   "slot": 120,
+   "body": "BODY_GALOREPLANE",
+   "langid": "L_MPMENU_377",
+   "head": "HEAD_GALORE",
+   "feature": "0",
+   "comment": "Galore (Plane)"
+  },
+  {
+   "slot": 121,
+   "body": "BODY_GALORERANCH",
+   "langid": "L_MPMENU_378",
+   "head": "HEAD_GALORE",
+   "feature": "0",
+   "comment": "Galore (Ranch)"
+  },
+  {
+   "slot": 122,
+   "body": "BODY_SILVERWOMAN",
+   "langid": "L_MPMENU_388",
+   "head": "1001",
+   "feature": "0",
+   "comment": "Estate Patron (Silver)"
+  },
+  {
+   "slot": 123,
+   "body": "BODY_FEMSPY_BLU",
+   "langid": "L_MPMENU_390",
+   "head": "1000",
+   "feature": "0",
+   "comment": "Female Spy (Blue)"
+  },
+  {
+   "slot": 124,
+   "body": "BODY_CASEYDARK",
+   "langid": "L_MPMENU_379",
+   "head": "HEAD_CASEYDARK",
+   "feature": "0",
+   "comment": "Casey Dark"
+  },
+  {
+   "slot": 125,
+   "body": "BODY_EVERETTHAMM",
+   "langid": "L_MPMENU_380",
+   "head": "HEAD_HAMM",
+   "feature": "0",
+   "comment": "Everett Hamm"
+  },
+  {
+   "slot": 126,
+   "body": "BODY_SOGUNTRON",
+   "langid": "L_MPMENU_381",
+   "head": "HEAD_SOGUN",
+   "feature": "0",
+   "comment": "Sogun"
+  },
+  {
+   "slot": 127,
+   "body": "BODY_CJ",
+   "langid": "L_MPMENU_391",
+   "head": "HEAD_CJ",
+   "feature": "0",
+   "comment": "Carl Johnson \"CJ\""
+  },
+  {
+   "slot": 128,
+   "body": "BODY_MRX",
+   "langid": "L_MPMENU_382",
+   "head": "HEAD_MRX",
+   "feature": "0",
+   "comment": "Tyrant Mr. X"
+  }
+ ],
+ "femaleheads": [
+  "HEAD_ALEX",
+  "HEAD_JULIANNE",
+  "HEAD_LAURA",
+  "HEAD_ANKA",
+  "HEAD_LESLIE_S",
+  "HEAD_EILEEN_T",
+  "HEAD_EILEEN_H"
+ ],
+ "consts": {
+  "BODY_DJBOND": 0,
+  "BODY_CONNERY": 1,
+  "BODY_DALTON": 2,
+  "BODY_MOORE": 3,
+  "HEAD_DARK_COMBAT": 4,
+  "HEAD_ELVIS": 5,
+  "HEAD_ROSS": 6,
+  "HEAD_CARRINGTON": 7,
+  "HEAD_MRBLONDE": 8,
+  "HEAD_TRENT": 9,
+  "HEAD_DDSHOCK": 10,
+  "HEAD_GRAHAM": 11,
+  "HEAD_DARK_FROCK": 12,
+  "HEAD_SECRETARY": 13,
+  "HEAD_CASSANDRA": 14,
+  "HEAD_THEKING": 15,
+  "HEAD_FEM_GUARD": 16,
+  "HEAD_JON": 17,
+  "HEAD_MARK2": 18,
+  "HEAD_CHRIST": 19,
+  "HEAD_RUSS": 20,
+  "HEAD_GREY": 21,
+  "HEAD_DARLING": 22,
+  "HEAD_ROBERT": 23,
+  "HEAD_BEAU1": 24,
+  "HEAD_FEM_GUARD2": 25,
+  "HEAD_BRIAN": 26,
+  "HEAD_JAMIE": 27,
+  "HEAD_DUNCAN2": 28,
+  "HEAD_BIOTECH": 29,
+  "HEAD_NEIL2": 30,
+  "HEAD_EDMCG": 31,
+  "HEAD_ANKA": 32,
+  "HEAD_LESLIE_S": 33,
+  "HEAD_MATT_C": 34,
+  "HEAD_PEER_S": 35,
+  "HEAD_EILEEN_T": 36,
+  "HEAD_ANDY_R": 37,
+  "HEAD_BEN_R": 38,
+  "HEAD_STEVE_K": 39,
+  "HEAD_JONATHAN": 40,
+  "HEAD_MAIAN_S": 41,
+  "HEAD_SHAUN": 42,
+  "HEAD_BEAU2": 43,
+  "HEAD_EILEEN_H": 44,
+  "HEAD_SCOTT_H": 45,
+  "HEAD_SANCHEZ": 46,
+  "HEAD_DARKAQUA": 47,
+  "HEAD_DDSNIPER": 48,
+  "HEAD_BEAU3": 49,
+  "HEAD_BEAU4": 50,
+  "HEAD_BEAU5": 51,
+  "HEAD_BEAU6": 52,
+  "HEAD_GRIFFEY": 53,
+  "HEAD_MOTO": 54,
+  "HEAD_KEITH": 55,
+  "HEAD_WINNER": 56,
+  "HEAD_A51FACEPLATE": 57,
+  "HEAD_ELVIS_GOGS": 58,
+  "HEAD_STEVEM": 59,
+  "HEAD_DARK_SNOW": 60,
+  "HEAD_PRESIDENT": 61,
+  "HEAD_VD": 62,
+  "HEAD_KEN": 63,
+  "HEAD_JOEL": 64,
+  "HEAD_TIM": 65,
+  "HEAD_GRANT": 66,
+  "HEAD_PENNY": 67,
+  "HEAD_ROBIN": 68,
+  "HEAD_ALEX": 69,
+  "HEAD_JULIANNE": 70,
+  "HEAD_LAURA": 71,
+  "HEAD_DAVEC": 72,
+  "HEAD_COOK": 73,
+  "HEAD_PRYCE": 74,
+  "HEAD_SILKE": 75,
+  "HEAD_SMITH": 76,
+  "HEAD_GARETH": 77,
+  "HEAD_MURCHIE": 78,
+  "HEAD_WONG": 79,
+  "HEAD_CARTER": 80,
+  "HEAD_TINTIN": 81,
+  "HEAD_MUNTON": 82,
+  "HEAD_STAMPER": 83,
+  "HEAD_JONES": 84,
+  "HEAD_PHELPS": 85,
+  "BODY_DARK_COMBAT": 86,
+  "BODY_ELVIS1": 87,
+  "BODY_AREA51GUARD": 88,
+  "BODY_OVERALL": 89,
+  "BODY_CARRINGTON": 90,
+  "BODY_MRBLONDE": 91,
+  "BODY_SKEDAR": 92,
+  "BODY_TRENT": 93,
+  "BODY_DDSHOCK": 94,
+  "BODY_LABTECH": 95,
+  "BODY_STRIPES": 96,
+  "BODY_DARK_FROCK": 97,
+  "BODY_DARK_TRENCH": 98,
+  "BODY_OFFICEWORKER": 99,
+  "BODY_OFFICEWORKER2": 100,
+  "BODY_SECRETARY": 101,
+  "BODY_CASSANDRA": 102,
+  "BODY_THEKING": 103,
+  "BODY_FEM_GUARD": 104,
+  "BODY_DD_LABTECH": 105,
+  "BODY_DD_SECGUARD": 106,
+  "BODY_DRCAROLL": 107,
+  "BODY_EYESPY": 108,
+  "BODY_DARK_RIPPED": 109,
+  "BODY_DD_GUARD": 110,
+  "BODY_DD_SHOCK_INF": 111,
+  "BODY_TESTCHR": 112,
+  "BODY_BIOTECH": 113,
+  "BODY_FBIGUY": 114,
+  "BODY_CIAGUY": 115,
+  "BODY_A51TROOPER": 116,
+  "BODY_A51AIRMAN": 117,
+  "BODY_CHICROB": 118,
+  "BODY_STEWARD": 119,
+  "BODY_STEWARDESS": 120,
+  "BODY_PRESIDENT": 121,
+  "BODY_STEWARDESS_COAT": 122,
+  "BODY_MINISKEDAR": 123,
+  "BODY_NSA_LACKEY": 124,
+  "BODY_PRES_SECURITY": 125,
+  "BODY_NEGOTIATOR": 126,
+  "BODY_G5_GUARD": 127,
+  "BODY_PELAGIC_GUARD": 128,
+  "BODY_G5_SWAT_GUARD": 129,
+  "BODY_ALASKAN_GUARD": 130,
+  "BODY_MAIAN_SOLDIER": 131,
+  "BODY_PRESIDENT_CLONE": 132,
+  "BODY_PRESIDENT_CLONE2": 133,
+  "BODY_DARK_AF1": 134,
+  "BODY_DARKWET": 135,
+  "BODY_DARKAQUALUNG": 136,
+  "BODY_DARKSNOW": 137,
+  "BODY_DARKLAB": 138,
+  "BODY_FEMLABTECH": 139,
+  "BODY_DDSNIPER": 140,
+  "BODY_PILOTAF1": 141,
+  "BODY_CILABTECH": 142,
+  "BODY_CIFEMTECH": 143,
+  "BODY_CARREVENINGSUIT": 144,
+  "BODY_JONATHAN": 145,
+  "BODY_CISOLDIER": 146,
+  "BODY_SKEDARKING": 147,
+  "BODY_ELVISWAISTCOAT": 148,
+  "BODY_DARK_LEATHER": 149,
+  "BODY_DARK_NEGOTIATOR": 150,
+  "HEAD_NATALYA": 152,
+  "HEAD_XENIA": 153,
+  "HEAD_TREVELYAN": 154,
+  "HEAD_OURUMOV": 155,
+  "HEAD_BROSNAN": 156,
+  "HEAD_DALTON": 157,
+  "HEAD_CONNERY": 158,
+  "HEAD_MOORE": 159,
+  "HEAD_LAZENBY": 160,
+  "HEAD_JAWS": 161,
+  "HEAD_SNOWGUARD": 162,
+  "HEAD_BROSNAN2": 163,
+  "HEAD_ODDJOB": 164,
+  "HEAD_DAVED": 165,
+  "HEAD_DAVED2": 166,
+  "HEAD_MISHKIN": 167,
+  "HEAD_BORIS": 168,
+  "HEAD_VALENTIN": 169,
+  "HEAD_MAYDAY": 170,
+  "HEAD_BARONSAMEDI": 171,
+  "HEAD_BARONSAMEDI2": 172,
+  "HEAD_BALACLAVA": 173,
+  "HEAD_DWAYNE": 174,
+  "HEAD_SANTA": 175,
+  "HEAD_ELF": 176,
+  "HEAD_PILOT": 177,
+  "HEAD_MARION": 178,
+  "HEAD_KARL": 179,
+  "HEAD_KARL2": 180,
+  "HEAD_MARTIN": 181,
+  "HEAD_MARK0": 182,
+  "HEAD_DUNCAN0": 183,
+  "HEAD_DUNCAN01": 184,
+  "HEAD_JONES0": 185,
+  "HEAD_GRANT0": 186,
+  "HEAD_ROBIN0": 187,
+  "HEAD_GRAEME": 188,
+  "HEAD_GRAEME2": 189,
+  "HEAD_STEVE_E": 190,
+  "HEAD_KEN0": 191,
+  "HEAD_MANDY": 192,
+  "HEAD_VIVIEN": 193,
+  "HEAD_SALLY": 194,
+  "HEAD_JOEL0": 195,
+  "HEAD_JOE2": 196,
+  "HEAD_JOE": 197,
+  "HEAD_SCOTT_H0": 198,
+  "HEAD_STEVEH": 199,
+  "HEAD_JIM": 200,
+  "HEAD_JIM2": 201,
+  "HEAD_NEIL0": 202,
+  "HEAD_LEE": 203,
+  "HEAD_CHRIS": 204,
+  "HEAD_CHRIS2": 205,
+  "HEAD_DES": 206,
+  "HEAD_SHAUN0": 207,
+  "HEAD_PETE": 208,
+  "HEAD_ALAN": 209,
+  "HEAD_BANDOVERFLOW": 210,
+  "HEAD_WRECK": 211,
+  "HEAD_SUBDRAG": 212,
+  "HEAD_GALORE": 213,
+  "HEAD_SOGUN": 214,
+  "HEAD_MRKANE": 215,
+  "HEAD_PARIS": 216,
+  "HEAD_DONKEY": 217,
+  "HEAD_CASEYDARK": 218,
+  "HEAD_HAMM": 219,
+  "HEAD_DRNO": 220,
+  "HEAD_WAILIN": 221,
+  "HEAD_AURIC": 222,
+  "HEAD_ELEKTRA": 223,
+  "HEAD_MRX": 224,
+  "HEAD_SKEDAR": 225,
+  "HEAD_CARROLL": 226,
+  "HEAD_CARROLL_SINISTER": 227,
+  "HEAD_CHRISTMASJONES": 228,
+  "HEAD_CJ": 229,
+  "HEAD_MACTONIGHT": 230,
+  "BODY_NATALYA": 231,
+  "BODY_XENIA": 232,
+  "BODY_TREVELYAN": 233,
+  "BODY_OURUMOV": 234,
+  "BODY_SPICEBOND": 235,
+  "BODY_DJBOND2": 236,
+  "BODY_DALTON2": 237,
+  "BODY_CONNERY2": 238,
+  "BODY_MOORE2": 239,
+  "BODY_LAZENBY": 240,
+  "BODY_JAWS": 241,
+  "BODY_SNOWGUARD": 242,
+  "BODY_SNOWBOND": 243,
+  "BODY_ODDJOB": 244,
+  "BODY_TECHMAN": 245,
+  "BODY_GREATGUARD": 246,
+  "BODY_SUITBOND": 247,
+  "BODY_BOILERBOND": 248,
+  "BODY_BOILERTREV": 249,
+  "BODY_TIMBERBOND": 250,
+  "BODY_ELTONWAISTCOAT": 251,
+  "BODY_BORIS": 252,
+  "BODY_VALENTIN": 253,
+  "BODY_MAYDAY": 254,
+  "BODY_BARONSAMEDI": 255,
+  "BODY_BARONSAMEDI2": 256,
+  "BODY_SANTA": 257,
+  "BODY_ELF": 258,
+  "BODY_OLIVEGUARD": 259,
+  "BODY_PILOT": 260,
+  "BODY_TREVGUARD": 261,
+  "BODY_ARMOURGUARD": 262,
+  "BODY_GREATGUARD2": 263,
+  "BODY_BLUECAMGUARD": 264,
+  "BODY_BLUEMAN": 265,
+  "BODY_GREYMAN": 266,
+  "BODY_MOONGUARD": 267,
+  "BODY_MOONFEMALE": 268,
+  "BODY_CAMGUARD": 269,
+  "BODY_GREYGUARD": 270,
+  "BODY_RUSGUARD": 271,
+  "BODY_COMMGUARD": 272,
+  "BODY_NAVYGUARD": 273,
+  "BODY_FATTECHWOMAN": 274,
+  "BODY_TECHWOMAN": 275,
+  "BODY_JEANWOMAN": 276,
+  "BODY_BLUEWOMAN": 277,
+  "BODY_CARDIMAN": 278,
+  "BODY_CHECKMAN": 279,
+  "BODY_REDMAN": 280,
+  "BODY_BONDALPS": 281,
+  "BODY_BONDRANCH": 282,
+  "BODY_GALOREPLANE": 283,
+  "BODY_GALORERANCH": 284,
+  "BODY_SOGUNTRON": 285,
+  "BODY_CARROLL3": 286,
+  "BODY_NATALYA_XMAS": 287,
+  "BODY_NATALYA_ELF": 288,
+  "BODY_CASEYDARK": 289,
+  "BODY_EVERETTHAMM": 290,
+  "BODY_XENIA_XMAS": 291,
+  "BODY_MRX": 292,
+  "BODY_SILVERWOMAN": 293,
+  "BODY_JAWS_BLUE": 294,
+  "BODY_FEMSPY_BLU": 295,
+  "BODY_CJ": 296
+ }
+}

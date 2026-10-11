@@ -1,0 +1,86 @@
+{
+ "arenaname": [
+  [
+   "mod_aio_gex",
+   "STAGE_28",
+   "Snow Cavern?",
+   "Arctic Mine",
+   "row 0x57 STAGE_EXTRA27; only mod_gex ships bg_cat"
+  ],
+  [
+   "mod_aio_pdplus",
+   "pdplus_stat",
+   "Offices?",
+   "Offices",
+   "row 0x58 STAGE_EXTRA28; gex's stat is Paradox"
+  ],
+  [
+   "mod_aio_pdplus",
+   "pdplus_lam",
+   "Egyptian/Villa?",
+   "Apex",
+   "row 0x59 STAGE_EXTRA29; gex's lam is Grand Library"
+  ],
+  [
+   "mod_aio_gex",
+   "gex_lam",
+   "Stack?",
+   "Grand Library",
+   "row 0x28 STAGE_TEST_LAM; EternallyAries, credited in gex's modconfig"
+  ],
+  [
+   "mod_aio_gex",
+   "STAGE_TEST_LEN",
+   "Village Well?",
+   "Courtyard",
+   "row 0x5a STAGE_EXTRA30; only mod_gex ships bg_len"
+  ],
+  [
+   "mod_aio_gex",
+   "STAGE_TEST_MP7",
+   "Snowy Grove?",
+   "Frost Valley",
+   "row 0x5b STAGE_EXTRA31; dark_noon's mp7 is Valley"
+  ],
+  [
+   "mod_aio_gex",
+   "gex_sev",
+   "Holodeck?",
+   "Void",
+   "row 0x5c STAGE_EXTRA32; only mod_gex ships bg_sev"
+  ]
+ ],
+ "stagename": [
+  [
+   "mod_aio_goldfinger",
+   "goldfinger_junkyard",
+   "goldfinger_steelmill_",
+   "carries bg_ref = AIO Steel Mill (EXTRA21)"
+  ],
+  [
+   "mod_aio_goldfinger",
+   "goldfinger_steelmill",
+   "goldfinger_mall_",
+   "carries bg_crad = AIO Mall (EXTRA22)"
+  ],
+  [
+   "mod_aio_goldfinger",
+   "goldfinger_mall",
+   "goldfinger_tunnels_",
+   "carries bg_arec = AIO Tunnels (EXTRA23)"
+  ],
+  [
+   "mod_aio_goldfinger",
+   "goldfinger_tunnels",
+   "goldfinger_junkyard_",
+   "carries bg_mp11 = AIO Junkyard (EXTRA20)"
+  ]
+ ],
+ "drop": [
+  [
+   "mod_aio_pdplus",
+   "STAGE_TEST_ARCH",
+   "allocation-only placeholder; replaced by pdplus_suburb in overrides"
+  ]
+ ]
+}

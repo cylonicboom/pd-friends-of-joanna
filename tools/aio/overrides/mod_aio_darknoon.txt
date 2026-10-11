@@ -1,0 +1,39 @@
+# --- stage blocks added 2026-10-10 from jonaeru/perfect_dark @ d3e4205 (stagetable.c rows, g_MpArenas names, env.c/lang.c/pdmain.c params) for levels the 6.0 pack ships that the parked config never declared; pack attribution in aio6-stage-proposals.txt ---
+stage "darknoon_mi6" {
+  bgfile "bgdata/bg_crad.seg"
+  tilesfile "bgdata/bg_crad_tilesZ"
+  padsfile "bgdata/bg_crad_padsZ"
+  mpsetupfile "Ump_setupcradZ"
+  kind mp
+  arenaname "MI6"
+  # from jonaeru @ d3e4205: row 0x5e STAGE_EXTRA34 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank CRAD   # lang.c:249
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:203
+  # no env.c row for this stage upstream
+}
+#
+stage "darknoon_submarine" {
+  bgfile "bgdata/bg_oat.seg"
+  tilesfile "bgdata/bg_oat_tilesZ"
+  padsfile "bgdata/bg_oat_padsZ"
+  mpsetupfile "Ump_setupoatZ"
+  kind mp
+  arenaname "Submarine"
+  # from jonaeru @ d3e4205: row 0x5f STAGE_EXTRA35 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank OAT   # lang.c:250
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:204
+  # no env.c row for this stage upstream
+}
+#
+stage "darknoon_silo_surprise" {
+  bgfile "bgdata/bg_mp3.seg"
+  tilesfile "bgdata/bg_mp3_tilesZ"
+  padsfile "bgdata/bg_mp3_padsZ"
+  mpsetupfile "Ump_setupmp3Z"
+  kind mp
+  arenaname "Silo Surprise"
+  # from jonaeru @ d3e4205: row 0x60 STAGE_EXTRA36 (Additional); arena name L_MPMENU in the AIO LmpmenuE bank
+  langbank MP3   # lang.c:251
+  allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:205
+  # no env.c row for this stage upstream
+}

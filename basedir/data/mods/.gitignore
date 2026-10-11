@@ -1,0 +1,8 @@
+# The aio mods are an overlay: the modconfig, the manifest, the texmap and the
+# PDFT are ours and tracked; the bytes are Atari-Dude's All In One drop and are
+# never committed here. tools/aio lays a copy of the drop out into these
+# directories (files/, textures/, sequences/ under each mod_aio_*).
+mod_aio_*/files/
+mod_aio_*/textures/
+mod_aio_*/sequences/
+_to_delete/

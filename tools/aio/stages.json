@@ -1,0 +1,1055 @@
+{
+ "rows": {
+  "STAGE_MAIANSOS": {
+   "num": 0,
+   "bg": "lue",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_SILO": {
+   "num": 1,
+   "bg": "oat",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_WAR": {
+   "num": 2,
+   "bg": "sho",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_RAVINE": {
+   "num": 3,
+   "bg": "arec",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_ARCH": {
+   "num": 4,
+   "bg": "arch",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_ESCAPE": {
+   "num": 5,
+   "bg": "lue",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_DEST": {
+   "num": 6,
+   "bg": "dest",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_RETAKING": {
+   "num": 7,
+   "bg": "dish",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_CRASHSITE": {
+   "num": 8,
+   "bg": "azt",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_CHICAGO": {
+   "num": 9,
+   "bg": "pete",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_G5BUILDING": {
+   "num": 10,
+   "bg": "depo",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_COMPLEX": {
+   "num": 11,
+   "bg": "ref",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_G5BUILDING": {
+   "num": 12,
+   "bg": "cryp",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_PELAGIC": {
+   "num": 13,
+   "bg": "dam",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_EXTRACTION": {
+   "num": 14,
+   "bg": "ame",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_RUN": {
+   "num": 15,
+   "bg": "run",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_24": {
+   "num": 16,
+   "bg": "sevx",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_TEMPLE": {
+   "num": 17,
+   "bg": "jun",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_CITRAINING": {
+   "num": 18,
+   "bg": "dish",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_AIRBASE": {
+   "num": 19,
+   "bg": "cave",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_28": {
+   "num": 20,
+   "bg": "cat",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_PIPES": {
+   "num": 21,
+   "bg": "crad",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_SKEDARRUINS": {
+   "num": 22,
+   "bg": "sho",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_2B": {
+   "num": 23,
+   "bg": "sevx",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_VILLA": {
+   "num": 24,
+   "bg": "eld",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_DEFENSE": {
+   "num": 25,
+   "bg": "dish",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_ASH": {
+   "num": 26,
+   "bg": "ash",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_INFILTRATION": {
+   "num": 27,
+   "bg": "lue",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_DEFECTION": {
+   "num": 28,
+   "bg": "ame",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_AIRFORCEONE": {
+   "num": 29,
+   "bg": "rit",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_SKEDAR": {
+   "num": 30,
+   "bg": "oat",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_INVESTIGATION": {
+   "num": 31,
+   "bg": "ear",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_ATTACKSHIP": {
+   "num": 32,
+   "bg": "lee",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_RESCUE": {
+   "num": 33,
+   "bg": "lue",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_LEN": {
+   "num": 34,
+   "bg": "len",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MBR": {
+   "num": 35,
+   "bg": "ame",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_DEEPSEA": {
+   "num": 36,
+   "bg": "pam",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_UFF": {
+   "num": 37,
+   "bg": "uff",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_OLD": {
+   "num": 38,
+   "bg": "old",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_DUEL": {
+   "num": 39,
+   "bg": "dish",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_LAM": {
+   "num": 40,
+   "bg": "lam",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_BASE": {
+   "num": 41,
+   "bg": "mp1",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP2": {
+   "num": 42,
+   "bg": "mp2",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_AREA52": {
+   "num": 43,
+   "bg": "mp3",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_WAREHOUSE": {
+   "num": 44,
+   "bg": "mp4",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_CARPARK": {
+   "num": 45,
+   "bg": "mp5",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP6": {
+   "num": 46,
+   "bg": "mp6",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP7": {
+   "num": 47,
+   "bg": "mp7",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP8": {
+   "num": 48,
+   "bg": "mp8",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_RUINS": {
+   "num": 49,
+   "bg": "mp9",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_SEWERS": {
+   "num": 50,
+   "bg": "mp10",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_FELICITY": {
+   "num": 51,
+   "bg": "mp11",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_FORTRESS": {
+   "num": 52,
+   "bg": "mp12",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_VILLA": {
+   "num": 53,
+   "bg": "mp13",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP14": {
+   "num": 54,
+   "bg": "mp14",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_MP_GRID": {
+   "num": 55,
+   "bg": "mp15",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP16": {
+   "num": 56,
+   "bg": "mp16",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP17": {
+   "num": 57,
+   "bg": "mp17",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP18": {
+   "num": 58,
+   "bg": "mp18",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP19": {
+   "num": 59,
+   "bg": "mp19",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_TEST_MP20": {
+   "num": 60,
+   "bg": "mp20",
+   "section": "id,                  ?, lia, liw, lih, ?, bg,               tiles,              pads,              setup,           mpsetp,             ?                0x18,            0x1c, ?, ?,  ?, 0x24,      0x28,   ?,   ?,   ?  ?  alarm                   extragunmem"
+  },
+  "STAGE_EXTRA1": {
+   "num": 61,
+   "bg": "arec",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA2": {
+   "num": 62,
+   "bg": "ref",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA3": {
+   "num": 63,
+   "bg": "cryp",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA4": {
+   "num": 64,
+   "bg": "jun",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA5": {
+   "num": 65,
+   "bg": "crad",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA6": {
+   "num": 66,
+   "bg": "oat",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA7": {
+   "num": 67,
+   "bg": "mp2",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA8": {
+   "num": 68,
+   "bg": "mp3",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA9": {
+   "num": 69,
+   "bg": "mp4",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA10": {
+   "num": 70,
+   "bg": "mp5",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA11": {
+   "num": 71,
+   "bg": "mp6",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA12": {
+   "num": 72,
+   "bg": "mp9",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA13": {
+   "num": 73,
+   "bg": "mp10",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA14": {
+   "num": 74,
+   "bg": "mp11",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA15": {
+   "num": 75,
+   "bg": "mp12",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA16": {
+   "num": 76,
+   "bg": "ark",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA17": {
+   "num": 77,
+   "bg": "lee",
+   "section": "GoldenEye X Mod"
+  },
+  "STAGE_EXTRA18": {
+   "num": 78,
+   "bg": "ref",
+   "section": "Kakariko Village Mod"
+  },
+  "STAGE_EXTRA19": {
+   "num": 79,
+   "bg": "arec",
+   "section": "Kakariko Village Mod"
+  },
+  "STAGE_EXTRA20": {
+   "num": 80,
+   "bg": "mp11",
+   "section": "Goldfinger 64 Mod"
+  },
+  "STAGE_EXTRA21": {
+   "num": 81,
+   "bg": "ref",
+   "section": "Goldfinger 64 Mod"
+  },
+  "STAGE_EXTRA22": {
+   "num": 82,
+   "bg": "crad",
+   "section": "Goldfinger 64 Mod"
+  },
+  "STAGE_EXTRA23": {
+   "num": 83,
+   "bg": "arec",
+   "section": "Goldfinger 64 Mod"
+  },
+  "STAGE_EXTRA24": {
+   "num": 84,
+   "bg": "mp13",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA25": {
+   "num": 85,
+   "bg": "stat",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA26": {
+   "num": 86,
+   "bg": "mp13",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA27": {
+   "num": 87,
+   "bg": "cat",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA28": {
+   "num": 88,
+   "bg": "stat",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA29": {
+   "num": 89,
+   "bg": "lam",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA30": {
+   "num": 90,
+   "bg": "len",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA31": {
+   "num": 91,
+   "bg": "mp7",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA32": {
+   "num": 92,
+   "bg": "sev",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA33": {
+   "num": 93,
+   "bg": "old",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA34": {
+   "num": 94,
+   "bg": "crad",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA35": {
+   "num": 95,
+   "bg": "oat",
+   "section": "Additional"
+  },
+  "STAGE_EXTRA36": {
+   "num": 96,
+   "bg": "mp3",
+   "section": "Additional"
+  }
+ },
+ "arenas": [
+  {
+   "stage": "STAGE_MP_SKEDAR",
+   "lang": "L_MPMENU_119",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_PIPES",
+   "lang": "L_MPMENU_120",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_RAVINE",
+   "lang": "L_MPMENU_121",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_G5BUILDING",
+   "lang": "L_MPMENU_122",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_SEWERS",
+   "lang": "L_MPMENU_123",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_WAREHOUSE",
+   "lang": "L_MPMENU_124",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_GRID",
+   "lang": "L_MPMENU_125",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_RUINS",
+   "lang": "L_MPMENU_126",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_AREA52",
+   "lang": "L_MPMENU_127",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_BASE",
+   "lang": "L_MPMENU_128",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_FORTRESS",
+   "lang": "L_MPMENU_130",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_VILLA",
+   "lang": "L_MPMENU_131",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_CARPARK",
+   "lang": "L_MPMENU_132",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_TEMPLE",
+   "lang": "L_MPMENU_133",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_COMPLEX",
+   "lang": "L_MPMENU_134",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_FELICITY",
+   "lang": "L_MPMENU_135",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_RAVINE",
+   "lang": "L_MPMENU_121",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_G5BUILDING",
+   "lang": "L_MPMENU_122",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_SEWERS",
+   "lang": "L_MPMENU_123",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_WAREHOUSE",
+   "lang": "L_MPMENU_124",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_GRID",
+   "lang": "L_MPMENU_125",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_RUINS",
+   "lang": "L_MPMENU_126",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_AREA52",
+   "lang": "L_MPMENU_127",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_BASE",
+   "lang": "L_MPMENU_128",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_FORTRESS",
+   "lang": "L_MPMENU_130",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_VILLA",
+   "lang": "L_MPMENU_131",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_CARPARK",
+   "lang": "L_MPMENU_132",
+   "comment": "",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_CHICAGO",
+   "lang": "L_OPTIONS_141",
+   "comment": "Chicago",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_G5BUILDING",
+   "lang": "L_MPMENU_392",
+   "comment": "G5 Building (G5 HQ)",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_INFILTRATION",
+   "lang": "L_OPTIONS_145",
+   "comment": "Area 51",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_AIRBASE",
+   "lang": "L_OPTIONS_151",
+   "comment": "Air Base",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_AIRFORCEONE",
+   "lang": "L_OPTIONS_153",
+   "comment": "Air Force One",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_CRASHSITE",
+   "lang": "L_OPTIONS_155",
+   "comment": "Crash Site",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_PELAGIC",
+   "lang": "L_OPTIONS_157",
+   "comment": "Pelagic II",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_DEEPSEA",
+   "lang": "L_OPTIONS_159",
+   "comment": "Deep Sea",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_ATTACKSHIP",
+   "lang": "L_OPTIONS_163",
+   "comment": "Attack Ship",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_SKEDARRUINS",
+   "lang": "L_OPTIONS_165",
+   "comment": "Skedar Ruins",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_TEMPLE",
+   "lang": "L_MPMENU_133",
+   "comment": "Temple",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_COMPLEX",
+   "lang": "L_MPMENU_134",
+   "comment": "Complex",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_TEST_MP6",
+   "lang": "L_MPMENU_306",
+   "comment": "Caves (PD Plus)",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_TEST_MP2",
+   "lang": "L_MPMENU_129",
+   "comment": "Stack (PD Plus)",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_MP_FELICITY",
+   "lang": "L_MPMENU_135",
+   "comment": "Felicity",
+   "section": "Stage, unlock, name"
+  },
+  {
+   "stage": "STAGE_EXTRA6",
+   "lang": "L_MPMENU_133",
+   "comment": "Tample",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA2",
+   "lang": "L_MPMENU_134",
+   "comment": "Complex",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA8",
+   "lang": "L_MPMENU_306",
+   "comment": "Caves",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA9",
+   "lang": "L_MPMENU_303",
+   "comment": "Library",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA13",
+   "lang": "L_MPMENU_302",
+   "comment": "Basement",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA15",
+   "lang": "L_MPMENU_309",
+   "comment": "Stack",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA10",
+   "lang": "L_MPMENU_311",
+   "comment": "Facility",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA11",
+   "lang": "L_MPMENU_300",
+   "comment": "Bunker",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA4",
+   "lang": "L_MPMENU_299",
+   "comment": "Archives",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA12",
+   "lang": "L_MPMENU_305",
+   "comment": "Caverns",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA14",
+   "lang": "L_MPMENU_312",
+   "comment": "Egyptian",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP17",
+   "lang": "L_MPMENU_307",
+   "comment": "Facility BZ",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA1",
+   "lang": "L_MPMENU_298",
+   "comment": "Frigate",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_SILO",
+   "lang": "L_MPMENU_314",
+   "comment": "Archives 1F (GE-X 5e)",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP16",
+   "lang": "L_MPMENU_322",
+   "comment": "Archives BZ",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP14",
+   "lang": "L_MPMENU_315",
+   "comment": "Streets",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA3",
+   "lang": "L_MPMENU_310",
+   "comment": "Train",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP18",
+   "lang": "L_MPMENU_304",
+   "comment": "Cradle",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA5",
+   "lang": "L_MPMENU_313",
+   "comment": "Aztec",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP20",
+   "lang": "L_MPMENU_308",
+   "comment": "Citadel",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP19",
+   "lang": "L_MPMENU_301",
+   "comment": "Labyrinth",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_EXTRA7",
+   "lang": "L_MPMENU_316",
+   "comment": "Icicle Pyramid",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_TEST_MP8",
+   "lang": "L_MPMENU_323",
+   "comment": "Cliff Base",
+   "section": "GoldenEye X Mod"
+  },
+  {
+   "stage": "STAGE_24",
+   "lang": "L_MPMENU_319",
+   "comment": "Kakariko Village (Stormy)",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_TEST_MP7",
+   "lang": "L_MPMENU_321",
+   "comment": "Dark Noon Mod Valley",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_TEST_ARCH",
+   "lang": "L_MPMENU_324",
+   "comment": "Suburb",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_TEST_DEST",
+   "lang": "L_MPMENU_325",
+   "comment": "Training Day",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA16",
+   "lang": "L_MPMENU_327",
+   "comment": "Runway",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA17",
+   "lang": "L_MPMENU_328",
+   "comment": "Control",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA18",
+   "lang": "L_MPMENU_329",
+   "comment": "Tawfret Ruins",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA19",
+   "lang": "L_MPMENU_330",
+   "comment": "Targitzan's Temple",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA20",
+   "lang": "L_MPMENU_331",
+   "comment": "Junkyard",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA21",
+   "lang": "L_MPMENU_332",
+   "comment": "Steel Mill",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA22",
+   "lang": "L_MPMENU_333",
+   "comment": "Mall",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA23",
+   "lang": "L_MPMENU_334",
+   "comment": "Tunnels",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA24",
+   "lang": "L_MPMENU_335",
+   "comment": "Rogue",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA25",
+   "lang": "L_MPMENU_336",
+   "comment": "Paradox",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA26",
+   "lang": "L_MPMENU_337",
+   "comment": "War Colors",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_TEST_LAM",
+   "lang": "L_MPMENU_338",
+   "comment": "Grand Library",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA27",
+   "lang": "L_MPMENU_339",
+   "comment": "Arctic Mine",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA28",
+   "lang": "L_MPMENU_340",
+   "comment": "Offices",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA29",
+   "lang": "L_MPMENU_341",
+   "comment": "Apex",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA30",
+   "lang": "L_MPMENU_342",
+   "comment": "Courtyard",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA31",
+   "lang": "L_MPMENU_343",
+   "comment": "Frost Valley",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA32",
+   "lang": "L_MPMENU_344",
+   "comment": "Void",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA33",
+   "lang": "L_MPMENU_345",
+   "comment": "Residence",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA34",
+   "lang": "L_MPMENU_346",
+   "comment": "MI6",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA35",
+   "lang": "L_MPMENU_347",
+   "comment": "Submarine",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_EXTRA36",
+   "lang": "L_MPMENU_348",
+   "comment": "Silo Surprise",
+   "section": "Bonus"
+  },
+  {
+   "stage": "STAGE_MP_RANDOM_MULTI",
+   "lang": "L_MPMENU_294",
+   "comment": "Random Multi",
+   "section": "Random"
+  },
+  {
+   "stage": "STAGE_MP_RANDOM_SOLO",
+   "lang": "L_MPMENU_295",
+   "comment": "Random Solo",
+   "section": "Random"
+  },
+  {
+   "stage": "STAGE_MP_RANDOM_GEX",
+   "lang": "L_MPMENU_317",
+   "comment": "Random GoldenEye X",
+   "section": "Random"
+  }
+ ]
+}
