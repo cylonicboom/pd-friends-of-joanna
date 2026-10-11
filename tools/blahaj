@@ -29,7 +29,9 @@ Usage, from the pd-fojo tree root:
     tools/blahaj --rom basedir/data/pd.ntsc-final.z64 UsetupdishZ
     tools/blahaj --rom pd.z64 --xdelta mod.xdelta UsetupdishZ   # patched rom
     tools/blahaj --rom pd.z64 --file-patch patches/UsetupdishZ.xdelta UsetupdishZ
-    tools/blahaj --rom pd.z64 --gameshark codes.txt --base 0x80xxxxxx UsetupdishZ
+    tools/blahaj --rom pd.z64 --gameshark codes.txt UsetupstatZ --stage pam
+                                            # a PDLM code list; the load address is fitted,
+                                            # --stage names pads by the arena it plays in
     tools/blahaj ... -o src/setups/setupdish.c
 
 Dev-side only: needs python3; xdelta3 only for the --xdelta/--file-patch
@@ -1701,6 +1703,73 @@ def parse_gameshark(path):
     return writes, notes
 
 
+# g_Stages in N64 RAM, per Krijy's Perfect Dark Level Modding FAQ (its row
+# address table: row 0x38 pam at 0x800804A8 NTSC / 0x800809E8 PAL, 0x38 bytes
+# a row, listed from the bgfileid field). Lets a code that patches a stage row
+# be reported as what it is instead of as a stray write.
+STAGE_TABLE_RAM = {'ntsc-final': 0x8007F868, 'ntsc-1.0': 0x8007F868, 'pal-final': 0x8007FDA8}
+STAGE_FIELDS = {0: 'bgfileid', 2: 'tilefileid', 4: 'padsfileid', 6: 'setupfileid', 8: 'mpsetupfileid'}
+STAGE_TABLE_ROMID = ['ntsc-final']
+
+
+def stage_table_note(addr, val, width):
+    tbl = STAGE_TABLE_RAM.get(STAGE_TABLE_ROMID[0])
+    if not tbl:
+        return ''
+    off = (0x80000000 | addr) - tbl
+    if 0 <= off < 0x60 * 0x38:
+        row, fld = divmod(off, 0x38)
+        return ' = g_Stages row 0x%02x %s <- %#x' % (row, STAGE_FIELDS.get(fld, '+%#x' % fld), val)
+    return ''
+
+
+def fit_base(data, writes, tables, names, warn):
+    """Find where the setup was loaded by sliding it under the writes: the
+    base at which the most writes land on a pad/model field of a record.
+    PDLM codes mostly move things between pads, so the right base spikes."""
+    import bisect
+    w16 = [(a, wd, v) for a, wd, v in writes if 0x400000 <= a < 0x800000]
+    if not w16:
+        return None, 0, 0
+    s = Setup(data, tables, names, None, 'fit', lambda m: None)
+    try:
+        s.parse()
+    except Exception:
+        return None, 0, 0
+    pr = [r for r in s.regions if r.kind == 'props']
+    if not pr:
+        return None, 0, 0
+    recs, off = [], pr[0].start
+    while off < pr[0].end:
+        typ = data[off + 3]
+        if typ == OBJTYPE_END:
+            break
+        ln = (s.prop_len(off) or 1) * 4
+        recs.append((off, off + ln, typ))
+        off += ln
+    starts = [a for a, e, t in recs]
+    lo = min(a for a, wd, v in w16)
+    hi = max(a + wd for a, wd, v in w16)
+    best = []
+    # every base that puts at least one write inside the file; stray writes
+    # (player coordinates, pointers elsewhere) just never score
+    for base in range(max(0, lo - len(data)), hi + 1, 2):
+        sc = 0
+        for a, wd, v in w16:
+            o = a - base
+            i = bisect.bisect_right(starts, o) - 1
+            if i >= 0 and recs[i][0] <= o < recs[i][1]:
+                fo, typ = o - recs[i][0], recs[i][2]
+                if (typ == 0x09 and fo in (6, 8, 10)) or (typ != 0x09 and fo == 6):
+                    sc += 1
+        best.append((sc, base))
+    best.sort(reverse=True)
+    if not best or best[0][0] == 0:
+        return None, 0, 0
+    second = next((sc for sc, b in best[1:] if abs(b - best[0][1]) > 0x40), 0)
+    return best[0][1], best[0][0], second
+
+
 def apply_gameshark(data, writes, base, warn):
     """Apply RAM writes to the file image loaded at `base`. Writes past the
     end grow the file (new lists get appended by mods); writes before the
@@ -1711,9 +1780,10 @@ def apply_gameshark(data, writes, base, warn):
     lo = hi = None
     for addr, width, val in writes:
         off = addr - base
-        if off < 0 or off > len(data) + 0x20000:
+        if off < 0 or off > len(data) + 0x2000:
             outside += 1
-            warn('gameshark: write %02x%06x (%d bytes) is outside the setup (+%#x from base); dropped' % (0x80, addr, width, off))
+            warn('gameshark: write %02x%06x %0*x is outside the setup (%+#x from its start)%s; dropped' % (
+                0x80, addr, width * 2, val, off, stage_table_note(addr, val, width)))
             continue
         if off + width > len(b):
             grown = off + width - len(data)
@@ -1807,8 +1877,8 @@ def main():
     ap.add_argument('--file-patch', help='per-file xdelta applied after inflate (mod patches/)')
     ap.add_argument('--gameshark', help='gameshark code list to apply to the file as loaded in N64 RAM')
     ap.add_argument('--base', type=lambda x: int(x, 0),
-                    help='RAM address the setup is loaded at for --gameshark (0x80xxxxxx); pointers '
-                         'the codes write are un-relocated against it')
+                    help='RAM address the setup is loaded at for --gameshark (0x80xxxxxx); fitted '
+                         'from the codes when omitted. Pointers the codes write are un-relocated against it')
     ap.add_argument('--xdelta3', default=os.environ.get('XDELTA3', 'xdelta3'))
     ap.add_argument('--romid', default=os.environ.get('ROMID', 'ntsc-final'))
     ap.add_argument('--name', help='setup name for the output (setupdish, mp_setupmp1)')
@@ -1871,19 +1941,26 @@ def main():
             data = open(out, 'rb').read()
 
     base = args.base or 0
+    tables = Tables(root, {})
     if args.gameshark:
-        if not args.base:
-            sys.exit('blahaj: --gameshark needs --base, the RAM address the stage loads this setup at')
+        STAGE_TABLE_ROMID[0] = args.romid
         writes, notes = parse_gameshark(args.gameshark)
         for n in notes:
             warn('gameshark: ' + n)
+        if not args.base:
+            fitnames = Names(root, args.romid, None, setupname, False)
+            tables.consts = fitnames.consts
+            base, score, second = fit_base(data, writes, tables, fitnames, warn)
+            if base is None:
+                sys.exit('blahaj: could not fit a base for these codes against %s; pass --base' % setupname)
+            base |= 0x80000000
+            warn('gameshark: base fitted at %#x: %d writes land on pad/model fields there, next best base %d (pass --base to override)' % (base, score, second))
         data = apply_gameshark(data, writes, base, warn)
         data = derelocate(data, base, warn)
 
     if args.raw_out:
         open(args.raw_out, 'wb').write(data)
 
-    tables = Tables(root, {})
     inname = os.path.basename(args.input)
     vanilla_like = re.match(r'^U(mp_)?setup[a-z0-9]+Z(\.bin)?$', inname) is not None
     if args.stage:
