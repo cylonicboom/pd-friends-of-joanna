@@ -6143,6 +6143,85 @@ void playerAllocateMatrices(struct coord *cam_pos, struct coord *cam_look, struc
 	playerSetGlobalDrawCameraOffset();
 }
 
+#ifndef PLATFORM_N64
+/**
+ * Third person: point the body's gun at what the reticle is over, not along
+ * the reticle's ray.
+ *
+ * shootrotx/shootroty are read off the crosshair's ray from the camera, which
+ * is right while the camera is the eye. With the camera pulled back, the body
+ * aiming along that same ray points parallel to the shot and to one side of
+ * it by the camera distance times the sine of how far off-centre the reticle
+ * is - most of a body width at the edge of a free-aim zone. So the direction
+ * is rebuilt from the eye to a point down the reticle's ray, in the camera
+ * space the caller expects. The point is the one the first person view gun
+ * aims at, 1000 units out (bgunSwivel's bgunSetAimPos), so near walls still
+ * see the same small error the view gun does.
+ *
+ * Leaves dir alone outside third person.
+ */
+static void playerConvergeShootDir(struct coord *dir)
+{
+	struct player *player = g_Vars.currentplayer;
+	struct coord off;
+	struct coord look = player->cam_look;
+	struct coord up = player->cam_up;
+	struct coord right;
+	struct coord eye;
+	f32 len;
+	f32 d;
+
+	if (!playerGetCameraToEyeOffset(&off)) {
+		return;
+	}
+
+	// an orthonormal camera basis from look and up
+	len = sqrtf(look.x * look.x + look.y * look.y + look.z * look.z);
+
+	if (len < 0.0001f) {
+		return;
+	}
+
+	look.x /= len;
+	look.y /= len;
+	look.z /= len;
+
+	right.x = look.y * up.z - look.z * up.y;
+	right.y = look.z * up.x - look.x * up.z;
+	right.z = look.x * up.y - look.y * up.x;
+	len = sqrtf(right.x * right.x + right.y * right.y + right.z * right.z);
+
+	if (len < 0.0001f) {
+		return;
+	}
+
+	right.x /= len;
+	right.y /= len;
+	right.z /= len;
+
+	up.x = right.y * look.z - right.z * look.y;
+	up.y = right.z * look.x - right.x * look.z;
+	up.z = right.x * look.y - right.y * look.x;
+
+	// the eye in camera space: +x right, +y up, -z forward
+	eye.x = off.x * right.x + off.y * right.y + off.z * right.z;
+	eye.y = off.x * up.x + off.y * up.y + off.z * up.z;
+	eye.z = -(off.x * look.x + off.y * look.y + off.z * look.z);
+
+	len = sqrtf(dir->x * dir->x + dir->y * dir->y + dir->z * dir->z);
+
+	if (len < 0.0001f) {
+		return;
+	}
+
+	d = 1000.0f / len;
+
+	dir->x = dir->x * d - eye.x;
+	dir->y = dir->y * d - eye.y;
+	dir->z = dir->z * d - eye.z;
+}
+#endif
+
 Gfx *playerUpdateShootRot(Gfx *gdl)
 {
 	struct coord sp3c;
@@ -6156,6 +6235,9 @@ Gfx *playerUpdateShootRot(Gfx *gdl)
 			&g_Vars.currentplayer->cam_look,
 			&g_Vars.currentplayer->cam_up);
 	bgun0f0a0c08(&sp30, &sp3c);
+#ifndef PLATFORM_N64
+	playerConvergeShootDir(&sp3c);
+#endif
 	y = sp3c.y;
 
 	value = sqrtf(sp3c.z * sp3c.z + sp3c.x * sp3c.x);
