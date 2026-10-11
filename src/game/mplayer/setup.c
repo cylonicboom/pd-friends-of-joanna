@@ -27,6 +27,7 @@
 #include "mpsetups.h"
 #include "optionsmenu.h"
 #include "system.h"
+#include "mpprofiles.h"
 #include "types.h"
 #include <stdlib.h>
 #include <ultra64.h>
@@ -3400,6 +3401,92 @@ struct menudialogdef g_MpPlayerNameMenuDialog = {
     0,
     NULL,
 };
+
+#ifndef PLATFORM_N64
+/**
+ * fojo: a new player, made and saved by naming it.
+ *
+ * The keyboard's own order of events is the stock one - SETTEXT with the
+ * string, then the keyboard dialog is popped, then SET - so the work is done
+ * in SET, with the keyboard already gone, the way the agent name keyboard
+ * pushes its next dialog from SET.
+ *
+ * There is no save row and no question about where: mpProfileCreateBlank()
+ * writes a blank profile under the name to a controller pak page with room,
+ * and the pool grows a page if none has any. The new file is then loaded into
+ * the seat exactly as picking it from Load Player would.
+ */
+static char g_FojoNewPlayerName[MPPROFILE_NAME_MAX + 1];
+
+MenuItemHandlerResult fojoNewPlayerNameMenuHandler(s32 operation,
+                                                   struct menuitem *item,
+                                                   union handlerdata *data) {
+  char *name = data->keyboard.string;
+  s32 i;
+
+  switch (operation) {
+  case MENUOP_GETTEXT:
+    for (i = 0; i < 11; i++) {
+      name[i] = '\0';
+    }
+    break;
+  case MENUOP_SETTEXT:
+    snprintf(g_FojoNewPlayerName, sizeof(g_FojoNewPlayerName), "%s", name);
+    break;
+  case MENUOP_SET: {
+    struct fileguid guid;
+    const s32 playernum = g_MpPlayerNum;
+    const s32 ret = mpProfileCreateBlank(g_FojoNewPlayerName, &guid);
+
+    if (ret != 0) {
+      // TODO(catherine): nothing is shown to the player here yet. What it
+      // says is hers to write; the row that would have started the game
+      // stays disabled, which is the only sign.
+      sysLogPrintf(LOG_ERROR, "new player: could not create \"%s\" (%d)",
+                   g_FojoNewPlayerName, ret);
+      break;
+    }
+
+    sysLogPrintf(LOG_NOTE, "new player: \"%s\" saved as %04x-%04x",
+                 g_FojoNewPlayerName, (u32)guid.deviceserial, (u32)guid.fileid);
+
+    if (g_FileLists[0]) {
+      g_FileLists[0]->timeuntilupdate = 1;
+    }
+
+    filemgrSaveOrLoad(&guid, FILEOP_LOAD_MPPLAYER, playernum);
+
+    iniProcessPendingProfiles();
+    iniRegisterPlayerSave(&g_PlayerConfigsArray[playernum].fileguid, 1,
+                          playernum);
+    updatePlayerNames();
+  } break;
+  }
+
+  return 0;
+}
+
+struct menuitem g_FojoNewPlayerMenuItems[] = {
+    {
+        MENUITEMTYPE_KEYBOARD,
+        0,
+        0,
+        0,
+        0,
+        fojoNewPlayerNameMenuHandler,
+    },
+    {MENUITEMTYPE_END},
+};
+
+struct menudialogdef g_FojoNewPlayerMenuDialog = {
+    MENUDIALOGTYPE_DEFAULT,
+    L_MPMENU_142, // "Player Name"
+    g_FojoNewPlayerMenuItems,
+    NULL,
+    0,
+    NULL,
+};
+#endif
 
 struct menuitem g_MpLoadSettingsMenuItems[] = {
     {

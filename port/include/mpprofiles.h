@@ -23,8 +23,9 @@ extern "C" {
 // the seat a profile is loaded in, or -1
 s32 mpProfileSeatOf(const struct fileguid *guid);
 
-// blank profile on the gamepak: the given name, default head and body, no
-// stats. 0 on success, -1 pak error, -2 no free profile slot on the pak
+// blank profile on a controller pak page with room (the pool grows a page if
+// none has): the given name, default head and body, no stats. 0 on success,
+// -1 pak error, -2 no page could take it
 s32 mpProfileCreateBlank(const char *name, struct fileguid *out);
 
 s32 mpProfileRename(const struct fileguid *guid, const char *name);

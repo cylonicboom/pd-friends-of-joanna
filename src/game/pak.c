@@ -27,6 +27,7 @@
 #include "input.h"
 #include "rumbleshake.h"
 #include "mpk.h"
+#include "system.h"
 #endif
 
 /**
@@ -6086,21 +6087,13 @@ static u8 pakPinnedChannels(void)
 	return pinned;
 }
 
-s8 pakFindBySerial(s32 findserial)
+/*
+ * The pak state machine's walk from a swapped pak to a usable one (PROBE ->
+ * MEM_DISPATCH -> PREPARE -> READY), which it takes over several frames,
+ * done on the spot for a channel whose page has just changed.
+ */
+static void pakReprobeNow(s32 channel)
 {
-	s8 device = pakFindMountedBySerial(findserial);
-	s32 channel;
-
-	if (device >= 0 || findserial == 0) {
-		return device;
-	}
-
-	channel = mpkMountBySerial(findserial, pakPinnedChannels());
-
-	if (channel < 0) {
-		return -1;
-	}
-
 	joyDisableCyclicPolling();
 
 	g_Paks[channel].type = PAKTYPE_NONE;
@@ -6117,8 +6110,111 @@ s8 pakFindBySerial(s32 findserial)
 	}
 
 	joyEnableCyclicPolling();
+}
+
+s8 pakFindBySerial(s32 findserial)
+{
+	s8 device = pakFindMountedBySerial(findserial);
+	s32 channel;
+
+	if (device >= 0 || findserial == 0) {
+		return device;
+	}
+
+	channel = mpkMountBySerial(findserial, pakPinnedChannels());
+
+	if (channel < 0) {
+		return -1;
+	}
+
+	pakReprobeNow(channel);
 
 	return pakFindMountedBySerial(findserial);
+}
+
+/*
+ * fojo: how many vacant files of a type a device has. A vacant file is a
+ * header of the type with nothing in it, which reads back as 10 - the same
+ * count filelistUpdate makes for its "spaces" column. -1 if the device could
+ * not be read.
+ */
+static s32 pakCountVacantFiles(s8 device, u32 pakfiletype)
+{
+	static u32 fileids[1024];
+	struct savebuffer buffer;
+	s32 count = 0;
+
+	if (pakGetFileIdsByType(device, pakfiletype, fileids) != 0) {
+		return -1;
+	}
+
+	for (s32 i = 0; fileids[i] != 0; i++) {
+		if (pakReadBodyAtGuid(device, fileids[i], buffer.bytes, 0) == 10) {
+			count++;
+		}
+	}
+
+	return count;
+}
+
+/*
+ * fojo: a controller pak device with room for a new file of this type, for a
+ * save that should not have to ask where. The game pak is never the answer:
+ * player saves live on pages.
+ *
+ * Room means two vacant files, not one. _pakSaveAtGuid writes into a vacant
+ * file of the same type and then vacates the old one, so the last vacant file
+ * on a pak is what every later save of that type needs to work at all.
+ *
+ * The paks that are mounted are asked first, then every other page in the
+ * pool, each mounted in turn the way pakFindBySerial mounts one, and when
+ * none of them has room the pool grows by a page. -1 only if that fails too:
+ * every channel pinned, or the page file could not be written.
+ */
+s8 pakFindDeviceForNewFile(u32 pakfiletype)
+{
+	const s32 numpages = mpkNumPages();
+	s32 channel;
+
+	for (s8 device = SAVEDEVICE_CONTROLLERPAK1; device <= SAVEDEVICE_CONTROLLERPAK4; device++) {
+		if (mempakIsReady(device) && pakCountVacantFiles(device, pakfiletype) >= 2) {
+			return device;
+		}
+	}
+
+	for (s32 i = 0; i < numpages; i++) {
+		const s32 serial = mpkPageSerialAt(i);
+		s8 device;
+
+		if (serial <= 0 || pakFindMountedBySerial(serial) >= 0) {
+			continue;
+		}
+
+		device = pakFindBySerial(serial);
+
+		if (device >= SAVEDEVICE_CONTROLLERPAK1 && device <= SAVEDEVICE_CONTROLLERPAK4
+				&& pakCountVacantFiles(device, pakfiletype) >= 2) {
+			return device;
+		}
+	}
+
+	channel = mpkMountBlankPage(pakPinnedChannels());
+
+	if (channel < 0) {
+		sysLogPrintf(LOG_ERROR, "pak: no page has room for a new file and the pool could not grow");
+		return -1;
+	}
+
+	pakReprobeNow(channel);
+
+	if (mempakIsReady(channel) && pakCountVacantFiles(channel, pakfiletype) >= 2) {
+		return channel;
+	}
+
+	sysLogPrintf(LOG_ERROR, "pak: new page on controller pak %d did not come up with room (state %d)",
+			channel + 1, g_Paks[channel].state);
+
+	return -1;
 }
 #else
 s8 pakFindBySerial(s32 findserial)
