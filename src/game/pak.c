@@ -4498,8 +4498,19 @@ void pak0f11c6d0(void)
 		case PAKSTATE_MEM_POST_PREPARE:
 			g_Paks[i].state = PAKSTATE_UNPLUGGING;
 			g_PaksPlugged &= ~(1 << i);
+#ifdef PLATFORM_N64
 			g_MpPlayerNum = i;
 			menuSetBanner(-1, true);
+#else
+			// as PAKSTATE_MEM_PRE_PREPARE: the index is given back
+			{
+				const s32 prevplayernum = g_MpPlayerNum;
+
+				g_MpPlayerNum = i;
+				menuSetBanner(-1, true);
+				g_MpPlayerNum = prevplayernum;
+			}
+#endif
 			break;
 		}
 	}
@@ -5641,9 +5652,27 @@ void pakTickState(s8 device)
 	default:
 		break;
 	case PAKSTATE_MEM_PRE_PREPARE:
+#ifdef PLATFORM_N64
 		g_MpPlayerNum = device;
 
 		SETBANNER(MENUBANNER_CHECKINGPAK);
+#else
+		// Stock leaves g_MpPlayerNum on the pak's number: on a console the
+		// pak in port two is player two's, the banner is for their menu, and
+		// the next menu tick puts the index back. Here the paks are pages
+		// from a pool and belong to no seat, and at boot nothing puts it back
+		// before the title's profile picker reads it - so once a second page
+		// existed, the picker was pushed into menu 1, then again into menu 0
+		// a frame later, and the stray one was drawn over everything menu 0
+		// opened. The banner still goes up; the index is given back.
+		{
+			const s32 prevplayernum = g_MpPlayerNum;
+
+			g_MpPlayerNum = device;
+			SETBANNER(MENUBANNER_CHECKINGPAK);
+			g_MpPlayerNum = prevplayernum;
+		}
+#endif
 
 		g_Paks[device].state = PAKSTATE_MEM_PREPARE;
 		break;

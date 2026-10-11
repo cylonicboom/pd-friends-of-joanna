@@ -2835,6 +2835,10 @@ void titleInitProfileSelect(void) {
 
 	playermgrAllocatePlayers(1);
 	setCurrentPlayerNum(0);
+
+	// The picker is player one's, whatever the last thing to touch the menu
+	// index left it on (see PAKSTATE_MEM_PRE_PREPARE in pak.c).
+	g_MpPlayerNum = 0;
 	g_Menus[g_MpPlayerNum].fm.filetypeplusone = 0;
 
 	// textReset() for STAGE_TITLE only loads Sm/Md/Lg fonts; menus also need the Xs font.
