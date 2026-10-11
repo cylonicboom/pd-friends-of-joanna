@@ -451,6 +451,7 @@ void playermgrAllocatePlayer(s32 index)
 	g_Vars.players[index]->camstepamp = 0;
 	g_Vars.players[index]->camstrideodd = 0;
 	g_Vars.players[index]->camstridespeed = 0;
+	g_Vars.players[index]->codleanroll = 0;
 
 	g_Vars.players[index]->autoyaimenabled = true;
 	g_Vars.players[index]->autoaimy = 0;

@@ -53,6 +53,7 @@ void bwalkInit(void)
 	g_Vars.currentplayer->camstepamp = 0;
 	g_Vars.currentplayer->camstrideodd = 0;
 	g_Vars.currentplayer->camstridespeed = 0;
+	g_Vars.currentplayer->codleanroll = 0;
 
 	g_Vars.currentplayer->swaypos = 0;
 	g_Vars.currentplayer->swayoffset = 0;

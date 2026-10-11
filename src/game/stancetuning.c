@@ -57,6 +57,13 @@ f32 g_WanderRate = WANDER_RATE;
 f32 g_WanderSpeedCurve = WANDER_SPEEDCURVE;
 f32 g_WanderStride = WANDER_STRIDE;
 
+f32 g_GunFollowNear = GUNFOLLOW_NEAR;
+f32 g_GunFollowFar = GUNFOLLOW_FAR;
+f32 g_GunFollowGap = GUNFOLLOW_GAP;
+f32 g_GunFollowCurve = GUNFOLLOW_CURVE;
+f32 g_CodSlide = COD_SLIDE;
+f32 g_CodLeanRoll = COD_LEANROLL;
+
 /**
  * Whether fojo movement is on.
  *
@@ -133,6 +140,33 @@ void swayTuningReset(void)
 	g_WanderRate = WANDER_RATE;
 	g_WanderSpeedCurve = WANDER_SPEEDCURVE;
 	g_WanderStride = WANDER_STRIDE;
+	g_GunFollowNear = GUNFOLLOW_NEAR;
+	g_GunFollowFar = GUNFOLLOW_FAR;
+	g_GunFollowGap = GUNFOLLOW_GAP;
+	g_GunFollowCurve = GUNFOLLOW_CURVE;
+	g_CodSlide = COD_SLIDE;
+	g_CodLeanRoll = COD_LEANROLL;
+}
+
+/**
+ * Gun follow: how much faster than stock the view gun closes on its target,
+ * for a gap of this many half-screens. 1 everywhere at the defaults.
+ */
+f32 gunFollowSpeed(f32 gap)
+{
+	f32 t = g_GunFollowGap > 0.0001f ? gap / g_GunFollowGap : 1.0f;
+
+	if (t > 1.0f) {
+		t = 1.0f;
+	} else if (t < 0.0f) {
+		t = 0.0f;
+	}
+
+	if (g_GunFollowCurve != 1.0f) {
+		t = __builtin_powf(t, g_GunFollowCurve);
+	}
+
+	return g_GunFollowNear + (g_GunFollowFar - g_GunFollowNear) * t;
 }
 
 #endif

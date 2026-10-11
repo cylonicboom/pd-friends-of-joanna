@@ -345,6 +345,13 @@ extern "C" f32 g_WanderSpeedCurve;
 extern "C" f32 g_WanderStride;
 extern "C" void swayTuningReset(void);
 extern "C" f32 playerHipSwayShape(f32 stridephase);
+extern "C" f32 g_GunFollowNear;
+extern "C" f32 g_GunFollowFar;
+extern "C" f32 g_GunFollowGap;
+extern "C" f32 g_GunFollowCurve;
+extern "C" f32 g_CodSlide;
+extern "C" f32 g_CodLeanRoll;
+extern "C" f32 gunFollowSpeed(f32 gap);
 
 // Lua scripting. The switch is in src/game/luaai.c, the readout flags in
 // src/game/chaosstate.c, the rest in src/game/luaai_api_menus.c. Declared by
@@ -7304,6 +7311,70 @@ static void imguiOverlayDrawSwayPanel(void)
 
 		ImGui::PlotLines("##wanderamount", amount, 48, 0, "degrees vs ground speed", 0.0f, top > 0.01f ? top : 0.01f, ImVec2(0, 48));
 		ImGui::PlotLines("##wandertrace", trace, 160, 0, "10 s at rest, sideways", -(g_WanderRest + 0.01f), g_WanderRest + 0.01f, ImVec2(0, 48));
+	}
+
+	if (ImGui::CollapsingHeader("Gun follow curve", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float speed[64];
+		float ours[120];
+		float stock[120];
+
+		imguiOverlayStanceKnob("Near (x stock)", &g_GunFollowNear, 0.1f, 8.0f, "%.2f",
+				"How fast the view gun closes on the reticle when it is\n"
+				"nearly there, against stock's speed. Low is a heavy gun\n"
+				"that settles slowly; high snaps the last bit.");
+		imguiOverlayStanceKnob("Far (x stock)", &g_GunFollowFar, 0.1f, 8.0f, "%.2f",
+				"How fast it closes when it is far off - a flick, or the\n"
+				"reticle at the edge of the zone. High keeps up with fast\n"
+				"turns; low lets it trail them.");
+		imguiOverlayStanceKnob("Far starts at", &g_GunFollowGap, 0.05f, 2.0f, "%.2f",
+				"The gap, in half-screens, at which Far applies. Gaps\n"
+				"beyond it stay at Far.");
+		imguiOverlayStanceKnob("Curve", &g_GunFollowCurve, 0.25f, 4.0f, "%.2f",
+				"Exponent on the gap between Near and Far. Above 1 stays\n"
+				"near Near until the gap is big; below 1 reaches Far early.");
+
+		for (s32 k = 0; k < 64; k++) {
+			speed[k] = gunFollowSpeed((f32)k / 63.0f * 2.0f);
+		}
+
+		// half a second at 240Hz after the reticle jumps Far-starts-at
+		// half-screens away: ours, and stock (both at 1 is the same line)
+		{
+			const f32 d = 0.9269697f;
+			f32 p = 0.0f;
+			f32 q = 0.0f;
+			f32 target = g_GunFollowGap;
+
+			for (s32 k = 0; k < 120; k++) {
+				f32 kk = (1.0f - d) * gunFollowSpeed(target - p);
+
+				if (kk > 1.0f) {
+					kk = 1.0f;
+				}
+
+				p += (target - p) * kk;
+				q += (target - q) * (1.0f - d);
+				ours[k] = p / (target > 0.0001f ? target : 1.0f);
+				stock[k] = q / (target > 0.0001f ? target : 1.0f);
+			}
+		}
+
+		ImGui::PlotLines("##followspeed", speed, 64, 0, "speed (x stock) vs gap, 0 to 2", 0.0f, 8.0f, ImVec2(0, 48));
+		ImGui::PlotLines("##followours", ours, 120, 0, "0.5 s onto a jump: this", 0.0f, 1.05f, ImVec2(0, 40));
+		ImGui::PlotLines("##followstock", stock, 120, 0, "0.5 s onto a jump: stock", 0.0f, 1.05f, ImVec2(0, 40));
+		ImGui::TextDisabled("Both at 1 is stock. Applies with or without Weighty Aim.");
+	}
+
+	if (ImGui::CollapsingHeader("COD aiming, Aim Lock off", ImGuiTreeNodeFlags_DefaultOpen)) {
+		imguiOverlayStanceKnob("Gun slide", &g_CodSlide, 0.0f, 1.0f, "%.2f",
+				"How much of the way the gun slides across to sit under a\n"
+				"roaming crosshair. 1 keeps the sights on it; 0 leaves the\n"
+				"gun in the middle, still turned to point at it.");
+		imguiOverlayStanceKnob("Lean roll (deg)", &g_CodLeanRoll, 0.0f, 15.0f, "%.1f",
+				"How far the view rolls toward the crosshair's side with it\n"
+				"at the edge of the screen, scaled by how far up the gun is.\n"
+				"Chased like Camera Tilt's lean.");
+		ImGui::TextDisabled("Per player: COD Style Aiming on, Aim Lock off.");
 	}
 
 	ImGui::Separator();

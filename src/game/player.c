@@ -3963,15 +3963,47 @@ static void playerTiltCamera(struct coord *campos, struct coord *camup, struct c
 		hiproll = amount * g_HipSwayRoll;
 	}
 
+	// COD Style Aiming with Aim Lock off: the crosshair roams the screen and
+	// the gun goes with it (bondgun.c), and the view rolls toward whichever
+	// side it is on - Sway.CodLeanRoll degrees at the edge, scaled by how far
+	// up to the sights the gun is. Chased like the tilt so it never snaps.
+	{
+		f32 leantarget = 0;
+
+		if (player->codaimfrac > 0 && !player->isdead
+				&& PLAYER_EXTCFG().codaiming && !PLAYER_EXTCFG().codaimlock) {
+			f32 half = camGetScreenWidth() * 0.5f;
+
+			if (half > 0) {
+				f32 off = (player->crosspos[0] - camGetScreenLeft() - half) / half;
+
+				if (off > 1) {
+					off = 1;
+				} else if (off < -1) {
+					off = -1;
+				}
+
+				leantarget = off * g_CodLeanRoll * player->codaimfrac;
+			}
+		}
+
+		player->codleanroll += (leantarget - player->codleanroll) * rate;
+
+		if (player->codleanroll > -0.001f && player->codleanroll < 0.001f) {
+			player->codleanroll = 0;
+		}
+	}
+
 	if (player->camtiltroll > -0.001f && player->camtiltroll < 0.001f
 			&& player->camtiltpitch > -0.001f && player->camtiltpitch < 0.001f
-			&& hiproll > -0.001f && hiproll < 0.001f) {
+			&& hiproll > -0.001f && hiproll < 0.001f
+			&& player->codleanroll == 0) {
 		player->camtiltroll = 0;
 		player->camtiltpitch = 0;
 		return;
 	}
 
-	roll = (player->camtiltroll + hiproll) * (M_PI / 180.0f);
+	roll = (player->camtiltroll + hiproll + player->codleanroll) * (M_PI / 180.0f);
 	pitch = player->camtiltpitch * (M_PI / 180.0f);
 
 	up = *camup;

@@ -459,6 +459,26 @@
 #define WANDER_STRIDE       0.5f  // share of the moving wander that rocks with the stride instead
 
 /**
+ * Gun follow: how the view gun swings onto its target. Stock chases it at a
+ * fixed 0.9269697 (PAL 0.913) per 240Hz tick in bgunSwivel(), the same
+ * speed whatever the distance. Here that speed is multiplied by a curve of
+ * how far the gun is from where it is going: GUNFOLLOW_NEAR right on it,
+ * GUNFOLLOW_FAR at GUNFOLLOW_GAP or further (half-screens, 0 to 2), shaped by
+ * GUNFOLLOW_CURVE in between. Both at 1 is stock exactly.
+ *
+ * COD Style Aiming with Aim Lock off lets the crosshair roam the screen, so
+ * the gun follows it there: it keeps its turn toward the crosshair, slides
+ * under it by COD_SLIDE of the way, and the view rolls toward it, up to
+ * COD_LEANROLL degrees with the crosshair at the side of the screen.
+ */
+#define GUNFOLLOW_NEAR      1.0f  // follow speed right on the target, times stock's
+#define GUNFOLLOW_FAR       1.0f  // follow speed at GUNFOLLOW_GAP or further, times stock's
+#define GUNFOLLOW_GAP       0.5f  // half-screens from the target where FAR applies
+#define GUNFOLLOW_CURVE     1.0f  // exponent on the gap (0 to 1 of GUNFOLLOW_GAP) between them
+#define COD_SLIDE           1.0f  // share of the way the gun slides under a roaming crosshair
+#define COD_LEANROLL        4.0f  // degrees of roll with the crosshair at the side of the screen
+
+/**
  * Camera Tether: the third person camera as a pole attached to the body rather
  * than bolted to the back of its head. The right stick orbits the camera round
  * the body, the left stick moves the body in screen space and the body turns to

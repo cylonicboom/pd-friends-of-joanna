@@ -3014,6 +3014,9 @@ struct player {
   // the bob setting (reticle wander reads it too).
   /*ext*/ s32 camstrideodd;
   /*ext*/ f32 camstridespeed;
+  // COD Style Aiming with Aim Lock off: the view's roll toward the roaming
+  // crosshair, in degrees, chased like the tilt.
+  /*ext*/ f32 codleanroll;
   /*ext*/ f32 codaimfrac; // COD Style Aiming: how far the gun has come up to the sights, 0 to 1
   // The combat roll's push, in world units per tick, and the frame the roll
   // started. Held as a vector rather than a direction and a speed so that

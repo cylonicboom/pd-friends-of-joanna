@@ -111,6 +111,18 @@ extern f32 g_WanderRate;
 extern f32 g_WanderSpeedCurve;
 extern f32 g_WanderStride;
 
+// Gun follow and COD Style Aiming with Aim Lock off (constants.h has what each
+// is). gunFollowSpeed() is the curve: follow speed against stock's for a gap
+// in half-screens.
+extern f32 g_GunFollowNear;
+extern f32 g_GunFollowFar;
+extern f32 g_GunFollowGap;
+extern f32 g_GunFollowCurve;
+extern f32 g_CodSlide;
+extern f32 g_CodLeanRoll;
+
+f32 gunFollowSpeed(f32 gap);
+
 void swayTuningReset(void);
 
 #endif

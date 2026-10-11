@@ -376,6 +376,12 @@ PD_CONSTRUCTOR static void gameConfigInit(void)
 	configRegisterFloat("Sway.WanderRate", &g_WanderRate, 0.05f, 3.f);
 	configRegisterFloat("Sway.WanderSpeedCurve", &g_WanderSpeedCurve, 0.25f, 4.f);
 	configRegisterFloat("Sway.WanderStride", &g_WanderStride, 0.f, 1.f);
+	configRegisterFloat("Sway.GunFollowNear", &g_GunFollowNear, 0.1f, 8.f);
+	configRegisterFloat("Sway.GunFollowFar", &g_GunFollowFar, 0.1f, 8.f);
+	configRegisterFloat("Sway.GunFollowGap", &g_GunFollowGap, 0.05f, 2.f);
+	configRegisterFloat("Sway.GunFollowCurve", &g_GunFollowCurve, 0.25f, 4.f);
+	configRegisterFloat("Sway.CodSlide", &g_CodSlide, 0.f, 1.f);
+	configRegisterFloat("Sway.CodLeanRoll", &g_CodLeanRoll, 0.f, 15.f);
 	// MENUBG_SUCCESS_SLOW. Colours are 0xrrggbbaa; they save as decimal, but
 	// reading takes hex too, so 0x333350a0 is fine to hand-edit.
 	configRegisterFloat("MenuBg.Speed", &g_MenuBgSlowStars.speed, 0.f, 20.f);
