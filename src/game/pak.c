@@ -3566,7 +3566,18 @@ s32 pak0f11b86c(s8 device, u32 offset, u8 *data, struct pakfileheader *header, s
 	u32 blocksize;
 	u32 alignedfilelen;
 	u32 stack[3];
+#ifdef PLATFORM_N64
 	u8 buffer[16];
+#else
+	// A whole block, which is what pakRetrieveBlockFromCache() copies in: 16
+	// bytes on the game pak and 32 on a controller pak. The decomp's 16 is
+	// only right for the game pak. On a controller pak the copy ran 16 bytes
+	// past the end, and the loop below then reads its answer out of exactly
+	// those 16 bytes (buffer[16 + i]) - so it worked, on a stack with nothing
+	// guarding it. The port had no controller paks until pages; with them,
+	// listing a file whose block is in the cache is a stack check abort.
+	u8 buffer[0x20];
+#endif
 	s32 offsetinblock;
 	s32 blocknum;
 	u8 sp58[128];
