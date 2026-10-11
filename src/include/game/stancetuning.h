@@ -97,6 +97,22 @@ extern f32 g_BuildCrouchMix;
 
 void stanceTuningReset(void);
 
+// Hip sway and reticle wander: the shape of the curves (constants.h has what
+// each is). How much of them a player gets is their HipSway / ReticleWander
+// Game options.
+extern f32 g_HipSwaySide;
+extern f32 g_HipSwayRoll;
+extern f32 g_HipSwayShape;
+extern f32 g_HipSwayPhase;
+extern f32 g_HipSwaySpeedCurve;
+extern f32 g_WanderRest;
+extern f32 g_WanderMove;
+extern f32 g_WanderRate;
+extern f32 g_WanderSpeedCurve;
+extern f32 g_WanderStride;
+
+void swayTuningReset(void);
+
 #endif
 
 #endif

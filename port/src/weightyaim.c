@@ -17,6 +17,8 @@
 #include "game/bondmove.h"
 #include "game/options.h"
 #include "game/prop.h"
+#include "game/player.h"
+#include "game/stancetuning.h"
 #include "input.h"
 #include "config.h"
 #include "system.h"
@@ -269,6 +271,8 @@ struct weightyaimstate {
 	f32 sway[2];     // camera sway offset applied last frame, degrees
 	bool active;     // Weighty Aim drove this player's crosshair on the last update
 	f32 barrelbias[3]; // laser: how far the barrel normally points off the aim line (camera space)
+	f32 wander[2];     // fojo: reticle wander offset applied last frame, degrees
+	f32 wanderphase[4];// fojo: reticle wander noise phases
 };
 
 static struct weightyaimstate g_WeightyAimState[MAX_PLAYERS];
@@ -907,6 +911,7 @@ static void weightyAimResetState(struct weightyaimstate *st)
 	st->leadinput = 0.f;
 	st->edgetime = 0.f;
 	st->sway[0] = st->sway[1] = 0.f;
+	st->wander[0] = st->wander[1] = 0.f;
 }
 
 void weightyAimFilterLook(s32 *analogturn, s32 *analogpitch, f32 *freelookdx, f32 *freelookdy,
@@ -1201,6 +1206,47 @@ void weightyAimFilterLook(s32 *analogturn, s32 *analogpitch, f32 *freelookdx, f3
 				camdeg[0] += nx / e * speed * dtsec;
 				camdeg[1] += ny / e * speed * dtsec * clampf(ec->edgevertical, 0.f, 1.f);
 				autoturning = true;
+			}
+		}
+
+		// 3c. fojo: reticle wander. The hip-fire reticle drifts on slow noise
+		//     inside the zone - [Sway] WanderRest standing still, WanderMove more
+		//     at speed through WanderSpeedCurve - and WanderStride of the moving
+		//     share rocks with the stride (playerHipSwayAt, the same hips the
+		//     view sways on) instead of the noise. Applied as this frame's offset
+		//     less last frame's, like the camera sway below, so it wanders round
+		//     where she points and never walks away. The spring smooths it and
+		//     the shot goes where the reticle is. Gain is the seat's
+		//     ReticleWander Game option; 0 is off.
+		{
+			const f32 gain = clampf(PLAYER_EXTCFG().reticlewander, 0.f, 4.f);
+			f32 want[2] = { 0.f, 0.f };
+
+			if (gain > 0.f) {
+				struct player *pl = g_Vars.currentplayer;
+				const f32 tau = 2.f * (f32)M_PI;
+				const f32 rate = clampf(g_WanderRate, 0.05f, 3.f) * tau * dtsec;
+				const f32 speed = clampf(pl->camstridespeed, 0.f, 1.f);
+				const f32 moving = __builtin_powf(speed, clampf(g_WanderSpeedCurve, 0.25f, 4.f)) * g_WanderMove;
+				const f32 stride = clampf(g_WanderStride, 0.f, 1.f);
+				const f32 noise = gain * (g_WanderRest + moving * (1.f - stride));
+				const f32 rock = gain * moving * stride;
+
+				st->wanderphase[0] = bc_fmodf(st->wanderphase[0] + rate, tau);
+				st->wanderphase[1] = bc_fmodf(st->wanderphase[1] + rate * 1.37f, tau);
+				st->wanderphase[2] = bc_fmodf(st->wanderphase[2] + rate * 0.71f, tau);
+				st->wanderphase[3] = bc_fmodf(st->wanderphase[3] + rate * 0.53f, tau);
+
+				// sideways on the hips, and a dip as each foot lands
+				want[0] = noise * (0.6f * bc_sinf(st->wanderphase[0]) + 0.4f * bc_sinf(st->wanderphase[1] + 0.9f))
+					+ rock * playerHipSwayAt(pl);
+				want[1] = noise * 0.6f * (0.6f * bc_sinf(st->wanderphase[2] + 1.1f) + 0.4f * bc_sinf(st->wanderphase[3] + 2.3f))
+					+ rock * 0.4f * bc_sinf(pl->camstepphase);
+			}
+
+			for (s32 i = 0; i < 2; i++) {
+				st->target[i] += want[i] - st->wander[i];
+				st->wander[i] = want[i];
 			}
 		}
 

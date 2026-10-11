@@ -49,6 +49,8 @@ static const struct seatopt g_SeatGameOpts[] = {
 	SEATOPT("WeightyAimPreset",      CFG_S32, weightyaimpreset,      0,    7),
 	SEATOPT("AimAssistStrength",     CFG_F32, weightyaimassist,      0.0,  1.0),
 	SEATOPT("SmoothReticle",         CFG_S32, smoothreticle,         0,    1),
+	SEATOPT("HipSway",               CFG_F32, hipsway,               0.0,  4.0),
+	SEATOPT("ReticleWander",         CFG_F32, reticlewander,         0.0,  4.0),
 };
 
 // what a seat starts from before a file's values land on it; taken before

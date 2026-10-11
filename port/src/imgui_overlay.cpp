@@ -57,6 +57,7 @@ static bool g_ImGuiOverlayShowLookingAt = false;
 static bool g_ImGuiOverlayShowProportions = false;
 static bool g_ImGuiOverlayShowStance = false;
 static bool g_ImGuiOverlayShowPauseBlur = false;
+static bool g_ImGuiOverlayShowSway = false;
 static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
@@ -329,6 +330,21 @@ extern "C" s32 g_BuildSpeedEnabled;
 extern "C" f32 g_BuildSpeedRef;
 extern "C" f32 g_BuildCrouchMix;
 extern "C" void stanceTuningReset(void);
+
+// Hip sway and reticle wander, also in src/game/stancetuning.c; the curve
+// itself is player.c's, so the plot below is the one the game runs.
+extern "C" f32 g_HipSwaySide;
+extern "C" f32 g_HipSwayRoll;
+extern "C" f32 g_HipSwayShape;
+extern "C" f32 g_HipSwayPhase;
+extern "C" f32 g_HipSwaySpeedCurve;
+extern "C" f32 g_WanderRest;
+extern "C" f32 g_WanderMove;
+extern "C" f32 g_WanderRate;
+extern "C" f32 g_WanderSpeedCurve;
+extern "C" f32 g_WanderStride;
+extern "C" void swayTuningReset(void);
+extern "C" f32 playerHipSwayShape(f32 stridephase);
 
 // Lua scripting. The switch is in src/game/luaai.c, the readout flags in
 // src/game/chaosstate.c, the rest in src/game/luaai_api_menus.c. Declared by
@@ -7184,6 +7200,123 @@ static void imguiOverlayDrawSkinMatchPanel(void)
 	imguiSkinMatchDrawPanel(g_ImGuiOverlaySkinChr);
 }
 
+// ----------------------------------------------------------------------------
+// Sway panel
+//
+// Hip sway (the eye riding the hips, once per stride, on the step bob's phase)
+// and hip-fire reticle wander (Weighty Aim's reticle drifting on slow noise,
+// part of it rocking with the same stride). The curves are [Sway] in pd.ini
+// and constants.h has the defaults; how much of each a player gets is their
+// HipSway / ReticleWander Game option, which follows their save file and is
+// saved through the queue like any other. The curve knobs are not saved by
+// the panel, as with the Stance panel.
+// ----------------------------------------------------------------------------
+
+static void imguiOverlayDrawSwayPanel(void)
+{
+	ImGui::TextDisabled("Defaults live in constants.h. pd.ini [Sway] sets where these start.");
+	ImGui::Separator();
+
+	if (ImGui::CollapsingHeader("How much, per player", ImGuiTreeNodeFlags_DefaultOpen)) {
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			bool changed = false;
+
+			ImGui::PushID(i);
+			ImGui::Text("Player %d", i + 1);
+			changed |= ImGui::SliderFloat("Hip sway", &g_PlayerExtCfg[i].hipsway, 0.0f, 4.0f, "%.2f");
+			changed |= ImGui::SliderFloat("Reticle wander", &g_PlayerExtCfg[i].reticlewander, 0.0f, 4.0f, "%.2f");
+
+			if (changed) {
+				saveQueueMarkConfig();
+			}
+
+			ImGui::PopID();
+		}
+
+		ImGui::TextDisabled("Game options on each player's save file. 0 is off.");
+		ImGui::TextDisabled("Reticle wander rides Weighty Aim's reticle: the Classic preset has none.");
+	}
+
+	if (ImGui::CollapsingHeader("Hip sway curve", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float stride[96];
+		float speed[48];
+
+		imguiOverlayStanceKnob("Side (units)", &g_HipSwaySide, 0.0f, 20.0f, "%.1f",
+				"How far the eye shifts over each foot at a full run, at a\n"
+				"gain of 1. Out along the camera's right.");
+		imguiOverlayStanceKnob("Roll (deg)", &g_HipSwayRoll, 0.0f, 5.0f, "%.2f",
+				"How far the picture rolls toward the planted foot at a full\n"
+				"run, at a gain of 1. Adds to Camera Tilt's lean.");
+		imguiOverlayStanceKnob("Shape", &g_HipSwayShape, 0.0f, 1.0f, "%.2f",
+				"0 is a sine. Toward 1 the hips linger over each foot and\n"
+				"cross quickly between them.");
+		imguiOverlayStanceKnob("Phase (deg)", &g_HipSwayPhase, -180.0f, 180.0f, "%.0f",
+				"How far into the stride after a foot lands the sway peaks.\n"
+				"0 puts the eye furthest over a foot as it strikes, which is\n"
+				"the low point of Camera Bob's lift.");
+		imguiOverlayStanceKnob("Speed curve", &g_HipSwaySpeedCurve, 0.25f, 4.0f, "%.2f",
+				"Exponent on ground speed (0 to 1). Above 1 a walk barely\n"
+				"sways and a run does; below 1 even a walk sways most of\n"
+				"the way.");
+
+		for (s32 k = 0; k < 96; k++) {
+			stride[k] = playerHipSwayShape((f32)k / 96.0f * 2.0f * (f32)M_PI);
+		}
+
+		for (s32 k = 0; k < 48; k++) {
+			speed[k] = powf((f32)k / 47.0f, g_HipSwaySpeedCurve);
+		}
+
+		ImGui::PlotLines("##stride", stride, 96, 0, "one stride: right foot, left foot", -1.1f, 1.1f, ImVec2(0, 64));
+		ImGui::PlotLines("##hipspeed", speed, 48, 0, "share of it vs ground speed", 0.0f, 1.0f, ImVec2(0, 48));
+	}
+
+	if (ImGui::CollapsingHeader("Reticle wander curve", ImGuiTreeNodeFlags_DefaultOpen)) {
+		float amount[48];
+		float trace[160];
+		f32 top = g_WanderRest + g_WanderMove;
+
+		imguiOverlayStanceKnob("At rest (deg)", &g_WanderRest, 0.0f, 5.0f, "%.2f",
+				"How far the reticle drifts standing still, at a gain of 1.");
+		imguiOverlayStanceKnob("Moving (deg)", &g_WanderMove, 0.0f, 10.0f, "%.2f",
+				"How much more at a full run, at a gain of 1.");
+		imguiOverlayStanceKnob("Noise speed (Hz)", &g_WanderRate, 0.05f, 3.0f, "%.2f",
+				"How quickly the drift moves. Low is a slow sway, high\n"
+				"is a tremor.");
+		imguiOverlayStanceKnob("Speed curve", &g_WanderSpeedCurve, 0.25f, 4.0f, "%.2f",
+				"Exponent on ground speed (0 to 1) before it scales the\n"
+				"moving share.");
+		imguiOverlayStanceKnob("Stride coupling", &g_WanderStride, 0.0f, 1.0f, "%.2f",
+				"Share of the moving wander that rocks with the hips and\n"
+				"dips as each foot lands, instead of drifting on the noise.");
+
+		for (s32 k = 0; k < 48; k++) {
+			amount[k] = g_WanderRest + powf((f32)k / 47.0f, g_WanderSpeedCurve) * g_WanderMove;
+		}
+
+		// ten seconds of the sideways drift standing still, the same sum of
+		// sines the game runs (port/src/weightyaim.c, step 3c)
+		for (s32 k = 0; k < 160; k++) {
+			f32 t = (f32)k / 16.0f * 2.0f * (f32)M_PI * g_WanderRate;
+
+			trace[k] = g_WanderRest * (0.6f * sinf(t) + 0.4f * sinf(t * 1.37f + 0.9f));
+		}
+
+		ImGui::PlotLines("##wanderamount", amount, 48, 0, "degrees vs ground speed", 0.0f, top > 0.01f ? top : 0.01f, ImVec2(0, 48));
+		ImGui::PlotLines("##wandertrace", trace, 160, 0, "10 s at rest, sideways", -(g_WanderRest + 0.01f), g_WanderRest + 0.01f, ImVec2(0, 48));
+	}
+
+	ImGui::Separator();
+
+	if (ImGui::Button("Reset curves to defaults")) {
+		swayTuningReset();
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("The curve knobs only. Each player's gains are theirs.");
+	}
+}
+
 static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL, kFojoDev  },
 	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL, kFojoDev  },
@@ -7197,6 +7330,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Audio",       "Fojo Audio",       &g_ImGuiOverlayShowAudio,       imguiOverlayDrawAudioPanel,       440.0f, 560.0f, 0.5f, 0.50f, NULL, kFojoDev  },
 	{ "Proportions", "Fojo Proportions", &g_ImGuiOverlayShowProportions, imguiOverlayDrawProportionsPanel, 460.0f, 620.0f, 0.0f, 0.50f, NULL, kFojoDev  },
 	{ "Stance",      "Fojo Stance",      &g_ImGuiOverlayShowStance,      imguiOverlayDrawStancePanel,      420.0f, 560.0f, 0.5f, 0.50f, NULL, kFojoDev  },
+	{ "Sway",        "Fojo Sway",        &g_ImGuiOverlayShowSway,        imguiOverlayDrawSwayPanel,        420.0f, 640.0f, 0.5f, 0.50f, NULL, kFojoDev  },
 	{ "PauseBlur",   "Fojo Pause Blur",  &g_ImGuiOverlayShowPauseBlur,   imguiOverlayDrawPauseBlurPanel,   400.0f, 300.0f, 0.5f, 0.50f, NULL, kFojoDev  },
 	{ "MenuBg",      "Fojo Menu Bg",     &g_ImGuiOverlayShowMenuBg,      imguiOverlayDrawMenuBgPanel,      380.0f, 600.0f, 0.5f, 0.50f, NULL, kFojoDev  },
 	{ "Lua",         "Fojo Lua",         &g_ImGuiOverlayShowLua,         imguiOverlayDrawLuaPanel,         420.0f, 300.0f, 0.0f, 0.75f, NULL, kFojoDev  },

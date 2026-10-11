@@ -3008,6 +3008,12 @@ struct player {
   // and how high it is bobbing, chasing the ground speed.
   /*ext*/ f32 camstepphase;
   /*ext*/ f32 camstepamp;
+  // ... and the hip sway: which of the two steps in a stride this is, so the
+  // stride's phase is the step's plus a half turn on the odd one, and how fast
+  // she is going as 0 to 1, chased like the bob's height but kept whatever
+  // the bob setting (reticle wander reads it too).
+  /*ext*/ s32 camstrideodd;
+  /*ext*/ f32 camstridespeed;
   /*ext*/ f32 codaimfrac; // COD Style Aiming: how far the gun has come up to the sights, 0 to 1
   // The combat roll's push, in world units per tick, and the frame the roll
   // started. Held as a vector rather than a direction and a speed so that
@@ -6579,6 +6585,8 @@ struct extplayerconfig {
   s32 weightyaimpreset; // Weighty Aim preset, WEIGHTYAIM_PRESET_*; 3 = Classic, off
   f32 weightyaimassist; // Weighty Aim: share of the game's own aim assist, 0..1
   s32 smoothreticle;    // Weighty Aim: draw the reticle at quarter-pixel steps
+  f32 hipsway;          // hip sway gain, 0 = off; the curve is [Sway]
+  f32 reticlewander;    // hip-fire reticle wander gain, 0 = off; needs a Weighty Aim preset
 };
 
 struct setupblock {
