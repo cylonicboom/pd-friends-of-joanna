@@ -10,6 +10,14 @@
 #include "lib/music.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "system.h"
+// MUSICDIAG (#396) - temporary probe: who asks the music for what, in order
+#define MUSICDIAG(fmt, ...) sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d stage=%02x root=%d menutrack=%d " fmt, \
+		g_Vars.lvframenum, g_Vars.stagenum, (s32)g_MenuData.root, g_MenuTrack, ##__VA_ARGS__)
+#else
+#define MUSICDIAG(fmt, ...)
+#endif
 
 #define FADETYPE_STOP  0
 #define FADETYPE_PAUSE 1
@@ -224,6 +232,7 @@ s32 musicGetChannelByTrackType(s32 tracktype)
 
 void musicQueueStartEvent(u32 tracktype, u32 tracknum, f32 arg2, u16 volume)
 {
+	MUSICDIAG("  queue PLAY type=%d track=%d fade=%.2f vol=%d", (s32)tracktype, (s32)tracknum, (f64)arg2, (s32)volume);
 	if (!g_SndDisabled) {
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].tracknum = tracknum;
@@ -239,6 +248,7 @@ void musicQueueStartEvent(u32 tracktype, u32 tracknum, f32 arg2, u16 volume)
 
 void musicQueueStopEvent(s32 tracktype)
 {
+	MUSICDIAG("  queue STOP type=%d", tracktype);
 	if (!g_SndDisabled) {
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].eventtype = MUSICEVENTTYPE_STOP;
@@ -251,6 +261,7 @@ void musicQueueStopEvent(s32 tracktype)
 
 void musicQueueFadeEvent(s32 tracktype, f32 arg1, bool keepafterfade)
 {
+	MUSICDIAG("  queue FADE type=%d secs=%.2f keep=%d", tracktype, (f64)arg1, (s32)keepafterfade);
 	if (!g_SndDisabled) {
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].unk0c = arg1;
@@ -265,6 +276,7 @@ void musicQueueFadeEvent(s32 tracktype, f32 arg1, bool keepafterfade)
 
 void musicReset(void)
 {
+	MUSICDIAG("musicReset");
 	s32 i;
 
 	if (!g_SndDisabled) {
@@ -293,6 +305,7 @@ void musicReset(void)
 
 void musicQueueStopAllEvent(void)
 {
+	MUSICDIAG("musicQueueStopAllEvent");
 #if VERSION >= VERSION_NTSC_1_0
 	g_MusicEventQueue[0].tracktype = TRACKTYPE_6;
 #endif
@@ -333,6 +346,7 @@ void musicRestoreInterval(void)
 
 void musicStartPrimary(f32 arg0)
 {
+	MUSICDIAG("musicStartPrimary");
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
 		return;
@@ -351,6 +365,7 @@ void musicStartPrimary(f32 arg0)
 
 void musicStartAmbient(f32 arg0)
 {
+	MUSICDIAG("musicStartAmbient");
 	s32 pass = false;
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
@@ -448,6 +463,7 @@ void musicStartWatch(f32 arg0)
  */
 void musicStartTrackAsMenu(s32 tracknum)
 {
+	MUSICDIAG("musicStartTrackAsMenu track=%d", tracknum);
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
 		return;
@@ -470,6 +486,7 @@ void musicStartTrackAsMenu(s32 tracknum)
  */
 void musicSetStageAndStartMusic(s32 stagenum)
 {
+	MUSICDIAG("musicSetStageAndStartMusic newstage=%02x", stagenum);
 	g_MusicStageNum = stagenum;
 
 	musicStartPrimary(0);
@@ -489,6 +506,7 @@ void musicSetStage(s32 stagenum)
 
 void musicStop(void)
 {
+	MUSICDIAG("musicStop");
 #if VERSION >= VERSION_NTSC_1_0
 	musicSaveInterval();
 	musicQueueStopAllEvent();
@@ -544,6 +562,7 @@ void musicStartMenu(void)
 
 void musicEndMenu(void)
 {
+	MUSICDIAG("musicEndMenu");
 	musicQueueFadeEvent(TRACKTYPE_MENU, 1, FADETYPE_STOP);
 
 	if (musicIsTrackState(TRACKTYPE_NRG, AL_PLAYING)) {
@@ -642,6 +661,7 @@ void musicEndDeath(void)
  */
 void musicPlayTrackIsolated(s32 tracknum)
 {
+	MUSICDIAG("musicPlayTrackIsolated track=%d", tracknum);
 #if VERSION >= VERSION_NTSC_1_0
 	musicSaveInterval();
 #endif
@@ -666,6 +686,7 @@ void musicPlayTrackIsolated(s32 tracknum)
  */
 void musicPlayDefaultTracks(void)
 {
+	MUSICDIAG("musicPlayDefaultTracks");
 	musicQueueStopEvent(TRACKTYPE_PRIMARY);
 	musicQueueStopEvent(TRACKTYPE_AMBIENT);
 	musicStartPrimary(0.5f);
@@ -676,6 +697,7 @@ void musicPlayDefaultTracks(void)
  */
 void musicStartTemporaryPrimary(s32 tracknum)
 {
+	MUSICDIAG("musicStartTemporaryPrimary track=%d", tracknum);
 	musicQueueStopEvent(TRACKTYPE_PRIMARY);
 
 	g_TemporaryPrimaryTrack = tracknum;
@@ -692,6 +714,7 @@ void musicStartTemporaryPrimary(s32 tracknum)
  */
 void musicStartCutscene(s32 tracknum)
 {
+	MUSICDIAG("musicStartCutscene track=%d", tracknum);
 	u32 volume;
 
 	musicQueueStopEvent(TRACKTYPE_MENU);
@@ -716,6 +739,7 @@ void musicStartCutscene(s32 tracknum)
  */
 void musicEndCutscene(void)
 {
+	MUSICDIAG("musicEndCutscene");
 	g_Vars.dontplaynrg = false;
 
 	if (!g_IsTitleDemo) {
