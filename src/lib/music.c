@@ -1340,6 +1340,9 @@ void musicTick(void)
 	bool playnrg = false;
 
 	if (!g_SndDisabled) {
+#ifndef PLATFORM_N64
+		musicReconcileMenu();
+#endif
 		if (g_MusicDeathTimer240 > 0
 				&& (g_Vars.normmplayerisrunning
 					|| (g_Vars.antiplayernum >= 0 && !g_Vars.bond->isdead)

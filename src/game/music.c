@@ -3,6 +3,7 @@
 #include "game/menu.h"
 #include "game/lv.h"
 #include "game/music.h"
+#include "game/mplayer/mplayer.h"
 #include "game/options.h"
 #include "game/stagemusic.h"
 #include "bss.h"
@@ -527,8 +528,17 @@ static s32 g_MenuEndQueueLenAfter = -1;
 static u32 g_MenuEndNextEventId = 0;
 #endif
 
+#ifndef PLATFORM_N64
+// set when the track was asked for by a menu opening (musicStartMenu), as
+// against the credits or a script borrowing the menu slot
+static bool g_MenuTrackOwnedByMenu = false;
+#endif
+
 void musicStartTrackAsMenu(s32 tracknum)
 {
+#ifndef PLATFORM_N64
+	g_MenuTrackOwnedByMenu = false;
+#endif
 	MUSICDIAG("musicStartTrackAsMenu track=%d", tracknum);
 #ifndef PLATFORM_N64
 	if (g_MusicSuppressed) {
@@ -639,6 +649,9 @@ void musicDeactivateNrg(void)
 void musicStartMenu(void)
 {
 	musicStartTrackAsMenu(menuChooseMusic());
+#ifndef PLATFORM_N64
+	g_MenuTrackOwnedByMenu = true;
+#endif
 }
 
 void musicEndMenu(void)
@@ -677,6 +690,69 @@ void musicEndMenu(void)
 	g_MenuEndNextEventId = g_MusicNextEventId;
 #endif
 }
+
+#ifndef PLATFORM_N64
+/**
+ * The passive check: every tick, hold the music to what the menus are doing.
+ *
+ * Starting and ending the menu track are one-shot calls made by whichever
+ * path opens or closes a menu. A path that skips its call, or makes it at the
+ * wrong moment, leaves the music wrong until the next menu. This looks at the
+ * state itself: once no menu has been up for a second, the menu track must
+ * not be playing and the level track must not be sitting paused under it.
+ *
+ * Only a track a menu asked for is ended. The credits and scripts borrow the
+ * menu slot with no menu up and are left alone.
+ */
+void musicReconcileMenu(void)
+{
+	static s32 quiet60 = 0;
+	bool menuup = g_MenuData.count > 0 || g_MainIsEndscreen || lvIsPaused() || mpIsPaused();
+	s32 i;
+
+	for (i = 0; i < MAX_PLAYERS && !menuup; i++) {
+		if (g_Vars.players[i] && g_Vars.players[i]->pausemode != PAUSEMODE_UNPAUSED) {
+			menuup = true;
+		}
+	}
+
+	if (menuup || g_MusicEventQueueLength > 0 || g_Vars.in_cutscene) {
+		quiet60 = 0;
+		return;
+	}
+
+	quiet60 += g_Vars.diffframe60;
+
+	if (quiet60 < 60) {
+		return;
+	}
+
+	if (g_MenuTrack != -1) {
+		if (g_MenuTrackOwnedByMenu) {
+			MUSICDIAG("reconcile: no menu up, menu track %d still owned - ending it", g_MenuTrack);
+			musicEndMenu();
+			g_MenuEndQueueLenAfter = -1;
+			quiet60 = 0;
+		}
+		return;
+	}
+
+	if (musicIsTrackState(TRACKTYPE_MENU, AL_PLAYING)) {
+		MUSICDIAG("reconcile: no menu up, menu channel still in use - stopping it");
+		musicQueueStopEvent(TRACKTYPE_MENU);
+		quiet60 = 0;
+		return;
+	}
+
+	if (!g_MusicNrgIsActive && !g_MusicSoloDeathIsPlaying && !g_Vars.normmplayerisrunning
+			&& g_MusicDeathTimer240 <= 0
+			&& musicGetTrackState(TRACKTYPE_PRIMARY) == AL_STOPPING) {
+		MUSICDIAG("reconcile: no menu up, level track still paused - resuming it");
+		musicStartPrimary(1);
+		quiet60 = 0;
+	}
+}
+#endif
 
 void musicStartSoloDeath(void)
 {

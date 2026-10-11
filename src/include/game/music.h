@@ -31,6 +31,9 @@ void musicActivateNrg(void);
 void musicDeactivateNrg(void);
 void musicStartMenu(void);
 void musicEndMenu(void);
+#ifndef PLATFORM_N64
+void musicReconcileMenu(void);
+#endif
 void musicStartSoloDeath(void);
 void _musicStartMpDeath(f32 arg0);
 void musicStartMpDeath(void);
