@@ -1136,14 +1136,23 @@ void musicTickEvents(void)
 				dumpage60 = 0;
 
 				for (i = 0; i < 3; i++) {
-					if (n_alCSPGetState(g_SeqInstances[i].seqp) != AL_STOPPED || g_SeqChannels[i].tracktype != TRACKTYPE_NONE) {
-						sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   player ch%d t=%d use=%d keep=%d state=%d track=%d vol=%d free=%d fade=%d/%d",
+					// voices: what this player still has sounding, whatever
+					// state it says it is in
+					N_ALVoiceState *vs;
+					s32 voices = 0;
+
+					for (vs = g_SeqInstances[i].seqp->vAllocHead; vs != NULL && voices < 512; vs = vs->next) {
+						voices++;
+					}
+
+					if (voices > 0 || n_alCSPGetState(g_SeqInstances[i].seqp) != AL_STOPPED || g_SeqChannels[i].tracktype != TRACKTYPE_NONE) {
+						sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d   player ch%d t=%d use=%d keep=%d state=%d track=%d vol=%d free=%d fade=%d/%d voices=%d",
 								g_Vars.lvframenum, i, (s32)g_SeqChannels[i].tracktype, (s32)g_SeqChannels[i].inuse,
 								(s32)g_SeqChannels[i].keepafterfade, (s32)n_alCSPGetState(g_SeqInstances[i].seqp),
 								g_SeqInstances[i].tracknum, (s32)g_SeqInstances[i].volume,
 								musicSeqpFreeEvents(g_SeqInstances[i].seqp),
 								(s32)g_SeqInstances[i].seqp->chanState[0].unk0d,
-								(s32)g_SeqInstances[i].seqp->chanState[0].unk0e);
+								(s32)g_SeqInstances[i].seqp->chanState[0].unk0e, voices);
 					}
 				}
 			}
