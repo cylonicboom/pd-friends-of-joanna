@@ -795,18 +795,25 @@ void musicEndCutscene(void)
 		musicQueueStopEvent(TRACKTYPE_PRIMARY);
 		musicQueueStopEvent(TRACKTYPE_AMBIENT);
 
+		musicStartPrimary(0.5f);
+
 #ifndef PLATFORM_N64
 		// A menu that opened over the last frames of the cutscene has already
-		// faded the primary track to paused and started its own. Starting the
-		// level's music here would put it on top of the menu's with nothing
-		// left to pause it again; musicEndMenu() starts it when the menu goes.
+		// faded the primary track to paused and started its own, and that
+		// pause went to the cutscene's track, which the stop above has just
+		// taken away. The level's track is started regardless, and paused the
+		// way musicStartTrackAsMenu() would have paused it had it been there.
+		//
+		// Not starting it at all was tried and is worse: musicEndMenu() then
+		// has to start it from nothing, where every other close of a menu
+		// resumes a paused one, and with a track being started on the same
+		// tick the menu track's fade out never finished - the channel sat
+		// there not in use and still playing until the next menu stopped it.
 		if (g_MenuTrack != -1) {
-			MUSICDIAG("  menu track %d is up, primary left for musicEndMenu", g_MenuTrack);
-			return;
+			MUSICDIAG("  menu track %d is up, primary started paused", g_MenuTrack);
+			musicQueueFadeEvent(TRACKTYPE_PRIMARY, 0.5f, FADETYPE_PAUSE);
 		}
 #endif
-
-		musicStartPrimary(0.5f);
 	}
 }
 
