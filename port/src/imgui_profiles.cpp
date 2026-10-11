@@ -12,6 +12,8 @@
 //  - a profile is seated in one seat at a time; seating saves and releases
 //    whoever was there first (mpProfileSeat), and is deferred to after the
 //    overlay renders, like hot join
+//  - and is refused while the save queue holds anything: an edit that has
+//    not been flushed yet must not be in flight when a seat changes hands
 
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +28,7 @@
 #include "types.h"
 #include "mod.h"
 #include "mpprofiles.h"
+#include "savequeue.h"
 // types.h defines bool as s32 for the C side; ImGui wants the real thing
 #undef bool
 #undef true
@@ -308,7 +311,8 @@ static void profDrawSeat(const profilerow &row)
 {
 	char label[48];
 	const bool locked = mpProfileSeatsLocked() != 0;
-	const bool pending = g_ProfReq != PROFREQ_NONE;
+	const bool unsaved = saveQueueIsDirty() != 0;
+	const bool pending = g_ProfReq != PROFREQ_NONE || unsaved;
 
 	if (g_ProfSeatPick < 0 || g_ProfSeatPick >= MAX_PLAYERS) {
 		g_ProfSeatPick = 0;
@@ -357,6 +361,14 @@ static void profDrawSeat(const profilerow &row)
 	if (locked) {
 		ImGui::SameLine();
 		ImGui::TextDisabled("seats change between missions");
+	} else if (unsaved) {
+		ImGui::SameLine();
+		ImGui::TextDisabled("saving...");
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Edits are waiting to be written. Seats unlock when the save queue\n"
+					"flushes (next idle frame, %u frames at most).",
+					saveQueueDeadlineFrames() - saveQueueFramesPending());
+		}
 	}
 }
 
@@ -371,6 +383,13 @@ void imguiProfilesRunRequests(void)
 
 	g_ProfReq = PROFREQ_NONE;
 	g_ProfStale = true;
+
+	// the panel greys the buttons, but the request runs a frame later and
+	// something may have been edited in between
+	if (saveQueueIsDirty()) {
+		profSay("%s", "edits still waiting to be written; nothing done");
+		return;
+	}
 
 	if (req == PROFREQ_UNSEAT) {
 		// only if the profile asked about is still the one there
