@@ -249,6 +249,7 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
       .cutscenesubtitles_prop = {.u8 = 0},                                     \
       .showmissiontime_prop = {.u8 = 0},                                       \
       .showplayername_prop = {.u8 = 1},                                        \
+      .showoperativename_prop = {.u8 = 1},                                     \
   };
 
 struct extplayerprofile g_ExtendedProfiles[CONFIG_MAX_PROFILES];
@@ -324,6 +325,12 @@ static void mpExtendedProfileInitShowPlayerName(s32 profileindex,
       &g_ExtendedProfiles[profileindex].showplayername_prop.u8;
 }
 
+static void mpExtendedProfileInitShowOperativeName(s32 profileindex,
+                                                   s32 playernum) {
+  g_PlayerConfigsArray[playernum].showoperativename =
+      &g_ExtendedProfiles[profileindex].showoperativename_prop.u8;
+}
+
 static void mpExtendedProfileInitTeamAgentIndex(s32 profileindex,
                                                 s32 playernum) {
   s32 val = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
@@ -359,6 +366,8 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
      {.min_s32 = INT32_MIN, .initialvalue_s32 = 0, .max_s32 = INT32_MAX}, NULL},
     {CFG_S32, "BodyNameHash",
      {.min_s32 = INT32_MIN, .initialvalue_s32 = 0, .max_s32 = INT32_MAX}, NULL},
+    {CFG_U8, "ShowOperativeName", 1, 0, 1,
+     &mpExtendedProfileInitShowOperativeName},
 }; // these must be in the same order as the extendedprofile struct, ignoring
    // the fileguid
 

@@ -659,6 +659,27 @@ MenuItemHandlerResult menuhandlerShowMissionTime(s32 operation,
   return 0;
 }
 
+MenuItemHandlerResult menuhandlerShowOperativeName(s32 operation,
+                                                   struct menuitem *item,
+                                                   union handlerdata *data) {
+  u32 mpchrnum = menuResolveOptionMpChrNum(item);
+
+  if (g_PlayerConfigsArray[mpchrnum].showoperativename == NULL) {
+    iniRegisterPlayerSave(&g_PlayerConfigsArray[mpchrnum].fileguid, 1,
+                          mpchrnum);
+  }
+
+  switch (operation) {
+  case MENUOP_GET:
+    return optionsGetShowOperativeName(mpchrnum);
+  case MENUOP_SET:
+    optionsSetShowOperativeName(mpchrnum, data->checkbox.value);
+    g_Vars.modifiedfiles |= MODFILE_GAME;
+  }
+
+  return 0;
+}
+
 MenuItemHandlerResult menuhandlerShowPlayerName(s32 operation,
                                                 struct menuitem *item,
                                                 union handlerdata *data) {
@@ -2277,6 +2298,28 @@ static const char *fojoHeadDisplayName(s32 optionindex) {
   default:
     return "Unknown";
   }
+}
+
+/**
+ * The display name of the operative this seat has picked, or NULL when it has
+ * none to speak of: the carousel's last slot is "my own head", which is the
+ * player and not an operative, and an index outside the roster is nobody.
+ * Team missions only - nobody is an operative anywhere else.
+ */
+const char *fojoGetPlayerOperativeName(s32 playernum) {
+  s32 index;
+
+  if (!g_MissionConfig.isteam || playernum < 0 || playernum >= MAX_PLAYERS) {
+    return NULL;
+  }
+
+  index = g_PlayerConfigsArray[playernum].teamagentindex;
+
+  if (index < 0 || index >= g_FojoHeadCount) {
+    return NULL;
+  }
+
+  return fojoHeadDisplayName(index);
 }
 
 // Get the name for a head option in the carousel
@@ -5112,6 +5155,15 @@ struct menuitem g_CiDisplayMenuItems[] = {
         menuhandlerShowPlayerName,
     },
     {
+        // PLACEHOLDER label - what this row is called is Catherine's.
+        MENUITEMTYPE_CHECKBOX,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"Operative Name",
+        0,
+        menuhandlerShowOperativeName,
+    },
+    {
         MENUITEMTYPE_SEPARATOR,
         0,
         0,
@@ -5156,6 +5208,15 @@ struct menuitem g_CiDisplayPlayer2MenuItems[] = {
         (uintptr_t)"Show Player Name",
         0,
         menuhandlerShowPlayerName,
+    },
+    {
+        // PLACEHOLDER label - what this row is called is Catherine's.
+        MENUITEMTYPE_CHECKBOX,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"Operative Name",
+        0,
+        menuhandlerShowOperativeName,
     },
     {
         MENUITEMTYPE_SEPARATOR,
@@ -5597,6 +5658,15 @@ struct menuitem g_MissionDisplayOptionsMenuItems[] = {
         (uintptr_t)"Show Player Name",
         0x00000004,
         menuhandlerShowPlayerName,
+    },
+    {
+        // PLACEHOLDER label - what this row is called is Catherine's.
+        MENUITEMTYPE_CHECKBOX,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"Operative Name",
+        0x00000004,
+        menuhandlerShowOperativeName,
     },
     {
         MENUITEMTYPE_SEPARATOR,

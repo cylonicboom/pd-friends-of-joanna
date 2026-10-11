@@ -4388,6 +4388,7 @@ struct mpplayerconfig {
   u8 *cutscenesubtitles;
   u8 *showmissiontime;
   u8 *showplayername;
+  u8 *showoperativename;
   s32 teamagentindex;
   s32 configindex;
 };
@@ -6614,8 +6615,11 @@ struct extplayerprofile {
       // mpProfileStoreSlotHashes in mplayer.c.
       extplayerprop headnamehash_prop;
       extplayerprop bodynamehash_prop;
+      // Whether this player's name label reads as their operative or as
+      // their profile. See hudmsgRenderPlayerName.
+      extplayerprop showoperativename_prop;
     };
-    extplayerprop ptr[11];
+    extplayerprop ptr[12];
   };
 };
 

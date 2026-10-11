@@ -43,6 +43,8 @@ void optionsSetClassicSight(s32 mpchrnum, bool enable);
 void optionsSetShowLives(s32 mpchrnum, bool enable);
 void optionsSetShowMissionTime(s32 mpchrnum, bool enable);
 void optionsSetShowPlayerName(s32 mpchrnum, bool enable);
+s32 optionsGetShowOperativeName(s32 mpchrnum);
+void optionsSetShowOperativeName(s32 mpchrnum, bool enable);
 void optionsSetInGameSubtitlesForPlayer(s32 mpchrnum, s32 enable);
 void optionsSetCutsceneSubtitlesForPlayer(s32 mpchrnum, s32 enable);
 void optionsSetInGameSubtitles(s32 enable);

@@ -13,6 +13,7 @@
 #include "game/lv.h"
 #include "game/mplayer/mplayer.h"
 #include "game/options.h"
+#include "game/mainmenu.h"
 #include "game/propobj.h"
 #include "bss.h"
 #include "lib/lib_317f0.h"
@@ -381,6 +382,96 @@ Gfx *hudmsgRenderLives(Gfx *gdl, u32 alpha)
 	return gdl;
 }
 
+#ifndef PLATFORM_N64
+/**
+ * The name a player's label carries, as one line with no line break.
+ *
+ * Their operative's first name when they have asked for that and have an
+ * operative (a team mission, and not the carousel's "my own head" slot), and
+ * their profile's name otherwise. False if there is nothing to show.
+ */
+static bool hudmsgGetPlayerLabel(s32 mpchrnum, char *out, s32 outlen)
+{
+	const char *src = NULL;
+	bool firstword = false;
+	s32 i = 0;
+
+	if (mpchrnum < 0 || mpchrnum >= MAX_PLAYERS || outlen < 2) {
+		return false;
+	}
+
+	if (optionsGetShowOperativeName(mpchrnum)) {
+		src = fojoGetPlayerOperativeName(mpchrnum);
+		firstword = true;
+	}
+
+	if (src == NULL || src[0] == '\0') {
+		src = g_PlayerConfigsArray[mpchrnum].base.name;
+		firstword = false;
+	}
+
+	if (src == NULL) {
+		return false;
+	}
+
+	while (i < outlen - 1 && src[i] != '\0' && src[i] != '\n' && !(firstword && src[i] == ' ')) {
+		out[i] = src[i];
+		i++;
+	}
+
+	out[i] = '\0';
+
+	return i > 0;
+}
+
+/**
+ * Every seated player's label, stacked down from the top right in seat order.
+ *
+ * A cutscene is one view, so the one label a view carries was only ever
+ * player one's. A player with Show Player Name off is left out.
+ */
+static Gfx *hudmsgRenderPlayerNameStack(Gfx *gdl, u32 alpha)
+{
+	const s32 viewleft = viGetViewLeft() / g_ScaleX;
+	const s32 viewwidth = viGetViewWidth() / g_ScaleX;
+	const u32 textcolour = (alpha * 160 / 255) | hudTint(0x00ff0000);
+	s32 liney = viGetViewTop() + g_HudPaddingY + 2;
+	char label[32];
+	s32 i;
+
+	for (i = 0; i < MAX_PLAYERS; i++) {
+		s32 mpchrnum;
+		s32 textwidth;
+		s32 textheight;
+		s32 x;
+		s32 y;
+
+		if (g_Vars.players[i] == NULL) {
+			continue;
+		}
+
+		mpchrnum = g_Vars.playerstats[i].mpindex;
+
+		if (mpchrnum < 0 || mpchrnum >= MAX_PLAYERS
+				|| !optionsGetShowPlayerName(mpchrnum)
+				|| !hudmsgGetPlayerLabel(mpchrnum, label, sizeof(label))) {
+			continue;
+		}
+
+		textMeasure(&textheight, &textwidth, label, g_CharsHandelGothicSm, g_FontHandelGothicSm, 0);
+
+		x = viewleft + viewwidth - g_HudPaddingX - textwidth - 3;
+		y = liney;
+
+		gdl = textRender(gdl, &x, &y, label, g_CharsHandelGothicSm, g_FontHandelGothicSm, textcolour, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+
+		liney += textheight + 1;
+	}
+
+	return gdl;
+}
+#endif
+
 Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
 {
 	s32 x;
@@ -393,10 +484,29 @@ Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
 	u32 textcolour;
 	s32 mpchrnum;
 	char *name;
+#ifndef PLATFORM_N64
+	char label[32];
+#endif
 
 	if (PLAYERCOUNT() < 2) {
 		return gdl;
 	}
+
+#ifndef PLATFORM_N64
+	if (g_Vars.in_cutscene) {
+		// Once a frame, whichever view asks first: a cutscene has one view,
+		// but nothing here should depend on that staying true.
+		static s32 lastframe = -1;
+
+		if (lastframe == g_Vars.lvframenum) {
+			return gdl;
+		}
+
+		lastframe = g_Vars.lvframenum;
+
+		return hudmsgRenderPlayerNameStack(gdl, alpha);
+	}
+#endif
 
 	mpchrnum = hudmsgGetCurrentPlayerMpChrNum();
 
@@ -408,11 +518,19 @@ Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
 		return gdl;
 	}
 
+#ifndef PLATFORM_N64
+	if (!hudmsgGetPlayerLabel(mpchrnum, label, sizeof(label))) {
+		return gdl;
+	}
+
+	name = label;
+#else
 	name = g_PlayerConfigsArray[mpchrnum].base.name;
 
 	if (name == NULL || name[0] == '\0') {
 		return gdl;
 	}
+#endif
 
 	viewleft = viGetViewLeft() / g_ScaleX;
 	viewtop = viGetViewTop();
