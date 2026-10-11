@@ -352,12 +352,12 @@ s32 fsInit(void)
 	if (numModDirs == 0) {
 		numModDirs = 7;
 		strcpy(modDirs[0], "$B/mods/mod_fojo");
-		strcpy(modDirs[1], "$B/mods/mod_aio6_characters");
-		strcpy(modDirs[2], "$B/mods/mod_aio6_darknoon");
-		strcpy(modDirs[3], "$B/mods/mod_aio6_gex");
-		strcpy(modDirs[4], "$B/mods/mod_aio6_goldfinger");
-		strcpy(modDirs[5], "$B/mods/mod_aio6_kakariko");
-		strcpy(modDirs[6], "$B/mods/mod_aio6_pdplus");
+		strcpy(modDirs[1], "$B/mods/mod_aio_characters");
+		strcpy(modDirs[2], "$B/mods/mod_aio_darknoon");
+		strcpy(modDirs[3], "$B/mods/mod_aio_gex");
+		strcpy(modDirs[4], "$B/mods/mod_aio_goldfinger");
+		strcpy(modDirs[5], "$B/mods/mod_aio_kakariko");
+		strcpy(modDirs[6], "$B/mods/mod_aio_pdplus");
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
