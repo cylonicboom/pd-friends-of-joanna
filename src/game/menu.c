@@ -77,6 +77,37 @@ static const char *namediagDialogName(struct menudialogdef *d)
 	return "other";
 }
 #define NAMEDIAG(...) do { printf("NAMEDIAG: " __VA_ARGS__); printf("\n"); fflush(stdout); } while (0)
+
+// DLGDIAG (#398) - temporary probe: every menu's stack of dialogs, to pd.log.
+// For the title picker and Load Player drawing on top of each other.
+void menuDiagDumpDialogs(const char *why)
+{
+	for (s32 m = 0; m < MAX_PLAYERS; m++) {
+		struct menu *menu = &g_Menus[m];
+
+		if (menu->depth == 0 && menu->curdialog == NULL) {
+			continue;
+		}
+
+		sysLogPrintf(LOG_NOTE, "DLGDIAG: %s f=%d mpnum=%d root=%d menu=%d depth=%d numdialogs=%d cur=%p",
+				why, g_Vars.lvframenum, g_MpPlayerNum, (s32)g_MenuData.root, m,
+				(s32)menu->depth, (s32)menu->numdialogs, (void *)menu->curdialog);
+
+		for (s32 i = 0; i < menu->depth; i++) {
+			struct menulayer *layer = &menu->layers[i];
+
+			for (s32 j = 0; j < layer->numsiblings; j++) {
+				struct menudialog *d = layer->siblings[j];
+
+				sysLogPrintf(LOG_NOTE, "DLGDIAG:   menu=%d layer=%d sib=%d %p %s def=%p type=%d type2=%d frac=%.2f state=%d x=%d y=%d w=%d h=%d%s",
+						m, i, j, (void *)d, namediagDialogName(d->definition), (void *)d->definition,
+						(s32)d->type, (s32)d->type2, (f64)d->transitionfrac, (s32)d->state,
+						(s32)d->x, (s32)d->y, (s32)d->width, (s32)d->height,
+						d == menu->curdialog ? " CUR" : "");
+			}
+		}
+	}
+}
 #endif
 
 #define BLUR_OFS 10
