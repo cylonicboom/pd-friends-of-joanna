@@ -1,15 +1,21 @@
-// Extended Options, in fojOS.
+// Options, in fojOS: the std Options pages (Audio, Video, Control, Display)
+// and the port's Extended ones, in one window.
 //
-// The std Extended menu is a set of menuitem tables in optionsmenu.c, and every
-// row does its work in its own handler (MENUOP_GET / SET / GETSLIDER / ...).
-// This panel walks those same tables and calls those same handlers, so there
-// is one implementation of every setting and the two front ends cannot drift:
-// a row added upstream turns up here without anyone touching this file.
+// Both are sets of menuitem tables - mainmenu.c and mplayer/setup.c for the
+// std pages, optionsmenu.c for Extended - and every row does its work in its
+// own handler (MENUOP_GET / SET / GETSLIDER / ...). This panel walks those
+// same tables and calls those same handlers, so there is one implementation
+// of every setting and the front ends cannot drift: a row added upstream
+// turns up here without anyone touching this file. The std menus are left
+// as they are.
 //
 // Two things the tables cannot do for ImGui, and so are done here:
-//  - the player. Per-player handlers read optionsmenu.c's g_ExtMenuPlayer, which
-//    the std menu sets through a Select Player dialog that misbehaves in 4P.
-//    Here it is a selector at the top, applied before every handler call.
+//  - the player. Handlers find their player three ways: Extended ones read
+//    optionsmenu.c's g_ExtMenuPlayer (set by a Select Player dialog that
+//    misbehaves in 4P), the std Control page reads g_MpPlayerNum, and the
+//    Display rows go through menuResolveOptionMpChrNum, which otherwise
+//    prefers currentplayerstats in coop/anti. Here it is one selector at the
+//    top, applied to all three around every handler call and put back after.
 //  - key bindings. A std bind row's SET pushes a "press a key" dialog. Here
 //    the capture is inline, through inputArmBindCapture.
 
@@ -37,10 +43,20 @@
 
 extern "C" char *menuResolveParam2Text(struct menuitem *item);
 extern "C" char *langGet(s32 textid);
+extern "C" s32 g_MenuOptionPlayerOverride;
+extern "C" s32 menuCommitOptionChanges(void);
+extern "C" void mpProfileMarkDirty(s32 playernum);
+
+// the std Options pages (mainmenu.c; Control is mplayer/setup.c's, via data.h)
+extern "C" struct menudialogdef g_AudioOptionsMenuDialog;
+extern "C" struct menudialogdef g_VideoOptionsMenuDialog;
+extern "C" struct menudialogdef g_CiDisplayMenuDialog;
 
 enum {
 	EXTTAB_VIDEO,
 	EXTTAB_AUDIO,
+	EXTTAB_CONTROL,
+	EXTTAB_DISPLAY,
 	EXTTAB_MOUSE,
 	EXTTAB_CONTROLLER,
 	EXTTAB_GAME,
@@ -48,6 +64,14 @@ enum {
 };
 
 static s32 g_ExtOptPlayer = 0;
+
+// a std row changed something that lives in the game file or a profile, and
+// it has not been written yet (see extCommit)
+static bool g_ExtOptCommitPending = false;
+
+// the tab being drawn is a std per-player page, whose rows live in the
+// seated profile's wad
+static bool g_ExtOptTabInProfile = false;
 
 // a bind waiting for its key: which player, which control, which of its slots
 static bool g_ExtOptCapturing = false;
@@ -63,9 +87,30 @@ bool imguiExtOptionsIsCapturing(void)
 	return g_ExtOptCapturing && ImGui::GetFrameCount() - g_ExtOptDrawnFrame <= 1;
 }
 
+// Point every way a handler can find its player at the picked one, for the
+// length of one call. g_MpPlayerNum is the std menu's own and is put back
+// straight away; the override is -1 whenever this panel is not mid-call.
+struct ExtPlayerScope {
+	s32 prevmpplayernum;
+
+	ExtPlayerScope()
+	{
+		prevmpplayernum = g_MpPlayerNum;
+		optionsmenuSetExtPlayer(g_ExtOptPlayer);
+		g_MpPlayerNum = g_ExtOptPlayer;
+		g_MenuOptionPlayerOverride = g_ExtOptPlayer;
+	}
+
+	~ExtPlayerScope()
+	{
+		g_MenuOptionPlayerOverride = -1;
+		g_MpPlayerNum = prevmpplayernum;
+	}
+};
+
 static uintptr_t extCall(struct menuitem *item, s32 op, union handlerdata *data)
 {
-	optionsmenuSetExtPlayer(g_ExtOptPlayer);
+	ExtPlayerScope scope;
 	return item->handler ? item->handler(op, item, data) : 0;
 }
 
@@ -105,7 +150,7 @@ static void extCopyLabel(char *out, size_t outlen, const char *in, bool forforma
 
 static void extItemLabel(struct menuitem *item, char *out, size_t outlen)
 {
-	optionsmenuSetExtPlayer(g_ExtOptPlayer);
+	ExtPlayerScope scope;
 	extCopyLabel(out, outlen, item->param2 ? menuResolveParam2Text(item) : "", false);
 }
 
@@ -114,6 +159,28 @@ static void extChanged(void)
 	// the std menu leaves these for the exit save; fojOS commits them through
 	// the queue so a crash or kill after a change does not lose it
 	saveQueueMarkConfig();
+
+	// std rows also mark g_Vars.modifiedfiles (the game file) and change the
+	// seated profile (control style, options, displayoptions are in its wad)
+	g_ExtOptCommitPending = true;
+
+	if (g_ExtOptTabInProfile) {
+		mpProfileMarkDirty(g_ExtOptPlayer);
+	}
+}
+
+// What closing the std Options dialog does - menuCommitOptionChanges - once
+// nothing is being dragged, so a slider is one game-file save, not one a
+// frame. Runs with the std menu's own g_MpPlayerNum: a failed save pushes its
+// error dialog where the std one would.
+static void extCommit(void)
+{
+	if (!g_ExtOptCommitPending || ImGui::IsAnyItemActive()) {
+		return;
+	}
+
+	g_ExtOptCommitPending = false;
+	menuCommitOptionChanges();
 }
 
 static void extDrawItems(struct menuitem *items, s32 depth);
@@ -442,17 +509,23 @@ static void extDrawPlayerPicker(void)
 
 void imguiExtOptionsDrawPanel(void)
 {
+	// std is the vanilla page drawn first, ext the Extended one under it;
+	// either may be NULL. Display is the Combat Simulator's page (subtitles,
+	// mission time, player name): the solo one repeats Control's HUD rows.
 	static const struct {
 		const char *name;
-		struct menudialogdef *dialog;
+		struct menudialogdef *std;
+		struct menudialogdef *ext;
 		bool perplayer;
 	} tabs[] = {
-		{ "Video",        &g_ExtendedVideoMenuDialog,      false },
-		{ "Audio",        &g_ExtendedAudioMenuDialog,      false },
-		{ "Mouse",        &g_ExtendedMouseMenuDialog,      true  },
-		{ "Controller",   &g_ExtendedControllerMenuDialog, true  },
-		{ "Game",         &g_ExtendedGameMenuDialog,       true  },
-		{ "Key Bindings", &g_ExtendedBindsMenuDialog,      true  },
+		{ "Video",        &g_VideoOptionsMenuDialog, &g_ExtendedVideoMenuDialog,      false },
+		{ "Audio",        &g_AudioOptionsMenuDialog, &g_ExtendedAudioMenuDialog,      false },
+		{ "Control",      &g_MpControlMenuDialog,    NULL,                            true  },
+		{ "Display",      &g_CiDisplayMenuDialog,    NULL,                            true  },
+		{ "Mouse",        NULL,                      &g_ExtendedMouseMenuDialog,      true  },
+		{ "Controller",   NULL,                      &g_ExtendedControllerMenuDialog, true  },
+		{ "Game",         NULL,                      &g_ExtendedGameMenuDialog,       true  },
+		{ "Key Bindings", NULL,                      &g_ExtendedBindsMenuDialog,      true  },
 	};
 
 	// keep the std menu's own idea of the player where it was, whatever this
@@ -477,6 +550,8 @@ void imguiExtOptionsDrawPanel(void)
 				continue;
 			}
 
+			g_ExtOptTabInProfile = tabs[t].perplayer && tabs[t].std;
+
 			if (tabs[t].perplayer) {
 				extDrawPlayerPicker();
 				ImGui::Separator();
@@ -485,7 +560,16 @@ void imguiExtOptionsDrawPanel(void)
 			if (t == EXTTAB_BINDS) {
 				extDrawBinds();
 			} else if (ImGui::BeginChild("##extitems")) {
-				extDrawItems(tabs[t].dialog->items, 0);
+				if (tabs[t].std) {
+					extDrawItems(tabs[t].std->items, 0);
+				}
+				if (tabs[t].std && tabs[t].ext) {
+					ImGui::Spacing();
+					ImGui::SeparatorText("Extended");
+				}
+				if (tabs[t].ext) {
+					extDrawItems(tabs[t].ext->items, 0);
+				}
 				ImGui::EndChild();
 			} else {
 				ImGui::EndChild();
@@ -498,4 +582,5 @@ void imguiExtOptionsDrawPanel(void)
 	}
 
 	optionsmenuSetExtPlayer(stdplayer);
+	extCommit();
 }

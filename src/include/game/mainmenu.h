@@ -94,6 +94,9 @@ MenuItemHandlerResult menuhandlerSightOnScreen(s32 operation, struct menuitem *i
 MenuItemHandlerResult menuhandlerSoloDifficulty(s32 operation, struct menuitem *item, union handlerdata *data);
 MenuItemHandlerResult menuhandlerSoundMode(s32 operation, struct menuitem *item, union handlerdata *data);
 
+extern s32 g_MenuOptionPlayerOverride;
+bool menuCommitOptionChanges(void);
+
 s32 fojoGetPlayerHead(s32 playernum);
 const char *fojoGetPlayerOperativeName(s32 playernum);
 void fojoInitHeadOptions(void);
