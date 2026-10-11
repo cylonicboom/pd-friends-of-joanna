@@ -461,6 +461,28 @@ void musicStartWatch(f32 arg0)
  *
  * Used in credits and the soundtrack dialog in MP setup.
  */
+#ifndef PLATFORM_N64
+/**
+ * What musicEndMenu() last did to the queue, so that a menu which closes and
+ * reopens inside one frame can have it undone.
+ *
+ * One menu root handing over to another - the file select to the Perfect Menu
+ * is the one every boot goes through - is an end and a start on the same
+ * frame, for the same track. Played out as queued, that fades the menu track
+ * out, starts the level's primary track, then stops the menu track, fades the
+ * primary to paused and starts the menu track from the top: the menu theme
+ * restarts, and the pause is aimed at a primary track that was only asked for
+ * a few events earlier.
+ *
+ * The record is only good while nothing else has touched the queue: the length
+ * and the next event id both have to be exactly what the end left them at.
+ */
+static s32 g_MenuEndedTrack = -1;
+static s32 g_MenuEndQueueLenBefore = 0;
+static s32 g_MenuEndQueueLenAfter = -1;
+static u32 g_MenuEndNextEventId = 0;
+#endif
+
 void musicStartTrackAsMenu(s32 tracknum)
 {
 	MUSICDIAG("musicStartTrackAsMenu track=%d", tracknum);
@@ -468,6 +490,21 @@ void musicStartTrackAsMenu(s32 tracknum)
 	if (g_MusicSuppressed) {
 		return;
 	}
+
+	if (g_MenuTrack == -1
+			&& tracknum == g_MenuEndedTrack
+			&& g_MusicEventQueueLength == g_MenuEndQueueLenAfter
+			&& g_MusicNextEventId == g_MenuEndNextEventId) {
+		// The end this undoes is still sitting at the back of the queue.
+		MUSICDIAG("  menu track %d carried over, %d events taken back", tracknum,
+				g_MenuEndQueueLenAfter - g_MenuEndQueueLenBefore);
+		g_MusicEventQueueLength = g_MenuEndQueueLenBefore;
+		g_MenuEndQueueLenAfter = -1;
+		g_MenuTrack = tracknum;
+		return;
+	}
+
+	g_MenuEndQueueLenAfter = -1;
 #endif
 	if (tracknum != g_MenuTrack) {
 		musicQueueStopEvent(TRACKTYPE_MENU);
@@ -562,6 +599,11 @@ void musicStartMenu(void)
 
 void musicEndMenu(void)
 {
+#ifndef PLATFORM_N64
+	s32 lenbefore = g_MusicEventQueueLength;
+	s32 endedtrack = g_MenuTrack;
+#endif
+
 	MUSICDIAG("musicEndMenu");
 	musicQueueFadeEvent(TRACKTYPE_MENU, 1, FADETYPE_STOP);
 
@@ -572,6 +614,13 @@ void musicEndMenu(void)
 	}
 
 	g_MenuTrack = -1;
+
+#ifndef PLATFORM_N64
+	g_MenuEndedTrack = endedtrack;
+	g_MenuEndQueueLenBefore = lenbefore;
+	g_MenuEndQueueLenAfter = g_MusicEventQueueLength;
+	g_MenuEndNextEventId = g_MusicNextEventId;
+#endif
 }
 
 void musicStartSoloDeath(void)
@@ -745,6 +794,18 @@ void musicEndCutscene(void)
 	if (!g_IsTitleDemo) {
 		musicQueueStopEvent(TRACKTYPE_PRIMARY);
 		musicQueueStopEvent(TRACKTYPE_AMBIENT);
+
+#ifndef PLATFORM_N64
+		// A menu that opened over the last frames of the cutscene has already
+		// faded the primary track to paused and started its own. Starting the
+		// level's music here would put it on top of the menu's with nothing
+		// left to pause it again; musicEndMenu() starts it when the menu goes.
+		if (g_MenuTrack != -1) {
+			MUSICDIAG("  menu track %d is up, primary left for musicEndMenu", g_MenuTrack);
+			return;
+		}
+#endif
+
 		musicStartPrimary(0.5f);
 	}
 }
