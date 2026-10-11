@@ -1964,14 +1964,51 @@ static char *fojoTitleProfileGetMarquee(void *dialogritem) {
   return g_FojoTitleProfileMarqueeBuf;
 }
 
+extern struct menudialogdef g_FojoNewPlayerMenuDialog;
+
+/**
+ * The row that leaves the picker.
+ *
+ * titleTickProfileSelect() moves on when the menu is empty and player one has
+ * a file, so leaving is closing the dialog: the same thing backing out does,
+ * and has always done. This is that, with a name on it and greyed until there
+ * is a player to leave with.
+ */
+static MenuItemHandlerResult fojoTitleStartMenuHandler(s32 operation,
+                                                       struct menuitem *item,
+                                                       union handlerdata *data) {
+  switch (operation) {
+  case MENUOP_CHECKDISABLED:
+    return g_PlayerConfigsArray[0].fileguid.fileid == 0;
+  case MENUOP_SET:
+    if (g_PlayerConfigsArray[0].fileguid.fileid != 0) {
+      menuPopDialog();
+    }
+    break;
+  }
+
+  return 0;
+}
+
+// Three rows: take a player that exists, make one, go. The labels are the
+// stock strings for those three things and are placeholders in that sense -
+// what this menu calls them is Catherine's.
 struct menuitem g_FojoTitleProfileSelectMenuItems[] = {
     {
         MENUITEMTYPE_SELECTABLE,
         0,
         MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-        L_MPMENU_030, // "Name"
-        (uintptr_t)&mpGetCurrentPlayerName,
-        (void *)&g_MpPlayerNameMenuDialog,
+        L_MPMENU_029, // "Load Player"
+        0,
+        (void *)&g_MpLoadPlayerMenuDialog,
+    },
+    {
+        MENUITEMTYPE_SELECTABLE,
+        0,
+        MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
+        L_OPTIONS_402, // "New..."
+        0,
+        (void *)&g_FojoNewPlayerMenuDialog,
     },
     {
         MENUITEMTYPE_SEPARATOR,
@@ -1984,18 +2021,10 @@ struct menuitem g_FojoTitleProfileSelectMenuItems[] = {
     {
         MENUITEMTYPE_SELECTABLE,
         0,
-        MENUITEMFLAG_SELECTABLE_OPENSDIALOG,
-        L_MPMENU_029, // "Load Player"
         0,
-        (void *)&g_MpLoadPlayerMenuDialog,
-    },
-    {
-        MENUITEMTYPE_SELECTABLE,
+        L_MPMENU_036, // "Start Game"
         0,
-        0,
-        (uintptr_t)&mpMenuTextSavePlayerOrCopy,
-        0,
-        menuhandlerMpSavePlayer,
+        fojoTitleStartMenuHandler,
     },
     {
         MENUITEMTYPE_MARQUEE,
