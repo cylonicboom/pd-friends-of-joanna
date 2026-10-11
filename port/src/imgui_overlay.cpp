@@ -398,6 +398,7 @@ extern "C" s32 chraiIsPaused(void);
 extern "C" void tilesRenderSetMode(s32 mode);   // src/game/tilesrender.c, port only
 extern "C" s32 tilesRenderGetMode(void);
 extern "C" s32 g_TilesRenderAllRooms;
+extern "C" s32 g_BgRenderEnabled;          // src/game/bg.c, port only
 extern "C" s32 mpProfileDebugPropCount(void);
 extern "C" const char *mpProfileDebugPropName(s32 propindex);
 extern "C" bool mpProfileDebugPropIsS32(s32 propindex);
@@ -1795,6 +1796,18 @@ static void imguiOverlayDrawStagePanel(void)
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Off: only rooms the portal walk put on screen this frame.\n"
 					"A level with no bg has no walk, so it draws every room either way.");
+		}
+	}
+
+	// The bg itself (bg.c): off skips the rooms' display lists and nothing
+	// else - props, chrs and the portal walk carry on. With tiles on, the
+	// level is its collision mesh, for prototyping one.
+	{
+		bool bg = g_BgRenderEnabled != 0;
+		if (ImGui::Checkbox("render bg", &bg)) g_BgRenderEnabled = bg ? 1 : 0;
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Off: the room geometry is not drawn. Props, chrs and the sky still are,\n"
+					"and rooms still load and walk, so tiles keep culling to what is on screen.");
 		}
 	}
 
@@ -7772,6 +7785,7 @@ static void imguiOverlaySettingsReadLine(ImGuiContext *, ImGuiSettingsHandler *,
 
 		if (sscanf(line, "ShowTiles=%d", &mode) == 1) tilesRenderSetMode(mode);
 		if (sscanf(line, "ShowTilesAllRooms=%d", &mode) == 1) g_TilesRenderAllRooms = mode != 0;
+		if (sscanf(line, "RenderBg=%d", &mode) == 1) g_BgRenderEnabled = mode != 0;
 	}
 
 	{
@@ -7832,6 +7846,7 @@ static void imguiOverlaySettingsWriteAll(ImGuiContext *, ImGuiSettingsHandler *h
 
 	buffer->appendf("ShowTiles=%d\n", tilesRenderGetMode());
 	buffer->appendf("ShowTilesAllRooms=%d\n", g_TilesRenderAllRooms);
+	buffer->appendf("RenderBg=%d\n", g_BgRenderEnabled);
 	buffer->appendf("Workspace=%d\n", g_ImGuiOverlayWorkspace);
 	buffer->appendf("LoreScale=%.5f\n", g_ImGuiPropLoreScale);
 	buffer->appendf("UiScale=%.5f\n", g_ImGuiOverlayUiScale);
@@ -8064,6 +8079,7 @@ static void imguiOverlayCmdResetPositions(void)
 // Tiles as geometry: off -> shaded -> solid -> off. Stage panel has radios.
 static void imguiOverlayCmdShowTiles(void)   { tilesRenderSetMode((tilesRenderGetMode() + 1) % 3); imguiOverlaySaveWindowState(); }
 static void imguiOverlayCmdShowTilesAll(void) { g_TilesRenderAllRooms = !g_TilesRenderAllRooms; imguiOverlaySaveWindowState(); }
+static void imguiOverlayCmdRenderBg(void)     { g_BgRenderEnabled = !g_BgRenderEnabled; imguiOverlaySaveWindowState(); }
 
 static void imguiOverlayCmdReloadLua(void)   { g_ImGuiLuaReloadPending = true; }
 static void imguiOverlayCmdFlushSaves(void)  { g_ImGuiSavesFlushPending = true; }
@@ -8148,6 +8164,7 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "Reset window positions",   imguiOverlayCmdResetPositions },
 	{ "Show tiles",               imguiOverlayCmdShowTiles },
 	{ "Show tiles: every room",   imguiOverlayCmdShowTilesAll },
+	{ "Toggle render bg",         imguiOverlayCmdRenderBg },
 	{ "Reload Lua",               imguiOverlayCmdReloadLua },
 	{ "Flush saves",              imguiOverlayCmdFlushSaves },
 	{ "Hide the debugger",        imguiOverlayCmdHide },
