@@ -3,6 +3,10 @@
 
 #include <PR/ultratypes.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* The texture load scope: who owns the bytes being loaded right now, and
  * which model file they belong to.
  *
@@ -46,5 +50,9 @@ s32 texScopeDepth(void);
 
 /* A load that needed a scope and had none. Logs once per texture number. */
 void texScopeReportMissing(u16 texturenum);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
