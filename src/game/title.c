@@ -2747,8 +2747,60 @@ extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
 extern struct menudialogdef g_FojoTitleProfileSelectMenu;
 
 #ifndef PLATFORM_N64
+#include "mod.h"
 extern struct menudialogdef g_MpCharacterMenuDialog;
 extern s32 g_BootPreviewer;
+extern s32 g_BootPreviewerCycle;
+extern char g_BootPreviewerHead[64];
+extern char g_BootPreviewerBody[64];
+
+// Point the parked chooser at a head and body by name (--previewer-head,
+// --previewer-body: the HeadsAndBodies names, vanilla or mod), and under
+// --previewer-cycle N step the head every N ticks and say which one in the
+// log. Both exist so a boot can be aimed at one model and a sweep can be
+// read back from pd.log, with no one at the keyboard.
+static void titlePreviewerAim(void)
+{
+	struct mpplayerconfig *cfg = &g_PlayerConfigsArray[0];
+
+	if (g_BootPreviewerHead[0]) {
+		s32 mpheadnum = modLookupHeadByName(g_BootPreviewerHead);
+		if (mpheadnum >= 0) {
+			cfg->base.mpheadnum = mpheadnum;
+		}
+		sysLogPrintf(LOG_NOTE, "previewer: head '%s' -> mpheadnum %d", g_BootPreviewerHead, mpheadnum);
+		g_BootPreviewerHead[0] = '\0';
+	}
+	if (g_BootPreviewerBody[0]) {
+		s32 mpbodynum = modLookupBodyByName(g_BootPreviewerBody);
+		if (mpbodynum >= 0) {
+			cfg->base.mpbodynum = mpbodynum;
+		}
+		sysLogPrintf(LOG_NOTE, "previewer: body '%s' -> mpbodynum %d", g_BootPreviewerBody, mpbodynum);
+		g_BootPreviewerBody[0] = '\0';
+	}
+}
+
+static void titlePreviewerCycle(void)
+{
+	static s32 ticks = 0;
+	struct mpplayerconfig *cfg = &g_PlayerConfigsArray[0];
+
+	if (g_BootPreviewerCycle <= 0) {
+		return;
+	}
+	if (++ticks < g_BootPreviewerCycle) {
+		return;
+	}
+	ticks = 0;
+	cfg->base.mpheadnum = (cfg->base.mpheadnum + 1) % mpGetNumHeads();
+	{
+		s32 headIdx = g_MpHeads[cfg->base.mpheadnum].headnum;
+		const char *name = modGetNameForHeadBodyIndex(headIdx);
+		sysLogPrintf(LOG_NOTE, "previewer: cycle -> mpheadnum %d head %d '%s'",
+				cfg->base.mpheadnum, headIdx, name ? name : "?");
+	}
+}
 #endif
 
 // Where the title goes once a profile is seated. Normally on to the logo and
@@ -2768,8 +2820,10 @@ static void titleProfileSelectAdvance(void)
 		// push only when nothing is up; a root push every frame tears the
 		// chooser down as fast as it comes up.
 		if (g_Menus[g_MpPlayerNum].depth == 0) {
+			titlePreviewerAim();
 			menuPushRootDialog(&g_MpCharacterMenuDialog, MENUROOT_MPSETUP);
 		}
+		titlePreviewerCycle();
 		return;
 	}
 #endif

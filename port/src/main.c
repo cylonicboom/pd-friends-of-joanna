@@ -57,6 +57,9 @@ s32 g_TickExtraSleep = true;
 
 s32 g_SkipIntro = false;
 s32 g_BootPreviewer = false; // --previewer: park the title on the head/body chooser
+s32 g_BootPreviewerCycle = 0;   // --previewer-cycle N: step the head every N ticks
+char g_BootPreviewerHead[64] = "";
+char g_BootPreviewerBody[64] = "";
 char g_DefaultProfile[64] = "";
 char g_DefaultReality[64] = "";
 
@@ -226,6 +229,11 @@ int main(int argc, const char **argv)
 	g_ModSpectateStart = sysArgCheck("--spectate");
 	g_BootPreviewer = sysArgCheck("--previewer");
 	if (g_BootPreviewer) {
+		const char *head = sysArgGetString("--previewer-head");
+		const char *body = sysArgGetString("--previewer-body");
+		if (head) { strncpy(g_BootPreviewerHead, head, sizeof(g_BootPreviewerHead) - 1); }
+		if (body) { strncpy(g_BootPreviewerBody, body, sizeof(g_BootPreviewerBody) - 1); }
+		g_BootPreviewerCycle = sysArgGetInt("--previewer-cycle", 0);
 		sysLogPrintf(LOG_NOTE, "previewer: title parks on the character chooser");
 	}
 
