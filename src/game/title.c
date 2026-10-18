@@ -2808,7 +2808,15 @@ void titleTickProfileSelect(void) {
 		return;
 	}
 	if (titleTryDefaultProfile()) {
+#ifndef PLATFORM_N64
+		// Under --previewer the default profile parks a dialog here instead
+		// of leaving the mode, and a parked dialog still has to tick.
+		if (!g_BootPreviewer) {
+			return;
+		}
+#else
 		return;
+#endif
 	}
 	menuTick();
 #ifndef PLATFORM_N64
