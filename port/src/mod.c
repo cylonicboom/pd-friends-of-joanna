@@ -28,8 +28,6 @@
 #define MOD_ANIMATIONS_DIR "animations"
 #define MOD_SEQUENCES_DIR "sequences"
 
-s32 g_TexModNum = -1;
-s32 g_TexCurrentModelFileNum = 0;
 
 /*
  * Owning mod of a file id. See the encoding note in port/include/mod.h.

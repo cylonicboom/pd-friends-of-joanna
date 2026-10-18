@@ -19,6 +19,7 @@
 #include "game/game_097aa0.h"
 #include "game/bondgun.h"
 #include "mod.h"
+#include "texscope.h"
 #include "game/gunfx.h"
 #include "game/game_0b0fd0.h"
 #include "game/modeldef.h"
@@ -4143,6 +4144,12 @@ void bgunTickGunLoad(void)
 		// Load textures - up to 3 per call
 		numthistick = 0;
 
+#ifndef PLATFORM_N64
+		// This loader never goes through modeldefLoad, so it names the model
+		// itself: a mod's gun or hand resolves its textures in its own mod,
+		// and '<model>/<id>.bin' names resolve. Popped on every way out.
+		texScopePush(player->gunctrl.loadfilenum);
+#endif
 		for (i = player->gunctrl.nexttexturetoload; i < modeldef->numtexconfigs; i++) {
 			osSyncPrintf("BriGun:  at texture %d\n", i);
 
@@ -4155,6 +4162,9 @@ void bgunTickGunLoad(void)
 			numthistick++;
 
 			if (numthistick == 3) {
+#ifndef PLATFORM_N64
+				texScopePop();
+#endif
 				return;
 			}
 
@@ -4164,6 +4174,9 @@ void bgunTickGunLoad(void)
 			player->gunctrl.nexttexturetoload++;
 		}
 
+#ifndef PLATFORM_N64
+		texScopePop();
+#endif
 		*gunfileinfo = *fileinfo;
 
 		osSyncPrintf("BriGun:  Set Load State: GUN_LOADSTATE_DECOMPRESS_DLS\n");

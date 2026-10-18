@@ -52,6 +52,7 @@
 #include "video.h"
 #include "platform.h"
 #include "mod.h"
+#include "texscope.h"
 #endif
 
 void *sysMemAlloc(const u32 size);
@@ -1546,6 +1547,21 @@ void bgVerifyLightSums(char *file, s32 line)
  * - 4 bytes pointer to light table
  * - 4 bytes null
  */
+#ifndef PLATFORM_N64
+// Who a stage's textures belong to: the bg file's owner when a mod declared
+// one, else the stage's claim, else vanilla. The bytes come from
+// g_Stages[g_StageIndex].bgfileid, so their texture numbers are in that
+// author's namespace; a mod that claims a stage without declaring a bgfile
+// (every stage in the working roster) leaves the vanilla id there and the
+// claim is what carries its retextures. Shared by the section-2 preload and
+// the room loop so the two resolve under one owner.
+static s32 bgTextureOwner(void)
+{
+	const s32 bgFileOwner = MOD_FILEID_MOD(g_Stages[g_StageIndex].bgfileid);
+	return (bgFileOwner >= 0) ? bgFileOwner : modNumFromStage(g_Vars.stagenum);
+}
+#endif
+
 void bgReset(s32 stagenum)
 {
 	u8 *header;
@@ -1671,9 +1687,19 @@ void bgReset(s32 stagenum)
 	preprocessBgSection2((u8 *)section2, inflatedsize);
 #endif
 
+#ifndef PLATFORM_N64
+	// The same owner the room loop below resolves under, so the preload and
+	// the room load one blob per texture number between them. Unscoped, the
+	// preload loaded the vanilla bytes for a number the room would then load
+	// again under the mod, and the LOD-size cache kept whichever came first.
+	texScopePushOwner(bgTextureOwner());
+#endif
 	for (i = 0; i ^ inflatedsize; i++) {
 		texLoadFromTextureNum(section2[i] & 0xffff & 0xffff & 0xffff & 0xffff & 0xffff & 0xffff & 0xffff & 0xffff, NULL);
 	}
+#ifndef PLATFORM_N64
+	texScopePop();
+#endif
 
 	if (1);
 
@@ -3121,9 +3147,7 @@ void bgLoadRoom(s32 roomnum)
 		// room loads as before. g_TexCurrentModelFileNum is deliberately left
 		// alone: bg has no model file id, and 0 is the right id for the EXT
 		// packet.
-		s32 prevTexMod = g_TexModNum;
-		const s32 bgFileOwner = MOD_FILEID_MOD(g_Stages[g_StageIndex].bgfileid);
-		g_TexModNum = (bgFileOwner >= 0) ? bgFileOwner : modNumFromStage(g_Vars.stagenum);
+		texScopePushOwner(bgTextureOwner());
 #endif
 
 		for (i = 0; i < numgdls; i++) {
@@ -3138,7 +3162,7 @@ void bgLoadRoom(s32 roomnum)
 		}
 
 #ifndef PLATFORM_N64
-		g_TexModNum = prevTexMod;
+		texScopePop();
 #endif
 
 		gdlpointers[numgdls] = itergdl2;

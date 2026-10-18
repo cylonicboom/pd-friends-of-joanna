@@ -28,6 +28,7 @@
 #include "imgui_profiles.h"
 #include "input.h"
 #include "mod.h"
+#include "texscope.h"
 #include "romdata.h"
 #include "asset.h"
 #include "system.h"
@@ -3030,10 +3031,7 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		g_ImGuiOverlayTextureProbeData = NULL;
 	}
 
-	const s32 previousMod = g_TexModNum;
-	const s32 previousModelFileNum = g_TexCurrentModelFileNum;
-	g_TexModNum = textureMod;
-	g_TexCurrentModelFileNum = modelFileNum;
+	texScopePushPair(textureMod, modelFileNum);
 	struct modeldefEditorWorkspaceInfo workspaceInfo;
 	const s32 encodedModelFileNum = imguiOverlayEncodeFileId(textureMod, modelFileNum);
 	const bool workspaceMatches = modeldefEditorWorkspaceGetInfo(&workspaceInfo)
@@ -3080,8 +3078,7 @@ static bool imguiOverlayRequestEngineTexture(s32 textureMod, s32 modelFileNum,
 		g_ImGuiOverlayEngineProbeHasLodData = tex->hasloddata;
 		g_ImGuiOverlayEngineProbeMetadataValid = true;
 	}
-	g_TexCurrentModelFileNum = previousModelFileNum;
-	g_TexModNum = previousMod;
+	texScopePop();
 	return tex != NULL;
 }
 

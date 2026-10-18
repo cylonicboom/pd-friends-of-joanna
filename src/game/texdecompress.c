@@ -12,6 +12,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "mod.h"
+#include "texscope.h"
 #include "platform.h"
 #include "romdata.h"
 #include "system.h"
@@ -2276,6 +2277,11 @@ void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg)
 			// since g_Textures[] only covers vanilla. Try modTextureLoad and skip
 			// the ROM dma path entirely.
 			if (g_TexNumToLoad >= NUM_TEXTURES) {
+				if (texScopeOwner() < 0) {
+					// Nothing past the ROM's table is vanilla's, so a load
+					// here with no owner is a loader that forgot its scope.
+					texScopeReportMissing(g_TexNumToLoad);
+				}
 				if (modTextureLoad(g_TexNumToLoad, alignedcompbuffer, 4096) > 0) {
 					compptr = alignedcompbuffer;
 					goto haveCompBytes;
