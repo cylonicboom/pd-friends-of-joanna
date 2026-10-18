@@ -56,6 +56,7 @@ s32 g_TickRateDiv = 1;
 s32 g_TickExtraSleep = true;
 
 s32 g_SkipIntro = false;
+s32 g_BootPreviewer = false; // --previewer: park the title on the head/body chooser
 char g_DefaultProfile[64] = "";
 char g_DefaultReality[64] = "";
 
@@ -223,6 +224,10 @@ int main(int argc, const char **argv)
 	// Spectator from the first frame. A button press cannot happen before the
 	// stage loads, and the headless runs that want this cannot press one at all.
 	g_ModSpectateStart = sysArgCheck("--spectate");
+	g_BootPreviewer = sysArgCheck("--previewer");
+	if (g_BootPreviewer) {
+		sysLogPrintf(LOG_NOTE, "previewer: title parks on the character chooser");
+	}
 
 	// The Lua AI path is on when there is a script for it and off otherwise,
 	// unless forced. The command line beats pd.ini, and --no-lua-ai beats

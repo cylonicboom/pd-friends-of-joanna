@@ -2746,6 +2746,29 @@ void titleExitProfileSelect(void) {
 extern struct menudialogdef g_TeamMissionPlayerProfilesHubMenu;
 extern struct menudialogdef g_FojoTitleProfileSelectMenu;
 
+#ifndef PLATFORM_N64
+extern struct menudialogdef g_MpCharacterMenuDialog;
+extern s32 g_BootPreviewer;
+#endif
+
+// Where the title goes once a profile is seated. Normally on to the logo and
+// the dropship; under --previewer it parks on the head/body chooser instead,
+// which is the character previewer. The chooser is a combat-sim dialog, but
+// everything it needs - mpInit, a seated player 0, the Xs font - is already
+// in place by the time the picker runs, so it can be pushed here as a root.
+// Backing out of it lands at depth 0 again and re-pushes it: the flag means
+// "this boot is the previewer", and quitting is the way out.
+static void titleProfileSelectAdvance(void)
+{
+#ifndef PLATFORM_N64
+	if (g_BootPreviewer) {
+		menuPushRootDialog(&g_MpCharacterMenuDialog, MENUROOT_MPSETUP);
+		return;
+	}
+#endif
+	titleSetNextMode(TITLEMODE_RARELOGO);
+}
+
 static s32 titleTryDefaultProfile(void)
 {
 	if (!g_DefaultProfile[0]) {
@@ -2755,7 +2778,7 @@ static s32 titleTryDefaultProfile(void)
 	s32 result = filemgrTryLoadDefaultProfile(0);
 	if (result == 1) {
 		sysLogPrintf(LOG_NOTE, "Default profile: skipping title profile select");
-		titleSetNextMode(TITLEMODE_RARELOGO);
+		titleProfileSelectAdvance();
 		return 1;
 	}
 	if (result == 0) {
@@ -2826,7 +2849,7 @@ void titleTickProfileSelect(void) {
 			menuPushRootDialog(&g_FojoTitleProfileSelectMenu, MENUROOT_FILEMGR);
 			return;
 		}
-		titleSetNextMode(TITLEMODE_RARELOGO);
+		titleProfileSelectAdvance();
 	}
 }
 
