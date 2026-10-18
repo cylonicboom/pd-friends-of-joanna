@@ -2762,7 +2762,14 @@ static void titleProfileSelectAdvance(void)
 {
 #ifndef PLATFORM_N64
 	if (g_BootPreviewer) {
-		menuPushRootDialog(&g_MpCharacterMenuDialog, MENUROOT_MPSETUP);
+		// titleTryDefaultProfile answers "loaded" on every tick once it has
+		// loaded, and titleSetNextMode used to absorb that by making the
+		// tick return early. Parking has no mode change to hide behind, so
+		// push only when nothing is up; a root push every frame tears the
+		// chooser down as fast as it comes up.
+		if (g_Menus[g_MpPlayerNum].depth == 0) {
+			menuPushRootDialog(&g_MpCharacterMenuDialog, MENUROOT_MPSETUP);
+		}
 		return;
 	}
 #endif
@@ -2777,7 +2784,13 @@ static s32 titleTryDefaultProfile(void)
 
 	s32 result = filemgrTryLoadDefaultProfile(0);
 	if (result == 1) {
-		sysLogPrintf(LOG_NOTE, "Default profile: skipping title profile select");
+		// Answered on every tick once loaded; under --previewer the tick
+		// keeps coming, so say it once.
+		static bool said = false;
+		if (!said) {
+			said = true;
+			sysLogPrintf(LOG_NOTE, "Default profile: skipping title profile select");
+		}
 		titleProfileSelectAdvance();
 		return 1;
 	}
