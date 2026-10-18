@@ -174,7 +174,7 @@ s32 skinmatchNumSidecars(void)
  * scan registers a model directory's sidecars as G_TEXTYPE_MODEL. A sidecar
  * from the top-level ext_tex directory has id 0 and answers for any model.
  */
-static struct skinmatchsidecar *findSidecar(u16 id, s32 texnum, s32 kind)
+static struct skinmatchsidecar *findSidecar(s32 owner, u16 id, s32 texnum, s32 kind)
 {
 	struct skinmatchsidecar *global = NULL;
 	s32 i;
@@ -183,6 +183,12 @@ static struct skinmatchsidecar *findSidecar(u16 id, s32 texnum, s32 kind)
 		struct skinmatchsidecar *sc = &g_SkinSidecars[i];
 
 		if (sc->texnum != texnum || sc->kind != kind) {
+			continue;
+		}
+
+		// A sidecar scanned out of one mod's ext_tex answers for that mod's
+		// textures; the global directory (ownerMod -1) answers for anyone.
+		if (sc->ownerMod >= 0 && owner >= 0 && sc->ownerMod != owner) {
 			continue;
 		}
 
@@ -759,14 +765,15 @@ static struct skinmatchhead *allocHead(void)
 	return NULL;
 }
 
-struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
+struct skinmatchbody *skinmatchBodyFor(u8 type, s32 owner, u16 id, s32 texnum, bool create)
 {
 	s32 i;
 
 	for (i = 0; i < SKINMATCH_MAX_BODIES; i++) {
 		struct skinmatchbody *b = &g_SkinBodies[i];
 
-		if (b->used && b->id == id && b->texnum == texnum) {
+		if (b->used && b->id == id && b->texnum == texnum
+				&& (b->ownerMod < 0 || owner < 0 || b->ownerMod == owner)) {
 			return b;
 		}
 	}
@@ -775,7 +782,7 @@ struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
 		return NULL;
 	}
 
-	struct skinmatchsidecar *sc = findSidecar(id, texnum, SKINMATCH_SIDECAR_MASK);
+	struct skinmatchsidecar *sc = findSidecar(owner, id, texnum, SKINMATCH_SIDECAR_MASK);
 
 	if (!sc) {
 		return NULL;
@@ -806,7 +813,7 @@ struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create)
 
 struct skinmatchbody *skinmatchBodyCreateBlank(u8 type, u16 id, s32 texnum, u16 width, u16 height, u8 maskscale)
 {
-	struct skinmatchbody *b = skinmatchBodyFor(type, id, texnum, false);
+	struct skinmatchbody *b = skinmatchBodyFor(type, -1, id, texnum, false);
 
 	if (b) {
 		return b;
@@ -916,7 +923,7 @@ struct skinmatchhead *skinmatchHeadCreateBlank(u16 id, s32 texnum)
 
 bool skinmatchWantsPixels(u8 type, u16 id, s32 texnum)
 {
-	struct skinmatchbody *b = skinmatchBodyFor(type, id, texnum, false);
+	struct skinmatchbody *b = skinmatchBodyFor(type, -1, id, texnum, false);
 
 	if (b && b->pending) {
 		return true;
@@ -935,7 +942,7 @@ bool skinmatchWantsPixels(u8 type, u16 id, s32 texnum)
 
 void skinmatchOnTexturePixels(u8 type, u16 id, s32 texnum, const u8 *rgba, u32 width, u32 height)
 {
-	struct skinmatchbody *b = skinmatchBodyFor(type, id, texnum, false);
+	struct skinmatchbody *b = skinmatchBodyFor(type, -1, id, texnum, false);
 
 	if (b && (b->pending || !b->rgba)) {
 		u32 k = (width && height) ? b->width / width : 0;

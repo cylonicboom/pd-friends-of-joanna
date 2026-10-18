@@ -510,17 +510,14 @@ Gfx *texWriteLoadToTmemAddr(Gfx *gdl, struct tex *tex, s32 tmemoffset)
 
 #ifndef PLATFORM_N64
 	{
-		extern s32 g_TexModNum;
+		// The packet names the texture by (owner, model file, number). The
+		// owner is the pool entry's own - whoever loaded these bytes - not
+		// the load scope, which is gone by the time the renderer reads this.
+		// The png lookup and the skin match filter on it there; nothing on
+		// this side has to refuse another mod's png any more.
 		extern s32 g_TexCurrentModelFileNum;
-		s8 owner = extTexGetOwnerMod(G_TEXTYPE_GENERAL, 0, tex->texturenum);
-		if (owner < 0 || owner == g_TexModNum) {
-			// Stamp the current model's fileNum into `id` so downstream
-			// getTexPath / extTexLoad can pick the correct per-model dir.
-			const u16 modelId = (u16)MOD_FILEID_RAW(g_TexCurrentModelFileNum);
-			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, modelId, tex->texturenum, 0);
-		} else {
-			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_NONE, 0, 0, 0);
-		}
+		const u16 modelId = (u16)MOD_FILEID_RAW(g_TexCurrentModelFileNum);
+		gDPSetTextureInfoOwnedEXT(gdl++, G_TEXTYPE_GENERAL, TEX_OWNER(tex), modelId, tex->texturenum, 0);
 	}
 #else
 	gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_GENERAL, 0, tex->texturenum, 0);

@@ -179,6 +179,7 @@ struct LoadedTexture {
 	uint16_t id;
 	uint16_t id_mask;
 	uint32_t texnum;
+	int8_t owner; // owning mod from the EXT packet, -1 for none
     struct RawTexMetadata raw_tex_metadata;
     // skin match: this texture's mask entry, resolved once per load rather
     // than per triangle; nullptr when it has no sidecar
@@ -198,6 +199,7 @@ static struct RDP {
 		uint16_t id;
 		uint16_t id_mask;
 		uint32_t texnum;
+		int8_t owner;
         struct RawTexMetadata raw_tex_metadata;
     } texture_to_load;
     struct {
@@ -1195,7 +1197,7 @@ static void import_texture(int i, int tile, bool is_rect) {
 
 		uint32_t width, height;
 
-		uint8_t *addr = extTexLoad(type, id, texnum, &width, &height);
+		uint8_t *addr = extTexLoad(type, loaded_texture.owner, id, texnum, &width, &height);
 		if (!addr) {
 			// upload a 1 pink pixel replacement for visual feedback
 			tex_upload_buffer[0] = 255;
@@ -2324,11 +2326,13 @@ static void gfx_dp_set_texture_image(uint32_t format, uint32_t size, uint32_t wi
     rdp.texture_to_load.tex_flags = tex_flags;
 }
 
-static void gfx_dp_set_texture_info(uint8_t type, uint8_t id_mask, uint16_t id, uint32_t texnum) {
+static void gfx_dp_set_texture_info(uint8_t type, uint8_t id_mask, uint8_t owner_wire, uint16_t id, uint32_t texnum) {
 	rdp.texture_to_load.type = type;
 	rdp.texture_to_load.texnum = texnum;
 	rdp.texture_to_load.id = id;
 	rdp.texture_to_load.id_mask = id_mask << 8;
+	// w0 bits 16-23 carry owner + 1; 0 is a packet from before owners existed
+	rdp.texture_to_load.owner = owner_wire ? (int8_t)(owner_wire - 1) : -1;
 }
 
 static void gfx_dp_set_tile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
@@ -2431,8 +2435,10 @@ static void gfx_dp_load_tlut2(uint32_t offset, uint32_t count) {
 	load_tlut(base, tile, count);
 }
 
-static inline uint64_t make_key(bool external, uint64_t type, uint64_t id, uint32_t texnum) {
-	return (uint64_t)external << 7*8 | type << 6*8 | id << 4*8 | texnum;
+static inline uint64_t make_key(bool external, uint64_t type, uint64_t id, uint32_t texnum, int owner) {
+	// bits 57-63: owner + 1, so two mods' pngs at one (type, id, texnum) are
+	// two cache entries; bit 56 external; then type, id, texnum as before
+	return (uint64_t)(owner + 1) << 57 | (uint64_t)external << 7*8 | type << 6*8 | id << 4*8 | texnum;
 }
 
 // ext_tex: stamp the pending G_SETTEXINFO_EXT tag onto a tmem slot as it is
@@ -2446,8 +2452,9 @@ static void gfx_stamp_loaded_texture(LoadedTexture& loaded_texture) {
     loaded_texture.id = tag.id;
     loaded_texture.id_mask = tag.id_mask;
     loaded_texture.texnum = tag.texnum;
+    loaded_texture.owner = tag.owner;
     loaded_texture.skin_body =
-        skinmatchNumSidecars() > 0 ? skinmatchBodyFor(tag.type, tag.id, tag.texnum, true) : nullptr;
+        skinmatchNumSidecars() > 0 ? skinmatchBodyFor(tag.type, tag.owner, tag.id, tag.texnum, true) : nullptr;
     TEXTRACE(TEXTRACE_STAMP, tag.texnum, tag.id, tag.type,
              ((&loaded_texture - rdp.loaded_texture) << 8) | (rdp.tex_lod ? 1 : 0),
              (uint32_t)(uintptr_t)loaded_texture.addr);
@@ -2456,6 +2463,7 @@ static void gfx_stamp_loaded_texture(LoadedTexture& loaded_texture) {
     tag.id = 0;
     tag.id_mask = 0;
     tag.texnum = 0;
+    tag.owner = -1;
 }
 
 static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t dxt) {
@@ -2493,7 +2501,7 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
 	const uint32_t texnum = loaded_texture.texnum;
 
 	if (gfx_external_textures_enabled && extTexExists(type, id, texnum)) {
-		loaded_texture.ext_key = make_key(1, type, id, texnum);
+		loaded_texture.ext_key = make_key(1, type, id, texnum, loaded_texture.owner);
 
 		// clear the masked id (font outline) if there is no png for it
 		if (id_mask != 0 && !extTexExists(type, id | id_mask, texnum)) {
@@ -3006,7 +3014,7 @@ static void gfx_run_dl(Gfx* cmd) {
             }
             case G_SETTEXINFO_EXT: {
                 // sysLogPrintf(LOG_NOTE, "G_SETTEXINFO_EXT: type=%d idmask=%d id=%d texnum=%05x", C0(0,8), C0(8,8), C1(20,12), C1(0,20));
-                gfx_dp_set_texture_info(C0(0, 8), C0(8, 8), C1(20, 12), C1(0, 20));
+                gfx_dp_set_texture_info(C0(0, 8), C0(8, 8), C0(16, 8), C1(20, 12), C1(0, 20));
                 break;
             }
             case G_SETTIMG_FB_EXT: {

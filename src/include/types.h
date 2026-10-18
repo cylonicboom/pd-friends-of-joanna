@@ -6464,6 +6464,9 @@ struct tex {
 // 0xff, because a mod index cannot reach it: modSwitch bounds g_ModNum to
 // < 64 and modDirs[] is 64 entries, so the widest a real owner can be is 63.
 #define TEX_MODNUM_NONE 0xff
+// A pool entry's owner as the EXT packet and ext_tex want it: -1 for vanilla
+// or no context, else the mod index.
+#define TEX_OWNER(tex) (((tex)->modnum == TEX_MODNUM_NONE) ? -1 : (s32)(tex)->modnum)
 
 struct texcacheitem {
   u16 texturenum;

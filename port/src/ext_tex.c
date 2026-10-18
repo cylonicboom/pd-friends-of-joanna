@@ -171,9 +171,8 @@ static s8 modelEntryOwner(const struct ModelTextures *m)
  * Falls back to the first name match when nothing matches the current mod, so
  * a lookup that works today keeps working.
  */
-static struct ModelTextures *findModelEntry(u16 fileNum)
+static struct ModelTextures *findModelEntry(s32 owner, u16 fileNum)
 {
-	extern s32 g_TexModNum;
 	struct ModelTextures *first = NULL;
 	int i;
 
@@ -186,9 +185,9 @@ static struct ModelTextures *findModelEntry(u16 fileNum)
 			first = &modelTextures[i];
 		}
 
-		s8 owner = modelEntryOwner(&modelTextures[i]);
+		s8 entryOwner = modelEntryOwner(&modelTextures[i]);
 
-		if (owner < 0 || g_TexModNum < 0 || owner == g_TexModNum) {
+		if (entryOwner < 0 || owner < 0 || entryOwner == owner) {
 			return &modelTextures[i];
 		}
 	}
@@ -218,9 +217,8 @@ static struct ModelTextures *findModelEntry(u16 fileNum)
  * Only filters when both owners are known: g_TexModNum is -1 outside a
  * mod-owned model's load, and ownerMod is -1 for the global ext_tex directory.
  */
-static struct ModelTextures *findModelEntryOwned(s16 fileNum)
+static struct ModelTextures *findModelEntryOwned(s32 owner, s16 fileNum)
 {
-	extern s32 g_TexModNum;
 	int i;
 
 	for (i = 0; i < numModels; ++i) {
@@ -228,14 +226,22 @@ static struct ModelTextures *findModelEntryOwned(s16 fileNum)
 			continue;
 		}
 
-		s8 owner = modelEntryOwner(&modelTextures[i]);
+		s8 entryOwner = modelEntryOwner(&modelTextures[i]);
 
-		if (owner < 0 || g_TexModNum < 0 || owner == g_TexModNum) {
+		if (entryOwner < 0 || owner < 0 || entryOwner == owner) {
 			return &modelTextures[i];
 		}
 	}
 
 	return NULL;
+}
+
+// The owner the game-thread queries below run under: the texture load scope.
+// The renderer never comes through here; it passes the packet's owner.
+static s32 loadScopeOwner(void)
+{
+	extern s32 g_TexModNum;
+	return g_TexModNum;
 }
 
 struct ExtTexture *lookupModelTex(u16 fileNum, s32 texNum)
@@ -245,7 +251,7 @@ struct ExtTexture *lookupModelTex(u16 fileNum, s32 texNum)
 		return 0;
 	}
 
-	struct ModelTextures *modelTex = findModelEntry(fileNum);
+	struct ModelTextures *modelTex = findModelEntry(loadScopeOwner(), fileNum);
 
 	if (modelTex == NULL) {
 		// sysLogPrintf(LOG_NOTE, "lookupModelTex: NO model entry for fileNum=%04x (texNum=%04x), numModels=%d", fileNum, texNum, numModels);
@@ -325,7 +331,7 @@ bool extTexModelHasEntryForTexid(s16 fileNum, s32 texNum)
 {
 	if (fileNum <= 0 || !modelTextures) return false;
 
-	struct ModelTextures *m = findModelEntryOwned(fileNum);
+	struct ModelTextures *m = findModelEntryOwned(loadScopeOwner(), fileNum);
 
 	if (!m) return false;
 
@@ -340,7 +346,7 @@ s32 extTexModelGetTextureCount(s16 fileNum)
 {
 	if (fileNum <= 0 || !modelTextures) return 0;
 
-	struct ModelTextures *m = findModelEntryOwned(fileNum);
+	struct ModelTextures *m = findModelEntryOwned(loadScopeOwner(), fileNum);
 
 	return m ? m->numTextures : 0;
 }
@@ -349,7 +355,7 @@ s32 extTexModelGetTextureInfo(s16 fileNum, s32 index, s32 *texNum, s8 *ownerMod,
 {
 	if (fileNum <= 0 || !modelTextures || index < 0) return false;
 
-	struct ModelTextures *m = findModelEntryOwned(fileNum);
+	struct ModelTextures *m = findModelEntryOwned(loadScopeOwner(), fileNum);
 
 	if (!m || index >= m->numTextures) return false;
 
@@ -373,7 +379,7 @@ const u8 *extTexModelLoadPixels(s16 fileNum, s32 texNum, u32 *width, u32 *height
 	// ambiguous across mods, so a first-match loop here could hand back
 	// another mod's basePath for this mod's texture. Same reason the
 	// G_TEXTYPE_MODEL case in getTexPath re-uses findModelEntry.
-	struct ModelTextures *modelTex = findModelEntry((u16)fileNum);
+	struct ModelTextures *modelTex = findModelEntry(loadScopeOwner(), (u16)fileNum);
 
 	if (!modelTex) return NULL;
 
@@ -402,7 +408,7 @@ const u8 *extTexModelLoadPixels(s16 fileNum, s32 texNum, u32 *width, u32 *height
  */
 s32 extTexModelDir(s16 fileNum, char *dst, u32 len)
 {
-	struct ModelTextures *m = findModelEntry((u16)fileNum);
+	struct ModelTextures *m = findModelEntry(loadScopeOwner(), (u16)fileNum);
 
 	if (!m || !m->modelName[0]) {
 		return 1;
@@ -500,7 +506,7 @@ char *resolveFontname(const u8 fontId)
 	}
 }
 
-u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
+u8 getTexPath(char *dst, u8 type, s32 owner, u16 id, s32 texnum)
 {
 	struct ExtTexture *tex;
 	const char *name;
@@ -522,7 +528,7 @@ u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
 				// (2018..2025 are claimed by all three shipped mods), and
 				// taking the first match meant whichever mod was scanned first
 				// answered for every mod's model at that id.
-				struct ModelTextures *m = findModelEntryOwned((s16)id);
+				struct ModelTextures *m = findModelEntryOwned(owner, (s16)id);
 
 				if (m) {
 					for (int j = 0; j < m->numTextures; ++j) {
@@ -537,12 +543,11 @@ u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
 					// through to other models' dirs (that was the old bug).
 				}
 			} else {
-				extern s32 g_TexModNum;
 				for (int i = 0; i < numModels; ++i) {
 					for (int j = 0; j < modelTextures[i].numTextures; ++j) {
 						if (modelTextures[i].textures[j].texnum != texnum) continue;
-						s8 owner = modelTextures[i].textures[j].ownerMod;
-						if (owner >= 0 && g_TexModNum >= 0 && owner != g_TexModNum) continue;
+						s8 entryOwner = modelTextures[i].textures[j].ownerMod;
+						if (entryOwner >= 0 && owner >= 0 && entryOwner != owner) continue;
 						snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s",
 							modelTextures[i].basePath, modelTextures[i].modelName,
 							texnum, modelTextures[i].textures[j].extension);
@@ -613,7 +618,7 @@ u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
 			if (!tex) return 1;
 			// Same entry lookupModelTex chose, or the basePath could come from
 			// one mod while the texture came from another.
-			struct ModelTextures *m = findModelEntry(id);
+			struct ModelTextures *m = findModelEntry(owner, id);
 			if (m) {
 				snprintf(dst, FS_MAXPATH, "%s/%s/%05x.%s", m->basePath, m->modelName, texnum, tex->extension);
 				return 0;
@@ -624,10 +629,10 @@ u8 getTexPath(char *dst, u8 type, u16 id, s32 texnum)
 	}
 }
 
-u8 *extTexLoad(u8 type, u16 id, s32 texnum, u32 *width, u32 *height)
+u8 *extTexLoad(u8 type, s32 owner, u16 id, s32 texnum, u32 *width, u32 *height)
 {
 	char path[FS_MAXPATH];
-	u8 err = getTexPath(path, type, id, texnum);
+	u8 err = getTexPath(path, type, owner, id, texnum);
 	if (err) {
 		sysLogPrintf(LOG_WARNING, "extTexLoad: getTexPath FAILED type=%d id=%04x texnum=%04x", type, id, texnum);
 		return 0;

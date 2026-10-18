@@ -363,7 +363,7 @@ static const SkinTexRow *skinDrawTexTable(const char *id, const std::vector<Skin
 		// the panel opened on a frock from the JPN rom (2026-09-28)
 		for (const SkinTexRow &r : rows) {
 			const bool has = isBody
-				? skinmatchBodyFor(G_TEXTYPE_GENERAL, fileNum, r.texnum, false) != NULL
+				? skinmatchBodyFor(G_TEXTYPE_GENERAL, -1, fileNum, r.texnum, false) != NULL
 				: (skinmatchHeadForTex(fileNum, r.texnum) != NULL && skinmatchHeadForTex(fileNum, r.texnum)->ntags > 0);
 			if (has) { selected = &r; break; }
 		}
@@ -401,7 +401,7 @@ static const SkinTexRow *skinDrawTexTable(const char *id, const std::vector<Skin
 				: (r.onscreen ? "rom, on screen" : "rom, probe"));
 			ImGui::TableSetColumnIndex(3);
 			if (isBody) {
-				const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_GENERAL, fileNum, r.texnum, false);
+				const struct skinmatchbody *b = skinmatchBodyFor(G_TEXTYPE_GENERAL, -1, fileNum, r.texnum, false);
 				if (b) ImGui::Text("%s%s", b->ready ? "measured" : "mask", b->maskscale > 1 ? (b->maskscale == 4 ? " 4x" : " 2x") : "");
 				else ImGui::TextDisabled("-");
 			} else {
@@ -853,7 +853,7 @@ void imguiSkinMatchDrawPanel(struct chrdata *chr)
 			bodyRow = NULL;
 		}
 
-		body = bodyRow ? skinmatchBodyFor(G_TEXTYPE_GENERAL, bodyFile, bodyRow->texnum, true) : NULL;
+		body = bodyRow ? skinmatchBodyFor(G_TEXTYPE_GENERAL, -1, bodyFile, bodyRow->texnum, true) : NULL;
 
 		if (bodyRow && !body) {
 			ImGui::TextDisabled("tex %04x  %dx%d  no mask yet", bref.info.texnum, bref.width, bref.height);

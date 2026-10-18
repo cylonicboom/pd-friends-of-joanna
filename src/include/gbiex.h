@@ -488,14 +488,25 @@
             << G_NOOP_TEXSLOT_W0_SHIFT(slot)))                                \
         & (0x7u << G_NOOP_TEXSLOT_W0_SHIFT(slot))))
 
-#define gSetTexInfoEXT(pkt, cmd, type, id, texnum, idmask)        \
+/* The owning mod of the texture rides in w0 bits 16-23 as owner + 1, so the
+ * packets that never knew about owners (a static gsDP in textureconfig.c,
+ * the preprocess MODEL tag) read as "no owner" rather than as mod 0. The
+ * renderer decodes it back to -1..63 and keys its cache and the png lookup
+ * on it; this is how a texture's provenance crosses from the game thread to
+ * the renderer without either side reading a global. */
+#define G_TEXOWNER_WIRE(owner) ((u32)(((s32)(owner) < 0) ? 0 : ((s32)(owner) + 1)) & 0xffu)
+
+#define gSetTexInfoOwnedEXT(pkt, cmd, type, owner, id, texnum, idmask) \
 {                                                                 \
     Gfx *_g = (Gfx *)(pkt);                                       \
                                                                   \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(idmask, 8, 8)    \
-		| _SHIFTL(type, 0, 8);                                    \
+    _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(G_TEXOWNER_WIRE(owner), 16, 8) \
+		| _SHIFTL(idmask, 8, 8) | _SHIFTL(type, 0, 8);            \
     _g->words.w1 = _SHIFTL(id, 20, 12) | _SHIFTL(texnum, 0, 20);  \
 }
+
+#define gSetTexInfoEXT(pkt, cmd, type, id, texnum, idmask) \
+	gSetTexInfoOwnedEXT(pkt, cmd, type, -1, id, texnum, idmask)
 
 #define gsSetTexInfoEXT(cmd, type, id, texnum, idmask) \
 {                                                      \
@@ -505,6 +516,7 @@
 }
 
 #define gDPSetTextureInfoEXT(pkt, type, id, texnum, idmask) gSetTexInfoEXT(pkt, G_SETTEXINFO_EXT, type, id, texnum, idmask)
+#define gDPSetTextureInfoOwnedEXT(pkt, type, owner, id, texnum, idmask) gSetTexInfoOwnedEXT(pkt, G_SETTEXINFO_EXT, type, owner, id, texnum, idmask)
 #define gsDPSetTextureInfoEXT(type, id, texnum, idmask)     gsSetTexInfoEXT(G_SETTEXINFO_EXT, type, id, texnum, idmask)
 
 #endif

@@ -115,7 +115,7 @@ bool skinmatchHeadEligible(s32 headnum);
 // Identity is (id, texnum) - the model's raw fileNum and the global texture
 // number, which is how tex.c stamps every model texture (G_TEXTYPE_GENERAL);
 // `type` is carried for the record and never compared.
-struct skinmatchbody *skinmatchBodyFor(u8 type, u16 id, s32 texnum, bool create);
+struct skinmatchbody *skinmatchBodyFor(u8 type, s32 owner, u16 id, s32 texnum, bool create);
 struct skinmatchhead *skinmatchHeadFor(u16 fileid, bool create);
 struct skinmatchhead *skinmatchHeadForTex(u16 id, s32 texnum);
 bool skinmatchWantsPixels(u8 type, u16 id, s32 texnum);
