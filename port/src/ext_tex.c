@@ -1198,7 +1198,20 @@ static void extTexScanDir(const char *dirPath, s32 *maxModels)
 				// is a tagged id carrying the owning mod above bit 16, and
 				// narrowing to s16 drops that tag with no diagnostic. Widening
 				// now costs nothing and is where that value will arrive.
-				s32 fileId = romdataFileGetNumForNameAnyMod(name);
+				// The mod whose ext_tex/ this is answers first, by the names
+				// its own table declares: the entry name (slugged, e.g.
+				// Csilverwoman_aio_charactersZ) or its alias. The any-mod scan
+				// below matches slot names, which are PATHS when the entry has
+				// one, so a slugged mod with kept paths (slugmod --keep-paths)
+				// could only be reached by its on-disk basename - the one name
+				// an author of an override would not think to write.
+				s32 fileId = -1;
+				if (g_ExtTexCurrentModIndex >= 0) {
+					fileId = romdataFileGetNumForNameInMod(name, g_ExtTexCurrentModIndex);
+				}
+				if (fileId < 0) {
+					fileId = romdataFileGetNumForNameAnyMod(name);
+				}
 				s16 fileNum = (s16)fileId;
 				sysLogPrintf(LOG_NOTE, "extTexScanDir: model dir '%s' => fileNum=%d (0x%04x)", name, fileNum, (u16)fileNum);
 				if (fileId < 0) {
