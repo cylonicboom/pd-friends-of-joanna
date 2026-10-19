@@ -79,6 +79,10 @@
 #include "video.h"
 #include "input.h"
 #include "platform.h"
+#ifndef PLATFORM_N64
+#include "mod.h"
+extern char g_BootBodyName[64];
+#endif
 #endif
 
 s32 g_DefaultWeapons[2];
@@ -1525,6 +1529,24 @@ void playerChooseBodyAndHead(s32 *bodynum, s32 *headnum, s32 *arg2)
 	// Joanna outfits have words, so Elvis, Trent and the disguises above are
 	// untouched.
 	*bodynum = fojoFriendWardrobeBody(fojoFriendForMpIndex(g_Vars.currentplayerstats->mpindex), *bodynum);
+
+#ifndef PLATFORM_N64
+	// --boot-body: the probe flag wins over the wardrobe. Looked up by name
+	// once; a name no mod answers to is logged and the wardrobe body stands.
+	if (g_BootBodyName[0]) {
+		static s32 probedBody = -2;
+		if (probedBody == -2) {
+			s32 mpbodynum = modLookupBodyByName(g_BootBodyName);
+			probedBody = (mpbodynum >= 0) ? mpGetBodyId(mpbodynum) : -1;
+			sysLogPrintf(LOG_NOTE, "boot-body: '%s' -> mpbodynum %d bodynum %d (hands file 0x%x)",
+					g_BootBodyName, mpbodynum, probedBody,
+					probedBody >= 0 ? g_HeadsAndBodies[probedBody].handfilenum : 0);
+		}
+		if (probedBody >= 0) {
+			*bodynum = probedBody;
+		}
+	}
+#endif
 }
 
 /**

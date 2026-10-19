@@ -60,6 +60,7 @@ s32 g_BootPreviewer = false; // --previewer: park the title on the head/body cho
 s32 g_BootPreviewerCycle = 0;   // --previewer-cycle N: step the head every N ticks
 char g_BootPreviewerHead[64] = "";
 char g_BootPreviewerBody[64] = "";
+char g_BootBodyName[64] = "";   // --boot-body <name>: solo boots wear this body
 char g_DefaultProfile[64] = "";
 char g_DefaultReality[64] = "";
 
@@ -235,6 +236,16 @@ int main(int argc, const char **argv)
 		if (body) { strncpy(g_BootPreviewerBody, body, sizeof(g_BootPreviewerBody) - 1); }
 		g_BootPreviewerCycle = sysArgGetInt("--previewer-cycle", 0);
 		sysLogPrintf(LOG_NOTE, "previewer: title parks on the character chooser");
+	}
+	{
+		// A probe for a mod body's first-person hands. Solo play dresses the
+		// player from the outfit table, so a mod body only ever shows up in a
+		// combat sim match; this wears it from the first stage boot instead.
+		const char *body = sysArgGetString("--boot-body");
+		if (body) {
+			strncpy(g_BootBodyName, body, sizeof(g_BootBodyName) - 1);
+			sysLogPrintf(LOG_NOTE, "boot-body: solo player wears '%s'", g_BootBodyName);
+		}
 	}
 
 	// The Lua AI path is on when there is a script for it and off otherwise,
