@@ -1890,7 +1890,13 @@ u8 func040e_outro[] = {
 	wait_until(392, 0x69)
 	play_sound(SFX_THUD_808E, CHANNEL_CUTSCENE)
 
-	wait_until(406, 0x6c)
+	// loop id 0x6c is reused by the wait_until(426) below, so that loop's
+	// endloop found this beginloop and "If what?" played twice. fgsfdsfgs
+	// fixes it in the PC port by patching these two bytes to 0x99 in the ROM
+	// file (port/src/romdata.c filePatches); that patch is keyed to the
+	// vanilla file's offsets and never matches this rebuilt one, so the
+	// fix lives here instead.
+	wait_until(406, 0x99)
 	speak(CHR_P1P2, L_LUE_069, MP3_0423, CHANNEL_5, COLOR_07_RED) // "If what?"
 
 	wait_until(410, 0x6a)
