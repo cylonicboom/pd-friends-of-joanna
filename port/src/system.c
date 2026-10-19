@@ -89,7 +89,16 @@ void sysInit(void)
 {
 	startTick = sysGetMicroseconds();
 
-	if (sysArgCheck("--log")) {
+	// pre-release builds log by default (FOJO_LOG_DEFAULT from cmake): one
+	// pd.log carrying the version line, the file loads and the crash dump
+	// is what a tester can actually send back. --no-log turns it off there;
+	// --log turns it on everywhere else.
+#if defined(FOJO_LOG_DEFAULT) && FOJO_LOG_DEFAULT
+	const s32 wantLog = !sysArgCheck("--no-log");
+#else
+	const s32 wantLog = sysArgCheck("--log");
+#endif
+	if (wantLog) {
 		sysLogSetPath(LOG_FNAME);
 	}
 

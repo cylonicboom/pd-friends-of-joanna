@@ -34,6 +34,7 @@ endif()
 
 set(ROMID "ntsc-final" CACHE STRING "Which ROM to build an executable for: ntsc-final, pal-final or jpn-final")
 set(DPRINT 0 CACHE BOOL "Enable debug print statements")
+set(FOJO_LOG_DEFAULT 0 CACHE BOOL "Write pd.log without --log (pre-release builds); --no-log opts out")
 option(FORCE_CROSSCOMPILE "Force cross compiling" NO)
 
 # Determine target arch
@@ -178,6 +179,7 @@ add_definitions(
   -D_LANGUAGE_C=1
   -DPAL=${VERSION_IS_PAL}
   -DDPRINT=${DPRINT}
+  -DFOJO_LOG_DEFAULT=${FOJO_LOG_DEFAULT}
   -DVERSION=${VERSION}
 )
 
