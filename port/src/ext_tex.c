@@ -63,6 +63,13 @@ struct ExtTexture
 	u16 height;
 	char extension[5];
 	s8 ownerMod;
+	// Flat rows only. A png found in a model's directory is also registered
+	// here so a caller with no model context (texWriteLoadToTmemAddr stamps
+	// id 0 outside a model load) can find it; aliasOf is that model's index
+	// in modelTextures, and -1 for a loose <ext_tex>/XXXX.png. It decides two
+	// things: an alias never answers a DIFFERENT model asking by id, and its
+	// path is the model dir's, not the flat one (which named no file).
+	s16 aliasOf;
 };
 
 struct ModelTextures
@@ -366,6 +373,13 @@ u8 extTexExistsOwned(u8 type, s32 owner, u16 id, s32 texnum)
 		return 0;
 	}
 
+	// Another model's png is not this model's texture, even inside one mod:
+	// mod_fojo's CheadMikado_combatZ binds 0daf/0db0/0db1/0db4/0db6 from the
+	// ROM, and CheadFoslerferZ/0daf.png was answering for it - pink head.
+	if (tex->aliasOf >= 0 && id != 0) {
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -626,10 +640,23 @@ u8 getTexPath(char *dst, u8 type, s32 owner, u16 id, s32 texnum)
 				return 1;
 			}
 
-			// Another mod's row is not this mod's texture; see
-			// extTexExistsOwned, which is the test that let us in here.
+			// Another mod's row is not this mod's texture, and another
+			// model's alias is not this model's; see extTexExistsOwned,
+			// which is the test that let us in here.
 			if (tex->ownerMod >= 0 && owner >= 0 && tex->ownerMod != owner) {
 				return 1;
+			}
+
+			if (tex->aliasOf >= 0 && id != 0) {
+				return 1;
+			}
+
+			// An alias row's file lives in the model dir it was scanned from.
+			if (tex->aliasOf >= 0 && tex->aliasOf < numModels) {
+				const struct ModelTextures *m = &modelTextures[tex->aliasOf];
+
+				snprintf(dst, FS_MAXPATH, "%s/%s/%04x.%s", m->basePath, m->modelName, texnum, tex->extension);
+				return 0;
 			}
 
 			char ownerDir[FS_MAXPATH + 1];
@@ -919,6 +946,7 @@ void setTex(struct ExtTexture *texlist, s32 index, s32 texNum, char extension[5]
 	tex->texnum = texNum;
 	strcpy(tex->extension, extension);
 	tex->ownerMod = (s8)g_ExtTexCurrentModIndex;
+	tex->aliasOf = -1;
 }
 
 void setTexDimensions(struct ExtTexture *tex, const char *filepath)
@@ -996,6 +1024,7 @@ void readModelTextures(const char *path, s16 fileNum, s8 ownerMod, s32 *modelOff
 				setTex(extTextures, texNum, texNum, extension);
 				extTextures[texNum].width = modelTex->textures[modelTex->numTextures - 1].width;
 				extTextures[texNum].height = modelTex->textures[modelTex->numTextures - 1].height;
+				extTextures[texNum].aliasOf = (s16)(modelTex - modelTextures);
 				sysLogPrintf(LOG_NOTE, "readModelTextures: also registered texnum=%04x as GENERAL (%dx%d)", texNum,
 					extTextures[texNum].width, extTextures[texNum].height);
 			} else {
@@ -1274,6 +1303,7 @@ s32 extTexInit()
 		extTextures[i].texnum = -1;
 		extTextures[i].texdata = 0;
 		extTextures[i].ownerMod = -1;
+		extTextures[i].aliasOf = -1;
 	}
 
 	for (int i = 0; i < NUM_FONTS; ++i) {
