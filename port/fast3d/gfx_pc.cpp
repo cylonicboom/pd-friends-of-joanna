@@ -2500,11 +2500,13 @@ static void gfx_dp_load_block(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t
 	const uint16_t id_mask = loaded_texture.id_mask;
 	const uint32_t texnum = loaded_texture.texnum;
 
-	if (gfx_external_textures_enabled && extTexExists(type, id, texnum)) {
+	// Owner-aware: a mod-local texnum that another mod ships a png for is
+	// not external for this mod (it was, and rendered as the pink pixel).
+	if (gfx_external_textures_enabled && extTexExistsOwned(type, loaded_texture.owner, id, texnum)) {
 		loaded_texture.ext_key = make_key(1, type, id, texnum, loaded_texture.owner);
 
 		// clear the masked id (font outline) if there is no png for it
-		if (id_mask != 0 && !extTexExists(type, id | id_mask, texnum)) {
+		if (id_mask != 0 && !extTexExistsOwned(type, loaded_texture.owner, id | id_mask, texnum)) {
 			loaded_texture.id_mask = 0;
 		}
 	} else {

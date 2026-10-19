@@ -318,6 +318,57 @@ u8 extTexExists(u8 type, u16 id, s32 texnum)
 	return tex && tex->texnum >= 0;
 }
 
+/**
+ * Does an override exist for this texture, as seen by the mod rendering it?
+ *
+ * The flat GENERAL table is keyed by texnum alone, and texnums are mod-local
+ * now that the slot allocator is gone: mod_fojo's CheadFoslerferZ/0daf.png
+ * registers slot 0daf, and mod_aio_characters' own 0daf.bin is a different
+ * texture that merely shares the number. extTexExists answered yes for both,
+ * so the renderer sent the AIO texture down the png lane, getTexPath found no
+ * AIO model dir for it and fell to the flat row, whose path names a file that
+ * is not there (the row is an alias of a model-dir png, but the flat path
+ * drops the model dir) - and the triangle came out as the 1x1 pink pixel.
+ *
+ * Mirrors getTexPath's GENERAL walk, so yes here means a path there: the
+ * rendering mod's own model dir first, then a flat row only when its owner
+ * is this mod or either side has no owner. Other types are unchanged.
+ */
+u8 extTexExistsOwned(u8 type, s32 owner, u16 id, s32 texnum)
+{
+	if (type != G_TEXTYPE_GENERAL) {
+		return extTexExists(type, id, texnum);
+	}
+
+	if (texnum < 0 || texnum >= MAX_EXT_TEX) {
+		return 0;
+	}
+
+	if (id != 0) {
+		struct ModelTextures *m = findModelEntryOwned(owner, (s16)id);
+
+		if (m) {
+			for (int j = 0; j < m->numTextures; ++j) {
+				if (m->textures[j].texnum == texnum) {
+					return 1;
+				}
+			}
+		}
+	}
+
+	struct ExtTexture *tex = &extTextures[texnum];
+
+	if (tex->texnum < 0) {
+		return 0;
+	}
+
+	if (tex->ownerMod >= 0 && owner >= 0 && tex->ownerMod != owner) {
+		return 0;
+	}
+
+	return 1;
+}
+
 s8 extTexGetOwnerMod(u8 type, u16 id, s32 texnum)
 {
 	struct ExtTexture *tex = getExtTexture(type, id, texnum);
@@ -572,6 +623,12 @@ u8 getTexPath(char *dst, u8 type, s32 owner, u16 id, s32 texnum)
 			// same test - so this is here to keep an unregistered slot an
 			// honest failure rather than a plausible-looking wrong answer.
 			if (tex->texnum < 0) {
+				return 1;
+			}
+
+			// Another mod's row is not this mod's texture; see
+			// extTexExistsOwned, which is the test that let us in here.
+			if (tex->ownerMod >= 0 && owner >= 0 && tex->ownerMod != owner) {
 				return 1;
 			}
 
