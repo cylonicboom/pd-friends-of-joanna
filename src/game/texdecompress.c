@@ -186,7 +186,11 @@ s32 texInflateZlib(u8 *src, u8 *dst, bool hasloddata, s32 numlods, struct texpoo
 		writetocache = true;
 
 		for (i = 0; i < g_TexCacheCount; i++) {
-			if (g_TexCacheItems[i].texturenum == pool->rightpos->texturenum) {
+			if (g_TexCacheItems[i].texturenum == pool->rightpos->texturenum
+#ifndef PLATFORM_N64
+					&& g_TexCacheItems[i].modnum == pool->rightpos->modnum
+#endif
+					) {
 				writetocache = false;
 			}
 		}
@@ -256,6 +260,9 @@ s32 texInflateZlib(u8 *src, u8 *dst, bool hasloddata, s32 numlods, struct texpoo
 
 	if (writetocache) {
 		g_TexCacheItems[g_TexCacheCount].texturenum = pool->rightpos->texturenum;
+#ifndef PLATFORM_N64
+		g_TexCacheItems[g_TexCacheCount].modnum = pool->rightpos->modnum;
+#endif
 
 		g_TexCacheCount++;
 
@@ -719,7 +726,11 @@ s32 texInflateNonZlib(u8 *src, u8 *dst, bool hasloddata, s32 numlods, struct tex
 		writetocache = true;
 
 		for (i = 0; i < g_TexCacheCount; i++) {
-			if (g_TexCacheItems[i].texturenum == pool->rightpos->texturenum) {
+			if (g_TexCacheItems[i].texturenum == pool->rightpos->texturenum
+#ifndef PLATFORM_N64
+					&& g_TexCacheItems[i].modnum == pool->rightpos->modnum
+#endif
+					) {
 				writetocache = false;
 			}
 		}
@@ -833,6 +844,9 @@ s32 texInflateNonZlib(u8 *src, u8 *dst, bool hasloddata, s32 numlods, struct tex
 
 	if (writetocache) {
 		g_TexCacheItems[g_TexCacheCount].texturenum = pool->rightpos->texturenum;
+#ifndef PLATFORM_N64
+		g_TexCacheItems[g_TexCacheCount].modnum = pool->rightpos->modnum;
+#endif
 
 		g_TexCacheCount++;
 

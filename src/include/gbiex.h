@@ -463,6 +463,30 @@
     ((((unsigned int)(w1) >> G_NOOP_TEXSLOT_W1_SHIFT(slot)) & 0xfffu)         \
         | ((((unsigned int)(w0) >> G_NOOP_TEXSLOT_W0_SHIFT(slot)) & 0x7u) << 12))
 
+/* The command's subcmd, w0 bits 2..0: 1 is the two-texture form. */
+#define G_NOOP_SUBCMD(w0) ((unsigned int)(w0) & 0x7u)
+
+/* Read slot `slot` the way a model may have written it.
+ *
+ * Two encodings of an id past 0x0fff exist in a single-texture bind. Ours
+ * keeps bits 12-14 in w0 (above); Jonaeru's all-in-one engine, and so every
+ * model its packs ship, keeps bits 12-15 in w1 (his tex.c reads w1 & 0xffff
+ * unless subcmd is 1). In vanilla those w1 bits are unused for subcmd 0/2
+ * and our writer never sets them, so a bind with w1[12..15] set and w0's
+ * slot-0 high bits clear can only be the all-in-one form, and the id is
+ * w1's low sixteen. A two-texture bind is 12 bits per slot in both engines.
+ *
+ * Every reader of a model's binds goes through this - the texture loader,
+ * the inspector - so an all-in-one hand binding 0x1074 is 0x1074 everywhere
+ * and never vanilla's 0x074. This used to be a fold inside modeldefLoad's
+ * remap pass, which the gun loader did not go through; that hand drew lava. */
+#define G_NOOP_TEXSLOT_READ(w0, w1, slot)                                     \
+    (((slot) == 0 && G_NOOP_SUBCMD(w0) != 1                                   \
+        && ((unsigned int)(w1) & 0xf000u) != 0                                \
+        && (((unsigned int)(w0) >> G_NOOP_TEXSLOT_W0_SHIFT(0)) & 0x7u) == 0)  \
+        ? ((unsigned int)(w1) & 0xffffu)                                       \
+        : G_NOOP_TEXSLOT(w0, w1, slot))
+
 /* The two halves of a write. Each returns the whole updated word, leaving
  * every bit outside its own three or twelve alone, so a caller that needs to
  * rewrite one slot of a command does:

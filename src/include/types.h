@@ -6470,6 +6470,9 @@ struct tex {
 
 struct texcacheitem {
   u16 texturenum;
+#ifndef PLATFORM_N64
+  u8 modnum; // the pool entry's owner, so two mods' LOD sizes at one number are two rows
+#endif
   u8 widths[7];
   u8 heights[7];
 };

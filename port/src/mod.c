@@ -3848,11 +3848,9 @@ s32 modTextureResolveFileDetailed(s32 modNum, s32 modelFileNum, u16 textureId,
 	}
 	if (modNum < 0 || (u32)modNum >= g_NumModDirs) return 0;
 
-	if (textureId >= NUM_TEXTURES) {
-		u16 reverseId = modTexMapReverseLookup(modNum, textureId);
-		if (info) info->reverseLocalId = reverseId;
-		if (reverseId != 0xffff) localId = reverseId;
-	}
+	// A texture id is the model's own number, in its mod's namespace:
+	// '<model>/<id>.bin' first, then '<id>.bin', then the folder-prefix
+	// spelling some packs use. There is no slot to translate back from.
 
 	if (modelFileNum > 0) {
 		const char *modelName = romdataFileGetSlotName(modNum, modelFileNum);
@@ -3874,18 +3872,6 @@ s32 modTextureResolveFileDetailed(s32 modNum, s32 modelFileNum, u16 textureId,
 	if (fileNum <= 0 && prefix) {
 		snprintf(candidate, sizeof(candidate), "%s_%04x.bin", prefix, textureId);
 		fileNum = modTextureResolveTry(modNum, candidate, info);
-	}
-	if (fileNum <= 0 && textureId >= NUM_TEXTURES) {
-		u16 reverseId = modTexMapReverseLookup(modNum, textureId);
-		if (reverseId != 0xffff && reverseId != textureId) {
-			localId = reverseId;
-			snprintf(candidate, sizeof(candidate), "%04x.bin", reverseId);
-			fileNum = modTextureResolveTry(modNum, candidate, info);
-			if (fileNum <= 0 && prefix) {
-				snprintf(candidate, sizeof(candidate), "%s_%04x.bin", prefix, reverseId);
-				fileNum = modTextureResolveTry(modNum, candidate, info);
-			}
-		}
 	}
 
 	if (fileNum > 0) {
@@ -3973,39 +3959,6 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 	s32 fileNum = modTextureResolveFile(modNum, g_TexCurrentModelFileNum, num,
 		&lookup, name, sizeof(name));
 
-	if (modNum == 2 && (g_TexCurrentModelFileNum == 2025 || g_TexCurrentModelFileNum == 2028)) {
-		static u8 s_seen[2][512];
-		u32 slot = (g_TexCurrentModelFileNum == 2025) ? 0 : 1;
-		if (num < 4096) {
-			u32 byte = num >> 3;
-			u32 bit = 1u << (num & 7);
-			if ((s_seen[slot][byte] & bit) == 0) {
-				s_seen[slot][byte] |= bit;
-				sysLogPrintf(LOG_NOTE,
-					"AIO texture trace: modelFile=%d model='%s' port=0x%04x local=0x%04x fileNum=%d query='%s'",
-					g_TexCurrentModelFileNum,
-					modelNameForLog ? modelNameForLog : "(none)",
-					num,
-					lookup,
-					fileNum,
-					name[0] ? name : "(none)");
-			}
-		}
-	}
-
-	// DIAG: probe trace (disabled — re-enable to see which tex IDs are missed)
-	{
-		static u8 s_modTexSeen[64][512]; // 64 mods * 4096 tex / 8
-		if ((u32)modNum < 64 && num < 4096) {
-			u32 byte = num >> 3;
-			u32 bit = 1u << (num & 7);
-			if ((s_modTexSeen[modNum][byte] & bit) == 0) {
-				s_modTexSeen[modNum][byte] |= bit;
-				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PROBE: tex=0x%04x modNum=%d fileNum=0x%x", num, modNum, fileNum); */
-			}
-		}
-	}
-
 	if (fileNum > 0) {
 		DEBUG_MODELS("modTextureLoad: checking texture %04x (file %d) in mod %d", num, fileNum, modNum);
 		u32 size = 0;
@@ -4017,15 +3970,8 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 			// If the data is pointing to the ROM, we can let the game's default DMA handler
 			// take care of it (return 0). This avoids unnecessary memcpy and keeps vanilla behavior.
 			if (data >= g_RomFile && data < g_RomFile + g_RomFileSize) {
-				if (num >= 0x1010 && num <= 0x1023) {
-					/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x ROM-pointer, returning 0 (DMA fallback)", num); */
-				}
 				TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_BASEROM);
 				return 0;
-			}
-
-			if (num >= 0x1010 && num <= 0x1023) {
-				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x size=%u dstSize=%u data=%p", num, size, dstSize, data); */
 			}
 
 			// It's external (or alt-rom) data
@@ -4041,16 +3987,9 @@ s32 modTextureLoad(u16 num, void *dst, u32 dstSize)
 				return 0;
 			}
 		} else {
-			if (num >= 0x1010 && num <= 0x1023) {
-				/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE: tex=0x%04x fileNum=0x%x romdataFileLoad returned NULL", num, fileNum); */
-			}
 			TEXTRACE(TEXTRACE_MODTEX, num, modNum, g_TexCurrentModelFileNum, fileNum, TEXTRACE_LANE_LOADNULL);
 			return 0;
 		}
-	}
-
-	if (num >= 0x1010 && num <= 0x1023) {
-		/* sysLogPrintf(LOG_NOTE, "modTextureLoad PORTRANGE MISS: tex=0x%04x no fileNum found", num); */
 	}
 
 	// Fallback to a loose file on disk under the active mod's textures dir.

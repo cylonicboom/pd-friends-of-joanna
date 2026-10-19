@@ -311,96 +311,33 @@ static const struct romfilepatchdecl *filePatchFind(s32 modNum, s32 fileNum)
 	return NULL;
 }
 
-struct modTexMapEntry {
-	u16 localTexId;
-	u16 portTexId;
-};
-
-struct modTexMap {
-	u32 count;
-	struct modTexMapEntry *entries;  // sorted ascending by localTexId
-};
-
-// Per-mod texmap allocations use mod-LOCAL slot indices in the fragment.
-// The engine adds this running base to each stored portTexId at parse time
-// so port IDs are globally unique without any cross-mod build-time coordination.
+// The texture slot allocator used to live here: each mod's PDFT v3 romTexMap
+// handed out a window of global "port" ids from a running base, and
+// modeldefLoad rewrote a model's binds into that window at load. The pool
+// is keyed (texturenum, owner) and the EXT packet carries the owner, so a
+// mod's texture ids stay mod-local now and nothing allocates. The v3 block
+// is skipped on read; the writer stops emitting it.
 //
-// The base is 4096 because that is one past the largest id a 12-bit texture
-// slot could encode, not because it is a round number. Every id a mod authored
-// under the old format is therefore below it and every id the loader assigns is
-// at or above it, which makes "authored" and "assigned" tell themselves apart by
-// value alone. That distinction is load-bearing: modTextureResolve() in mod.c
-// treats any id >= NUM_TEXTURES as possibly-a-port and runs it through
-// modTexMapReverseLookup, so while a mod's own local ids could share the
-// 3503..4095 range with some mod's port window, a local id could be
-// reinterpreted as a port and resolve to the wrong texture. That was not
-// hypothetical - mod_aio_characters names local ids up to 0x0ffd, and all 90 of
-// its texmap entries sit in that window. It was kept apart only by where each
-// mod's window happened to land, and widening the slots moves the windows.
-//
-// It also still clears vanilla: JPN has 3511 textures, the most of any PD ROM
-// variant, so anything below 3512 would collide with vanilla texids appearing
-// in JPN-sourced models.
-#define MOD_TEX_PORT_BASE 4096u
-// The ceiling is not a policy this file chooses, it is whatever a texture slot
-// inside a G_NOOP display-list command can name. That used to be 12 bits, and
-// 4095 minus the base left 496 slots for every mod on disk put together, which
-// the shipped set already overran. A slot is now 15 bits - see gbiex.h for
-// where the extra three come from - so take the number from there rather than
-// restating it and letting the two drift.
-#define MOD_TEX_PORT_MAX  G_NOOP_TEXSLOT_MAX
-static u32 g_NextGlobalTexPort = MOD_TEX_PORT_BASE;
-
-static struct modTexMap g_ModTexMap[MOD_TEX_MAP_MAX_MODS];
-
-// Look up portTexId for a given (modIdx, localTexId). Returns
-// localTexId unchanged if the mod has no map or the id is absent.
+// These remain for the two callers that still ask (asset.c's port/ drive
+// and the overlay's "port" column) and answer "unmapped" for everything.
 u16 modTexMapLookup(s32 modIdx, u16 localTexId)
 {
-	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return localTexId;
-	const struct modTexMap *m = &g_ModTexMap[modIdx];
-	if (!m->count || !m->entries) return localTexId;
-	// binary search
-	s32 lo = 0;
-	s32 hi = (s32)m->count - 1;
-	while (lo <= hi) {
-		s32 mid = (lo + hi) >> 1;
-		u16 k = m->entries[mid].localTexId;
-		if (k == localTexId) return m->entries[mid].portTexId;
-		if (k < localTexId) lo = mid + 1;
-		else hi = mid - 1;
-	}
 	return localTexId;
 }
 
-// Reverse lookup: portTexId -> localTexId. Linear scan since portTex space
-// is not sorted. Returns 0xffff if not found.
 u16 modTexMapReverseLookup(s32 modIdx, u16 portTexId)
 {
-	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0xffff;
-	const struct modTexMap *m = &g_ModTexMap[modIdx];
-	if (!m->count || !m->entries) return 0xffff;
-	for (u32 i = 0; i < m->count; i++) {
-		if (m->entries[i].portTexId == portTexId) return m->entries[i].localTexId;
-	}
 	return 0xffff;
 }
 
 s32 modTexMapGetCount(s32 modIdx)
 {
-	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0;
-	return (s32)g_ModTexMap[modIdx].count;
+	return 0;
 }
 
-// Entry i of a mod's texmap as (localTexId, portTexId). 0 when out of range.
 s32 modTexMapGetEntry(s32 modIdx, s32 index, u16 *localTexId, u16 *portTexId)
 {
-	if (modIdx < 0 || modIdx >= MOD_TEX_MAP_MAX_MODS) return 0;
-	const struct modTexMap *m = &g_ModTexMap[modIdx];
-	if (!m->entries || index < 0 || index >= (s32)m->count) return 0;
-	if (localTexId) *localTexId = m->entries[index].localTexId;
-	if (portTexId) *portTexId = m->entries[index].portTexId;
-	return 1;
+	return 0;
 }
 
 // The name a PDFT entry DECLARED for (mod, id), off the name pool, or NULL
@@ -1379,6 +1316,8 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 	}
 
 	if (version >= 3) {
+		// A v3 fragment carries a romTexMap: the slot allocation this loader
+		// no longer performs. Read past it so a v3 file still mounts.
 		if (p + 4 > dataEnd) {
 			sysLogPrintf(LOG_ERROR, "PDFT v3 romTexMap header truncated (mod=%d)", ownerModIdx);
 			return 1;
@@ -1389,75 +1328,12 @@ static s32 romdataParseFileTable(u8 *data, u32 size, s32 ownerModIdx)
 			             numTexMap, ownerModIdx);
 			return 1;
 		}
-
-		if (isGlobal) {
-			p += (size_t)numTexMap * 4;
-			sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (global, ignored)", numTexMap);
-			PDFT("texmap table=global mod=%d entries=%u action=ignored", ownerModIdx, numTexMap);
-			return 1;
-		}
-
-		struct modTexMap *m = &g_ModTexMap[ownerModIdx];
-		u32 modBase = g_NextGlobalTexPort;
-		if (m->entries) {
-			sysMemFree(m->entries);
-			m->entries = NULL;
-			m->count = 0;
-		}
+		p += (size_t)numTexMap * 4;
 		if (numTexMap > 0) {
-			m->entries = sysMemAlloc(sizeof(struct modTexMapEntry) * numTexMap);
-			if (!m->entries) {
-				sysLogPrintf(LOG_ERROR, "Failed to allocate romTexMap (%u entries, mod=%d)",
-				             numTexMap, ownerModIdx);
-				return 1;
-			}
-			u32 maxSlot = 0;
-			for (u32 i = 0; i < numTexMap; ++i) {
-				u16 localId = PD_BE16(*(u16*)p); p += 2;
-				u16 slotIdx = PD_BE16(*(u16*)p); p += 2;
-				m->entries[i].localTexId = localId;
-				m->entries[i].portTexId  = (u16)(modBase + slotIdx);
-				if (slotIdx > maxSlot) {
-					maxSlot = slotIdx;
-				}
-			}
-
-			// The next mod has to start above the highest port this one
-			// actually used, which is not the same as the number of entries it
-			// carried. A fragment whose slots have holes maps above its own
-			// count, so advancing by the count hands the next mod ports this
-			// one is already answering to. mkfiletable emits dense slots; a
-			// fragment built by anything else may not.
-			g_NextGlobalTexPort = modBase + maxSlot + 1;
-
-			if (maxSlot + 1 > numTexMap) {
-				sysLogPrintf(LOG_WARNING,
-				             "PDFT v3 romTexMap: mod %d has %u entries but uses slots up to %u; "
-				             "%u port(s) are reserved and unused",
-				             ownerModIdx, numTexMap, maxSlot, maxSlot + 1 - numTexMap);
-			}
-
-			if (modBase + maxSlot > MOD_TEX_PORT_MAX) {
-				sysLogPrintf(LOG_ERROR,
-				             "PDFT v3 romTexMap: mod %d maps to port %u, past the %u a texnum can name; "
-				             "its textures above that will not draw",
-				             ownerModIdx, modBase + maxSlot, MOD_TEX_PORT_MAX);
-			}
-			m->count = numTexMap;
-			for (u32 i = 1; i < m->count; ++i) {
-				struct modTexMapEntry e = m->entries[i];
-				s32 j = (s32)i - 1;
-				while (j >= 0 && m->entries[j].localTexId > e.localTexId) {
-					m->entries[j + 1] = m->entries[j];
-					--j;
-				}
-				m->entries[j + 1] = e;
-			}
+			sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (mod=%d) skipped; texture ids stay mod-local",
+			             numTexMap, ownerModIdx);
 		}
-
-		sysLogPrintf(LOG_NOTE, "PDFT v3 romTexMap: %u entries (mod=%d)", numTexMap, ownerModIdx);
-		PDFT("texmap table=fragment mod=%d entries=%u portBase=0x%04x nextPort=0x%04x",
-		     ownerModIdx, numTexMap, modBase, g_NextGlobalTexPort);
+		PDFT("texmap table=%s mod=%d entries=%u action=skipped", isGlobal ? "global" : "fragment", ownerModIdx, numTexMap);
 	}
 
 	return 1;

@@ -308,7 +308,11 @@ s32 texGetWidthAtLod(struct tex *tex, s32 lod)
 
 	if (tex->hasloddata) {
 		for (i = 0; i < g_TexCacheCount; i++) {
-			if (tex->texturenum == g_TexCacheItems[i].texturenum) {
+			if (tex->texturenum == g_TexCacheItems[i].texturenum
+#ifndef PLATFORM_N64
+					&& tex->modnum == g_TexCacheItems[i].modnum
+#endif
+					) {
 				return g_TexCacheItems[i].widths[lod - 1];
 			}
 		}
@@ -334,7 +338,11 @@ s32 texGetHeightAtLod(struct tex *tex, s32 lod)
 
 	if (tex->hasloddata) {
 		for (i = 0; i < g_TexCacheCount; i++) {
-			if (tex->texturenum == g_TexCacheItems[i].texturenum) {
+			if (tex->texturenum == g_TexCacheItems[i].texturenum
+#ifndef PLATFORM_N64
+					&& tex->modnum == g_TexCacheItems[i].modnum
+#endif
+					) {
 				return g_TexCacheItems[i].heights[lod - 1];
 			}
 		}
@@ -867,7 +875,7 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 				spe8 = true;
 			}
 
-			texturenum = G_NOOP_TEXSLOT(ingdl->words.w0, ingdl->words.w1, 0);
+			texturenum = G_NOOP_TEXSLOT_READ(ingdl->words.w0, ingdl->words.w1, 0);
 			flag = ingdl->words.w0 & 0x200;
 
 			texLoadFromTextureNum(texturenum, pool);
@@ -938,7 +946,7 @@ s32 texLoadFromGdl(Gfx *instart, s32 gdlsizeinbytes, Gfx *outstart, struct texpo
 					outgdl = texHandleType0(outgdl, tex1, smode, tmode, offset, shifts, shiftt, min, flag);
 					break;
 				case 1:
-					texturenum2 = G_NOOP_TEXSLOT(ingdl->words.w0, ingdl->words.w1, 1);
+					texturenum2 = G_NOOP_TEXSLOT_READ(ingdl->words.w0, ingdl->words.w1, 1);
 					texLoadFromTextureNum(texturenum2, pool);
 					tex2 = texFindInPool(texturenum2, pool);
 
