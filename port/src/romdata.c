@@ -611,15 +611,19 @@ static const struct romfilepatch filePatches[] = {
 // what makes the loops correct.
 static struct romfile fileSlots[MOD_TEX_MAP_MAX_MODS][ROMDATA_MAX_FILES];
 void fileSlotsInit(u32 numMods) {
+	// filePatches is the FILE_USETUPLUE fix and nothing else, so only that
+	// slot gets it - upstream keys the table the same way. Handing the list
+	// to every file id probed byte 0x92a2 of every ROM-served lang bank, setup,
+	// model and tile file, and read off the end of anything shorter than that;
+	// the langro block made the over-read a page fault on windows (#455).
+	//
 	// `i < numMods - 1` skipped the last mod row, and with the shipped default
 	// of one mod dir the bound was 0, so no row was given the patch list at
 	// all. numMods is unsigned, so the old form also wrapped to ~4 billion
 	// iterations over a 64-row array if it were ever called with zero.
 	for (s32 i = 0; i < (s32)numMods; ++i) {
-		for (s32 j = 0; j < ROMDATA_MAX_FILES; ++j) {
-				fileSlots[i][j].patches = filePatches;
-				fileSlots[i][j].numpatches = 2;
-		}
+		fileSlots[i][FILE_USETUPLUE].patches = filePatches;
+		fileSlots[i][FILE_USETUPLUE].numpatches = ARRAYCOUNT(filePatches);
 	}
 }
 
@@ -3132,6 +3136,11 @@ void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *o
 			// apply patches
 			for (u32 i = 0; i < fileSlots[modNum][fileNum].numpatches; ++i) {
 				const struct romfilepatch *p = &fileSlots[modNum][fileNum].patches[i];
+				if (p->ofs + p->len > size) {
+					// a patch written for one file against the bytes of
+					// another (shorter) one; never read past what was loaded
+					continue;
+				}
 				if (!memcmp(data + p->ofs, p->src, p->len)) {
 					memcpy(data + p->ofs, p->dst, p->len);
 					sysLogPrintf(LOG_NOTE, "file %d (%s) patched at offset 0x%x", fileNum, fileSlots[modNum][fileNum].name, p->ofs);
