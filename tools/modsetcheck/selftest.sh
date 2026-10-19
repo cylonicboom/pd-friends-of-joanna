@@ -103,8 +103,19 @@ ver=$(od -An -tx1 -j4 -N4 "$mod/filetable.dat" | tr -s ' ' | sed 's/^ //;s/ $//'
 echo "selftest: filetable.dat version bytes are $ver"
 [ "$ver" = "00 00 00 04" ] || { echo "selftest: expected version 4, got bytes $ver"; exit 1; }
 
+# No texmap beside the manifest any more: the slot partition it fed is gone
+# from the engine, and a tool that kept writing one would be the last thing
+# still saying slots.
+[ ! -e "$work/mod_selftest_texmap.json" ] || { echo "selftest: mkfiletable still writes a texmap"; exit 1; }
+
 echo "selftest: checking it back"
-"$modsetcheck" "$mod"
+"$modsetcheck" "$mod" > "$work/check1.out" 2>&1 || true
+cat "$work/check1.out"
+
+# The two flat spellings above both answer id 00af, and the loader tries the
+# bare one first - the prefixed file is the one that can never be asked for.
+grep -q "'00af.bin' shadows 'selftest_00af.bin'" "$work/check1.out" \
+	|| { echo "selftest: the texture-name shadow was not reported"; exit 1; }
 
 # --- stages ------------------------------------------------------------------
 # A second mod whose modconfig declares stages every way a stage can be

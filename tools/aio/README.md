@@ -19,9 +19,11 @@ That writes, under `basedir/data/mods/`:
 | `mod_aio_goldfinger`  | `mod_goldfinger_64`'s                                          |
 
 Each mod gets `files/`, `textures/` (and `sequences/`) filled from the drop —
-**byte-identical, same relative paths, gitignored** — plus the four tracked
-metadata files: `modconfig.txt`, `<mod>_filetable.json`, `<mod>_texmap.json`,
-`filetable.dat`. The fojo names (`Carmourguard_aio_charactersZ`,
+**byte-identical, same relative paths, gitignored** — plus the three tracked
+metadata files: `modconfig.txt`, `<mod>_filetable.json`, `filetable.dat`.
+(There used to be a `<mod>_texmap.json` too, mapping texture ids to slots in
+a global partition; the engine retired the partition and texture ids stay
+the mod's own.) The fojo names (`Carmourguard_aio_charactersZ`,
 `Cheadcaseydark_aio_charactersZ/0246.bin`) live only in the manifest and the
 PDFT, which carry name and path apart; `slugmod --keep-paths` writes them
 without renaming anything on disk. So the tracked metadata is an overlay: a

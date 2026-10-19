@@ -3,9 +3,11 @@
 
 Decodes a real filetable.dat the way port/src/romdata.c reads it, hands the
 decoded contents to the C encoder, and requires the result to be byte-identical
-to the file it started from. Every shipped mod fragment is a golden file, so
-this is parity with whatever produced them - today `pdt build-mod-filetable` -
-without needing that tool present or runnable.
+to the file it started from - less the v3 romTexMap block, which the encoder
+no longer writes (the engine retired the texture slot partition; a table that
+only had a texmap to earn v3 comes back as v2). Every shipped mod fragment is
+a golden file, so this is parity with whatever produced them without needing
+that tool present or runnable.
 
     cc -O2 -Wall -o /tmp/pdft_reencode pdft_reencode.c pdft_write.c
     python3 pdft_test.py /tmp/pdft_reencode ../../../pd-fojo-basedir/data/mods/mod_*/filetable.dat
@@ -109,6 +111,7 @@ def decode(data):
                           name=name, path=path, alt=alt, alias=alias, patch=patch))
 
     texmap = []
+    texmap_at = r.p
     if version >= 3:
         count = r.u32()
         for _ in range(count):
@@ -116,7 +119,26 @@ def decode(data):
 
     trailing = len(data) - r.p
     return dict(version=version, sources=sources, files=files, texmap=texmap,
-                trailing=trailing)
+                texmap_at=texmap_at, trailing=trailing)
+
+
+def expected_bytes(data, t):
+    """What the encoder now writes for this table: the same bytes with the
+    v3 romTexMap block emptied, and the version re-chosen by content, since a
+    texmap no longer earns v3. The engine retired the slot partition the block
+    fed; texture ids stay mod-local."""
+    if any(f['patch'] for f in t['files']) or any(s['patched'] for s in t['sources']):
+        version = 5
+    elif any(f['alias'] for f in t['files']):
+        version = 4
+    elif t['sources'] or any(f['alt'] for f in t['files']):
+        version = 2
+    else:
+        version = 1
+    out = data[:4] + struct.pack('>I', version) + data[8:t['texmap_at']]
+    if version >= 3:
+        out += struct.pack('>I', 0)
+    return out, version
 
 
 def hx(s):
@@ -142,8 +164,6 @@ def to_spec(t):
             1 if f['flags'] & 8 else 0)
             + (" %s" % hx(f['alias']) if (f['alias'] or f['patch']) else "")
             + (" %s" % hx(f['patch']) if f['patch'] else ""))
-    for local, slot in t['texmap']:
-        out.append("T %u %u" % (local, slot))
     return "\n".join(out) + "\n"
 
 
@@ -157,6 +177,11 @@ def check(path, harness, tmp):
     notes = []
     if t['trailing']:
         notes.append(f"{t['trailing']} trailing bytes ignored")
+    expected, version = expected_bytes(original, t)
+    if t['texmap']:
+        notes.append(f"{len(t['texmap'])}-entry texmap block dropped")
+    if version != t['version']:
+        notes.append(f"v{t['version']} -> v{version}")
 
     spec = os.path.join(tmp, 'spec.txt')
     out = os.path.join(tmp, 'out.dat')
@@ -166,13 +191,13 @@ def check(path, harness, tmp):
         return "encoder refused it: " + (r.stderr.strip() or "no reason given")
 
     got = open(out, 'rb').read()
-    if got == original:
+    if got == expected:
         return None if not notes else "OK, but " + "; ".join(notes)
 
-    if len(got) != len(original):
-        return f"length {len(got)} vs {len(original)}"
-    at = next(i for i in range(len(got)) if got[i] != original[i])
-    return (f"differs at byte {at}: wrote {got[at]:#04x}, file has {original[at]:#04x}"
+    if len(got) != len(expected):
+        return f"length {len(got)} vs {len(expected)} expected"
+    at = next(i for i in range(len(got)) if got[i] != expected[i])
+    return (f"differs at byte {at}: wrote {got[at]:#04x}, expected {expected[at]:#04x}"
             + (" (" + "; ".join(notes) + ")" if notes else ""))
 
 

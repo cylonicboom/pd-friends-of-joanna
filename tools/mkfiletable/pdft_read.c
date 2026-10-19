@@ -188,21 +188,18 @@ bool pdftRead(const uint8_t *buf, uint32_t len, struct pdftTable *out, char *err
 	}
 
 	if (out->version >= 3) {
-		out->numTexMap = rd32(&r);
+		out->numTexMapSkipped = rd32(&r);
 
-		if (!r.bad && out->numTexMap > PDFT_MAX_FILES) {
-			snprintf(err, errLen, "%u texmap entries is not plausible", out->numTexMap);
+		if (!r.bad && out->numTexMapSkipped > PDFT_MAX_FILES) {
+			snprintf(err, errLen, "%u texmap entries is not plausible", out->numTexMapSkipped);
 			pdftFree(out);
 			return false;
 		}
 
-		if (!r.bad) {
-			out->texmap = calloc(out->numTexMap ? out->numTexMap : 1, sizeof(*out->texmap));
-
-			for (i = 0; i < out->numTexMap; ++i) {
-				out->texmap[i].localTexId = rd16(&r);
-				out->texmap[i].slotIdx = rd16(&r);
-			}
+		/* Two u16 per entry, read past: romdata.c does the same. */
+		for (i = 0; i < out->numTexMapSkipped && !r.bad; ++i) {
+			rd16(&r);
+			rd16(&r);
 		}
 	}
 
@@ -220,6 +217,5 @@ void pdftFree(struct pdftTable *t)
 {
 	free(t->sources);
 	free(t->files);
-	free(t->texmap);
 	memset(t, 0, sizeof(*t));
 }

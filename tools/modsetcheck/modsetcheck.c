@@ -3,28 +3,32 @@
  *
  *   modsetcheck <mod-dir> [<mod-dir> ...]
  *
- * The dirs go in the order they would be mounted, because order decides both
- * texture slot allocation and who wins a repeated name.
+ * The dirs go in the order they would be mounted, because order decides who
+ * wins a repeated name.
  *
  * WHY THIS EXISTS. A mod author sees their own mod; the person assembling a
  * distribution sees the combination, and is therefore the only one who CAN
  * catch the things below. Every other tool here takes one mod: mkfiletable
  * takes one --workspace, and every pdt subcommand is single-mod too. Until
- * this, the only whole-set check was booting the game and reading the log,
- * which is literally how the texture slot overflow was found.
+ * this, the only whole-set check was booting the game and reading the log.
  *
  * WHAT IT DOES NOT CHECK, deliberately. Two mods using the same local texture
- * id, or the same file id, is NOT a collision and never was: a mod's bytes
- * carry local ids and the loader remaps them per mod through
- * modTexMapLookup(modIdx, localTexId), while file ids carry their owner in the
- * high 16 bits. Addressing is solved by design. Do not add a check for it.
+ * id, or the same file id, is NOT a collision and never was: a texture id is
+ * the model's own number in its mod's namespace and travels with its owner
+ * (the EXT packet carries the mod, the loaders push a scope), while file ids
+ * carry their owner in the high 16 bits. Addressing is solved by design. Do
+ * not add a check for it. There used to be a shared texture-slot budget here,
+ * walked the way the loader allocated it; the loader no longer allocates, so
+ * there is no budget to walk.
  *
- * What is not solved is NAMES - heads, bodies, stages and ROM source ids are
- * matched by string with no owner column, so a repeat is a silent replace -
- * and BUDGET, the one shared texture slot pool, which no amount of coordination
- * between authors can fix because it depends on what else is loaded.
+ * What is not solved is NAMES. Across mods: heads, bodies, stages and ROM
+ * source ids are matched by string with no owner column, so a repeat is a
+ * silent replace. Within one mod: a texture is found by NAME from its id
+ * ('<model>/<id>.bin', then '<id>.bin', then '<prefix>_<id>.bin', in that
+ * order - port/src/mod.c modTextureResolveFileDetailed), so two files that
+ * answer the same question are a shadow nobody asked for.
  *
- * STAGES are the second budget. A stage block either names the row it wants
+ * STAGES are a budget. A stage block either names the row it wants
  * (`stage 0x26`, `stage "STAGE_28"`) or gives the level its own name
  * (`stage "gex_arec"`) and lets the loader find it a STAGE_EXTRA row, recorded
  * in pd.ini under [MpStageSlots]. This tool resolves all three spellings the
@@ -33,9 +37,6 @@
  * one, and - with --ini - reads what the last boot actually allocated.
  * --stage-table writes the whole picture out as JSON, generated from the
  * packs rather than typed.
- *
- * NOTE ON A WORD: the code calls a slot a texture "port" (MOD_TEX_PORT_BASE,
- * g_NextGlobalTexPort). This tool says SLOT, and its output says slot.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,21 +48,6 @@
 /* Room for PATHMAX plus the longest name joined onto it, so a composed path is
  * never silently shortened into a file that exists. */
 #define JOINMAX (PATHMAX + 64)
-
-/* MOD_TEX_PORT_BASE in romdata.c, and the width a texture slot has inside a
- * G_NOOP display-list command, which is where the ceiling actually comes from.
- * Taken from gbiex.h rather than restated, so this tool cannot tell a mod
- * author the set fits when the engine will disagree. That width was 12 bits,
- * with a base of 3600, leaving 496 slots above it for every mod on disk
- * together; it is now 15 bits based at 4096, for 28672.
- *
- * 4096 is one past the largest id a 12-bit slot could encode, so it is the
- * line between an id a mod authored and an id the loader assigned. See the
- * comment on MOD_TEX_PORT_BASE for why that line has to exist. */
-#include "../../src/include/gbiex.h"
-
-#define DEFAULT_SLOT_BASE 4096u
-#define DEFAULT_SLOT_MAX  G_NOOP_TEXSLOT_MAX
 
 /* romdata.c:180. The table is global across every mounted mod, not per mod. */
 #define ROMSOURCES_MAX 8
@@ -257,10 +243,6 @@ struct mod {
 	struct stageblock *blocks;
 	uint32_t numBlocks, capBlocks;
 
-	/* worked out */
-	uint32_t slotBase;
-	uint32_t slotMax;     /* highest slot index the fragment uses */
-	bool hasSlots;
 };
 
 static void pushClaim(struct claim **arr, uint32_t *n, uint32_t *cap, const char *name, int line)
@@ -644,168 +626,163 @@ static void readFileTable(struct mod *m)
 /* -- the checks ------------------------------------------------------------ */
 
 /**
- * Every texmap slot index a mod uses, checked the way the reader treats them.
+ * The texture lookup names, checked the way the loader asks them.
  *
- * Two entries on one slot are two different things and this used to call them
- * both aliasing. If the local ids DIFFER, two textures answer to one slot and
- * one draws for both - a real fault in the mod. If the local id is the SAME,
- * the row is simply written twice: modTexMapLookup() finds the same answer
- * either way and nothing draws wrong. Only the first is an error.
+ * mod.c resolves a texture id to a file by name, in order: '<model>/<id>.bin'
+ * for the model being loaded, then '<id>.bin', then '<prefix>_<id>.bin' where
+ * the prefix is the mod's own. The first that exists wins, so inside one mod:
  *
- * The distinction is not academic. mod_gex_characters carries 184 repeated
- * rows over 92 slots, every one of them the same id twice and not one a real
- * collision, and calling that an ERROR meant the shipped roster failed its own
- * whole-set check for a non-reason - which is the fastest way to teach
- * everyone to ignore the tool.
+ *  - the same name twice is two files for one question, and which the loader
+ *    gets depends on table order nobody chose - an ERROR;
+ *  - '<id>.bin' beside '<prefix>_<id>.bin' is a shadow: the prefixed file can
+ *    never be asked for, because the flat spelling is tried first and is
+ *    there - a WARNING, since the bytes may well be the same;
+ *  - '<model>/<id>.bin' beside a flat '<id>.bin' is fine and common: the
+ *    model-scoped file answers for that model, the flat one for everyone
+ *    else, which is what model scoping is for.
  *
- * Repeated rows are still worth saying, because pdftWrite() refuses any slot
- * used twice whatever the ids are, so a table carrying them cannot be rebuilt
- * by mkfiletable without collapsing them first.
- *
- * A hole reserves a slot nobody uses, because the reader advances the next
- * mod's base by maxSlot + 1 and not by the entry count (romdata.c:909).
+ * Only names in the shape the loader would form are looked at; a texture
+ * registered under some other spelling is not reachable by id and is not
+ * this check's business.
  */
-static void checkTexMap(struct mod *m)
-{
-	uint32_t i, maxSlot = 0, distinct = 0;
-	uint32_t repeatRows = 0, repeatSlots = 0;
-	uint32_t aliasRows = 0, aliasSlots = 0;
-	uint32_t firstAliasSlot = 0;
-	bool haveAliasSlot = false;
-	uint8_t *seen;
-	uint16_t *firstId;
+struct texname {
+	char key[160];        /* 'model/id' or 'id' - what the loader would ask */
+	uint16_t id;
+	bool prefixed;        /* the '<prefix>_<id>.bin' spelling */
+	const char *name;     /* the entry as written */
+};
 
-	if (!m->haveFt || !m->ft.numTexMap) {
+static const char *texBaseName(const char *name)
+{
+	const char *p = strstr(name, "::");
+
+	p = p ? p + 2 : name;
+
+	if (!strncmp(p, "files/", 6)) {
+		p += 6;
+	}
+
+	return p;
+}
+
+/* '<something>XXXX.bin' where XXXX is exactly four hex digits ending the stem. */
+static bool texIdOf(const char *stem, uint16_t *id)
+{
+	size_t n = strlen(stem);
+	unsigned v;
+
+	if (n < 8 || strcmp(stem + n - 4, ".bin")) {
+		return false;
+	}
+
+	if (sscanf(stem + n - 8, "%4x", &v) != 1) {
+		return false;
+	}
+
+	if (n > 8) {
+		char c = stem[n - 9];
+
+		/* the four digits have to be the whole id: 'a0daf.bin' is not 0daf */
+		if (c != '/' && c != '_') {
+			return false;
+		}
+	}
+
+	*id = (uint16_t)v;
+	return true;
+}
+
+static int cmpTexName(const void *a, const void *b)
+{
+	const struct texname *x = a, *y = b;
+	int c = strcmp(x->key, y->key);
+
+	return c ? c : (int)x->prefixed - (int)y->prefixed;
+}
+
+static void checkTextureNames(struct mod *m)
+{
+	struct texname *names;
+	uint32_t i, n = 0, dupes = 0, shadows = 0;
+
+	if (!m->haveFt || !m->ft.numFiles) {
 		return;
 	}
 
-	for (i = 0; i < m->ft.numTexMap; ++i) {
-		if (m->ft.texmap[i].slotIdx > maxSlot) {
-			maxSlot = m->ft.texmap[i].slotIdx;
-		}
+	names = calloc(m->ft.numFiles, sizeof(*names));
+
+	if (!names) {
+		die("out of memory checking texture names");
 	}
 
-	seen = calloc((size_t)maxSlot + 1, 1);
-	firstId = calloc((size_t)maxSlot + 1, sizeof(*firstId));
+	for (i = 0; i < m->ft.numFiles; ++i) {
+		const char *raw = m->ft.files[i].name;
+		const char *base;
+		const char *slash;
+		uint16_t id;
 
-	if (!seen || !firstId) {
-		die("out of memory checking %s", m->label);
-	}
-
-	for (i = 0; i < m->ft.numTexMap; ++i) {
-		uint32_t s = m->ft.texmap[i].slotIdx;
-		uint16_t id = m->ft.texmap[i].localTexId;
-
-		if (!seen[s]) {
-			++distinct;
-			firstId[s] = id;
-		} else if (id == firstId[s]) {
-			++repeatRows;
-
-			if (seen[s] == 1) {
-				++repeatSlots;
-			}
-		} else {
-			++aliasRows;
-
-			if (seen[s] == 1) {
-				++aliasSlots;
-			}
-
-			if (!haveAliasSlot) {
-				firstAliasSlot = s;
-				haveAliasSlot = true;
-			}
-		}
-
-		if (seen[s] < 255) {
-			++seen[s];
-		}
-	}
-
-	m->slotMax = maxSlot;
-	m->hasSlots = true;
-
-	if (aliasRows) {
-		finding(LVL_ERROR, "%s: %u texmap entr%s put a DIFFERENT local id on a slot "
-				"another already uses, over %u slot(s), first at slot %u. One texture "
-				"draws for both and the mod is wrong, not just redundant",
-				m->label, aliasRows, aliasRows == 1 ? "y" : "ies", aliasSlots,
-				firstAliasSlot);
-	}
-
-	if (repeatRows) {
-		finding(LVL_WARN, "%s: %u texmap row(s) repeat a mapping already made, over %u "
-				"slot(s) - %u distinct slots for %u rows. Harmless to draw, because the "
-				"id maps to the same slot either way, but pdftWrite() refuses any slot "
-				"used twice, so this table cannot be rebuilt by mkfiletable until they "
-				"are collapsed",
-				m->label, repeatRows, repeatSlots, distinct, m->ft.numTexMap);
-	}
-
-	if (maxSlot + 1 > m->ft.numTexMap) {
-		finding(LVL_WARN, "%s: %u texmap entries but slots run up to %u, so %u slot(s) are "
-				"reserved and unused. The next mod starts above the highest slot used, "
-				"not above the count",
-				m->label, m->ft.numTexMap, maxSlot, maxSlot + 1 - m->ft.numTexMap);
-	}
-
-	free(seen);
-	free(firstId);
-}
-
-/**
- * The shared slot pool, walked exactly as romdataLoadModFileTable does: each
- * mod's base is the running cursor, its slots map to base + slotIdx, and the
- * cursor then moves to base + maxSlot + 1.
- */
-static void checkSlotBudget(struct mod *mods, int n, uint32_t base, uint32_t cap)
-{
-	uint32_t cursor = base;
-	uint32_t total = 0;
-	int i;
-
-	printf("\ntexture slots, in mount order (base %u, ceiling %u, %u available)\n",
-			base, cap, cap - base + 1);
-
-	for (i = 0; i < n; ++i) {
-		struct mod *m = &mods[i];
-		uint32_t last;
-
-		if (!m->hasSlots) {
-			printf("  %-24s no textures\n", m->label);
+		if (!raw) {
 			continue;
 		}
 
-		m->slotBase = cursor;
-		last = cursor + m->slotMax;
-		total += m->slotMax + 1;
+		base = texBaseName(raw);
 
-		printf("  %-24s %5u..%-5u  %5u slot(s)%s\n", m->label, cursor, last,
-				m->slotMax + 1, last > cap ? "   PAST THE CEILING" : "");
-
-		if (last > cap) {
-			if (cursor > cap) {
-				finding(LVL_ERROR, "%s: every one of its slots is past %u, so none of its "
-						"textures can draw. It is not first over the line - something "
-						"before it already filled the pool", m->label, cap);
-			} else {
-				finding(LVL_ERROR, "%s: crosses the ceiling at slot %u; its last %u "
-						"texture(s) cannot draw", m->label, cap,
-						last - cap);
-			}
+		if (!texIdOf(base, &id)) {
+			continue;
 		}
 
-		cursor = last + 1;
+		slash = strrchr(base, '/');
+
+		if (slash) {
+			/* '<model>/XXXX.bin' only; a deeper path is not a lookup form */
+			if (strchr(base, '/') != slash || slash[1 + 4] != '.') {
+				continue;
+			}
+
+			snprintf(names[n].key, sizeof(names[n].key), "%.*s/%04x", (int)(slash - base), base, id);
+			names[n].prefixed = false;
+		} else {
+			snprintf(names[n].key, sizeof(names[n].key), "%04x", id);
+			names[n].prefixed = strlen(base) > 8;   /* 'XXXX.bin' is 8 */
+		}
+
+		names[n].id = id;
+		names[n].name = raw;
+		++n;
 	}
 
-	printf("  %-24s %20u total demanded, %u available\n", "", total, cap - base + 1);
+	qsort(names, n, sizeof(*names), cmpTexName);
 
-	if (total > cap - base + 1) {
-		finding(LVL_ERROR, "the set demands %u slots and there are %u. This is not an "
-				"ordering problem - reordering only chooses which mod loses",
-				total, cap - base + 1);
+	for (i = 1; i < n; ++i) {
+		if (strcmp(names[i].key, names[i - 1].key)) {
+			continue;
+		}
+
+		if (names[i].prefixed == names[i - 1].prefixed) {
+			if (dupes < 5) {
+				finding(LVL_ERROR, "%s: '%s' and '%s' both answer texture %s; the loader "
+						"takes whichever the table lists first",
+						m->label, names[i - 1].name, names[i].name, names[i].key);
+			}
+
+			++dupes;
+		} else {
+			if (shadows < 5) {
+				finding(LVL_WARN, "%s: '%s' shadows '%s'; the flat spelling is tried first, "
+						"so the prefixed file is never asked for",
+						m->label, names[i - 1].name, names[i].name);
+			}
+
+			++shadows;
+		}
 	}
+
+	if (dupes > 5 || shadows > 5) {
+		finding(LVL_NOTE, "%s: %u duplicate and %u shadowed texture name(s) in all; the first "
+				"five of each are above", m->label, dupes, shadows);
+	}
+
+	free(names);
 }
 
 /** A repeated head or body name is a silent replace: g_ModHeadNames has no owner column. */
@@ -1738,29 +1715,25 @@ static void writeStageTable(const char *path, const struct mod *mods, int n, boo
 static void usage(FILE *out)
 {
 	fprintf(out,
-		"usage: modsetcheck <mod-dir> [<mod-dir> ...] [--base N] [--max N]\n"
+		"usage: modsetcheck <mod-dir> [<mod-dir> ...]\n"
 		"                   [--ini pd.ini] [--stage-table out.json] [--list-stages] [--help]\n"
 		"\n"
 		"Checks a set of mods the way they would mount, in the order given.\n"
 		"Reads each dir's filetable.dat and modconfig.txt - the artifacts that\n"
 		"actually ship, not the manifests they were built from.\n"
 		"\n"
-		"  --base N   the first texture slot the first mod is given (default %u)\n"
-		"  --max N    the highest texture slot available to the set (default %u)\n"
 		"  --ini F    a pd.ini whose [MpStageSlots] says which row each named stage\n"
 		"             was allocated; reports orphaned and conflicting reservations\n"
 		"  --stage-table F\n"
 		"             write the set's stage table as JSON - every stage block, the row\n"
 		"             it lands on and where its files come from\n"
 		"  --list-stages\n"
-		"             print that table to stdout as well\n",
-		DEFAULT_SLOT_BASE, DEFAULT_SLOT_MAX);
+		"             print that table to stdout as well\n");
 }
 
 int main(int argc, char **argv)
 {
 	struct mod *mods;
-	uint32_t base = DEFAULT_SLOT_BASE, cap = DEFAULT_SLOT_MAX;
 	const char *iniPath = NULL, *tablePath = NULL;
 	bool list = false;
 	int n = 0, i;
@@ -1772,11 +1745,7 @@ int main(int argc, char **argv)
 	}
 
 	for (i = 1; i < argc; ++i) {
-		if (!strcmp(argv[i], "--base") && i + 1 < argc) {
-			base = (uint32_t)strtoul(argv[++i], NULL, 0);
-		} else if (!strcmp(argv[i], "--max") && i + 1 < argc) {
-			cap = (uint32_t)strtoul(argv[++i], NULL, 0);
-		} else if (!strcmp(argv[i], "--ini") && i + 1 < argc) {
+		if (!strcmp(argv[i], "--ini") && i + 1 < argc) {
 			iniPath = argv[++i];
 		} else if (!strcmp(argv[i], "--stage-table") && i + 1 < argc) {
 			tablePath = argv[++i];
@@ -1807,22 +1776,18 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	if (base > cap) {
-		die("--base %u is above --max %u", base, cap);
-	}
-
 	printf("modsetcheck: %d mod(s), in mount order\n\n", n);
 
 	for (i = 0; i < n; ++i) {
 		readFileTable(&mods[i]);
 		readModConfig(&mods[i]);
 
-		printf("  %d  %-24s v%u, %u file(s), %u texmap, %u romSource(s)%s%s\n",
+		printf("  %d  %-24s v%u, %u file(s), %u romSource(s)%s%s%s\n",
 				i, mods[i].label,
 				mods[i].haveFt ? mods[i].ft.version : 0,
 				mods[i].haveFt ? mods[i].ft.numFiles : 0,
-				mods[i].haveFt ? mods[i].ft.numTexMap : 0,
 				mods[i].haveFt ? mods[i].ft.numSources : 0,
+				(mods[i].haveFt && mods[i].ft.numTexMapSkipped) ? ", a dead texmap block" : "",
 				mods[i].modname[0] ? ", modname " : "",
 				mods[i].modname[0] ? mods[i].modname : "");
 	}
@@ -1830,11 +1795,9 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	for (i = 0; i < n; ++i) {
-		checkTexMap(&mods[i]);
+		checkTextureNames(&mods[i]);
 		checkAltRefs(&mods[i]);
 	}
-
-	checkSlotBudget(mods, n, base, cap);
 
 	printf("\n");
 	checkNameClaims(mods, n);

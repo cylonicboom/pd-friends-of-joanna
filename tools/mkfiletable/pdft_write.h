@@ -93,36 +93,33 @@ struct pdftFile {
 	const char *patch;
 };
 
-struct pdftTexMap {
-	uint16_t localTexId;
-	uint16_t slotIdx;     /* must be dense 0..count-1, see pdftWrite() */
-};
-
+/* There is no texmap input any more. v3 introduced a romTexMap block that
+ * mapped each local texture id to a slot in a global texture-port partition;
+ * the engine retired that partition (texture ids stay mod-local and travel
+ * with their owner), so the block is written empty (count 0) in any table
+ * whose version is 3 or above and skipped by the reader whatever it holds. */
 struct pdftInput {
 	const struct pdftFile *files;
 	uint32_t numFiles;
 	const struct pdftRomSource *sources;
 	uint32_t numSources;
-	const struct pdftTexMap *texmap;
-	uint32_t numTexMap;
 };
 
 /**
  * Encodes a filetable. Returns a malloc'd buffer and its length, or NULL with
  * the reason in err.
  *
- * The version is chosen by content, not declared: 3 with a texmap, else 2 with
- * romSources or any alt-ROM entry, else 1.
+ * The version is chosen by content, not declared: 5 with a patch, else 4 with
+ * an alias, else 2 with romSources or any alt-ROM entry, else 1. Nothing
+ * chooses 3 any more; see the note above struct pdftInput.
  *
  * Refuses what the reader would mis-handle rather than what it would reject,
  * because most of what it mis-handles it accepts silently: an id at or above
  * PDFT_MAX_FILES (skipped without a word), more than PDFT_MAX_ROMSOURCES
  * (dropped with a warning), a name or path longer than a u16 can count, an id
  * or filename too long for the reader's fixed buffers, a compression mode the
- * loader does not implement, a self-source with no path or with an alt-ROM
- * source as well, and texmap slot indices with holes in them — the
- * reader advances its global port base by the entry COUNT while mapping by
- * slot index, so a hole makes the next mod's texture ports overlap this one's.
+ * loader does not implement, and a self-source with no path or with an
+ * alt-ROM source as well.
  */
 uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint32_t errLen);
 

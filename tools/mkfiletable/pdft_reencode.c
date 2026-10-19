@@ -8,7 +8,10 @@
  *
  *   S <hex id> <hex filename> <expectedSize> <required> <strict> <fallback> [<hex base> <hex patch> <crc32>]
  *   F <id> <romResident> <offset> <size> <hex name> <hex path> <altRom> <altOfs> <altSize> <altComp> [selfSource] [<hex alias> [<hex patch>]]
- *   T <localTexId> <slotIdx>
+ *
+ * T lines (the v3 texmap) are read and ignored: the encoder no longer takes a
+ * texmap, so a spec decoded from an old table still parses and encodes
+ * without the block.
  *
  * A hex field of "-" is an absent string; altRom of -1 is no alt-ROM tail.
  * selfSource is optional and defaults to 0, so a spec written before the flag
@@ -62,9 +65,8 @@ int main(int argc, char **argv)
 {
 	struct pdftFile *files = NULL;
 	struct pdftRomSource *sources = NULL;
-	struct pdftTexMap *texmap = NULL;
-	uint32_t numFiles = 0, numSources = 0, numTexMap = 0;
-	uint32_t capFiles = 0, capSources = 0, capTexMap = 0;
+	uint32_t numFiles = 0, numSources = 0;
+	uint32_t capFiles = 0, capSources = 0;
 	struct pdftInput in;
 	char line[MAXLINE];
 	uint8_t *out;
@@ -86,7 +88,7 @@ int main(int argc, char **argv)
 
 	while (fgets(line, sizeof(line), fin)) {
 		char hexA[MAXLINE], hexB[MAXLINE];
-		unsigned a, b, c, d, e, f;
+		unsigned a, b, c, d;
 		int alt;
 
 		if (line[0] == 'S') {
@@ -142,16 +144,7 @@ int main(int argc, char **argv)
 			files[numFiles].patch = got >= 13 ? unhex(hexD) : NULL;
 			++numFiles;
 		} else if (line[0] == 'T') {
-			if (sscanf(line, "T %u %u", &e, &f) != 2) continue;
-
-			if (numTexMap == capTexMap) {
-				capTexMap = capTexMap ? capTexMap * 2 : 64;
-				texmap = realloc(texmap, capTexMap * sizeof(*texmap));
-			}
-
-			texmap[numTexMap].localTexId = (uint16_t)e;
-			texmap[numTexMap].slotIdx = (uint16_t)f;
-			++numTexMap;
+			continue;
 		}
 	}
 
@@ -163,8 +156,6 @@ int main(int argc, char **argv)
 	in.numFiles = numFiles;
 	in.sources = sources;
 	in.numSources = numSources;
-	in.texmap = texmap;
-	in.numTexMap = numTexMap;
 
 	out = pdftWrite(&in, &outLen, err, sizeof(err));
 
@@ -182,7 +173,7 @@ int main(int argc, char **argv)
 
 	fwrite(out, 1, outLen, fout);
 	fclose(fout);
-	printf("v%u %u files, %u sources, %u texmap, %u bytes\n",
-			pdftVersionFor(&in), numFiles, numSources, numTexMap, outLen);
+	printf("v%u %u files, %u sources, %u bytes\n",
+			pdftVersionFor(&in), numFiles, numSources, outLen);
 	return 0;
 }

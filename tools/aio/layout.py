@@ -517,8 +517,8 @@ def scope_textures(mod):
     textures/<id>.bin, where the drop put it (her call 2026-10-10: names are
     ours, paths are upstream's); a PDFT entry carries name and path apart.
     Ids several models share stay flat ('<id>.bin'), the second candidate; scoping
-    a shared texture to one model would misdescribe it. The texmap is unchanged:
-    one row per local id either way."""
+    a shared texture to one model would misdescribe it. There is no texmap:
+    the id in the name is the id the model uses, and it stays the mod's own."""
     mpath = os.path.join(outdir(mod), mod + '_filetable.json')
     man = json.load(open(mpath))
     # old basename -> entry, so the census (keyed by pre-slug names) can find the slugged model

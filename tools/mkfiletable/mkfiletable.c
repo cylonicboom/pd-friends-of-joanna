@@ -6,13 +6,15 @@
  *
  *   mkfiletable <mod-name> [--workspace <dir>] [--output <dir>]
  *
- * Reads <workspace>/<mod-name>_filetable.json and, if present,
- * <workspace>/<mod-name>_texmap.json; writes <output>/filetable.dat and
- * rewrites the texmap.
+ * Reads <workspace>/<mod-name>_filetable.json and writes
+ * <output>/filetable.dat.
  *
  * The encoding itself is pdft_write.c. This file owns everything that needs a
- * filesystem or a decision: reading the manifest, allocating ids, and keeping
- * texture port slots stable across rebuilds.
+ * filesystem or a decision: reading the manifest and allocating ids. It used
+ * to keep a <mod-name>_texmap.json beside the manifest, assigning each local
+ * texture id a slot in a global texture-port partition; the engine retired
+ * that partition (ids stay mod-local), so the file is neither read nor
+ * written and an old one lying about is ignored.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,11 +39,6 @@
 			die("path is longer than %d bytes", (int)sizeof(dst)); \
 		} \
 	} while (0)
-
-struct texEntry {
-	uint32_t localTexId;
-	uint32_t slotIdx;
-};
 
 static void die(const char *fmt, ...)
 {
@@ -90,29 +87,6 @@ static bool numberOf(const JSON_Value *v, long *out)
 	}
 
 	return false;
-}
-
-
-/* -- texmap persistence ---------------------------------------------------
- *
- * The texmap is what makes a texture's port stable across rebuilds: a local
- * texture id keeps whatever slot it was first given. Slots must stay dense —
- * the engine advances its global port base by the ENTRY COUNT while mapping
- * each entry by its slot index, so a hole makes the next mod's ports overlap
- * this one's. The Python never pruned, which is how two shipped mods ended up
- * with holes and duplicates; here, retired ids are dropped and the survivors
- * are compacted, in first-assigned order.
- */
-static int cmpTexLocal(const void *a, const void *b)
-{
-	const struct texEntry *x = a, *y = b;
-	return x->localTexId < y->localTexId ? -1 : x->localTexId > y->localTexId ? 1 : 0;
-}
-
-static int cmpTexSlot(const void *a, const void *b)
-{
-	const struct texEntry *x = a, *y = b;
-	return x->slotIdx < y->slotIdx ? -1 : x->slotIdx > y->slotIdx ? 1 : 0;
 }
 
 
@@ -980,7 +954,15 @@ static int cmpEntry(const void *a, const void *b)
 	}
 
 	if (x->isTexture) {
-		return x->texId < y->texId ? -1 : x->texId > y->texId ? 1 : 0;
+		if (x->texId != y->texId) {
+			return x->texId < y->texId ? -1 : 1;
+		}
+
+		/* Two models can scope the same texture id ('CheadAZ/0116.bin' and
+		 * 'CheadBZ/0116.bin'); qsort is not stable and glibc and macOS break
+		 * the tie differently, which gave the two files different ids on
+		 * different machines. The name is the only other thing there is. */
+		return strcmp(x->name, y->name);
 	}
 
 	if (x->replaces != y->replaces) {
@@ -1002,14 +984,11 @@ int main(int argc, char **argv)
 	struct altRom *roms = NULL;
 	struct pdftRomSource *sources = NULL;
 	uint32_t numRoms = 0;
-	char manifestPath[PATHMAX], texmapPath[PATHMAX], outPath[PATHMAX];
-	char outTexmapPath[PATHMAX];
-	JSON_Value *manifestVal, *texmapVal = NULL;
+	char manifestPath[PATHMAX], outPath[PATHMAX];
+	JSON_Value *manifestVal;
 	JSON_Object *manifest;
 	JSON_Array *files;
 	struct pdftFile *out = NULL;
-	struct pdftTexMap *texmap = NULL;
-	struct texEntry *tex = NULL;
 	uint32_t numOut = 0, numTex = 0;
 	uint32_t nextLocalId = FIRST_LOCAL_ID;
 	size_t i, n;
@@ -1082,7 +1061,6 @@ int main(int argc, char **argv)
 	}
 
 	JOIN(manifestPath, "%s/%s_filetable.json", workspace, modName);
-	JOIN(texmapPath, "%s/%s_texmap.json", workspace, modName);
 
 	if (!output) {
 		static char def[PATHMAX];
@@ -1091,7 +1069,6 @@ int main(int argc, char **argv)
 	}
 
 	JOIN(outPath, "%s/filetable.dat", output);
-	JOIN(outTexmapPath, "%s", texmapPath);
 
 	manifestVal = json_parse_file_with_comments(manifestPath);
 
@@ -1253,33 +1230,6 @@ int main(int argc, char **argv)
 
 	if (!n) {
 		die("%s has no files", manifestPath);
-	}
-
-	/* the texmap as it stands, so ports stay put */
-	texmapVal = json_parse_file(texmapPath);
-
-	if (texmapVal) {
-		JSON_Object *root = json_value_get_object(texmapVal);
-		JSON_Object *entries = root ? json_object_get_object(root, "entries") : NULL;
-		size_t count = entries ? json_object_get_count(entries) : 0;
-
-		tex = calloc(count + n, sizeof(*tex));
-
-		for (i = 0; i < count; ++i) {
-			const char *key = json_object_get_name(entries, i);
-			long local = strtol(key, NULL, 0);
-			long slot = 0;
-
-			if (!numberOf(json_object_get_value_at(entries, i), &slot)) {
-				die("%s: entry '%s' is not a number", texmapPath, key);
-			}
-
-			tex[numTex].localTexId = (uint32_t)local;
-			tex[numTex].slotIdx = (uint32_t)slot;
-			++numTex;
-		}
-	} else {
-		tex = calloc(n, sizeof(*tex));
 	}
 
 	out = calloc(n, sizeof(*out));
@@ -1555,84 +1505,11 @@ int main(int argc, char **argv)
 			++numOut;
 
 			if (ents[i].isTexture) {
-				bool known = false;
-				uint32_t k;
-
-				for (k = 0; k < numTex; ++k) {
-					if (tex[k].localTexId == (uint32_t)ents[i].texId) {
-						known = true;
-						break;
-					}
-				}
-
-				if (!known) {
-					tex[numTex].localTexId = (uint32_t)ents[i].texId;
-					tex[numTex].slotIdx = UINT_MAX;
-					++numTex;
-				}
+				++numTex;
 			}
 		}
 
 		free(ents);
-	}
-
-	/* Drop texmap entries whose texture is gone, then compact the slots. */
-	{
-		uint32_t k, live = 0;
-
-		for (k = 0; k < numTex; ++k) {
-			bool stillThere = false;
-			size_t j;
-
-			for (j = 0; j < n; ++j) {
-				JSON_Object *e = json_array_get_object(files, j);
-				const char *type = json_object_get_string(e, "type");
-				long texId = 0;
-
-				if (!type || strcmp(type, "texture")) {
-					continue;
-				}
-
-				if (numberOf(json_object_get_value(e, "textureId"), &texId)
-						&& (uint32_t)texId == tex[k].localTexId) {
-					stillThere = true;
-					break;
-				}
-			}
-
-			if (stillThere) {
-				tex[live++] = tex[k];
-			} else {
-				printf("  retiring texture 0x%04x, its slot is reclaimed\n", tex[k].localTexId);
-			}
-		}
-
-		numTex = live;
-
-		/* Keep the order the slots were first handed out in, so a texture that
-		 * already had a port keeps it wherever it can. */
-		qsort(tex, numTex, sizeof(*tex), cmpTexSlot);
-
-		for (k = 0; k < numTex; ++k) {
-			tex[k].slotIdx = k;
-		}
-	}
-
-	texmap = calloc(numTex ? numTex : 1, sizeof(*texmap));
-
-	{
-		struct texEntry *sorted = calloc(numTex ? numTex : 1, sizeof(*sorted));
-		uint32_t k;
-
-		memcpy(sorted, tex, numTex * sizeof(*tex));
-		qsort(sorted, numTex, sizeof(*sorted), cmpTexLocal);
-
-		for (k = 0; k < numTex; ++k) {
-			texmap[k].localTexId = (uint16_t)sorted[k].localTexId;
-			texmap[k].slotIdx = (uint16_t)sorted[k].slotIdx;
-		}
-
-		free(sorted);
 	}
 
 	/* A patched source is built whether or not an entry reached into it: the
@@ -1752,8 +1629,6 @@ int main(int argc, char **argv)
 		in.numFiles = numOut;
 		in.sources = sources;
 		in.numSources = numRoms;
-		in.texmap = texmap;
-		in.numTexMap = numTex;
 
 		blob = pdftWrite(&in, &blobLen, err, sizeof(err));
 
@@ -1783,38 +1658,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* Write the texmap back so the next build keeps these ports. */
-	{
-		JSON_Value *rootVal = json_value_init_object();
-		JSON_Object *root = json_value_get_object(rootVal);
-		JSON_Value *entriesVal = json_value_init_object();
-		JSON_Object *entries = json_value_get_object(entriesVal);
-		uint32_t k;
-
-		json_object_set_string(root, "modName", modName);
-
-		for (k = 0; k < numTex; ++k) {
-			char key[16], val[16];
-
-			snprintf(key, sizeof(key), "0x%04x", texmap[k].localTexId);
-			snprintf(val, sizeof(val), "0x%04x", texmap[k].slotIdx);
-			json_object_set_string(entries, key, val);
-		}
-
-		json_object_set_value(root, "entries", entriesVal);
-
-		if (json_serialize_to_file_pretty(rootVal, outTexmapPath) != JSONSuccess) {
-			die("could not write %s", outTexmapPath);
-		}
-
-		json_value_free(rootVal);
-	}
-
 	json_value_free(manifestVal);
-
-	if (texmapVal) {
-		json_value_free(texmapVal);
-	}
 
 	return 0;
 }

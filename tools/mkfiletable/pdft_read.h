@@ -25,8 +25,10 @@ struct pdftTable {
 	struct pdftFile *files;
 	uint32_t numFiles;
 
-	struct pdftTexMap *texmap;
-	uint32_t numTexMap;
+	/* The v3 romTexMap block is read past and not kept: the engine skips it
+	 * the same way, so whatever an old table holds here is dead weight. The
+	 * count survives so a checker can say a table still carries one. */
+	uint32_t numTexMapSkipped;
 
 	uint32_t trailing;   /* bytes after the last field; anything but 0 is a bug */
 };

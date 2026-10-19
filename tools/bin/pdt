@@ -2069,36 +2069,31 @@ def cmd_text_manager(**kwargs):
         print(f"Unknown subcommand: {subcmd}")
         sys.exit(1)
 
-def write_binary_dat(files_list, output_path, rom_sources=None, rom_tex_map=None):
+def write_binary_dat(files_list, output_path, rom_sources=None):
     """Write filetable.dat.
 
     Wire-format selection:
-      v3 — emitted when rom_tex_map is non-empty. Per-mod fragment with
-           a romTexMap block (localTexId → portTexId).
       v2 — emitted when rom_sources is non-empty or any file has a
            'source' block. Adds romSources block + per-file alt-ROM tail.
       v1 — bare file table.
+
+    v3 (a romTexMap block mapping local texture ids to texture-port slots)
+    is no longer written: the engine retired the slot partition, texture ids
+    stay mod-local, and the C writer (tools/mkfiletable) is the canonical
+    one anyway.
 
     files_list entries may carry an optional 'source' dict. byName/byId
     sources must already have been resolved to byOffset by
     resolve_alt_rom_sources(); any unresolved entry is dropped from the
     source tail with a warning.
 
-    rom_tex_map: iterable of (localTexId, portTexId) pairs, both u16.
     """
     rom_sources = rom_sources or []
-    rom_tex_map = list(rom_tex_map or [])
-    has_v3 = bool(rom_tex_map)
-    has_v2 = has_v3 or bool(rom_sources) or any(e.get("source") for e in files_list)
-    if has_v3:
-        version = 3
-    elif has_v2:
-        version = 2
-    else:
-        version = 1
+    has_v2 = bool(rom_sources) or any(e.get("source") for e in files_list)
+    version = 2 if has_v2 else 1
 
     print(f"Writing binary to {output_path} (PDFT v{version}, {len(files_list)} files, "
-          f"{len(rom_sources)} romSources, {len(rom_tex_map)} texMap entries)...")
+          f"{len(rom_sources)} romSources)...")
 
     # Map rom id -> index for altRomIdx encoding
     rom_index = {rs["id"]: i for i, rs in enumerate(rom_sources)}
@@ -2179,17 +2174,6 @@ def write_binary_dat(files_list, output_path, rom_sources=None, rom_tex_map=None
                 rom_idx, src_offset, src_size, compression = alt_tail
                 f.write(struct.pack('>BIIB', rom_idx, src_offset, src_size, compression))
 
-        # PDFT v3: romTexMap block (localTexId -> portTexId)
-        if version >= 3:
-            f.write(struct.pack('>I', len(rom_tex_map)))
-            for local_id, port_id in rom_tex_map:
-                if isinstance(local_id, str):
-                    local_id = int(local_id, 16)
-                if isinstance(port_id, str):
-                    port_id = int(port_id, 16)
-                if local_id < 0 or local_id > 0xffff or port_id < 0 or port_id > 0xffff:
-                    raise ValueError(f"romTexMap entry out of u16 range: 0x{local_id:x} -> 0x{port_id:x}")
-                f.write(struct.pack('>HH', local_id, port_id))
 
 
 _alt_rom_driver_cache = {}
@@ -2939,7 +2923,7 @@ def _vanilla_rom_file_id_map(extra_filetable_paths=None):
 
 
 def cmd_build_mod_filetable(**kwargs):
-    """Build a per-mod PDFT v3 fragment.
+    """Build a per-mod PDFT fragment. Superseded by tools/mkfiletable.
 
     Usage:
       pdt build-mod-filetable <mod-name> [--workspace <dir>] [--output <dir>]
@@ -2947,20 +2931,17 @@ def cmd_build_mod_filetable(**kwargs):
 
     Inputs:
       <workspace>/<mod-name>_filetable.json     (mod manifest)
-      <workspace>/<mod-name>_texmap.json        (optional, persisted texMap)
 
     Output:
       <output>/filetable.dat                    (default: <workspace>/<mod-name>/)
-      <workspace>/<mod-name>_texmap.json        (updated with any new allocations)
 
     Local file ID allocation:
       - replaces: <vanilla-name>  → vanilla file ID (looked up via 'pdt rom files')
       - new files                 → allocated 2018+, sorted by name (deterministic)
 
-    Texture port ID allocation:
-      - localTexId from JSON (`textureId` field)
-      - portTexId persisted in <mod-name>_texmap.json so model bytes stay stable
-      - new textures get next-available port ID >= --vanilla-tex-count (default 3503)
+    Textures get a file id like any other new file; the id a model names
+    them by (`textureId`) is theirs and stays mod-local. There is no texmap
+    any more and --vanilla-tex-count is accepted and ignored.
     """
     args = kwargs.get('args', [])
     if not args or args[0].startswith('--'):
@@ -3008,7 +2989,6 @@ def cmd_build_mod_filetable(**kwargs):
             sys.exit(1)
 
     json_path = os.path.join(workspace, f"{mod_name}_filetable.json")
-    texmap_path = os.path.join(workspace, f"{mod_name}_texmap.json")
     if not os.path.isfile(json_path):
         print(f"Error: {json_path} not found", file=sys.stderr)
         sys.exit(1)
@@ -3018,15 +2998,6 @@ def cmd_build_mod_filetable(**kwargs):
 
     with open(json_path, 'r') as f:
         manifest = json.load(f)
-
-    # Load existing texmap (for stability across rebuilds)
-    texmap = {}  # localTexId (int) -> portTexId (int)
-    if os.path.isfile(texmap_path):
-        with open(texmap_path, 'r') as f:
-            raw = json.load(f)
-        for k, v in raw.get("entries", {}).items():
-            texmap[int(k, 0) if isinstance(k, str) else int(k)] = int(v, 0) if isinstance(v, str) else int(v)
-        print(f"Loaded {len(texmap)} existing texMap entries from {texmap_path}")
 
     # Partition manifest entries
     files_in = manifest.get("files", []) or []
@@ -3130,23 +3101,8 @@ def cmd_build_mod_filetable(**kwargs):
         out_e["id"] = local_id
         out_files.append(out_e)
 
-    # Allocate texture port IDs (persistent). The fragment on disk stores
-    # mod-LOCAL slot indices starting at 0. The engine offsets them by a
-    # per-mod base at fragment-load time so port IDs are globally unique
-    # without any cross-mod build-time coordination.
-    used_ports = set(texmap.values())
-    next_port_id = 0
-    def alloc_port():
-        nonlocal next_port_id
-        while next_port_id in used_ports:
-            next_port_id += 1
-        port = next_port_id
-        used_ports.add(port)
-        next_port_id += 1
-        return port
-
-    rom_tex_map_pairs = []  # (localTexId, portTexId), sorted by localTexId
-    seen_map_pairs = set()  # dedupe: same (local, port) shows up per texture-file entry
+    # Textures, by their own id so the order is deterministic. The id a
+    # model names a texture by stays the mod's own; nothing here maps it.
     tex_entries_sorted = sorted(tex_entries, key=lambda e: int(e.get("textureId", "0"), 0)
                                  if isinstance(e.get("textureId"), str) else int(e.get("textureId", 0)))
     for e in tex_entries_sorted:
@@ -3154,39 +3110,18 @@ def cmd_build_mod_filetable(**kwargs):
         if tid is None:
             print(f"  Warning: texture '{e.get('name')}' missing textureId; skipping", file=sys.stderr)
             continue
-        local_tex_id = int(tid, 0) if isinstance(tid, str) else int(tid)
-        if local_tex_id not in texmap:
-            texmap[local_tex_id] = alloc_port()
-        port_tex_id = texmap[local_tex_id]
-        if (local_tex_id, port_tex_id) not in seen_map_pairs:
-            rom_tex_map_pairs.append((local_tex_id, port_tex_id))
-            seen_map_pairs.add((local_tex_id, port_tex_id))
-
-        # Texture entries also need a file-table id so engine can locate
-        # bytes (loose path or alt-ROM source). Allocate from the same
-        # `next_local_id` pool as other new files, NOT from the portTexId
-        # space: for a mod loaded at mod-index 0 (the boot mod, whose
-        # fileSlots row aliases vanilla), a small port id would overwrite
-        # a vanilla file slot (e.g. id=19 is FILE_BG_DISH_SEG).
+        # A file-table id so the engine can locate the bytes (loose path or
+        # alt-ROM source), from the same pool as every other new file.
         out_e = dict(e)
         out_e["id"] = next_local_id
         next_local_id += 1
         out_files.append(out_e)
 
-    # Persist texmap
-    with open(texmap_path, 'w') as f:
-        json.dump({
-            "modName": mod_name,
-            "vanillaTexCount": vanilla_tex_count,
-            "entries": {f"0x{k:04x}": f"0x{v:04x}" for k, v in sorted(texmap.items())},
-        }, f, indent=2)
-    print(f"Persisted {len(texmap)} texMap entries to {texmap_path}")
-
     # Emit fragment
     out_path = os.path.join(output_dir, "filetable.dat")
-    write_binary_dat(out_files, out_path, rom_sources=rom_sources, rom_tex_map=rom_tex_map_pairs)
+    write_binary_dat(out_files, out_path, rom_sources=rom_sources)
     print(f"Wrote per-mod fragment: {out_path} "
-          f"({len(out_files)} entries, {len(rom_tex_map_pairs)} texMap, {len(rom_sources)} romSources)")
+          f"({len(out_files)} entries, {len(rom_sources)} romSources)")
 
 
 def _resolve_rom_for_id(rom_id, rom_file=None):

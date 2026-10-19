@@ -138,10 +138,6 @@ uint32_t pdftVersionFor(const struct pdftInput *in)
 		}
 	}
 
-	if (in->numTexMap) {
-		return 3;
-	}
-
 	if (in->numSources) {
 		return 2;
 	}
@@ -302,37 +298,6 @@ static bool checkInput(const struct pdftInput *in, uint32_t version, char *err, 
 		}
 	}
 
-	// The reader advances its global texture-port base by the entry COUNT and
-	// maps each entry by its slot index, so the slots have to be exactly
-	// 0..count-1. A hole reserves a port nothing uses and pushes the next
-	// mod's range over this one's.
-	if (in->numTexMap) {
-		uint8_t *seen = calloc(in->numTexMap, 1);
-
-		if (!seen) {
-			return fail(err, errLen, "out of memory checking the texmap");
-		}
-
-		for (i = 0; i < in->numTexMap; ++i) {
-			uint16_t slot = in->texmap[i].slotIdx;
-
-			if (slot >= in->numTexMap) {
-				free(seen);
-				return fail(err, errLen, "texmap slot %u is outside 0..%u; slots must be dense",
-						slot, in->numTexMap - 1);
-			}
-
-			if (seen[slot]) {
-				free(seen);
-				return fail(err, errLen, "texmap slot %u is used twice", slot);
-			}
-
-			seen[slot] = 1;
-		}
-
-		free(seen);
-	}
-
 	return true;
 }
 
@@ -346,7 +311,7 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 		err[0] = '\0';
 	}
 
-	if (!in || (!in->numFiles && !in->numSources && !in->numTexMap)) {
+	if (!in || (!in->numFiles && !in->numSources)) {
 		fail(err, errLen, "nothing to write");
 		return NULL;
 	}
@@ -449,13 +414,11 @@ uint8_t *pdftWrite(const struct pdftInput *in, uint32_t *outLen, char *err, uint
 		}
 	}
 
+	/* The v3 romTexMap block, always empty now: texture ids stay mod-local
+	 * since the engine retired the slot partition. The count stays so that a
+	 * v4/v5 layout is unchanged and an older reader still finds its tail. */
 	if (version >= 3) {
-		put32(&b, in->numTexMap);
-
-		for (i = 0; i < in->numTexMap; ++i) {
-			put16(&b, in->texmap[i].localTexId);
-			put16(&b, in->texmap[i].slotIdx);
-		}
+		put32(&b, 0);
 	}
 
 	if (b.bad) {
