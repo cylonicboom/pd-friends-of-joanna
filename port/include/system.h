@@ -31,13 +31,14 @@ s32 sysLogIsOpen(void);
 void sysLogPrintf(s32 level, const char *fmt, ...);
 
 // BRIEFDIAG (temporary): the null-briefing-buffer probe, card #364.
-// Straight to stdout and flushed per line - no file open per call, and a
-// redirected stdout is fully buffered, so an unflushed line dies with the crash.
-#include <stdio.h>
+// Goes through sysLogPrintf so it lands in pd.log when logging is on - a
+// tester's stdout is nowhere, and the second #364 report arrived with no
+// probe output for exactly that reason. sysLogPrintf opens, appends and
+// closes per line, so nothing is left in a buffer when the crash lands.
 // The #352 question: does a menu model buffer ever cover a live lang bank,
 // and do the MPMENU offsets the picker reads move between calls.
 void briefdiagCheck(const char *where);
-#define BRIEFDIAG(fmt, ...) do { printf("BRIEFDIAG: " fmt "\n", ##__VA_ARGS__); fflush(stdout); } while (0)
+#define BRIEFDIAG(fmt, ...) sysLogPrintf(LOG_NOTE, "BRIEFDIAG: " fmt, ##__VA_ARGS__)
 extern u8 g_SysLogToStderr;
 
 void sysGetExecutablePath(char *outPath, const u32 outLen);
