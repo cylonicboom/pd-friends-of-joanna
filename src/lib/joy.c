@@ -4,6 +4,9 @@
 #include "bss.h"
 #include "lib/main.h"
 #include "lib/joy.h"
+#ifndef PLATFORM_N64
+#include "padsource.h"
+#endif
 #include "data.h"
 #include "types.h"
 
@@ -609,6 +612,13 @@ void joyReadData(void)
 
 	osContGetReadData(g_JoyData[0].samples[index].pads);
 
+#ifndef PLATFORM_N64
+	// Pad source (port/src/padsource.c): a script or the harness standing in
+	// for a controller. Applied to the fresh sample so the ring, the edge
+	// detection and the per-player mapping all see it as a real pad.
+	padsourceApply(g_JoyData[0].samples[index].pads, NUM_PADS);
+#endif
+
 	g_JoyData[0].nextlast = index;
 	g_JoyData[0].nextsecondlast = (g_JoyData[0].nextlast + NUM_SAMPLES - 1) % NUM_SAMPLES;
 }
@@ -732,6 +742,32 @@ s32 joyGetNumSamples(void)
 {
 	return (g_JoyDataPtr->curlast - g_JoyDataPtr->curstart + NUM_SAMPLES) % NUM_SAMPLES;
 }
+
+#ifndef PLATFORM_N64
+// Determinism-harness raw ring accessors (port/src/det.c). From Kai
+// (be46717, joy.c). ringidx is a raw slot, wrapped into [0, NUM_SAMPLES);
+// pad is [0, NUM_PADS).
+s32 joyGetRingSize(void) { return NUM_SAMPLES; }
+s32 joyGetPadCount(void) { return NUM_PADS; }
+s32 joyGetCurStart(void) { return g_JoyDataPtr->curstart; }
+s32 joyGetCurLast(void) { return g_JoyDataPtr->curlast; }
+
+void joySetCurWindow(s32 curstart, s32 curlast)
+{
+	g_JoyDataPtr->curstart = curstart;
+	g_JoyDataPtr->curlast = curlast;
+}
+
+void joyGetRawSample(s32 ringidx, s32 pad, OSContPad *out)
+{
+	*out = g_JoyDataPtr->samples[((ringidx % NUM_SAMPLES) + NUM_SAMPLES) % NUM_SAMPLES].pads[pad];
+}
+
+void joySetRawSample(s32 ringidx, s32 pad, const OSContPad *in)
+{
+	g_JoyDataPtr->samples[((ringidx % NUM_SAMPLES) + NUM_SAMPLES) % NUM_SAMPLES].pads[pad] = *in;
+}
+#endif
 
 s32 joyGetRStickXOnSample(s32 samplenum, s8 contpadnum) {
 	if (g_JoyDataPtr->unk200 < 0 && (g_JoyConnectedControllers >> contpadnum & 1) == 0) {

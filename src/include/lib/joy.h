@@ -58,4 +58,18 @@ s32 joyGetPakState(s8 device);
 s32 joyGetPakState2(s8 device);
 void joysTickRumble(void);
 
+#ifndef PLATFORM_N64
+// Raw sample ring accessors for the determinism harness (port/src/det.c).
+// The ring is otherwise file-private; these let det.c snapshot and restore
+// exact per-frame controller input. ringidx is wrapped into [0, ringsize);
+// OSContPad is copied whole so no field knowledge leaks out.
+s32 joyGetRingSize(void);
+s32 joyGetPadCount(void);
+s32 joyGetCurStart(void);
+s32 joyGetCurLast(void);
+void joySetCurWindow(s32 curstart, s32 curlast);
+void joyGetRawSample(s32 ringidx, s32 pad, OSContPad *out);
+void joySetRawSample(s32 ringidx, s32 pad, const OSContPad *in);
+#endif
+
 #endif
