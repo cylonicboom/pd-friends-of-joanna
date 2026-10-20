@@ -20,6 +20,7 @@
 #include "game/gfxmemory.h"
 #include "game/lang.h"
 #include "game/luaai.h"
+#include "det.h"
 #include "game/lv.h"
 #include "game/mplayer/mplayer.h"
 #include "game/mplayer/setup.h"
@@ -1086,7 +1087,7 @@ void mainLoop(void) {
     g_StageNum = STAGE_4MBMENU;
   }
 
-  rngSetSeed(osGetCount());
+  rngSetSeed(detBootSeed(osGetCount()));
 
   // Outer loop - this is infinite because ending is never changed
   while (!ending) {
@@ -1344,6 +1345,11 @@ void mainTick(void) {
                  G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD,
                  G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOLOD);
 
+      // Determinism harness: capture (record) or overwrite (replay) this
+      // frame's joy ring, after joyDebugJoy consumed it and before anything
+      // reads it. No-op unless --detrec / --detplay.
+      detFrameBegin();
+
       lvTick();
       playermgrShuffle();
 
@@ -1372,6 +1378,10 @@ void mainTick(void) {
           luaPossessApplyCamera();
         }
       }
+
+      // Determinism harness: the sim for this frame is done; write the
+      // {inputs, hash} record, or compare against the recording.
+      detEndTick();
 
       gdl = lvRender(gdl);
 

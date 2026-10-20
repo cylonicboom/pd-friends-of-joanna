@@ -102,6 +102,7 @@
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "system.h"
+#include "det.h"
 #endif
 
 struct sndstate *g_MiscSfxAudioHandles[3];
@@ -2440,6 +2441,14 @@ void lvTick(void)
 			g_Vars.lvupdate240 = 0;
 		}
 	}
+#endif
+
+#ifndef PLATFORM_N64
+	// Determinism harness (port/src/det.c): while recording or replaying, pin
+	// lvupdate240 to a fixed 1/60 step here, before the lvupdate60 / lvframe*
+	// derivation, so everything below advances identically on both runs.
+	// No-op otherwise.
+	detPinTimestep();
 #endif
 
 	g_Vars.lvupdate60 = g_Vars.lvupdate240 + g_Vars.lvupdate240rem;

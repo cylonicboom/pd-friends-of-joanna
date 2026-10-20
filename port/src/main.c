@@ -34,6 +34,7 @@
 #include "mpk.h"
 #include "textrace.h"
 #include "game/luaai.h"
+#include "det.h"
 
 u32 g_OsMemSize = 0;
 s32 g_OsMemSizeMb = 256;
@@ -293,6 +294,11 @@ int main(int argc, const char **argv)
 	if (g_StageNum != STAGE_TITLE) {
 		sysLogPrintf(LOG_NOTE, "boot stage set to 0x%02x", g_StageNum);
 	}
+
+	// --detrec <file> / --detplay <file> [--det-exit]: determinism harness
+	// (port/src/det.c). Starts at boot so a headless run can record or verify
+	// without a console.
+	detInitFromArgs();
 
 	g_FileAutoSelect = sysArgGetInt("--profile", -1);
 	if (g_FileAutoSelect >= 0) {
