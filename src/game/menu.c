@@ -1116,6 +1116,17 @@ void func0f0f1d6c(struct menudialogdef *dialogdef, struct menudialog *dialog, st
 			numblocksthisitem = -1;
 			menuGetItemBlocksRequired(item, &numblocksthisitem);
 
+#ifndef PLATFORM_N64
+			// An item whose data would not fit gets no data rather than the
+			// words after the arena (blockend, the repeat timers, menumodel).
+			// Its tick/draw see blockindex -1, the same as an item with none.
+			if (numblocksthisitem != -1 && blockindex + numblocksthisitem > (s32)ARRAYCOUNT(menu->blocks)) {
+				sysLogPrintf(LOG_ERROR, "menu: dialog %p item %d needs %d block words at %d, arena is %d; item gets none",
+						(void *)dialogdef, itemindex, numblocksthisitem, blockindex, (s32)ARRAYCOUNT(menu->blocks));
+				numblocksthisitem = -1;
+			}
+#endif
+
 			if (numblocksthisitem != -1) {
 				menu->rows[rowindex].blockindex = blockindex;
 				blockindex += (s16)numblocksthisitem;

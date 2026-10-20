@@ -4271,7 +4271,11 @@ struct menumodel {
 struct menurow {
   s16 height;
   u8 itemindex;
+#ifdef PLATFORM_N64
   s8 blockindex;
+#else
+  s16 blockindex; // blocks[] is bigger than 128 words on the port
+#endif
 };
 
 struct menucolumn {
@@ -4292,7 +4296,16 @@ struct menu {
   /*0x65c*/ s32 rowend;
   /*0x660*/ struct menucolumn cols[VERSION >= VERSION_NTSC_1_0 ? 12 : 10];
   /*0x6d8*/ s32 colend;
+#ifdef PLATFORM_N64
   /*0x6dc*/ u32 blocks[80]; // for menuitemdata
+#else
+  // for menuitemdata. 80 words is Rare's budget for a stack of dialogs;
+  // a bind row is a dropdown (4 words) and the port's binds dialog alone
+  // has 25 of them, 100 words, which ran straight through blockend, the
+  // repeat timers and into menumodel.allocstart (the CI mission-select
+  // crash, #364). func0f0f1d6c hands these out with no bounds check.
+  u32 blocks[256];
+#endif
   /*0x81c*/ s32 blockend;
   /*0x820*/ u8 unk820;
   /*0x824*/ s32 xrepeattimer60;
