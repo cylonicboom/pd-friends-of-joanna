@@ -737,7 +737,22 @@ static inline void inputParseBindString(const s32 ctrl, const u32 ck, char *bind
 	const char *tok = strtok(bindstr, ", ");
 	while (tok) {
 		if (tok[0]) {
-			const s32 vk = inputGetKeyByName(tok);
+			s32 vk = inputGetKeyByName(tok);
+			if (vk >= VK_JOY1_BEGIN && vk < VK_TOTAL_COUNT) {
+				// A joystick key carries its pad in the name (JOY2_A), and
+				// binds follow the profile now (seatprofile.c), so a file
+				// last saved at seat 2 would hand seat 1 pad 2's buttons:
+				// A/B dead, while the d-pad and sticks, read off the seat's
+				// own pad, still work. A seat's binds can only mean its
+				// own pad, so the pad in the name is rehomed to this seat.
+				const s32 button = (vk - VK_JOY1_BEGIN) % INPUT_MAX_CONTROLLER_BUTTONS;
+				const s32 homevk = VK_JOY1_BEGIN + ctrl * INPUT_MAX_CONTROLLER_BUTTONS + button;
+				if (homevk != vk) {
+					sysLogPrintf(LOG_NOTE, "binds: seat %d %s rehomed from %s to %s", ctrl + 1,
+							inputGetContKeyName(ck), inputGetKeyName(vk), inputGetKeyName(homevk));
+					vk = homevk;
+				}
+			}
 			if (vk > 0) {
 				inputKeyBind(ctrl, ck, -1, vk);
 			}
