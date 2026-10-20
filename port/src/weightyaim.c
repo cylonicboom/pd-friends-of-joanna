@@ -1010,6 +1010,14 @@ void weightyAimFilterLook(s32 *analogturn, s32 *analogpitch, f32 *freelookdx, f3
 		// Aim mod off (Classic) but a custom stick response chosen (a different
 		// curve, turn boost, or a sensitivity other than 1x): still apply it.
 		// With analog zeroed, PD computes speed = (freelook * mlookscale) * fovscale.
+		//
+		// fojo: only while the preset is on. His stick response is its own
+		// feature with its own menu, and its defaults (Balanced curve, x2 edge
+		// boost, 0.8 vertical) are not the port's stick; fojo took the preset
+		// row and not the stick dialogs, so Off left every player on a stick
+		// they could not see or turn off (the 3.9.2 turning-speed report).
+		// With the preset Off the stick is the game's own; the pd.ini keys
+		// are untouched and come back with any preset.
 		if (g_WeightyAimForceOriginal) {
 			// Force Original Aim & Settings: the game's own stick handling, no custom
 			// stick response, Look Acceleration or gyro. The mouse stays as the
@@ -1027,7 +1035,8 @@ void weightyAimFilterLook(s32 *analogturn, s32 *analogpitch, f32 *freelookdx, f3
 				*freelookdx = 0.f;
 				*freelookdy = 0.f;
 			}
-		} else if (canlook && (!WEIGHTYAIM_IS_NATIVE_CURVE(sc->curve) || st->boostlevel > 0.f
+		} else if (canlook && cfg->preset != WEIGHTYAIM_PRESET_CLASSIC
+				&& (!WEIGHTYAIM_IS_NATIVE_CURVE(sc->curve) || st->boostlevel > 0.f
 					|| bc_fabsf(sc->turnspeed - 1.f) > 0.001f || bc_fabsf(sc->verticalsens - 1.f) > 0.001f)) {
 			*analogturn = 0;
 			*analogpitch = 0;
