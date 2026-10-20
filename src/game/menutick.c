@@ -156,6 +156,12 @@ void menuTick(void)
 	s32 sp340 = true;
 	s32 anyopen = false;
 
+#ifndef PLATFORM_N64
+	// MENUWATCH (#364), temporary
+	extern void menuWatchTick(void);
+	menuWatchTick();
+#endif
+
 #if PAL
 	g_ScaleX = 1;
 #else

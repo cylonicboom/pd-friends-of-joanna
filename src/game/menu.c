@@ -108,6 +108,76 @@ void menuDiagDumpDialogs(const char *why)
 		}
 	}
 }
+
+// MENUWATCH (#364) - temporary probe, drop before release. The briefing
+// crash log showed g_Menus[0].menumodel.allocstart/alloclen correct at
+// menuReset and trashed by accept-mission, ~20 min of CI later, with the
+// other three menus untouched. This logs the first tick either field
+// changes, with the dialog stacks, so the next run names the frame and
+// the stack instead of the symptom. Legit writers (menuReset, the lazy
+// alloc, endscreen) log too; that is the timeline.
+static uintptr_t g_MenuWatchStart[MAX_PLAYERS];
+static u32 g_MenuWatchLen[MAX_PLAYERS];
+
+static const char *menuWatchTitle(struct menudialogdef *def)
+{
+	// text ids only - a title can also be a handler, and this runs every tick
+	if (def && def->title && def->title < 0x5a00) {
+		const char *t = langGet(def->title);
+		return t ? t : "?";
+	}
+	return "-";
+}
+
+void menuWatchTick(void)
+{
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		struct menu *menu = &g_Menus[i];
+		struct menumodel *mm = &menu->menumodel;
+		const uintptr_t start = (uintptr_t)mm->allocstart;
+		const u32 len = mm->alloclen;
+
+		if (start == g_MenuWatchStart[i] && len == g_MenuWatchLen[i]) {
+			continue;
+		}
+
+		sysLogPrintf(LOG_NOTE, "MENUWATCH: f=%d menu=%d allocstart %p -> %p alloclen 0x%x -> 0x%x ownsalloc=%d "
+				"stagenum=0x%02x root=%d mpnum=%d curplayer=%d depth=%d numdialogs=%d colend=%d rowend=%d blockend=%d",
+				g_Vars.lvframenum, i, (void *)g_MenuWatchStart[i], (void *)start, g_MenuWatchLen[i], len,
+				(s32)mm->ownsalloc, g_Vars.stagenum, (s32)g_MenuData.root, g_MpPlayerNum, g_Vars.currentplayernum,
+				(s32)menu->depth, (s32)menu->numdialogs, menu->colend, menu->rowend, menu->blockend);
+
+		for (s32 l = 0; l < menu->depth; l++) {
+			struct menulayer *layer = &menu->layers[l];
+
+			for (s32 j = 0; j < layer->numsiblings; j++) {
+				struct menudialog *d = layer->siblings[j];
+
+				sysLogPrintf(LOG_NOTE, "MENUWATCH:   layer=%d sib=%d def=%p \"%s\" blockstart=%d colstart=%d numcols=%d%s",
+						l, j, (void *)d->definition, menuWatchTitle(d->definition),
+						(s32)d->blockstart, (s32)d->colstart, (s32)d->numcols,
+						d == menu->curdialog ? " CUR" : "");
+			}
+		}
+
+		g_MenuWatchStart[i] = start;
+		g_MenuWatchLen[i] = len;
+	}
+}
+
+// The per-menu arenas are bump-allocated with no bounds check (func0f0f1d6c);
+// blocks[] runs straight into blockend, the repeat timers and menumodel.
+static void menuWatchArenas(struct menu *menu, struct menudialogdef *def)
+{
+	if (menu->colend > (s32)ARRAYCOUNT(menu->cols)
+			|| menu->rowend > (s32)ARRAYCOUNT(menu->rows)
+			|| menu->blockend > (s32)ARRAYCOUNT(menu->blocks)) {
+		sysLogPrintf(LOG_WARNING, "MENUWATCH: ARENA OVERFLOW f=%d menu=%d def=%p \"%s\" colend=%d/%d rowend=%d/%d blockend=%d/%d",
+				g_Vars.lvframenum, (s32)(menu - g_Menus), (void *)def, menuWatchTitle(def),
+				menu->colend, (s32)ARRAYCOUNT(menu->cols), menu->rowend, (s32)ARRAYCOUNT(menu->rows),
+				menu->blockend, (s32)ARRAYCOUNT(menu->blocks));
+	}
+}
 #endif
 
 #define BLUR_OFS 10
@@ -1066,6 +1136,7 @@ void func0f0f1d6c(struct menudialogdef *dialogdef, struct menudialog *dialog, st
 	menu->blockend = blockindex;
 
 #ifndef PLATFORM_N64
+	menuWatchArenas(menu, dialogdef);
 	NAMEDIAG("assign %s(%p) dialog=%p colstart=%d numcols=%d rowstart=%d blockstart=%d -> colend=%d rowend=%d blockend=%d depth=%d numdialogs=%d",
 			namediagDialogName(dialogdef), (void *)dialogdef, (void *)dialog, dialog->colstart, dialog->numcols,
 			dialog->numcols ? menu->cols[dialog->colstart].rowstart : -1, dialog->blockstart,
