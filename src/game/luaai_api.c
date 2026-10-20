@@ -67,6 +67,7 @@
 #include "system.h"           /* sysLogPrintf */
 #include "fs.h"               /* fsFileOpenRead/Write (pd.persist_* disk backing) */
 #include "input.h"            /* inputLastSourceWasPad (pd.input_source) */
+#include "padsource.h"        /* padsourceSet (pd.pad) */
 #include "video.h"            /* videoGetAverageFPS (pd.perf) */
 #endif
 
@@ -1107,6 +1108,58 @@ static int l_pd_buttons(lua_State *L)
 	return 1;
 }
 
+/* pd.pad(padnum, {x=, y=, buttons=, rx=, ry=}) -> bool
+ * pd.pad(padnum, nil)
+ * Stand in for controller `padnum` (0-based) for the NEXT input sample. The
+ * override is applied where the hardware read lands (joyReadData), so the
+ * game sees it exactly as a real pad: edges, inhibits, per-player mapping.
+ * One-shot: it covers one sample and clears, so a held button is set every
+ * tick from a pd.on("tick") handler and a script that dies cannot leave a
+ * stuck pad behind. Sticks are N64 range (-80..80, clamped); `buttons` is the
+ * same mask pd.buttons() reports; rx/ry are the port's right stick. nil (or
+ * no table) drops a pending override. Headless clients have no controller at
+ * all, so this is how a scripted pawn moves. */
+static int l_pd_pad(lua_State *L)
+{
+	s32 padnum = (s32)luaL_checkinteger(L, 1);
+	OSContPad pad;
+
+	if (lua_isnoneornil(L, 2)) {
+		padsourceClear(padnum);
+		lua_pushboolean(L, 1);
+		return 1;
+	}
+
+	luaL_checktype(L, 2, LUA_TTABLE);
+	memset(&pad, 0, sizeof(pad));
+
+#define PAD_S8(field, key) do { \
+		lua_getfield(L, 2, key); \
+		if (!lua_isnil(L, -1)) { \
+			lua_Integer v = luaL_checkinteger(L, -1); \
+			if (v > 80) v = 80; \
+			if (v < -80) v = -80; \
+			pad.field = (s8)v; \
+		} \
+		lua_pop(L, 1); \
+	} while (0)
+
+	PAD_S8(stick_x, "x");
+	PAD_S8(stick_y, "y");
+	PAD_S8(rstick_x, "rx");
+	PAD_S8(rstick_y, "ry");
+#undef PAD_S8
+
+	lua_getfield(L, 2, "buttons");
+	if (!lua_isnil(L, -1)) {
+		pad.button = (u32)luaL_checkinteger(L, -1);
+	}
+	lua_pop(L, 1);
+
+	lua_pushboolean(L, padsourceSet(padnum, &pad));
+	return 1;
+}
+
 /* pd.buttons_pressed() -> int. Buttons newly pressed this frame (same mask). */
 static int l_pd_buttons_pressed(lua_State *L)
 {
@@ -1268,6 +1321,7 @@ static const luaL_Reg g_LuaApiCoreFuncs[] = {
 	{ "objective_status", l_pd_objective_status },
 	{ "buttons",          l_pd_buttons },
 	{ "buttons_pressed",  l_pd_buttons_pressed },
+	{ "pad",              l_pd_pad },
 	{ "chr_slots",        l_pd_chr_slots },
 	{ "player_name",      l_pd_player_name },
 	{ "room_count",       l_pd_room_count },
