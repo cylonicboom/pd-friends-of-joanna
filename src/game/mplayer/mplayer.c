@@ -702,6 +702,11 @@ void mpReset(void) {
     g_PlayerConfigsArray[1].contpad1 = 1;
     g_PlayerConfigsArray[1].contpad2 = 3;
 
+#ifndef PLATFORM_N64
+    netMpConfigFixLocalPads(0);
+    netMpConfigFixLocalPads(1);
+#endif
+
     if ((g_Vars.coopplayernum >= 0 && g_Vars.coopradaron) ||
         (g_Vars.antiplayernum >= 0 && g_Vars.antiradaron)) {
       g_PlayerConfigsArray[1].base.displayoptions |= MPDISPLAYOPTION_RADAR;
@@ -717,6 +722,14 @@ void mpReset(void) {
 
         g_PlayerConfigsArray[i].contpad1 = i;
         g_PlayerConfigsArray[i].contpad2 = 0;
+
+#ifndef PLATFORM_N64
+        // netplay: the local pawn can sit at any slot (no slot-0 swap in a
+        // team mission). the slot-indexed pad above points it at a pad that
+        // doesn't exist -- frozen pawn. re-pin our own slot to pad 0; remote
+        // slots keep the inert slot pads.
+        netMpConfigFixLocalPads(i);
+#endif
 
         if (((g_Vars.coopplayernum >= 0 ||
               g_Vars.bondplayernum == g_Vars.currentplayernum) &&

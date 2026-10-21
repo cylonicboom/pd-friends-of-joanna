@@ -1300,6 +1300,9 @@ s32 playermgrAddPlayer(void)
 	g_Vars.playerstats[n].mpindex = n;
 	g_PlayerConfigsArray[n].contpad1 = n;
 	g_PlayerConfigsArray[n].contpad2 = 0;
+#ifndef PLATFORM_N64
+	netMpConfigFixLocalPads(n);
+#endif
 	mpCalculatePlayerTitle(&g_PlayerConfigsArray[n]);
 	g_PlayerConfigsArray[n].newtitle = g_PlayerConfigsArray[n].title;
 
