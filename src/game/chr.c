@@ -2143,6 +2143,38 @@ void chr0f0220ec(struct chrdata *chr, s32 lvupdate240, bool arg2)
 		}
 	}
 
+#ifndef PLATFORM_N64
+	// netplay diag: modelTickAnimQuarterSpeed walks one anim step per quarter
+	// frame, so a wild step count here is a stall. Say what fed it and clamp.
+	if (lvupdate240 > 60 && g_StageNum < STAGE_TITLE && g_StageNum != STAGE_CITRAINING) {
+		static s32 s_stepwarn = 0;
+		static s32 s_stepstage = -1;
+		if (s_stepstage != g_StageNum) {
+			s_stepstage = g_StageNum;
+			s_stepwarn = 0;
+		}
+		if (s_stepwarn < 40) {
+			sysLogPrintf(LOG_WARNING, "chr0f0220ec: chr %d anim step %d (g_Vars.lvupdate240 %d diffframe240 %d tickmode %d cutsceneskip60ths %d lvframe60 %d anim %d speed %.2f) - clamped",
+					(s32)chr->chrnum, lvupdate240, g_Vars.lvupdate240, g_Vars.diffframe240, g_Vars.tickmode, g_Vars.cutsceneskip60ths, g_Vars.lvframe60,
+					model->anim ? model->anim->animnum : -1, model->anim ? model->anim->speed : 0.0f);
+			s_stepwarn++;
+		}
+		if (lvupdate240 > 240 * 8) {
+			lvupdate240 = 240 * 8;
+		}
+	}
+#endif
+
+#ifndef PLATFORM_N64
+	// netplay diag: time the anim tick; a slow one says what the anim was.
+	const u64 animtick_us0 = sysGetMicroseconds();
+	const s32 animtick_num = model->anim ? model->anim->animnum : -1;
+	const f32 animtick_frame = model->anim ? model->anim->frame : 0.0f;
+	const f32 animtick_end = model->anim ? model->anim->endframe : 0.0f;
+	const f32 animtick_speed = model->anim ? model->anim->speed : 0.0f;
+	const f32 animtick_play = model->anim ? model->anim->playspeed : 0.0f;
+#endif
+
 	if (chr->chrflags & CHRCFLAG_DELAYANIM) {
 		chr->chrflags &= ~CHRCFLAG_DELAYANIM;
 	} else if (arg2) {
@@ -2154,6 +2186,22 @@ void chr0f0220ec(struct chrdata *chr, s32 lvupdate240, bool arg2)
 	} else {
 		modelTickAnimQuarterSpeed(model, lvupdate240, false);
 	}
+
+#ifndef PLATFORM_N64
+	{
+		const u64 dt = sysGetMicroseconds() - animtick_us0;
+		if (dt > 100000ull) {
+			static s32 s_slowanim = 0;
+			if (s_slowanim < 24) {
+				s_slowanim++;
+				sysLogPrintf(LOG_WARNING, "chr0f0220ec: chr %d anim tick took %.0f ms (anim %d frame %.1f end %.1f speed %.3f play %.3f step %d syncid %u remote %d) now anim %d frame %.1f",
+						(s32)chr->chrnum, dt / 1000.0, animtick_num, animtick_frame, animtick_end, animtick_speed, animtick_play, lvupdate240,
+						chr->prop ? chr->prop->syncid : 0, (s32)(chr->prop && chr->prop->type == PROPTYPE_PLAYER),
+						model->anim ? model->anim->animnum : -1, model->anim ? model->anim->frame : 0.0f);
+			}
+		}
+	}
+#endif
 }
 
 void chr0f022214(struct chrdata *chr, struct prop *prop, bool fulltick)
@@ -2738,7 +2786,9 @@ s32 chrTick(struct prop *prop)
 	// Defer until animnum > 0. The chr-state block on the first sim
 	// SVC_PROP_MOVE arrival sets animnum + ACT_STAND, so the guard
 	// quenches naturally within ~1 tick of the first server broadcast.
-	if (g_NetMode == NETMODE_CLIENT && chr->aibot
+	// fojo: any synced chr, not only an aibot - a co-op NPC on a client has
+	// no AI to pick its first anim either; it arrives on the wire.
+	if (g_NetMode == NETMODE_CLIENT && (chr->aibot || (NET_COOP_GAME() && chr->prop && chr->prop->syncid))
 			&& (!chr->model || !chr->model->anim || chr->model->anim->animnum == 0)) {
 		// Diagnostic: log first few defers so we can confirm this path
 		// is actually being taken. Capped low — the guard quenches

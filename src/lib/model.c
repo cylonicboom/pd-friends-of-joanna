@@ -2494,6 +2494,42 @@ void modelSetAnimFrame2WithChrStuff(struct model *model, f32 curframe, f32 endfr
 					floorend = ceiltoint(endframe);
 				}
 
+#ifndef PLATFORM_N64
+				// netplay diag: the frame walk below loads one anim frame per
+				// step between curframe and endframe. A wild pair (a wire frame
+				// or speed that never belonged to this anim) turns the walk into
+				// a stall. Say so and clamp the walk to one frame.
+				{
+					s64 span = forwards ? (s64)floorend - (s64)floorcur : (s64)floorcur - (s64)floorend;
+					const bool wild = (curframe != curframe) || (endframe != endframe)
+							|| curframe > 100000.0f || curframe < -100000.0f
+							|| endframe > 100000.0f || endframe < -100000.0f;
+					if (span > 100 || wild) {
+						static s32 s_walkwarn = 0;
+						if (s_walkwarn < 16) {
+							sysLogPrintf(LOG_WARNING, "model: anim walk of %lld frames (anim %d cur %f end %f speed %f playspeed %f frame %f lvupdate240 %d) - clamped",
+									(long long)span, anim->animnum, curframe, endframe, anim->speed, anim->playspeed, anim->frame, g_Vars.lvupdate240);
+							s_walkwarn++;
+						}
+						if (wild) {
+							// a NaN/garbage frame pair: floortoint went to INT_MIN and
+							// the walk would never end. reset the anim to frame 0.
+							anim->frame = 0.0f;
+							anim->frame2 = 0.0f;
+							anim->speed = (anim->speed != anim->speed) ? 1.0f : anim->speed;
+							curframe = 0.0f;
+							endframe = 0.0f;
+							floorcur = 1;
+							floorend = 0;
+							forwards = true;
+						} else {
+							floorend = forwards ? floorcur : floorcur;
+							endframe = curframe;
+						}
+					}
+				}
+#endif
+
 				if (g_Anims[anim->animnum].flags & ANIMFLAG_ABSOLUTETRANSLATION) {
 					f20 = bgGetStageTranslationThing();
 
@@ -4540,6 +4576,34 @@ void animInit(struct anim *anim)
 	anim->speed2 = 1;
 	anim->playspeed = 1;
 	anim->animscale = 1;
+#ifndef PLATFORM_N64
+	// The frame fields were left to modelSetAnimation, which every vanilla
+	// path calls before the first tick. A netplay client's synced NPC chr
+	// has no AI to call it - its anim arrives on the wire - and ticked a
+	// stale-pool frame (-1.7e37): floortoint went to INT_MIN and the frame
+	// walk in modelSetAnimFrame2WithChrStuff never ended.
+	anim->frame = 0;
+	anim->frame2 = 0;
+	anim->framea = 0;
+	anim->frameb = 0;
+	anim->frame2a = 0;
+	anim->frame2b = 0;
+	anim->elapseplay = 0;
+	anim->elapsemerge = 0;
+	anim->elapsespeed = 0;
+	anim->elapsespeed2 = 0;
+	anim->oldspeed = 1;
+	anim->newspeed = 1;
+	anim->oldspeed2 = 1;
+	anim->newspeed2 = 1;
+	anim->oldplay = 1;
+	anim->newplay = 1;
+	anim->flip = 0;
+	anim->flip2 = 0;
+	anim->loopframe = 0;
+	anim->loopmerge = 0;
+	anim->splitmask = 0;
+#endif
 }
 
 void modelAttachHead(struct model *bodymode, struct modeldef *bodymodeldef, struct modelnode *headspotnode, struct modeldef *headmodeldef)
