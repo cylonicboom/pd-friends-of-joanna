@@ -26,6 +26,8 @@
 #include "audio.h"
 #include "input.h"
 #include "mixer.h"
+#include "net/net.h"
+#include "net/netupnp.h"
 
 /*
  * private typedefs and defines
@@ -241,6 +243,17 @@ void schedSubmitTask(OSSched *sc, OSScTask *t)
 void schedStartFrame(OSSched *sc)
 {
 	videoStartFrame();
+	// netplay (Kai be46717): poll ENet and apply inbound state before the
+	// game tick. The session caps the render rate (default 120) because
+	// g_NetTick advances once per rendered frame.
+	if (g_Vars.diffframe60) {
+		if (g_NetMode) {
+			videoCapFramerate(videoGetNetplayFramerateLimit());
+			netStartFrame();
+		} else {
+			videoCapFramerate(0);
+		}
+	}
 }
 
 void schedAudioFrame(OSSched *sc)
@@ -295,6 +308,14 @@ void schedEndFrame(OSSched *sc)
 	joyStartReadData(&g_PiMesgQueue);
 	joyReadData();
 	joy00014238();
+
+	// netplay: write this tick's moves / state and flush to ENet. The UPnP
+	// pump sits outside the g_NetMode gate so a DeletePortMapping after
+	// "stop hosting" keeps ticking; it is a no-op when idle.
+	if (g_Vars.diffframe60) {
+		netEndFrame();
+	}
+	netUpnpTick();
 
 	sndHandleRetrace();
 	schedAudioFrame(sc);

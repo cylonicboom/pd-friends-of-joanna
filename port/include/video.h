@@ -65,6 +65,9 @@ void videoSetDisplayMode(const s32 index);
 void videoSetVsync(const s32 vsync);
 void videoSetFramerateLimit(const s32 limit);
 void videoSetFpsOverride(s32 fps);
+s32 videoGetNetplayFramerateLimit(void);
+void videoSetNetplayFramerateLimit(const s32 limit);
+void videoCapFramerate(s32 limit);
 void videoSetDisplayFPS(const s32 displayfps);
 void videoSetMSAA(const s32 msaa);
 

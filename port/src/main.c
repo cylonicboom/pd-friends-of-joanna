@@ -35,6 +35,8 @@
 #include "textrace.h"
 #include "game/luaai.h"
 #include "det.h"
+#include "net/net.h"
+#include "net/netupnp.h"
 
 u32 g_OsMemSize = 0;
 s32 g_OsMemSizeMb = 256;
@@ -127,6 +129,10 @@ static void cleanup(void)
 {
 	sysLogPrintf(LOG_NOTE, "shutdown");
 	texTraceDump();
+	// netplay: leave the session cleanly (flushes the diag log) and finish the
+	// async UPnP unmap (bounded, only when a mapping exists).
+	netDisconnect();
+	netUpnpShutdown();
 	inputSaveBinds();
 	// inputSaveBinds only refreshes the in-memory bind strings the config
 	// table points at, so nothing has marked pd.ini dirty. Shutdown has
@@ -180,6 +186,12 @@ int main(int argc, const char **argv)
 		extern bool gfx_external_textures_enabled;
 		gfx_external_textures_enabled = true;
 	}
+
+	// netplay (Kai be46717): after romdataInit (CLC_AUTH compares rom names)
+	// and before the first frame. Parses --host / --connect / --port and the
+	// rest of the net flags; a latch set here makes the main menu auto-host
+	// or auto-join once the save file is loaded.
+	netInit();
 
 	g_ValidGbcRomFound = romdataCheckGbcRom();
 
@@ -291,6 +303,15 @@ int main(int argc, const char **argv)
 		g_StageNum = STAGE_TITLE;
 	}
 
+	if (g_NetJoinLatch || g_NetHostLatch) {
+		// netplay: going straight into a session - default to profile 0 and
+		// skip the intro so the latch is consumed at the main menu.
+		if (sysArgGetInt("--profile", -1) < 0) {
+			g_FileAutoSelect = 0;
+		}
+		g_StageNum = STAGE_CITRAINING;
+	}
+
 	if (g_StageNum != STAGE_TITLE) {
 		sysLogPrintf(LOG_NOTE, "boot stage set to 0x%02x", g_StageNum);
 	}
@@ -300,7 +321,9 @@ int main(int argc, const char **argv)
 	// without a console.
 	detInitFromArgs();
 
-	g_FileAutoSelect = sysArgGetInt("--profile", -1);
+	if (sysArgGetInt("--profile", -1) >= 0 || !(g_NetJoinLatch || g_NetHostLatch)) {
+		g_FileAutoSelect = sysArgGetInt("--profile", -1);
+	}
 	if (g_FileAutoSelect >= 0) {
 		sysLogPrintf(LOG_NOTE, "player profile set to %d", g_FileAutoSelect);
 	}

@@ -516,6 +516,38 @@ void videoSetFramerateLimit(const s32 limit)
 	wmAPI->set_target_fps(vidFramerateLimit);
 }
 
+// netplay (Kai be46717): the render-rate ceiling while a session is live.
+// g_NetTick advances per render frame, so interpolation / lag-comp need a sane
+// upper bound; 0 = no ceiling (the user's own limit applies).
+static s32 vidNetplayFramerateLimit = 120;
+
+s32 videoGetNetplayFramerateLimit(void)
+{
+	return vidNetplayFramerateLimit;
+}
+
+void videoSetNetplayFramerateLimit(const s32 limit)
+{
+	vidNetplayFramerateLimit = limit;
+}
+
+// Per-frame cap used by schedStartFrame: the tighter of the user's limit and
+// `limit` (0 = just the user's). pd.fps_cap still wins over both.
+void videoCapFramerate(s32 limit)
+{
+	if (!wmAPI) {
+		return;
+	}
+	if (vidFpsOverride > 0) {
+		wmAPI->set_target_fps(vidFpsOverride);
+		return;
+	}
+	if (vidFramerateLimit > 0 && (limit == 0 || vidFramerateLimit < limit)) {
+		limit = vidFramerateLimit;
+	}
+	wmAPI->set_target_fps(limit);
+}
+
 void videoSetFpsOverride(s32 fps)
 {
 	fps = (fps > 0) ? fps : 0;

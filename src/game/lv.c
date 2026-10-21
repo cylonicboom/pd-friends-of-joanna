@@ -436,6 +436,18 @@ void lvReset(s32 stagenum)
 		s32 i;
 		s32 j;
 
+#ifndef PLATFORM_N64
+		// netplay (Kai be46717): the host tells its clients the stage is
+		// changing; a client applies the host's RNG seeds here so the
+		// deterministic setup below (spawn pads, bot allocation, syncids)
+		// comes out identical on both ends.
+		if (g_NetMode == NETMODE_SERVER) {
+			netServerStageStart();
+		} else if (g_NetMode == NETMODE_CLIENT) {
+			netClientSyncRng();
+		}
+#endif
+
 		tilesReset();
 		bgReset(g_Vars.stagenum);
 		bgBuildTables(g_Vars.stagenum);
@@ -561,6 +573,20 @@ void lvReset(s32 stagenum)
 			playerSpawn();
 			bheadReset();
 
+#ifndef PLATFORM_N64
+			// netplay (Kai be46717): a remote pawn hard-snaps to the HOST's
+			// spawn and the host holds it until the client acks (its own
+			// pad pick could differ). forcetick is latched directly - at
+			// stage load bwalkUpdateRemote runs before the first move record,
+			// so a bare FORCEMASK would be wiped before it could latch.
+			// Cleared on client ack in netmsgClcMoveRead.
+			if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote
+					&& g_Vars.currentplayer->client) {
+				g_Vars.currentplayer->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
+				g_Vars.currentplayer->client->forcetick = g_NetTick;
+			}
+#endif
+
 			if (g_Vars.normmplayerisrunning && (g_MpSetup.options & MPOPTION_TEAMSENABLED)) {
 				playermgrCalculateAiBuddyNums();
 			}
@@ -590,6 +616,16 @@ void lvReset(s32 stagenum)
 	if (IS8MB()) {
 		pheadReset();
 	}
+
+#ifndef PLATFORM_N64
+	// netplay: never carry a slow-motion step into the next stage; hand every
+	// active prop its syncid now that the world exists (both roles).
+	g_LvSlomoEngaged = false;
+
+	if (g_NetMode) {
+		netSyncIdsAllocate();
+	}
+#endif
 
 	modelmgrSetLvResetting(false);
 	var80084018 = 1;
@@ -1253,6 +1289,16 @@ Gfx *lvRender(Gfx *gdl)
 		struct player *player;
 		struct chrdata *chr;
 
+#ifndef PLATFORM_N64
+		// netplay (Kai be46717): every seated player ticks here - the per-player
+		// sim (propsTickPlayer, bondgun, hands) lives inside this loop - but
+		// only the LOCAL pawn's display list survives; the others are rolled
+		// back below (viewdiscarded).
+		if (g_NetMode) {
+			forcesingleplayer = false;
+		}
+#endif
+
 		playercount = forcesingleplayer ? 1 : PLAYERCOUNT();
 
 		gSPClipRatio(gdl++, FRUSTRATIO_2);
@@ -1260,6 +1306,9 @@ Gfx *lvRender(Gfx *gdl)
 		for (i = 0; i < playercount; i++) {
 			bool islastplayer;
 			u32 bluramount = 0;
+#ifndef PLATFORM_N64
+			bool viewdiscarded = false;
+#endif
 
 			savedgdl = gdl;
 
@@ -1272,6 +1321,31 @@ Gfx *lvRender(Gfx *gdl)
 				setCurrentPlayerNum(playermgrGetPlayerAtOrder(i));
 				islastplayer = playercount == nextplayernum;
 			}
+
+#ifndef PLATFORM_N64
+			// netplay: a remote client's pawn can be torn down between tick and
+			// render (round transition, a wire free). The body below derefs
+			// currentplayer->prop->chr unconditionally; skip the slot this frame.
+			if (g_NetMode != NETMODE_NONE
+					&& (!g_Vars.currentplayer || !g_Vars.currentplayer->prop
+						|| !g_Vars.currentplayer->prop->chr)) {
+				continue;
+			}
+
+			// Which iteration is ours. Keyed on the local client's binding, not
+			// slot 0: fojo's role arrays are sparse by wire slot and a local
+			// player may sit at any of them (d-net-slot-identity). A client with
+			// no pawn yet keeps order 0.
+			if (g_NetMode) {
+				bool islocaliter;
+				if (g_NetLocalClient && g_NetLocalClient->player) {
+					islocaliter = playermgrGetPlayerAtOrder(i) == g_NetLocalClient->playernum;
+				} else {
+					islocaliter = (i == 0);
+				}
+				viewdiscarded = !islocaliter;
+			}
+#endif
 
 			// Calculate bluramount - this will be used later
 			if (g_Vars.tickmode != TICKMODE_CUTSCENE) {
@@ -1733,7 +1807,13 @@ Gfx *lvRender(Gfx *gdl)
 									((PAL ? 26.0f : 30.0f) - g_Vars.speedpillchange) * (PAL ? 0.0076923076994717f : 0.0066666668280959f));
 						}
 
+#ifndef PLATFORM_N64
+						// netplay: "once per frame, on the primary viewport" - the
+						// local pawn need not be slot 0 (netPlayerIsPrimaryLocal).
+						if (netPlayerIsPrimaryLocal()) {
+#else
 						if (g_Vars.currentplayernum == 0) {
+#endif
 							if (g_Vars.speedpillwant) {
 								g_Vars.speedpillchange++;
 							} else {
@@ -1900,11 +1980,24 @@ Gfx *lvRender(Gfx *gdl)
 				}
 
 				if (g_Vars.currentplayer->dostartnewlife) {
+#ifndef PLATFORM_N64
+					// netplay: respawn is host-authoritative; a client waits for
+					// the force-snap that follows the host's playerStartNewLife.
+					if (g_NetMode != NETMODE_CLIENT)
+#endif
 					playerStartNewLife();
 				}
 			}
 
 			artifactsTick();
+
+#ifndef PLATFORM_N64
+			// netplay: this iteration ticked a pawn that is not ours - drop
+			// everything it drew.
+			if (viewdiscarded) {
+				gdl = savedgdl;
+			}
+#endif
 
 			if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 #if VERSION >= VERSION_NTSC_1_0
@@ -2575,6 +2668,9 @@ void lvTick(void)
 
 			if (elapsed < TICKS(g_MpTimeLimit60) && nexttime >= TICKS(g_MpTimeLimit60)) {
 				// Match is ending due to time limit reached
+#ifndef PLATFORM_N64
+				if (g_NetMode != NETMODE_CLIENT) // netplay: the host ends it (SVC_STAGE_END)
+#endif
 				mainEndStage();
 			}
 
@@ -2627,6 +2723,12 @@ void lvTick(void)
 					}
 				}
 			}
+
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_CLIENT) {
+				g_NumReasonsToEndMpMatch = 0; // netplay: match end is the host's call
+			}
+#endif
 
 			if (g_NumReasonsToEndMpMatch > 0 && numdying == 0) {
 				mainEndStage();
@@ -2744,10 +2846,36 @@ void lvTickPlayer(void)
 	zdiff = g_Vars.currentplayer->prop->pos.z - g_Vars.currentplayer->bondprevpos.z;
 
 	g_Vars.currentplayerstats->distance += sqrtf(xdiff * xdiff + zdiff * zdiff);
+
+#ifndef PLATFORM_N64
+	// netplay (Kai be46717): spectate camera override after physics, for the
+	// local pawn only (remote pawns tick here too on the host). A client with
+	// no pawn yet runs the auto-update on render order 0 so it can watch.
+	if (g_NetMode && g_NetLocalClient
+			&& (g_Vars.currentplayer == g_NetLocalClient->player
+				|| (g_NetMode == NETMODE_CLIENT && !g_NetLocalClient->player
+					&& g_NetLocalClient->is_spectator && g_Vars.currentplayerindex == 0))) {
+		netSpectateAutoUpdate();
+		netSpectateApply();
+	}
+#endif
 }
 
 void lvStop(void)
 {
+#ifndef PLATFORM_N64
+	// netplay: the player structs die with the stage pool below; a netclient
+	// binding kept across this point is a dangling pointer the per-tick net
+	// code reads next frame. Bindings come back at the next stage load.
+	if (g_NetMode) {
+		s32 i;
+		for (i = 0; i <= NET_MAX_CLIENTS; ++i) {
+			g_NetClients[i].player = NULL;
+		}
+		netSpectateStop();
+	}
+#endif
+
 	paksStop(true);
 
 	if (g_MiscAudioHandle && sndGetState(g_MiscAudioHandle)) {

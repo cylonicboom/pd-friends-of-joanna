@@ -18,6 +18,9 @@
 #include "game/prop.h"
 #include "game/menu.h"
 #include "game/activemenu.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 #include "game/chraction.h"
 #include "game/inv.h"
 #include "game/bondhead.h"
@@ -232,6 +235,14 @@ s32 playermgrAllocatePlayers(s32 playercount)
 		setCurrentPlayerNum(g_Vars.bondplayernum);
 		g_Vars.bond = g_Vars.players[g_Vars.bondplayernum];
 	}
+
+#ifndef PLATFORM_N64
+	// netplay (Kai be46717): bind each connected client to its seat. Not in
+	// the hub / title - those seat one local player regardless of the session.
+	if (g_NetMode && g_StageNum != STAGE_TITLE && g_StageNum != STAGE_CITRAINING) {
+		netPlayersAllocate();
+	}
+#endif
 
 	sysLogPrintf(LOG_NOTE, "playermgrAllocatePlayers -> %d: players={%p,%p,%p,%p} coop=%p anti=%p parked={%p,%p,%p,%p} curcoop=%d",
 		playercount, g_Vars.players[0], g_Vars.players[1], g_Vars.players[2], g_Vars.players[3],
@@ -748,6 +759,23 @@ void playermgrAllocatePlayer(s32 index)
 
 	g_Vars.players[index]->haschrbody = false;
 #ifndef PLATFORM_N64
+	// netplay (Kai be46717): fresh seat, no client bound yet. A host-side seat
+	// starts with the force bits set so the first move to a remote pawn is a
+	// hard snap to the host's spawn.
+	g_Vars.players[index]->client = NULL;
+	g_Vars.players[index]->ucmd = (g_NetMode == NETMODE_SERVER) ? UCMD_FL_FORCEMASK : 0;
+	g_Vars.players[index]->isremote = false;
+	g_Vars.players[index]->is_spectator = 0;
+	g_Vars.players[index]->spectator_panel = 0;
+	g_Vars.players[index]->isdormant = 0;
+	g_Vars.players[index]->fbw_pitch = 0;
+	g_Vars.players[index]->fbw_yaw = 0;
+	g_Vars.players[index]->fbw_rsticky = 0;
+	g_Vars.players[index]->fbw_pendingframe = 0;
+	g_Vars.players[index]->fbw_spawnsyncid = 0;
+	g_Vars.players[index]->fbw_spawnframe = 0;
+	g_Vars.players[index]->respawnallowtick = 0;
+	g_Vars.players[index]->respawnprotect60 = 0;
 	g_Vars.players[index]->thirdperson = false;
 	g_Vars.players[index]->bodyfadefrac = 0;
 	g_Vars.players[index]->flinchtime60 = 0;
@@ -1057,6 +1085,14 @@ void playermgrShuffle(void)
 	for (i = 0; i < MAX_PLAYERS; i++) {
 		g_Vars.playerorder[i] = i;
 	}
+
+#ifndef PLATFORM_N64
+	// netplay: the render order is part of how the local viewport is found
+	// (lvRender's viewdiscarded); keep it fixed in a session.
+	if (g_NetMode) {
+		return;
+	}
+#endif
 
 	// Randomly swap numbers with later elements
 	for (i = 0; i < MAX_PLAYERS - 1; i++) {
