@@ -3526,6 +3526,16 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 		}
 	}
 
+	if (src->error) {
+		// name the message that underflowed - the dispatcher only knows 0x30
+		static u32 s_errtick = 0xffffffffu;
+		if (s_errtick != g_NetTick) {
+			s_errtick = g_NetTick;
+			sysLogPrintf(LOG_WARNING, "NET: SVC_PROP_MOVE: short read syncid %u flags 0x%02x (resolved %d type %d) left %d",
+					wiresid, flags, prop != NULL, prop ? prop->type : -1, (s32)(src->size - src->rp));
+		}
+	}
+
 	return src->error;
 }
 
