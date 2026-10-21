@@ -290,6 +290,23 @@ void netSyncPropSpawn(struct prop *prop)
 	g_NetSpawnRecent[g_NetSpawnRecentHead & 7].frame = g_Vars.lvframe60;
 	g_NetSpawnRecentHead++;
 
+	// fojo: the spawn reader has a constructor for weapons and thrown laptops
+	// only. A runtime OBJ of any other objtype (Defection's sky traffic -
+	// hovercars, jumpship, police cars - is the first one seen) would land on
+	// the client as a bare prop with no obj, and the reader would misalign the
+	// rest of the packet. Leave it local: syncid 0 takes it out of every wire
+	// walk (moves, reconcile, frees). Both machines run their own copy.
+	if (prop->type == PROPTYPE_OBJ && prop->obj && prop->obj->type != OBJTYPE_AUTOGUN) {
+		static u32 s_locallogged = 0;
+		if (s_locallogged < 8u) {
+			sysLogPrintf(LOG_NOTE, "NET: runtime OBJ objtype %u model 0x%x stays local (no spawn constructor)",
+					prop->obj->type, prop->obj->modelnum);
+			s_locallogged++;
+		}
+		prop->syncid = 0;
+		return;
+	}
+
 	netmsgSvcPropSpawnWrite(&g_NetMsgRel, prop);
 	netmsgSvcPropMoveWrite(&g_NetMsgRel, prop, NULL);
 	netPropLogEvent(prop, NETPROP_EV_WIRE_SPAWN_TX, 0);

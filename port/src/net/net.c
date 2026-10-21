@@ -3160,9 +3160,11 @@ void netEndFrame(void)
 									&& !netPropWasSpawnBroadcast(prop->syncid)) {
 								netSyncPropSpawn(prop); // spawn-before-move (self-heals a lost spawn)
 							}
-							const u32 b0 = g_NetMsg.wp;
-							netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
-							netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+							if (prop->syncid) { // fojo: netSyncPropSpawn may have kept it local
+								const u32 b0 = g_NetMsg.wp;
+								netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
+								netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+							}
 						} else if (nsettled < 4) {
 							// Settled obj: round-robin refresh, a few per tick.
 							settled[nsettled++] = prop;
@@ -3184,9 +3186,11 @@ void netEndFrame(void)
 							&& !netPropWasSpawnBroadcast(prop->syncid)) {
 						netSyncPropSpawn(prop); // spawn-before-move (self-heals a lost spawn)
 					}
-					const u32 b0 = g_NetMsg.wp;
-					netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
-					netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+					if (prop->syncid) { // fojo: netSyncPropSpawn may have kept it local
+						const u32 b0 = g_NetMsg.wp;
+						netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
+						netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+					}
 				}
 				coopobjcursor = cursorend; // resume here next tick
 			}
@@ -3260,9 +3264,11 @@ void netEndFrame(void)
 									&& !netPropWasSpawnBroadcast(prop->syncid)) {
 								netSyncPropSpawn(prop); // spawn-before-move (self-heals a lost spawn)
 							}
-							const u32 b0 = g_NetMsg.wp;
-							netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
-							netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+							if (prop->syncid) { // fojo: netSyncPropSpawn may have kept it local
+								const u32 b0 = g_NetMsg.wp;
+								netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
+								netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+							}
 						} else if (nsettled < 4) {
 							// Settled: round-robin refresh, a few per tick.
 							settled[nsettled++] = prop;
@@ -3284,9 +3290,11 @@ void netEndFrame(void)
 							&& !netPropWasSpawnBroadcast(prop->syncid)) {
 						netSyncPropSpawn(prop); // spawn-before-move (self-heals a lost spawn)
 					}
-					const u32 b0 = g_NetMsg.wp;
-					netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
-					netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+					if (prop->syncid) { // fojo: netSyncPropSpawn may have kept it local
+						const u32 b0 = g_NetMsg.wp;
+						netmsgSvcPropMoveWrite(&g_NetMsg, prop, NULL);
+						netStatAdd(NETSTAT_PROPMOVE, g_NetMsg.wp - b0);
+					}
 				}
 				mpobjcursor = cursorend; // resume here next tick
 			}
