@@ -60,10 +60,30 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
+#include "platform.h"
 #include "game/stagetable.h"
 #include "game/atan2f.h"
 #include "video.h"
-#include "platform.h"
+#include "net/net.h"
+#include "system.h"
+
+#ifndef PLATFORM_N64
+// Remote continuous-sound sentinel: the SFX_805E reaper spin-up stores
+// (struct sndstate *)1 in hand->audiohandle for REMOTE pawns (psCreate has no
+// compatible handle; the sentinel only suppresses re-trigger). Every generic
+// audiohandle consumer must treat it as "no real handle" — audioStop /
+// audioPostEvent / sndGetState on it dereference near-NULL memory. Crashed a
+// client 2026-06-11: the spectator redirect runs playerRenderHud (and so
+// bgunTickGameplay2) on the spectated REMOTE player's hands, and the
+// zero-update-frame stop loop hit audioStop(0x1).
+static inline bool bgunAudioHandleReal(struct sndstate *handle)
+{
+	return handle != NULL && handle != (struct sndstate *)(uintptr_t)1;
+}
+#endif
+#include "net/netmsg.h"
+#include "net/netprop.h"
+#include "mpsetups.h"
 #endif
 
 #define GUNLOADSTATE_FLUX     0
@@ -205,6 +225,26 @@ char var800700bc[][10] = {
 
 #ifndef PLATFORM_N64
 s32 g_BgunGeMuzzleFlashes = false;
+
+// netplay: route a first-person gun sound through the 3D positional channel
+// when the firing player is remote. Every player's bgunTick runs on every
+// machine - a remote pawn's from its wire inputs after setCurrentPlayerNum -
+// and sndStart is "in your head", so a remote shot used to play at full
+// volume as if the local player fired. The local player keeps sndStart.
+// Returns NULL on the positional path (psCreate hands back a channel, not a
+// sndstate), so pitch/loop effects that need the handle skip remote shots.
+static struct sndstate *bgunPlayGunSound(s16 soundnum, struct sndstate **handle_out, s32 pstype)
+{
+	struct player *pl = g_Vars.currentplayer;
+	if (pl && pl->isremote && pl->prop) {
+		psCreate(NULL, pl->prop, soundnum, -1, -1, PSFLAG_0400, 0, pstype, NULL, -1.f, NULL, -1, -1.f, -1.f, -1.f);
+		if (handle_out) {
+			*handle_out = NULL;
+		}
+		return NULL;
+	}
+	return sndStart(var80095200, soundnum, handle_out, -1, -1, -1, -1, -1);
+}
 
 // Only bullet-firing GUNS jam (pd.weapon_jam, g_ChaosWeaponJam). Unarmed, the
 // combat knife, and thrown/planted weapons (grenades, N-bomb, mines) have no
@@ -928,6 +968,16 @@ void bgun0f0981e8(struct hand *hand, struct modeldef *modeldef)
 						if (s2 >= cmd->unk02 && s4 < cmd->unk02 && s4 < s2) {
 							switch (cmd->type) {
 							case GUNCMD_PLAYSOUND:
+#ifndef PLATFORM_N64
+								// Remote players' animation-triggered gun sounds
+								// (cocks, reload clicks etc.) need to play at the
+								// remote player's position rather than first-person.
+								if (g_Vars.currentplayer && g_Vars.currentplayer->isremote && g_Vars.currentplayer->prop) {
+									psCreate(NULL, g_Vars.currentplayer->prop, cmd->unk04, -1, -1, PSFLAG_0400, 0, PSTYPE_NONE, NULL, -1.f, NULL, -1, -1.f, -1.f, -1.f);
+									hasspeed = false;
+									break;
+								}
+#endif
 #if VERSION >= VERSION_NTSC_1_0
 								if (hasspeed) {
 									snd00010718(0, 0, AL_VOL_FULL, AL_PAN_CENTER, cmd->unk04, speed, 1, -1, 1);
@@ -1839,7 +1889,7 @@ s32 bgunTickIncReload(struct handweaponinfo *info, s32 handnum, struct hand *han
 					&& !g_PlayerInvincible
 					&& !g_Vars.currentplayer->isdead) {
 				if (!weaponHasFlag2(info->weaponnum, WEAPONFLAG2_NORELOADSOUND)) {
-					sndStart(var80095200, SFX_RELOAD_DEFAULT, 0, -1, -1, -1, -1, -1);
+					bgunPlayGunSound(SFX_RELOAD_DEFAULT, NULL, PSTYPE_NONE); // netplay: positional for a remote pawn
 				}
 			}
 		}
@@ -2187,11 +2237,19 @@ void bgun0f09a6f8(struct handweaponinfo *info, s32 handnum, struct hand *hand, s
 				}
 #endif
 
+#ifndef PLATFORM_N64
+				if (hand->audiohandle2 == NULL) {
+					handle = bgunPlayGunSound(gsetGetSingleShootSound(&hand->gset), &hand->audiohandle2, PSTYPE_CHRSHOOT);
+				} else if (hand->audiohandle3 == NULL) {
+					handle = bgunPlayGunSound(gsetGetSingleShootSound(&hand->gset), &hand->audiohandle3, PSTYPE_CHRSHOOT);
+				}
+#else
 				if (hand->audiohandle2 == NULL) {
 					handle = sndStart(var80095200, gsetGetSingleShootSound(&hand->gset), &hand->audiohandle2, -1, -1, -1, -1, -1);
 				} else if (hand->audiohandle3 == NULL) {
 					handle = sndStart(var80095200, gsetGetSingleShootSound(&hand->gset), &hand->audiohandle3, -1, -1, -1, -1, -1);
 				}
+#endif
 
 				hand->lastshootframe60 = g_Vars.lvframe60;
 
@@ -2499,12 +2557,23 @@ bool bgunTickIncAttackingThrow(s32 handnum, struct hand *hand)
 			}
 
 			if (func->base.fire_animation) {
+#ifndef PLATFORM_N64
+				// Remote players have their animation driven by received state;
+				// calling bgunStartAnimation for them crashes because their
+				// weapon gset may be partially synced, leaving fire_animation
+				// pointing at unmapped memory.
+				if (!g_Vars.currentplayer->isremote)
+#endif
 				bgunStartAnimation(func->base.fire_animation, handnum, hand);
 				hand->unk0cc8_01 = true;
 			}
 		}
 
-		if (func->base.fire_animation) {
+		if (func->base.fire_animation
+#ifndef PLATFORM_N64
+				&& !g_Vars.currentplayer->isremote
+#endif
+		) {
 			if (hand->triggerreleased) {
 				hand->unk0cc8_01 = false;
 			}
@@ -2831,7 +2900,11 @@ s32 bgunTickIncAttackEmpty(struct handweaponinfo *info, s32 handnum, struct hand
 				struct sndstate *handle;
 #endif
 
+#ifndef PLATFORM_N64
+				handle = bgunPlayGunSound(SFX_HIT_WATER, NULL, PSTYPE_NONE);
+#else
 				handle = sndStart(var80095200, SFX_HIT_WATER, NULL, -1, -1, -1, -1, -1);
+#endif
 
 				if (handle) {
 					audioPostEvent(handle, AL_SNDP_PITCH_EVT, *(s32 *)&speed);
@@ -2857,7 +2930,11 @@ s32 bgunTickIncAttackEmpty(struct handweaponinfo *info, s32 handnum, struct hand
 				struct sndstate *handle;
 #endif
 
+#ifndef PLATFORM_N64
+				handle = bgunPlayGunSound(SFX_FIREEMPTY, NULL, PSTYPE_NONE);
+#else
 				handle = sndStart(var80095200, SFX_FIREEMPTY, NULL, -1, -1, -1, -1, -1);
+#endif
 
 				if (handle) {
 					audioPostEvent(handle, AL_SNDP_PITCH_EVT, *(s32 *)&speed);
@@ -2880,7 +2957,11 @@ s32 bgunTickIncAttackEmpty(struct handweaponinfo *info, s32 handnum, struct hand
 			break;
 		default:
 			// Default click sound effect
+#ifndef PLATFORM_N64
+			bgunPlayGunSound(SFX_FIREEMPTY, NULL, PSTYPE_NONE);
+#else
 			sndStart(var80095200, SFX_FIREEMPTY, NULL, -1, -1, -1, -1, -1);
+#endif
 			break;
 		}
 	}
@@ -3245,7 +3326,15 @@ s32 bgunTickIncChangeGun(struct handweaponinfo *info, s32 handnum, struct hand *
 					prevpri1 = osGetThreadPri(0);
 					osSetThreadPri(0, osGetThreadPri(&g_AudioManager.thread) + 1);
 #endif
-					handle1 = sndStart(var80095200, SFX_EQUIP_HORIZONSCANNER, 0, -1, -1, -1, -1, -1);
+					// Weapon swap / equip SFX. Without bgunPlayGunSound the
+					// remote player's equip sound played non-positionally for
+					// everyone (full volume regardless of distance) — same
+					// failure mode the shoot / reload paths had. Pitch shifts
+					// via audioPostEvent only land on the local player's
+					// sndStart path because psCreate hands back a channel
+					// index, not an sndstate*; remote listeners get the SFX
+					// at default pitch but at the right world position.
+					handle1 = bgunPlayGunSound(SFX_EQUIP_HORIZONSCANNER, NULL, PSTYPE_NONE);
 
 					if (handle1) {
 						audioPostEvent(handle1, AL_SNDP_PITCH_EVT, *(s32 *)&speed1);
@@ -3256,14 +3345,14 @@ s32 bgunTickIncChangeGun(struct handweaponinfo *info, s32 handnum, struct hand *
 #endif
 					break;
 				case WEAPON_LASER:
-					sndStart(var80095200, SFX_PICKUP_LASER, 0, -1, -1, -1, -1, -1);
+					bgunPlayGunSound(SFX_PICKUP_LASER, NULL, PSTYPE_NONE);
 					break;
 				case WEAPON_COMBATKNIFE:
-					sndStart(var80095200, SFX_PICKUP_KNIFE, 0, -1, -1, -1, -1, -1);
+					bgunPlayGunSound(SFX_PICKUP_KNIFE, NULL, PSTYPE_NONE);
 					break;
 				case WEAPON_REMOTEMINE:
 					if (handnum == HAND_RIGHT) {
-						sndStart(var80095200, SFX_PICKUP_MINE, 0, -1, -1, -1, -1, -1);
+						bgunPlayGunSound(SFX_PICKUP_MINE, NULL, PSTYPE_NONE);
 					}
 					break;
 				case WEAPON_TIMEDMINE:
@@ -3277,7 +3366,7 @@ s32 bgunTickIncChangeGun(struct handweaponinfo *info, s32 handnum, struct hand *
 				case WEAPON_COMMSRIDER:
 				case WEAPON_TRACERBUG:
 				case WEAPON_TARGETAMPLIFIER:
-					sndStart(var80095200, SFX_PICKUP_MINE, 0, -1, -1, -1, -1, -1);
+					bgunPlayGunSound(SFX_PICKUP_MINE, NULL, PSTYPE_NONE);
 					break;
 				case WEAPON_TRANQUILIZER:
 				case WEAPON_PSYCHOSISGUN:
@@ -3288,7 +3377,7 @@ s32 bgunTickIncChangeGun(struct handweaponinfo *info, s32 handnum, struct hand *
 					osSetThreadPri(0, osGetThreadPri(&g_AudioManager.thread) + 1);
 #endif
 
-					handle2 = sndStart(var80095200, SFX_PICKUP_GUN, 0, -1, -1, -1, -1, -1);
+					handle2 = bgunPlayGunSound(SFX_PICKUP_GUN, NULL, PSTYPE_NONE);
 
 					if (handle2) {
 						audioPostEvent(handle2, AL_SNDP_PITCH_EVT, *(s32 *)&speed2);
@@ -3306,7 +3395,7 @@ s32 bgunTickIncChangeGun(struct handweaponinfo *info, s32 handnum, struct hand *
 					osSetThreadPri(0, osGetThreadPri(&g_AudioManager.thread) + 1);
 #endif
 
-					handle3 = sndStart(var80095200, SFX_PICKUP_GUN, 0, -1, -1, -1, -1, -1);
+					handle3 = bgunPlayGunSound(SFX_PICKUP_GUN, NULL, PSTYPE_NONE);
 
 					if (handle3) {
 						audioPostEvent(handle3, AL_SNDP_PITCH_EVT, *(s32 *)&speed3);
@@ -3346,7 +3435,7 @@ s32 bgunTickIncChangeGun(struct handweaponinfo *info, s32 handnum, struct hand *
 					// No equip sound
 					break;
 				default:
-					sndStart(var80095200, SFX_PICKUP_GUN, 0, -1, -1, -1, -1, -1);
+					bgunPlayGunSound(SFX_PICKUP_GUN, NULL, PSTYPE_NONE);
 					break;
 				}
 			}
@@ -4783,6 +4872,13 @@ void bgunCreateThrownProjectile(s32 handnum, struct gset *gset)
 	struct trainingdata *data;
 	u32 stack;
 
+#ifndef PLATFORM_N64
+	// don't do anything if we're not the authority
+	if (g_NetMode == NETMODE_CLIENT) {
+		return NULL;
+	}
+#endif
+
 	if (handnum >= 2) {
 		droppinggrenade = true;
 		handnum -= 2;
@@ -4948,7 +5044,15 @@ void bgunCreateThrownProjectile(s32 handnum, struct gset *gset)
 				weapon->base.hidden |= OBJHFLAG_THROWNKNIFE;
 			}
 		}
+
+#ifndef PLATFORM_N64
+		if (obj) {
+			netSyncPropSpawn(obj->prop);
+		}
+#endif
 	}
+
+	return obj;
 }
 
 void bgunUpdateHeldRocket(s32 handnum)
@@ -5055,6 +5159,14 @@ void bgunCreateFiredProjectile(s32 handnum)
 	s32 chaosSavedWeaponnum = 0;
 	s32 chaosSavedWeaponfunc = 0;
 	bool chaosSwapped = false;
+#endif
+
+#ifndef PLATFORM_N64
+	// netplay: a client can't create its own projectile - the host spawns it
+	// from this pawn's wire inputs and SVC_PROP_SPAWN brings it back.
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
 #endif
 
 	hand = g_Vars.currentplayer->hands + handnum;
@@ -5317,6 +5429,23 @@ void bgunCreateFiredProjectile(s32 handnum)
 					weapon->base.prop = NULL;
 					weapon->base.model = NULL;
 				}
+#ifndef PLATFORM_N64
+				else {
+					netSyncPropSpawn(weapon->base.prop);
+				}
+
+				// Remote pawn on a server: vanilla detaches the fired rocket
+				// from the hand in bgunRender (the "render it attached one
+				// more frame" handoff, bondgun.c ~11782) — render-tier, so
+				// headless the hand kept pointing at the FIRED rocket and the
+				// next shot re-consumed the same prop: re-scaled its realrot
+				// (the "rocket doubles in size every shot" report) and
+				// re-launched it from the new muzzle. Detach immediately here.
+				if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote
+						&& hand->firedrocket) {
+					hand->rocket = NULL;
+				}
+#endif
 #else
 				// NTSC beta doesn't have any of the failure checks
 				Mtxf sp78;
@@ -6024,7 +6153,7 @@ void bgunTickSwitch2(void)
 					setCurrentPlayerNum(prevplayer);
 				}
 
-				sndStart(var80095200, SFX_DISGUISE_ON, 0, -1, -1, -1, -1, -1);
+				bgunPlayGunSound(SFX_DISGUISE_ON, NULL, PSTYPE_NONE); // netplay: positional for a remote pawn
 
 
 			}
@@ -6827,14 +6956,24 @@ void bgunDisarm(struct prop *attackerprop)
 	s32 modelnum;
 	s32 i;
 	bool drop;
+	struct defaultobj *obj;
+#ifndef PLATFORM_N64
+	// don't do anything if we're not the authority
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
 
 	if (!weaponHasFlag(weaponnum, WEAPONFLAG_UNDROPPABLE) && weaponnum <= WEAPON_RCP45) {
 #if VERSION >= VERSION_NTSC_1_0
 		// Coop must not allow player to drop a mission critical weapon
 		// because AI lists can fail the mission if the player has zero
 		// quantity.
+		// fojo: protect mission-critical weapons from ANY ally (operative or
+		// any coop seat), never from a counter-operative. kai widened the
+		// bond/coop pair to every player prop; a Team Mission has antis.
 		if (g_Vars.coopplayernum >= 0
-				&& (attackerprop == g_Vars.bond->prop || attackerprop == g_Vars.coop->prop)
+				&& attackerprop && isChrPropAlly(attackerprop)
 				&& bgunIsMissionCritical(weaponnum)) {
 			return;
 		}
@@ -6843,6 +6982,12 @@ void bgunDisarm(struct prop *attackerprop)
 		if (weaponnum <= WEAPON_UNARMED || player->gunctrl.switchtoweaponnum != -1) {
 			return;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcChrDisarmWrite(&g_NetMsgRel, player->prop->chr, attackerprop, weaponnum, 0.f, NULL);
+		}
+#endif
 
 		chr = player->prop->chr;
 		drop = true;
@@ -6880,6 +7025,19 @@ void bgunDisarm(struct prop *attackerprop)
 		weaponDeleteFromChr(chr, HAND_RIGHT);
 		weaponDeleteFromChr(chr, HAND_LEFT);
 
+#ifndef PLATFORM_N64
+		// Client: the authoritative dropped weapon arrives over the wire via the
+		// server's netSyncPropSpawn (below, server-only). Creating + objDrop'ing a
+		// local copy here too left a duplicate syncid-0 world prop that no
+		// pickup/free ever referenced — the uncollectable "ghost" gun on the floor
+		// when a player is disarmed (two weapons: one collectable, one stuck). The
+		// weapon is still removed from the hand + inventory; only the WORLD drop is
+		// skipped, so the wire copy is the one and only gun.
+		if (g_NetMode == NETMODE_CLIENT) {
+			drop = false;
+		}
+#endif
+
 		// Actually drop the weapon
 		modelnum = playermgrGetModelOfWeapon(weaponnum);
 
@@ -6896,6 +7054,10 @@ void bgunDisarm(struct prop *attackerprop)
 				}
 
 				objDrop(prop2, true);
+
+#ifndef PLATFORM_N64
+				netSyncPropSpawn(prop2);
+#endif
 			}
 		}
 
@@ -7504,22 +7666,48 @@ void bgunUpdateReaper(struct hand *hand, struct modeldef *modeldef)
 	var8009d140 = hand->matmot1;
 
 	if (hand->audiohandle == NULL && hand->matmot3 > 0.1f && g_Vars.lvupdate240 != 0) {
+#ifndef PLATFORM_N64
+		// Reaper spin-up. Local player stores hand->audiohandle for ongoing
+		// volume / pitch control further down; psCreate returns a channel
+		// index instead, so for remote players we play a one-shot positional
+		// sound and use hand->audiohandle as a sentinel to suppress re-trigger
+		// on subsequent ticks (cleared further down once matmot3 drops back
+		// below 0.1). Distance attenuation handles "fading out" — we lose
+		// the volume ramp / pitch shaping for remote spin-ups, but the sound
+		// no longer blasts every listener at full volume.
+		if (g_Vars.currentplayer && g_Vars.currentplayer->isremote && g_Vars.currentplayer->prop) {
+			psCreate(NULL, g_Vars.currentplayer->prop, SFX_805E, -1, -1, PSFLAG_0400, 0, PSTYPE_NONE, NULL, -1.f, NULL, -1, -1.f, -1.f, -1.f);
+			hand->audiohandle = (struct sndstate *)(uintptr_t)1; // sentinel, NOT a real handle
+		} else
+#endif
 		sndStart(var80095200, SFX_805E, &hand->audiohandle, -1, -1, -1.0f, -1, -1);
 	}
 
 	if (hand->audiohandle != NULL) {
-		f32 sp34 = hand->matmot3 / 0.50f + 0.4f;
-		s32 volume = AL_VOL_FULL;
-
-		if (hand->matmot3 < 0.1f) {
-			audioStop(hand->audiohandle);
-		} else {
-			if (hand->matmot3 < 0.6f) {
-				volume = (hand->matmot3 - 0.1f) * AL_VOL_FULL / 0.5f;
+#ifndef PLATFORM_N64
+		// Remote sentinel: skip audioStop / audioPostEvent (would crash on the
+		// fake pointer) and clear back to NULL when the spin actually stops
+		// so the next spin-up can re-trigger.
+		if (g_Vars.currentplayer && g_Vars.currentplayer->isremote) {
+			if (hand->matmot3 < 0.1f) {
+				hand->audiohandle = NULL;
 			}
+		} else
+#endif
+		{
+			f32 sp34 = hand->matmot3 / 0.50f + 0.4f;
+			s32 volume = AL_VOL_FULL;
 
-			audioPostEvent(hand->audiohandle, AL_SNDP_VOL_EVT, volume);
-			audioPostEvent(hand->audiohandle, AL_SNDP_PITCH_EVT, *(s32 *)&sp34);
+			if (hand->matmot3 < 0.1f) {
+				audioStop(hand->audiohandle);
+			} else {
+				if (hand->matmot3 < 0.6f) {
+					volume = (hand->matmot3 - 0.1f) * AL_VOL_FULL / 0.5f;
+				}
+
+				audioPostEvent(hand->audiohandle, AL_SNDP_VOL_EVT, volume);
+				audioPostEvent(hand->audiohandle, AL_SNDP_PITCH_EVT, *(s32 *)&sp34);
+			}
 		}
 	}
 
@@ -7663,6 +7851,12 @@ void bgunUpdateLaser(struct hand *hand)
 {
 	if (hand->firing && hand->gset.weaponfunc == FUNC_SECONDARY) {
 		if (hand->audiohandle == NULL && g_Vars.lvupdate240 != 0) {
+#ifndef PLATFORM_N64
+			// Continuous laser stream sound — skip for remote players (see
+			// SFX_805E case for rationale). The fire/hit sounds still play
+			// positionally.
+			if (!(g_Vars.currentplayer && g_Vars.currentplayer->isremote))
+#endif
 			sndStart(var80095200, SFX_LASER_STREAM, &hand->audiohandle, -1, -1, -1, -1, -1);
 		}
 
@@ -8682,6 +8876,31 @@ void bgun0f0a5550(s32 handnum)
 			hand->muzzlepos.z += eyeoffset.z;
 		}
 	}
+
+	// netplay: a remote pawn on the host. The muzzle values above come from
+	// the first-person viewmodel pipeline, which is render-tier and never
+	// shown for a remote pawn; substitute an eye-derived muzzle from the
+	// pawn's authoritative view pose (cam_pos / cam_look, kept per remote pawn
+	// by playerTick) so fired rockets, thrown grenades and the held rocket
+	// spawn where the owner simulated them. Straight up/down would make the
+	// look parallel to the world up and NaN the cross products: use Z up there.
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+		struct player *rpl = g_Vars.currentplayer;
+		f32 upy = (rpl->cam_look.y > 0.99f || rpl->cam_look.y < -0.99f) ? 0.0f : 1.0f;
+		f32 upz = 1.0f - upy;
+		hand->muzzlepos.x = rpl->cam_pos.x + rpl->cam_look.x * 25.0f;
+		hand->muzzlepos.y = rpl->cam_pos.y + rpl->cam_look.y * 25.0f;
+		hand->muzzlepos.z = rpl->cam_pos.z + rpl->cam_look.z * 25.0f;
+		mtx00016b58(&hand->muzzlemat, 0.0f, 0.0f, 0.0f,
+				rpl->cam_look.x, rpl->cam_look.y, rpl->cam_look.z,
+				0.0f, upy, upz);
+		// rocket models nose along +Z of their realrot: build posmtx with the
+		// look negated so a fired rocket flies nose-first
+		mtx00016b58(&hand->posmtx, 0.0f, 0.0f, 0.0f,
+				-rpl->cam_look.x, -rpl->cam_look.y, -rpl->cam_look.z,
+				0.0f, upy, upz);
+		hand->muzzlez = 0.0f;
+	}
 #endif
 
 	switch (weaponnum) {
@@ -8708,12 +8927,30 @@ void bgun0f0a5550(s32 handnum)
 		bgunTickEject(hand, modeldef, isdetonator);
 	}
 
+#ifndef PLATFORM_N64
+	// Falcon 2 laser sight: the engine only updates it in true single-player
+	// (PLAYERCOUNT()==1, multiple viewports can't afford it); net co-op has a
+	// single local viewport, so re-enable it for net co-op too. g_LaserSights[]
+	// is keyed by hand (not player), so a remote player's tick must NOT touch it
+	// — that would clobber the local player's sight. Byte-identical to the N64
+	// path below for SP / N64 co-op / Combat Sim.
+	if (g_Vars.currentplayer->isremote) {
+		// remote player in net co-op: leave the local laser-sight slots alone
+	} else if ((PLAYERCOUNT() == 1 || (LOCALPLAYERCOUNT() == 1 && !g_Vars.normmplayerisrunning))
+			&& IS8MB() && hand->visible
+			&& weaponnum >= WEAPON_FALCON2 && weaponnum <= WEAPON_FALCON2_SCOPE) {
+		bgunUpdateLasersight(hand, modeldef, handnum, mtxallocation);
+	} else {
+		lasersightFree(handnum);
+	}
+#else
 	if (PLAYERCOUNT() == 1 && IS8MB() && hand->visible
 			&& weaponnum >= WEAPON_FALCON2 && weaponnum <= WEAPON_FALCON2_SCOPE) {
 		bgunUpdateLasersight(hand, modeldef, handnum, mtxallocation);
 	} else {
 		lasersightFree(handnum);
 	}
+#endif
 
 	hand->animframeinc = 0;
 
@@ -8783,10 +9020,20 @@ void bgunTickMaulerCharge(void)
 					&& hand->matmot1 > 0.1f
 					&& charging
 					&& g_Vars.lvupdate240 != 0) {
+#ifndef PLATFORM_N64
+				// Mauler charge-up — skip for remote players (continuous
+				// pitch/volume sound, same rationale as SFX_805E).
+				if (!(g_Vars.currentplayer && g_Vars.currentplayer->isremote))
+#endif
 				sndStart(var80095200, SFX_MAULER_CHARGE, &hand->audiohandle, -1, -1, -1, -1, -1);
 			}
 
-			if (hand->audiohandle) {
+#ifndef PLATFORM_N64
+			if (bgunAudioHandleReal(hand->audiohandle))
+#else
+			if (hand->audiohandle)
+#endif
+			{
 				f32 speed = 0.5f + hand->matmot1 / 3.0f + sinf(g_20SecIntervalFrac * M_PI * 32.0f) * 0.03f;
 
 				if (hand->matmot1 < 0.1f || !charging) {
@@ -12446,7 +12693,7 @@ void bgunSetTriggerOn(s32 handnum, bool on)
 s32 bgunConsiderToggleGunFunction(s32 usedowntime, bool trigpressed, bool fromactivemenu, bool fromdedicatedbutton)
 {
 #ifndef PLATFORM_N64
-	const bool extcontrols = PLAYER_EXTCFG().extcontrols;
+	const bool extcontrols = PLAYER_EXTCFG().extcontrols || g_Vars.currentplayer->isremote;
 	bool docontinue;
 #endif
 	switch (bgunGetWeaponNum(HAND_RIGHT)) {
@@ -12565,7 +12812,7 @@ void bgun0f0a8c50(void)
 	case WEAPON_LAPTOPGUN:
 	case WEAPON_DRAGON:
 	case WEAPON_REMOTEMINE:
-		if (PLAYER_EXTCFG().extcontrols) {
+		if (PLAYER_EXTCFG().extcontrols || g_Vars.currentplayer->isremote) {
 			return;
 		}
 		break;
