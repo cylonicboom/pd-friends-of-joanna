@@ -1,3 +1,4 @@
+#include <string.h>
 #include <ultra64.h>
 #include "game/playermgr.h"
 #include "constants.h"
@@ -56,6 +57,14 @@ void chrmgrConfigure(s32 numchrs)
 
 	g_NumChrSlots = playermgrBudgetCount() + numchrs + 10; // fojo: MAX_PLAYERS in a team mission
 	g_ChrSlots = mempAlloc(ALIGN16(g_NumChrSlots * sizeof(struct chrdata)), MEMPOOL_STAGE);
+
+#ifndef PLATFORM_N64
+	// Zero the whole slot array. MEMPOOL_STAGE is rewound, never cleared, so
+	// slots otherwise start as whatever the PREVIOUS stage left at this pool
+	// offset - and chrInit is field-by-field, leaving the port-appended fields
+	// (the netplay snapshot ring pointer among them) on those stale bytes.
+	memset(g_ChrSlots, 0, g_NumChrSlots * sizeof(struct chrdata));
+#endif
 
 	for (i = 0; i < g_NumChrSlots; i++) {
 		g_ChrSlots[i].chrnum = -1;

@@ -51,6 +51,9 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "net/net.h"
+#include "net/netmsg.h"
+#include "system.h"
 #include "skinmatch.h"
 #endif
 
@@ -1121,6 +1124,19 @@ void chrInit(struct prop *prop, u8 *ailist)
 
 	chr->shotbondsum = 0;
 	chr->damage = 0;
+#ifndef PLATFORM_N64
+	// Reset the netplay pose-snapshot ring (struct chrnetsnap, lazily
+	// allocated by netChrRecordSnapshot from MEMPOOL_STAGE). netsnaps is
+	// either NULL (fresh slot - chrmgrConfigure zeroes the array) or a ring
+	// this stage's previous occupant of the slot allocated: keep and reuse
+	// it, just clear the stamps (tick == 0 marks an entry empty).
+	chr->netsnaphead = 0;
+	if (chr->netsnaps) {
+		for (i = 0; i < NET_SNAPSHOT_COUNT; i++) {
+			chr->netsnaps[i].tick = 0;
+		}
+	}
+#endif
 #ifndef PLATFORM_N64
 	// Default the chaos vertical squash to 1.0 (no override) so a recycled
 	// chrslot never renders with a previous chr's pd.chr_yscale still applied.
@@ -2283,7 +2299,33 @@ void chrUpdateCloak(struct chrdata *chr)
 	}
 
 	// Handle ammo decrease and determine if cloak is still enabled
+#ifndef PLATFORM_N64
+	// Netplay: the cloak DECISION below runs on the OWNER only. Its inputs are
+	// never replicated — a sim's aibot->cloakdeviceenabled/rcp120cloakenabled
+	// is set by server-only bot AI, and a player's devicesactive/ammo is local
+	// to the owning machine — so on a remote machine both branches read
+	// "nothing active" and would immediately chrUncloak a synced cloak flag.
+	// Wire-driven chrs instead get CHRHFLAG_CLOAKED applied from the net (the
+	// SVC_PROP_MOVE chr-state cloak bit for sims/NPCs; UCMD_CLOAKED in
+	// bmoveProcessRemoteInput for remote players); only the flag-driven fade
+	// tail below runs locally for them.
+	bool cloakwiredriven = false;
+	if (g_NetMode && chr->prop) {
+		if (chr->prop->type == PROPTYPE_PLAYER) {
+			s32 playernum = playermgrGetPlayerNumByProp(chr->prop);
+			cloakwiredriven = playernum >= 0 && playernum < PLAYERCOUNT()
+					&& g_Vars.players[playernum] && g_Vars.players[playernum]->isremote;
+		} else {
+			cloakwiredriven = g_NetMode == NETMODE_CLIENT && chr->prop->syncid != 0;
+		}
+	}
+
+	if (cloakwiredriven) {
+		// Cloak state owned by the wire — skip straight to the fade update.
+	} else if (chr->aibot) {
+#else
 	if (chr->aibot) {
+#endif
 		if (chr->aibot->cloakdeviceenabled) {
 			qty = chr->aibot->ammoheld[AMMOTYPE_CLOAK];
 
@@ -2559,12 +2601,101 @@ bool chrTickBeams(struct prop *prop)
  * much of the logic is skipped, and only the logic specific to the current
  * player is executed.
  */
+#ifndef PLATFORM_N64
+// Break a cycle in a chr's child/sibling chain (prop->child -> child->next ...)
+// before the several unbounded `while (child) child = child->next` walks in
+// chrTick (and the render walks in lvRender, which run later in the same frame)
+// spin forever. A netplay client can relink a held-weapon / embedded-mine child
+// badly (the same prop-list corruption family as the active-list cycle that
+// propsHealActiveList handles — but the child chain is a separate list). Sever
+// at the last good node, log the chr, and continue. No-op on a healthy list;
+// gated to clients (the corruption is client-side) so the host/SP are untouched.
+static void chrHealChildList(struct prop *prop)
+{
+	struct prop *child = prop->child;
+	struct prop *prev = NULL;
+	struct prop *const poolstart = g_Vars.props;
+	struct prop *const poolend = g_Vars.props + g_Vars.maxprops;
+	const s32 cap = g_Vars.maxprops + 16;
+	s32 i = 0;
+
+	while (child) {
+		if (child < poolstart || child >= poolend || ++i > cap) {
+			sysLogPrintf(LOG_WARNING,
+					"chrheal: corrupt child chain on chr prop %d (child %p iter %d); severing",
+					(s32)(prop - g_Vars.props), (void *)child, i);
+			if (prev) {
+				prev->next = NULL;
+			} else {
+				prop->child = NULL;
+			}
+			return;
+		}
+		prev = child;
+		child = child->next;
+	}
+}
+#endif
+
 s32 chrTick(struct prop *prop)
 {
 	struct modelrenderdata sp210 = {0, 1, 3};
 	struct chrdata *chr = prop->chr;
 	struct model *model = chr->model;
+#ifndef PLATFORM_N64
+	// Heal a corrupted child chain before the unbounded child walks below would
+	// hang on it (gdb caught the cycle in the func0f0706f8 off-screen child walk).
+	if (g_NetMode == NETMODE_CLIENT && prop->child) {
+		chrHealChildList(prop);
+	}
+#endif
+#ifndef PLATFORM_N64
+	// Network-replicated chrs (Combat Sim sims now; campaign NPCs once online
+	// co-op lands): drive prop->pos from the interpolation buffer before ticking
+	// animation / render. No-op on the server and for any chr with no received
+	// snapshots, so it's safe to call for every chr here.
+	netChrInterpolate(chr);
+
+	// Position-driven sims keep the engine's own gravity (chr0f01f378) so they
+	// fall off ledges, ride slopes and land naturally — we only stop it running
+	// AWAY. The chr's rendered vertical is chr->manground (chr0f01f378:
+	// arg2->y += manground), integrated from a ground-find at the anim-driven
+	// model pos (arg2 = anim_local + manground). On a client that find isn't
+	// corrected by the position sync, so once manground dips below the real floor
+	// the find at the now-too-low arg2 misses the floor, returns garbage-low,
+	// manground free-falls and the model vanishes under the map. (Pinning
+	// manground to the local floor stopped the sink but snapped airborne bots to
+	// the floor; pinning it to the wire Y floated them, since prop->pos.y rides a
+	// fixed offset above the floor.)
+	//
+	// One clamp breaks the feedback without touching real gravity: never let
+	// manground fall BELOW the floor at the SYNCED prop->pos X/Z. A genuine fall
+	// keeps manground ABOVE the floor (descending toward it), so the clamp is a
+	// no-op for it — chr0f01f378 still produces the natural arc and lands the bot.
+	// It only fires on the runaway, and re-seating manground at the floor puts
+	// arg2 (= anim_local + manground) back above the floor so the very next
+	// floor-find is correct again — so in practice the sink can't even start.
+	if (g_NetMode == NETMODE_CLIENT && (chr->aibot || g_Vars.coopplayernum >= 0)
+			&& chr->prop && chr->prop->syncid) {
+		const f32 floor = cdFindGroundInfoAtCyl(&chr->prop->pos, chr->radius,
+				chr->prop->rooms, &chr->floorcol, &chr->floortype, NULL,
+				&chr->floorroom, NULL, NULL);
+		if (chr->manground < floor) {
+			chr->manground = floor;
+			chr->sumground = floor * (PAL ? 8.4175090789795f : 9.999998f);
+			chr->fallspeed.x = 0.0f;
+			chr->fallspeed.y = 0.0f;
+			chr->fallspeed.z = 0.0f;
+		}
+	}
+#endif
 	bool needsupdate;
+#ifndef PLATFORM_N64
+	// Chaos "Backwards bullets": this chr's render prep was forced on by the
+	// effect rather than earned by being on screen. Exempts it from the vanilla
+	// per-frame update budget below.
+	bool chaosbackfireforced = false;
+#endif
 	bool hatvisible = true;
 	s32 lvupdate240 = g_Vars.lvupdate240;
 	struct prop *child;
@@ -2583,14 +2714,48 @@ s32 chrTick(struct prop *prop)
 	f32 sp178;
 	struct hoverbikeobj *bike;
 	u8 stack[0x28];
-#ifndef PLATFORM_N64
-	bool chaosbackfireforced = false;
-#endif
 
 	if (prop->flags & PROPFLAG_NOTYETTICKED) {
 		fulltick = true;
 		prop->flags &= ~PROPFLAG_NOTYETTICKED;
 	}
+
+#ifndef PLATFORM_N64
+	// Client-only safety: defer chrTick for any sim bot until the server's
+	// first SVC_PROP_MOVE chr-state block has installed a real animation
+	// (animnum > 0). The chrTick code does `model->anim->average = false`
+	// and chr0f0220ec → modelTickAnimQuarterSpeed at multiple call sites
+	// (the actiontype branches at chr.c:2558 ACT_STAND, :2603 PLAYER+mp,
+	// :2611 fallthrough). Several of those reads aren't null-guarded and
+	// dereference anim fields that haven't been initialised on a freshly-
+	// spawned sim — anim itself is allocated by modelmgrInstantiateModelWithAnim
+	// but animnum / framea / speed stay zero until botApplyMovement (on
+	// the host) or modelSetAnimation (on the client via SVC_PROP_MOVE)
+	// pokes them. On the host botTick → botApplyMovement runs first; on
+	// the client we route sims straight through chrTick, so the very first
+	// frame on a freshly-loaded stage sees the dangerous read pattern.
+	//
+	// Defer until animnum > 0. The chr-state block on the first sim
+	// SVC_PROP_MOVE arrival sets animnum + ACT_STAND, so the guard
+	// quenches naturally within ~1 tick of the first server broadcast.
+	if (g_NetMode == NETMODE_CLIENT && chr->aibot
+			&& (!chr->model || !chr->model->anim || chr->model->anim->animnum == 0)) {
+		// Diagnostic: log first few defers so we can confirm this path
+		// is actually being taken. Capped low — the guard quenches
+		// after the first SVC_PROP_MOVE arrives.
+		static u32 defer_logged = 0;
+		if (defer_logged < 10u) {
+			netDiagLogf("simdefer", "syncid=%u body=%d hasanim=%d animnum=%d act=%d",
+				(u32)(prop ? prop->syncid : 0),
+				(s32)chr->bodynum,
+				(s32)(chr->model && chr->model->anim ? 1 : 0),
+				(s32)(chr->model && chr->model->anim ? chr->model->anim->animnum : -1),
+				(s32)chr->actiontype);
+			defer_logged++;
+		}
+		return TICKOP_NONE;
+	}
+#endif
 
 	if (fulltick) {
 #if VERSION >= VERSION_NTSC_1_0
@@ -2844,7 +3009,9 @@ s32 chrTick(struct prop *prop)
 	// runs, so they enter onscreenprops WITH valid matrices. Placed BEFORE the
 	// kill-plane and corpse-reap guards below so those still get the last
 	// word. Gated on the effect, so this is one branch when it's off.
-	if (g_ChaosBackfire && !needsupdate && posIsInDrawDistance(&prop->pos)) {
+	if (g_ChaosBackfire && !needsupdate
+			&& !g_Vars.currentplayer->isremote
+			&& posIsInDrawDistance(&prop->pos)) {
 		needsupdate = true;
 		chaosbackfireforced = true;
 	}
@@ -4899,6 +5066,15 @@ void chrTestHit(struct prop *prop, struct shotdata *shotdata, bool isshooting, b
 		f32 radius = chrGetHitRadius(chr);
 
 #ifndef PLATFORM_N64
+		// netplay: a model whose matrices were never built this frame can't be
+		// hit-tested (the modelGetRootMtx broad-phase read below would deref
+		// junk). matrices is NULLed at modelInit and built per-frame.
+		if (chr->model == NULL || chr->model->matrices == NULL) {
+			return;
+		}
+#endif
+
+#ifndef PLATFORM_N64
 		// Chaos "Backwards bullets": prop->z is depth along the camera's
 		// FORWARD axis, so a chr behind the player carries a negative one. Use
 		// the magnitude so this reads as a real distance and compares correctly
@@ -5054,6 +5230,17 @@ void chrHit(struct shotdata *shotdata, struct hit *hit)
 				g_Vars.currentplayer->prop, hit->hitpart, hit->prop, hit->bboxnode,
 				hit->model, hit->hitthing.unk28 / 2, sp90);
 
+#ifndef PLATFORM_N64
+		// netplay client-side hit prediction: func0f0341dc above early-returns
+		// on NETMODE_CLIENT (the server is the damage authority), so the chr
+		// would not flinch until SVC_CHR_DAMAGE relays back. flinchcnt is
+		// cosmetic and the server's chrDamage overwrites it on arrival.
+		if (g_NetMode == NETMODE_CLIENT && !ismelee) {
+			chrFlinchBody(chr);
+			chr->lastattacker = g_Vars.currentplayer->prop->chr;
+		}
+#endif
+
 		if (g_Vars.antiplayers[g_Vars.currentplayernum]
 				&& (chr->hidden & CHRHFLAG_ANTINONINTERACTABLE)) {
 			return;
@@ -5085,9 +5272,17 @@ void chrHit(struct shotdata *shotdata, struct hit *hit)
 						|| weapon->weaponnum == WEAPON_TIMEDMINE
 						|| weapon->weaponnum == WEAPON_REMOTEMINE
 						|| weapon->weaponnum == WEAPON_PROXIMITYMINE) {
-					objSetDropped(hit->prop, DROPTYPE_DEFAULT);
-					chr->hidden |= CHRHFLAG_DROPPINGITEM;
-					objDamage(&weapon->base, gsetGetDamage(&shotdata->gset), &sp98, shotdata->gset.weaponnum, g_Vars.currentplayernum);
+#ifndef PLATFORM_N64
+					if (g_NetMode == NETMODE_SERVER) {
+						netmsgSvcChrDisarmWrite(&g_NetMsgRel, chr, g_Vars.currentplayer->prop, weapon->weaponnum, gsetGetDamage(&shotdata->gset), &sp98);
+					}
+					if (g_NetMode != NETMODE_CLIENT)
+#endif
+					{
+						objSetDropped(hit->prop, DROPTYPE_DEFAULT);
+						chr->hidden |= CHRHFLAG_DROPPINGITEM;
+						objDamage(&weapon->base, gsetGetDamage(&shotdata->gset), &sp98, shotdata->gset.weaponnum, g_Vars.currentplayernum);
+					}
 					return;
 				}
 
