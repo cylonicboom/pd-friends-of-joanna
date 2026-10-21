@@ -10,6 +10,7 @@
 #include "net/net.h"
 #include "net/netbuf.h"
 #include "net/netmsg.h"
+#include "input.h"
 #include "net/netprop.h"
 #include "net/demo.h"
 #include "net/netmaster.h"

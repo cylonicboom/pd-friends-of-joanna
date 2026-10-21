@@ -43,6 +43,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "net/net.h"
+#include "net/demo.h"
 #include "net/netmsg.h"
 #include "net/netprop.h"
 #include "system.h"

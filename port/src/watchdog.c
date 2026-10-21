@@ -4,9 +4,13 @@
  * main thread gets a SIGSEGV so the crash handler prints where it was stuck
  * (and the run ends instead of burning until the timeout). Off by default.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <stdio.h>
 #include <signal.h>
 #include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 #include <PR/ultratypes.h>
 #include "system.h"

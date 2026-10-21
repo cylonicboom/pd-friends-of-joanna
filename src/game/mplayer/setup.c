@@ -3335,6 +3335,8 @@ mpLoadSettingsDialogHandler(s32 operation, struct menudialogdef *dialogdef,
       g_Menus[g_MpPlayerNum].mpsetupext.showpresets = 1 - presets;
     }
   }
+
+  return false;
 }
 
 struct menuitem g_MpCharacterMenuItems[] = {

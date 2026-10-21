@@ -125,6 +125,7 @@ void boltLand(struct weaponobj *weapon, struct coord *arg1);
 void knifeLand(struct defaultobj *obj, struct coord *arg1, struct coord *arg2);
 bool objEmbed(struct prop *prop, struct prop *parent, struct model *model, struct modelnode *node);
 void objLand(struct prop *prop, struct coord *arg1, struct coord *arg2, bool *embedded);
+s32 objGetOwnerPlayerNum(struct defaultobj *obj);
 bool propExplode(struct prop *prop, s32 explosiontype);
 void ammocrateTick(struct prop *ammocrate);
 void weaponTick(struct prop *weapon);

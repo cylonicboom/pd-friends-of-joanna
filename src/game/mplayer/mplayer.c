@@ -19,6 +19,9 @@
 #include "game/challenge.h"
 #include "game/lang.h"
 #include "game/mplayer/mplayer.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 #include "game/pak.h"
 #include "bss.h"
 #include "savequeue.h"
