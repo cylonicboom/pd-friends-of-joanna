@@ -1999,13 +1999,21 @@ Gfx *lvRender(Gfx *gdl)
 			}
 #endif
 
+			// shared viewport: only the first player's picture survives. under
+			// netplay playerHasSharedViewport() is always true and "first" is
+			// the local pawn, which sits at its wire slot - a client at seat 1
+			// drew a black screen all mission (the imgui overlay still showed).
 			if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 #if VERSION >= VERSION_NTSC_1_0
 					&& playerHasSharedViewport()
 #else
 					&& ((g_InCutscene && !g_MainIsEndscreen) || menuGetRoot() == MENUROOT_COOPCONTINUE)
 #endif
+#ifndef PLATFORM_N64
+					&& (g_NetMode ? !netPlayerIsPrimaryLocal() : g_Vars.currentplayernum != 0)) {
+#else
 					&& g_Vars.currentplayernum != 0) {
+#endif
 				gdl = savedgdl;
 			}
 		} // end of player loop
