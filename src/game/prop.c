@@ -42,6 +42,13 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
+#include "net/net.h"
+#include "net/netmsg.h"
+#include "net/netprop.h"
+#include "system.h"
+#include <string.h>
+#endif
+#ifndef PLATFORM_N64
 #include "weightyaim.h" // [weightyaim]
 #endif
 
@@ -67,6 +74,9 @@ void propsSort(void)
 {
 	s32 count = 0;
 	struct prop *prop = g_Vars.activeprops;
+#ifndef PLATFORM_N64
+	struct prop *prev = NULL; // last valid prop; names a corrupt ->next in the guard below
+#endif
 	s32 swapindex;
 	f32 depth;
 	s32 i;
@@ -75,12 +85,49 @@ void propsSort(void)
 
 	// Populate onscreenprops with the list of props
 	while (prop != g_Vars.pausedprops) {
+#ifndef PLATFORM_N64
+		// Corrupt-walk guard (client AV family, same as the propsTickPlayer
+		// guard): a prop freed AND recycled mid-frame can leave a dangling
+		// ->next, so this render walk steps onto a NULL/garbage pointer and
+		// crashes reading prop->flags below (observed in a hosted match: read
+		// at 0x1, truncated pointers in the registers). Validate prop is a
+		// live pool pointer; if not, log the PREVIOUS prop (whose ->next is the
+		// bad link) and abort this frame's sort instead of dereferencing it.
+		if (prop == NULL || prop < g_Vars.props
+				|| prop >= g_Vars.props + g_Vars.maxprops) {
+			static u32 lastwarn60 = 0;
+			if (g_Vars.lvframe60 - lastwarn60 > TICKS(60)) {
+				lastwarn60 = g_Vars.lvframe60;
+				if (prev) {
+					sysLogPrintf(LOG_WARNING,
+							"propssort_guard: prop %d (type %d flags 0x%x syncid %u) has corrupt next %p; aborting sort",
+							(s32)(prev - g_Vars.props), prev->type, prev->flags,
+							prev->syncid, (void *)prop);
+				} else {
+					sysLogPrintf(LOG_WARNING,
+							"propssort_guard: activeprops head corrupt (%p); aborting sort",
+							(void *)prop);
+				}
+			}
+			break;
+		}
+#endif
 		if ((prop->flags & (PROPFLAG_ONTHISSCREENTHISTICK | PROPFLAG_ENABLED)) == (PROPFLAG_ONTHISSCREENTHISTICK | PROPFLAG_ENABLED)) {
+#ifndef PLATFORM_N64
+			// Stop one short of the cap so the NULL terminator written below
+			// (onscreenprops[count]) stays in bounds.
+			if (count >= 200 - 1) {
+				break;
+			}
+#endif
 			depths[count] = prop->z;
 			g_Vars.onscreenprops[count] = prop;
 			count++;
 		}
 
+#ifndef PLATFORM_N64
+		prev = prop;
+#endif
 		prop = prop->next;
 	}
 
@@ -172,6 +219,17 @@ struct prop *propAllocate(void)
 		prop->propupdate60err = 2;
 		prop->opawallhits = NULL;
 		prop->xluwallhits = NULL;
+#ifndef PLATFORM_N64
+		// Syncid diet: dynamic ids are now assigned at first propActivate/
+		// propActivateThisFrame/propPause (netPropAssignSyncId) instead of
+		// here, because prop->type isn't known yet at allocation — assigning
+		// unconditionally burned an id on every explosion/smoke prop, pushing
+		// real weapon/obj ids past the reconcile coverage cap within minutes
+		// on a busy server. Setup props are still overwritten with their
+		// deterministic index ids at stage start (netSyncIdsAllocate).
+		prop->syncid = 0;
+		prop->ownerplayernum = -1;
+#endif
 		g_Vars.propstates[prop->propstateindex].propcount++;
 
 		g_Vars.allocstateindex++;
@@ -194,6 +252,31 @@ struct prop *propAllocate(void)
  */
 void propFree(struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	// Lifecycle audit: record EVERY free, broadcast or not, so /proplog shows
+	// which path released a slot (the free-without-clear generators all
+	// surfaced as "slot still references a freed prop" with no record of who
+	// freed it — see docs/PORT_NET_CRASH_LEDGER.md #16).
+	netPropLogEvent(prop, NETPROP_EV_FREE, 0);
+
+	// Tell clients to remove their copy of a destroyed networked prop (detonated
+	// mines/projectiles, shot-out objects) so it doesn't linger after the host
+	// frees it — SVC_EXPLOSION is cosmetic and carries no syncid. Weapon/obj props
+	// (mines, grenades, dropped guns, destructibles), plus campaign co-op NPC chrs
+	// (reaped corpses): the client's NPC AI is gated off, so the act_dead fade that
+	// reaps a corpse never runs there and it lingers. Combat Sim sims have their own
+	// deterministic lifecycle, so they're excluded by the coop gate. Gated to active
+	// play so the subsystem prop frees at stage stop don't spam the reliable channel
+	// (clients reset on SVC_STAGE_END regardless). Must run before propFree clears
+	// syncid.
+	if (g_NetMode == NETMODE_SERVER && prop->syncid
+			&& ((prop->type == PROPTYPE_WEAPON || prop->type == PROPTYPE_OBJ)
+				|| (prop->type == PROPTYPE_CHR && g_Vars.coopplayernum >= 0 && g_NetCoopChrLifecycle))
+			&& g_NetLocalClient && g_NetLocalClient->state == CLSTATE_GAME) {
+		netmsgSvcPropFreeWrite(&g_NetMsgRel, prop);
+	}
+#endif
+
 	if (prop->type == PROPTYPE_CHR) {
 		g_Vars.propstates[prop->propstateindex].chrpropcount--;
 	} else {
@@ -204,6 +287,9 @@ void propFree(struct prop *prop)
 	prop->prev = NULL;
 	prop->chr = NULL;
 	prop->rooms[0] = -1;
+#ifndef PLATFORM_N64
+	prop->syncid = 0;
+#endif
 	g_Vars.freeprops = prop;
 }
 
@@ -217,6 +303,14 @@ void propFree(struct prop *prop)
  */
 void propActivate(struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	// First entry into the world: assign the dynamic syncid (server, no-op once
+	// set / for explosion+smoke) and record the lifecycle event. Type is set by
+	// every caller before activation, so the type-based diet filter works here.
+	netPropAssignSyncId(prop);
+	netPropLogEvent(prop, NETPROP_EV_ACTIVATE, 0);
+#endif
+
 	if (g_Vars.activeprops && g_Vars.activeprops != g_Vars.pausedprops) {
 		if (prop != g_Vars.activeprops && !prop->prev) {
 			g_Vars.activeprops->prev = prop;
@@ -247,6 +341,12 @@ void propActivate(struct prop *prop)
  */
 void propActivateThisFrame(struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	// Same hooks as propActivate (explosions/smoke activate via this variant).
+	netPropAssignSyncId(prop);
+	netPropLogEvent(prop, NETPROP_EV_ACTIVATE_TF, 0);
+#endif
+
 	if (g_Vars.activepropstail && g_Vars.activepropstail != g_Vars.pausedprops) {
 		if (prop != g_Vars.activepropstail && !prop->next) {
 			prop->prev = g_Vars.activepropstail;
@@ -280,6 +380,10 @@ void propActivateThisFrame(struct prop *prop)
  */
 void propDelist(struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	netPropLogEvent(prop, NETPROP_EV_DELIST, 0);
+#endif
+
 	if (prop->active) {
 		if (prop == g_Vars.activeprops) {
 			g_Vars.activeprops = prop->next;
@@ -317,8 +421,213 @@ void propDelist(struct prop *prop)
 	prop->backgroundedframes = 0;
 }
 
+#ifndef PLATFORM_N64
+/**
+ * Corruption recovery for netplay clients. The active+paused prop chain is
+ * walked unbounded (to NULL) by several consumers — roomsTickLighting
+ * (dlights.c), propsRenderBeams (propobj.c) and the per-frame prop ticks. A
+ * client-side free/recycle bug can relink a freed prop back into the chain so
+ * its ->next forms a CYCLE: gdb on a hung client showed a syncid=0
+ * client-allocated weapon whose ->next pointed back at the list head, making a
+ * 56-node ring. Every unbounded walk then spins forever (hang) — a separate
+ * failure mode from the null-obj corpse that propsTickPlayer reaps.
+ *
+ * Called once per frame from lvTick BEFORE any walk. Detects a cycle (iteration
+ * cap) or an out-of-pool link, then uses Floyd's to find the exact back-edge so
+ * it severs ONLY the wrap (no orphaned props in the common tail->head case) and
+ * logs the culprit prop (id/type/syncid) so the creating free/activate can be
+ * hunted. Best-effort: on the degenerate out-of-pool case it severs at the last
+ * good node, which may orphan a few props (leaked until stage reset) — strictly
+ * better than a hang. Healthy lists return after one cheap walk.
+ */
+/**
+ * Is this prop already sitting in the freelist?
+ *
+ * propFree overwrites prop->next with the freelist head and prop->prev with
+ * NULL, so a freed-but-still-listed prop CANNOT be identified by comparing its
+ * back-link against the walk (a corpse at the head of activeprops has
+ * prop->prev == NULL == prev and looks "consistent"). Membership has to be
+ * tested directly. Only called from the corpse branch below, which is already
+ * the rare path, so the walk cost doesn't land on any hot path.
+ */
+static bool propIsOnFreeList(struct prop *prop)
+{
+	struct prop *p = g_Vars.freeprops;
+	s32 guard = g_Vars.maxprops + 16;
+
+	while (p && guard-- > 0) {
+		if (p == prop) {
+			return true;
+		}
+
+		p = p->next;
+	}
+
+	return false;
+}
+
+void propsHealActiveList(void)
+{
+	struct prop *prop = g_Vars.activeprops;
+	struct prop *prev = NULL;
+	struct prop *const poolstart = g_Vars.props;
+	struct prop *const poolend = g_Vars.props + g_Vars.maxprops;
+	const s32 cap = g_Vars.maxprops + 16;
+	s32 i = 0;
+	bool cycle = false;
+
+	while (prop) {
+		if (prop < poolstart || prop >= poolend) {
+			sysLogPrintf(LOG_WARNING,
+					"propsheal: out-of-pool active link %p after prop %d; severing",
+					(void *)prop, prev ? (s32)(prev - g_Vars.props) : -1);
+			if (prev) {
+				prev->next = NULL;
+				g_Vars.activepropstail = prev;
+			} else {
+				g_Vars.activeprops = NULL;
+				g_Vars.activepropstail = g_Vars.pausedprops;
+			}
+			return;
+		}
+		// Pre-tick corpse handling (BEFORE the cycle cap, so corpses don't inflate
+		// the iteration count). A listed OBJ/WEAPON/DOOR/EXPLOSION/SMOKE prop whose
+		// union pointer (prop->obj/->explosion/... alias offset 0x48) is NULL is a
+		// freed-but-still-listed corpse. A ticking projectile's COLLISION examines
+		// room-list props (propIsOfCdType: obj->unkgeo) and AVs on a corpse before
+		// its own tick reaps it — so first make it collision-safe by deregistering
+		// its rooms (no-op if already deregistered).
+		//
+		// CRITICAL: do NOT propFree here. A corpse may ALREADY be in the freelist
+		// (a free-without-delist left it there while still active-list-referenced);
+		// propFree-ing it again double-frees -> prop->next = g_Vars.freeprops which
+		// is itself -> a SELF-LOOP that hangs roomsTickLighting (this exact bug was
+		// caused by an earlier version of this block that called
+		// propExecuteTickOperation(TICKOP_FREE) here). So:
+		//   - if the corpse is CORRUPT — self-loop (next==self) or its back-link
+		//     disagrees with our walk (prev) — it's already freed: just UNLINK it
+		//     from the active chain via OUR trusted prev (propDelist can't, it
+		//     trusts the corpse's own NULL/self prev/next) and leave the slot in
+		//     the freelist;
+		//   - if the corpse is CONSISTENT (links match our walk, not in the
+		//     freelist yet), leave it for the per-tick-walk reap to free properly
+		//     — we've already deregistered its rooms so this frame is collision-safe.
+		if (prop->obj == NULL
+				&& (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_WEAPON
+					|| prop->type == PROPTYPE_DOOR || prop->type == PROPTYPE_EXPLOSION
+					|| prop->type == PROPTYPE_SMOKE)) {
+			struct prop *deadnext = prop->next;
+			const bool freed = propIsOnFreeList(prop);
+			propDeregisterRooms(prop);
+			if (deadnext == prop || freed) {
+				g_NetAuditHealFires++; // soak auditor: corruption was masked here
+				static u32 lastwarn60f = 0;
+				if (g_Vars.lvframe60 - lastwarn60f > TICKS(60)) {
+					lastwarn60f = g_Vars.lvframe60;
+					sysLogPrintf(LOG_WARNING,
+							"propsheal: sever at corrupt corpse prop %d type %d flags 0x%x syncid %u (selfloop=%d freed=%d)",
+							(s32)(prop - g_Vars.props), prop->type, prop->flags, prop->syncid,
+							(deadnext == prop), freed);
+				}
+				// The successor is UNRECOVERABLE here: propFree already
+				// overwrote prop->next with the freelist head, so following it
+				// would splice the ENTIRE freelist into the active chain (props
+				// would then be ticked while free, and propAllocate would hand
+				// out slots that are still listed). Terminate the chain instead
+				// — same trade-off as the out-of-pool branch above: this may
+				// orphan the tail until the stage resets, which is strictly
+				// better than corruption. The next frame's heal re-walks.
+				if (prev) {
+					prev->next = NULL;
+					g_Vars.activepropstail = prev;
+				} else {
+					g_Vars.activeprops = NULL;
+					g_Vars.activepropstail = g_Vars.pausedprops;
+				}
+				return;
+			}
+			// Consistent corpse — leave it for the tick-walk reap (rooms already
+			// deregistered above, so collision is safe this frame).
+			prev = prop;
+			prop = deadnext;
+			continue;
+		}
+		if (++i > cap) {
+			cycle = true;
+			break;
+		}
+		prev = prop;
+		prop = prop->next;
+	}
+
+	if (!cycle) {
+		return; // terminated at NULL within the cap — healthy
+	}
+
+	// A cycle exists and every node in it is in-pool (the range check above
+	// would have severed an out-of-pool link first). Locate the exact back-edge
+	// with Floyd's tortoise/hare so we break only the wrap and name the culprit.
+	{
+		struct prop *slow = g_Vars.activeprops;
+		struct prop *fast = g_Vars.activeprops;
+		struct prop *entry;
+		struct prop *back;
+
+		do {
+			slow = slow->next;
+			fast = fast->next ? fast->next->next : NULL;
+		} while (fast && slow != fast);
+
+		if (fast == NULL) {
+			// Shouldn't happen (the cap proved a cycle); fall back to severing
+			// at the last good node so the chain still terminates.
+			if (prev) {
+				prev->next = NULL;
+				g_Vars.activepropstail = prev;
+			}
+			sysLogPrintf(LOG_WARNING,
+					"propsheal: cycle detected but Floyd bailed; severed at prop %d",
+					prev ? (s32)(prev - g_Vars.props) : -1);
+			return;
+		}
+
+		entry = g_Vars.activeprops;
+		while (entry != slow) {
+			entry = entry->next;
+			slow = slow->next;
+		}
+
+		back = entry;
+		while (back->next != entry) {
+			back = back->next;
+		}
+
+		sysLogPrintf(LOG_WARNING,
+				"propsheal: active-list CYCLE healed — back-edge prop %d (type %d syncid %u flags 0x%x) -> entry prop %d (type %d syncid %u); severing",
+				(s32)(back - g_Vars.props), back->type, back->syncid, back->flags,
+				(s32)(entry - g_Vars.props), entry->type, entry->syncid);
+
+		back->next = NULL;
+		g_Vars.activepropstail = back;
+	}
+}
+#endif
+
 void propReparent(struct prop *mover, struct prop *adopter)
 {
+#ifndef PLATFORM_N64
+	// Never double-link a prop into a child chain. mover->next is dual-use (the
+	// active/paused list when active, the child sibling chain when attached); if
+	// mover is already attached somewhere and we overwrite mover->next below
+	// without unlinking it first, its old predecessor keeps pointing at it and
+	// the chain becomes a cycle (the client weapon-child corruption family).
+	// Detach-before-attach makes reparent idempotent. No-op in the normal
+	// fresh-prop path (parent == NULL); only fires on a stray double-reparent.
+	if (mover->parent) {
+		propDetach(mover);
+	}
+#endif
+
 	mover->parent = adopter;
 
 	if (adopter->child) {
@@ -783,6 +1092,16 @@ struct prop *shotCalculateHits(s32 handnum, bool isshooting, struct coord *gunpo
 
 	propptr = g_Vars.endonscreenprops - 1;
 
+#ifndef PLATFORM_N64
+	// Lag compensation: if a remote client fired this shot, temporarily rewind
+	// all other clients to where the shooter saw them. The rewind only patches
+	// prop->pos and the root matrix translation column used by the sphere
+	// broad-phase check; narrow-phase model matrices are left as-is.
+	if (isshooting && g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+		netLagCompBegin(g_Vars.currentplayer->client);
+	}
+#endif
+
 	while (propptr >= g_Vars.onscreenprops) {
 		prop = *propptr;
 
@@ -799,6 +1118,12 @@ struct prop *shotCalculateHits(s32 handnum, bool isshooting, struct coord *gunpo
 
 		propptr--;
 	}
+
+#ifndef PLATFORM_N64
+	if (isshooting && g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+		netLagCompEnd();
+	}
+#endif
 
 	hitindex = -1;
 
@@ -831,7 +1156,23 @@ struct prop *shotCalculateHits(s32 handnum, bool isshooting, struct coord *gunpo
 				}
 
 				if (root->type == PROPTYPE_CHR || root->type == PROPTYPE_PLAYER) {
+#ifndef PLATFORM_N64
+					// CLC_HIT handles chr damage for remote player shots so the
+					// hit is evaluated at the client's aim tick, not the server's
+					// lag-comp approximation. Skip chrHit here to avoid applying
+					// damage twice.
+					if (g_NetMode != NETMODE_SERVER || !g_Vars.currentplayer->isremote) {
+						chrHit(&shotdata, &shotdata.hits[i]);
+					} else if (g_Vars.currentplayer->client && root->syncid) {
+						// Remote shooter: damage is applied from the client's
+						// CLC_HIT, but record that the server's authoritative
+						// lag-comp'd trace also detected this hit so the CLC_HIT
+						// claim can be validated server-side (g_NetHitValidate).
+						netServerRecordDetectedHit(g_Vars.currentplayer->client, (u16)root->syncid);
+					}
+#else
 					chrHit(&shotdata, &shotdata.hits[i]);
+#endif
 				} else if (hitprop->type == PROPTYPE_OBJ || hitprop->type == PROPTYPE_WEAPON || hitprop->type == PROPTYPE_DOOR) {
 					objHit(&shotdata, &shotdata.hits[i]);
 				}
@@ -1388,6 +1729,16 @@ void handInflictMeleeDamage(s32 handnum, struct gset *gset, bool arg2)
 	playerprop = g_Vars.currentplayer->prop;
 	skipthething = false;
 
+#ifndef PLATFORM_N64
+	// netplay: melee hit detection is hardcoded to the LOCAL player's view.
+	// A remote pawn's bgunTick runs here from its wire inputs, so each
+	// machine processes only its own local player's melee; the swing still
+	// plays positionally via the gun animation.
+	if (g_Vars.currentplayer->isremote) {
+		return;
+	}
+#endif
+
 #ifdef PLATFORM_N64
 	ptr = g_Vars.endonscreenprops - 1;
 
@@ -1738,10 +2089,38 @@ void propExecuteTickOperation(struct prop *prop, s32 op)
 			}
 		} else {
 			// Prop doesn't regen, so free it
-			propDeregisterRooms(prop);
-			propDelist(prop);
-			propDisable(prop);
-			propFree(prop);
+#ifndef PLATFORM_N64
+			// ROOT FIX (crash ledger #16): this branch bare-propFrees WITHOUT objFree,
+			// so it skips ALL of objFree's reference-clearing — the obj-pool slot's
+			// back-pointer (g_WeaponSlots), the model, AND wallhitsFreeByProp /
+			// invRemoveProp / chrClearReferences / projectilesUnrefOwner /
+			// shieldhitsRemoveByProp / objFreeEmbedmentOrProjectile. The design assumes
+			// the caller already ran objFree(freeprop=false) first (the DELETING path
+			// does). But on a netplay client a dropped gun's fadeout reaches here
+			// locally (objTickPlayer ungated) with its obj link STILL INTACT — so every
+			// one of those refs is left dangling: orphaned weapon slots that saturate
+			// the pool (NULL weaponCreate crash / host-prop eviction / void) AND a
+			// freed-prop pointer left in a wallhit chain (wallhitFree later walks off
+			// the end -> NULL deref at 0x90). Route the intact-link case through the
+			// FULL objFreePermanently teardown. The already-detached DELETING case has
+			// prop->obj == NULL, so it falls through to the bare free below unchanged.
+			// Gated to netplay; SP/N64 byte-identical (they hit this at trivial churn,
+			// so the dangling refs stayed harmless until stage end).
+			if (g_NetMode != NETMODE_NONE
+					&& (prop->type == PROPTYPE_WEAPON || prop->type == PROPTYPE_OBJ)
+					&& prop->obj && prop->obj->prop == prop) {
+				// Routed through the teardown choke point (same
+				// objFreePermanently underneath) for the lifecycle ring entry
+				// + the post-free weapon-slot tripwire.
+				netPropFreeSynced(prop, NETPROP_FREE_TICKOP);
+			} else
+#endif
+			{
+				propDeregisterRooms(prop);
+				propDelist(prop);
+				propDisable(prop);
+				propFree(prop);
+			}
 		}
 	} else if (op == TICKOP_DISABLE) {
 		propDeregisterRooms(prop);
@@ -1763,6 +2142,35 @@ struct prop *propFindForInteract(bool usingeyespy)
 	bool checkmore = true;
 
 	g_InteractProp = NULL;
+
+#ifndef PLATFORM_N64
+	// Headless/dedicated server: a remote player has no render pass, so its
+	// onscreen-prop list (g_Vars.onscreenprops) is empty and the per-prop
+	// PROPFLAG_ONTHISSCREENTHISTICK flag the *TestForInteract checks rely on is
+	// never set -- the normal scan below finds nothing and door / object
+	// interaction never fires. Scan the active prop list instead; the test
+	// functions still filter by distance / rooms / line-of-sight (and skip the
+	// onscreen-flag check for this case, see doorTestForInteract /
+	// objTestForInteract). A local (non-remote) player keeps the render path.
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer
+			&& g_Vars.currentplayer->isremote) {
+		struct prop *prop = g_Vars.activeprops;
+		while (prop && prop != g_Vars.pausedprops) {
+			if (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_WEAPON) {
+				if (!usingeyespy) {
+					checkmore = objTestForInteract(prop);
+				}
+			} else if (prop->type == PROPTYPE_DOOR) {
+				checkmore = doorTestForInteract(prop);
+			}
+			if (!checkmore) {
+				break;
+			}
+			prop = prop->next;
+		}
+		return g_InteractProp;
+	}
+#endif
 
 	// Iterate onscreen list near to far
 	for (ptr = g_Vars.endonscreenprops - 1; ptr >= g_Vars.onscreenprops; ptr--) {
@@ -1824,16 +2232,69 @@ bool currentPlayerInteract(bool eyespy)
 	struct prop *prop;
 	bool op = TICKOP_NONE;
 
+#ifndef PLATFORM_N64
+	// On the host, a remote client's pawn carries the INTERPOLATED (lagged)
+	// position, so propFindForInteract -> doorTestForInteract tests the door against
+	// where the client WAS, not where it pressed Use. If the client moved past the
+	// door before its UCMD_ACTIVATE was processed, the host finds no door and never
+	// opens it -- while the client already predicted it open (the "sometimes the
+	// host's door isn't open" mismatch). Search + activate against the client's
+	// latest reported position instead (the lag-comp / pickup pattern), then restore.
+	struct coord interactsavedpos;
+	bool interactposswapped = false;
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote
+			&& g_Vars.currentplayer->client && g_Vars.currentplayer->prop) {
+		struct netclient *cl = g_Vars.currentplayer->client;
+		const struct netplayermove *m = &cl->inmove[cl->inmove_head];
+		if (m->tick) {
+			interactsavedpos = g_Vars.currentplayer->prop->pos;
+			g_Vars.currentplayer->prop->pos = m->pos;
+			interactposswapped = true;
+		}
+	}
+#endif
+
 	prop = propFindForInteract(eyespy);
 
 	if (prop) {
+#ifndef PLATFORM_N64
+		// Client door prediction: a manually-activated door opens locally the moment
+		// the local player interacts with it, instead of waiting a full RTT for the
+		// host's SVC_PROP_DOOR. This whole handler was gated off on clients, so a
+		// manual door took ~RTT and several button presses at high ping. The client
+		// still sends UCMD_ACTIVATE, so the host runs the same interact
+		// authoritatively and broadcasts SVC_PROP_DOOR, which reconciles on the
+		// client (its stale OPEN keyframe is skipped; SVC_PROP_USE skips doors). Only
+		// unlocked doors actually toggle (propdoorInteract checks doorIsUnlocked).
+		// All OTHER interactables (weapons / obj / switches) stay host-authoritative.
+		if (g_NetMode == NETMODE_CLIENT && prop->type != PROPTYPE_DOOR) {
+			return false;
+		}
+#endif
+
 		switch (prop->type) {
 		case PROPTYPE_OBJ:
 		case PROPTYPE_WEAPON:
 			op = propobjInteract(prop);
 			break;
 		case PROPTYPE_DOOR:
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+				// Remote clients drive their own doors via CLC_DOOR_ACTIVATE (exact
+				// syncid), so the host doesn't re-derive the door from a lagged
+				// position + a momentary UCMD_ACTIVATE. Skip here to avoid a double
+				// toggle — the door comes through netmsgClcDoorActivateRead instead.
+				break;
+			}
+#endif
 			op = propdoorInteract(prop);
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_CLIENT) {
+				// Predicted the door locally; tell the host the EXACT door so it opens
+				// the same one reliably, with no position/timing guessing.
+				netmsgClcDoorActivateWrite(&g_NetMsgRel, prop);
+			}
+#endif
 			break;
 		case PROPTYPE_CHR:
 		case PROPTYPE_EYESPY:
@@ -1845,9 +2306,25 @@ bool currentPlayerInteract(bool eyespy)
 
 		propExecuteTickOperation(prop, op);
 
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropUseWrite(&g_NetMsgRel, prop, g_Vars.currentplayer->client, op);
+		}
+#endif
+
+#ifndef PLATFORM_N64
+		if (interactposswapped) {
+			g_Vars.currentplayer->prop->pos = interactsavedpos;
+		}
+#endif
 		return false;
 	}
 
+#ifndef PLATFORM_N64
+	if (interactposswapped) {
+		g_Vars.currentplayer->prop->pos = interactsavedpos;
+	}
+#endif
 	return true;
 }
 
@@ -1861,6 +2338,12 @@ bool currentPlayerInteract(bool eyespy)
 void propPause(struct prop *prop)
 {
 	if ((prop->flags & PROPFLAG_DONTPAUSE) == 0) {
+#ifndef PLATFORM_N64
+		// A prop can enter the world paused (never activated) and still be
+		// wire-referenced later, so the syncid diet assigns here too.
+		netPropAssignSyncId(prop);
+		netPropLogEvent(prop, NETPROP_EV_PAUSE, 0);
+#endif
 		propDelist(prop);
 
 		if (g_Vars.pausedprops) {
@@ -2186,6 +2669,23 @@ void propsTickPlayer(bool islastplayer)
 			} else if (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_WEAPON) {
 				obj = prop->obj;
 
+#ifndef PLATFORM_N64
+				// A prop typed OBJ/WEAPON with no obj is a corpse: an active
+				// prop freed without unlinking, its slot re-allocated (the
+				// union is cleared but type is not) while stale list links
+				// still reach it — the same family as the proptick walk
+				// guard. Log its identity for the root-cause hunt and skip
+				// the deref (crash was a read at obj+0x4c on a JIP client).
+				if (obj == NULL) {
+					static u32 lastwarn60 = 0;
+					if (g_Vars.lvframe60 - lastwarn60 > TICKS(60)) {
+						lastwarn60 = g_Vars.lvframe60;
+						sysLogPrintf(LOG_WARNING,
+								"proptick_guard: null obj on active prop %d type %d flags 0x%x syncid %u",
+								(s32)(prop - g_Vars.props), prop->type, prop->flags, prop->syncid);
+					}
+				} else
+#endif
 				if (obj->hidden & OBJHFLAG_PROJECTILE) {
 					i++;
 				}
@@ -2247,7 +2747,21 @@ void propsTickPlayer(bool islastplayer)
 				splatTickChr(prop);
 
 				if (chr1 && chr1->aibot) {
-					op = botTick(prop);
+#ifndef PLATFORM_N64
+					// SIMULANT TICK ROUTING. Sim AI (target selection, weapon
+					// changes, navigation) is server-authoritative — we run
+					// botTick on the server and broadcast the resulting state
+					// via SVC_PROP_MOVE's chr-state block. Clients still need
+					// to tick the chr each frame for animation advance and
+					// render setup, but must NOT call botTick: it would let
+					// the client's bot AI rerun and overwrite the server-synced
+					// animnum / actiontype / aim. Drop to plain chrTick so the
+					// chr renders correctly while staying position-driven.
+					if (g_NetMode == NETMODE_CLIENT) {
+						op = chrTick(prop);
+					} else
+#endif
+						op = botTick(prop);
 				} else {
 					op = chrTick(prop);
 				}
@@ -2257,13 +2771,91 @@ void propsTickPlayer(bool islastplayer)
 				g_Vars.propstates[prop->propstateindex].foregroundpropcount++;
 
 				if (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_WEAPON || prop->type == PROPTYPE_DOOR) {
+#ifndef PLATFORM_N64
+					// Co-op (experimental, /coopobj): objTickPlayer runs the obj's
+					// local physics unconditionally on clients (unlike sims, whose
+					// botTick is server-gated). For a movable/pushable object that
+					// drifts prop->pos — and the rendered model (objRender reads
+					// prop->pos) — away from the wire, which only corrects it at
+					// 50%/packet, splitting model from hitbox at high ping and lagging
+					// items parented to it. When enabled, snap a networked OBJ prop back
+					// to the wire pos after the tick so the host's position is the sole
+					// source; pickups/interactions in the tick still run.
+					struct coord objwirepos = {0, 0, 0};
+					// PROPTYPE_OBJ only: doors (PROPTYPE_DOOR) and weapons
+					// (PROPTYPE_WEAPON) alias prop->obj via the union but have their
+					// own position/animation logic — wire-snapping a door breaks its
+					// open animation (opens then snaps to centre). Doors stay synced
+					// via SVC_PROP_DOOR; only movable objects are wire-driven here.
+					const bool objrestore = g_NetCoopObjWireDriven
+							&& g_NetMode == NETMODE_CLIENT && g_Vars.coopplayernum >= 0
+							&& prop->type == PROPTYPE_OBJ && prop->syncid && prop->obj;
+					if (objrestore) {
+						objwirepos = prop->pos;
+					}
+					// Zombie REAP: a typed OBJ/WEAPON/DOOR prop whose union
+					// pointer (prop->obj) is NULL is a freed-but-still-listed
+					// corpse. Root cause (the proptick/propssort/propsbeams
+					// guard family): objFree(obj, /*freeprop=*/false) — used by
+					// the OBJHFLAG_DELETING reaper (propobj.c:11125), bot/player
+					// pickups, and objTestForPickup — sets obj->prop->obj = NULL
+					// and DEFERS the actual propDelist/propFree to the caller
+					// honouring the returned TICKOP_FREE. If that TICKOP_FREE is
+					// ever dropped, the prop is left listed with obj==NULL, and
+					// objTickPlayer's first deref (obj->model at +0x20) crashes
+					// on it. The earlier version of this guard set TICKOP_NONE,
+					// which merely SKIPPED the tick — so the corpse lingered
+					// frame after frame until a different walk (propsRenderBeams
+					// cycle hang, propsSort) tripped on it. Reaping it instead
+					// (TICKOP_FREE) restores the "no null-obj props in the active
+					// list" invariant on the very next tick: propExecuteTick-
+					// Operation's regen check short-circuits on prop->obj==NULL
+					// and falls straight to propDeregisterRooms/propDelist/
+					// propFree — the same path (incl. the harmless double
+					// deregister) the normal DELETING reaper already takes.
+					if (prop->obj == NULL) {
+						g_NetAuditReapFires++; // soak auditor
+						static u32 lastwarn60b = 0;
+						if (g_Vars.lvframe60 - lastwarn60b > TICKS(60)) {
+							lastwarn60b = g_Vars.lvframe60;
+							sysLogPrintf(LOG_WARNING,
+									"proptick_guard: reap null-obj prop %d type %d flags 0x%x syncid %u",
+									(s32)(prop - g_Vars.props), prop->type, prop->flags, prop->syncid);
+						}
+						op = TICKOP_FREE;
+					} else {
+						op = objTickPlayer(prop);
+					}
+					if (objrestore && op != TICKOP_FREE && prop->obj) {
+						prop->pos = objwirepos;
+						// objTickPlayer rebuilt the obj's collision geometry from the
+						// locally-drifted pos this frame (the model/hitbox desync the
+						// user saw). Re-derive it from the restored wire pos so the
+						// collision cylinder / floor tiles line up with the rendered
+						// model (objRender reads prop->pos). func0f069c1c overwrites the
+						// obj's geometry buffer in place, so re-calling it is safe.
+						func0f069c1c(prop->obj);
+					}
+#else
 					op = objTickPlayer(prop);
+#endif
 				} else if (prop->type == PROPTYPE_EXPLOSION) {
 					op = explosionTickPlayer(prop);
 				} else if (prop->type == PROPTYPE_SMOKE) {
 					op = smokeTickPlayer(prop);
 				} else if (prop->type == PROPTYPE_PLAYER) {
 					splatTickChr(prop);
+#ifndef PLATFORM_N64
+					if (netDemoIsPlaying() && (!g_Vars.players[0] || prop != g_Vars.players[0]->prop)) {
+						// Demo playback: pose every pawn EXCEPT player 0 (the render
+						// vehicle) from the applied (recorded) chrinfo via chrTick, like a
+						// sim. playerTickThirdPerson rebuilds the body from live speed/aim
+						// fields we don't set, ignoring our recorded pose. Player 0 stays on
+						// playerTickThirdPerson so its first-person body is hidden (it renders
+						// the followed combatant's view; see demo.c).
+						op = chrTick(prop);
+					} else
+#endif
 					op = playerTickThirdPerson(prop);
 				}
 			}
@@ -2309,13 +2901,40 @@ void propsTickPlayer(bool islastplayer)
 					splatTickChr(prop);
 
 					if (chr2 && chr2->aibot) {
-						op = botTick(prop);
+#ifndef PLATFORM_N64
+						// SIMULANT TICK ROUTING (background prop path). Mirror
+						// the foreground branch above: client → chrTick (render
+						// only), server → botTick (AI). Position/anim come from
+						// SVC_PROP_MOVE.
+						if (g_NetMode == NETMODE_CLIENT) {
+							op = chrTick(prop);
+						} else
+#endif
+							op = botTick(prop);
 					} else {
 						op = chrTick(prop);
 					}
 				} else if (prop->type == PROPTYPE_OBJ || prop->type == PROPTYPE_WEAPON || prop->type == PROPTYPE_DOOR) {
 					obj = prop->obj;
 
+#ifndef PLATFORM_N64
+					// Zombie REAP (background path): mirror the foreground null-obj
+					// reap above. The background obj-tick derefs obj->type at
+					// g_PausableObjs[obj->type] below with no null check, so a
+					// freed-but-still-listed corpse here crashes BEFORE
+					// objTickPlayer ever runs. Reap it the same way (TICKOP_FREE).
+					if (obj == NULL) {
+						g_NetAuditReapFires++; // soak auditor
+						static u32 lastwarn60c = 0;
+						if (g_Vars.lvframe60 - lastwarn60c > TICKS(60)) {
+							lastwarn60c = g_Vars.lvframe60;
+							sysLogPrintf(LOG_WARNING,
+									"proptick_guard: reap null-obj bg prop %d type %d flags 0x%x syncid %u",
+									(s32)(prop - g_Vars.props), prop->type, prop->flags, prop->syncid);
+						}
+						op = TICKOP_FREE;
+					} else
+#endif
 					if (!g_PausableObjs[obj->type]) {
 						op = objTickPlayer(prop);
 					} else if (prop->timetoregen <= 0) {
@@ -2335,6 +2954,17 @@ void propsTickPlayer(bool islastplayer)
 					op = smokeTickPlayer(prop);
 				} else if (prop->type == PROPTYPE_PLAYER) {
 					splatTickChr(prop);
+#ifndef PLATFORM_N64
+					if (netDemoIsPlaying() && (!g_Vars.players[0] || prop != g_Vars.players[0]->prop)) {
+						// Demo playback: pose every pawn EXCEPT player 0 (the render
+						// vehicle) from the applied (recorded) chrinfo via chrTick, like a
+						// sim. playerTickThirdPerson rebuilds the body from live speed/aim
+						// fields we don't set, ignoring our recorded pose. Player 0 stays on
+						// playerTickThirdPerson so its first-person body is hidden (it renders
+						// the followed combatant's view; see demo.c).
+						op = chrTick(prop);
+					} else
+#endif
 					op = playerTickThirdPerson(prop);
 				}
 
@@ -2383,6 +3013,21 @@ void propsTickPlayer(bool islastplayer)
 				propExecuteTickOperation(prop, op);
 			}
 		}
+
+#ifndef PLATFORM_N64
+		// Paired with the NULL-prop guard at the loop top: a live walk never
+		// yields a NULL next without done (the list terminates at
+		// g_Vars.pausedprops, and done is recomputed alongside next). A NULL
+		// next here means THIS prop was freed/recycled during its own tick —
+		// log its identity so the freeing culprit can finally be named, and
+		// end the walk for this frame.
+		if (!done && next == NULL) {
+			sysLogPrintf(LOG_WARNING,
+					"proptick_guard: prop %d type %d flags 0x%x syncid %u has NULL next after tick (op %d); aborting tick walk",
+					(s32)(prop - g_Vars.props), prop->type, prop->flags, prop->syncid, op);
+			break;
+		}
+#endif
 
 		prop = next;
 	}
@@ -2662,6 +3307,31 @@ void propsTestForPickup(void)
 	if (g_Vars.currentplayer->bondmovemode != MOVEMODE_CUTSCENE
 			&& !g_PlayerInvincible
 			&& g_Vars.currentplayer != g_Vars.anti) {
+#ifndef PLATFORM_N64
+		// On the host, a remote client's pawn carries the INTERPOLATED (render-
+		// smoothed) position, which trails the client's actual position by the
+		// interp delay (tens of units at any ping). objTestForPickup tests box
+		// overlap against that lagged pos, so a client walking over a box is tested
+		// where it WAS — pickups intermittently miss (a glancing pass never brings
+		// the lagged point inside the pickup radius). Combat Sim clients don't
+		// request pickups themselves (objTestForPickup bails for NETMODE_CLIENT), so
+		// the host's scan IS the pickup and must use the true client position. Swap
+		// in the client's latest reported pos for the scan (the lag-comp pattern),
+		// then restore below. Rooms still come from prop->rooms + neighbours, which a
+		// tens-of-units delta stays within.
+		struct coord pickupsavedpos;
+		bool pickupposswapped = false;
+		if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote
+				&& g_Vars.currentplayer->client && g_Vars.currentplayer->prop) {
+			struct netclient *cl = g_Vars.currentplayer->client;
+			const struct netplayermove *m = &cl->inmove[cl->inmove_head];
+			if (m->tick) {
+				pickupsavedpos = g_Vars.currentplayer->prop->pos;
+				g_Vars.currentplayer->prop->pos = m->pos;
+				pickupposswapped = true;
+			}
+		}
+#endif
 		roomsCopy(g_Vars.currentplayer->prop->rooms, allrooms);
 
 		for (i = 0; g_Vars.currentplayer->prop->rooms[i] != -1; i++) {
@@ -3072,7 +3742,8 @@ void autoaimTick(void)
 		}
 
 		if (bmoveIsAutoAimXEnabledForCurrentWeapon() || iscmpsec) {
-			bmoveUpdateAutoAimXProp(bestprop, (aimpos[0] - camGetScreenLeft()) / (camGetScreenWidth() * 0.5f) - 1);
+			f32 aimx = (aimpos[0] - camGetScreenLeft()) / (camGetScreenWidth() * 0.5f) - 1;
+			bmoveUpdateAutoAimXProp(bestprop, aimx);
 		}
 
 		if (cangangsta) {
