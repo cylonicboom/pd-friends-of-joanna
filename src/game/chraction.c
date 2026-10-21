@@ -61,6 +61,15 @@
 #include "types.h"
 #include "game/chaosstate.h"
 
+// fojo: a seat's handicap lives in its extended profile, bound when the seat
+// picks a file. A seat that never went through the menus (a netplay client's
+// stand-in config) has no pointer yet - read the default instead of NULL.
+static inline u8 chrPlayerHandicap(s32 mpindex)
+{
+	u8 *p = g_PlayerConfigsArray[mpindex].handicap;
+	return p ? *p : 0x80;
+}
+
 #ifndef PLATFORM_N64
 // Chaos "Evil twin" (Kai be46717): defined with the twin registry in
 // luaai_bridge_chrs.c; chrDamage keeps twins psychosis-immune.
@@ -5263,9 +5272,9 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 			if (g_Vars.normmplayerisrunning) {
 #if VERSION >= VERSION_PAL_FINAL
 				// Fixing a @bug?
-				damage = damage * mpHandicapToDamageScale(*g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
+				damage = damage * mpHandicapToDamageScale(chrPlayerHandicap(g_Vars.currentplayerstats->mpindex));
 #else
-				damage /= mpHandicapToDamageScale(*g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
+				damage /= mpHandicapToDamageScale(chrPlayerHandicap(g_Vars.currentplayerstats->mpindex));
 #endif
 			}
 
@@ -5498,7 +5507,7 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 #endif
 
 			if (g_Vars.normmplayerisrunning || g_MissionConfig.isteam) {
-				damage /= mpHandicapToDamageScale(*g_PlayerConfigsArray[g_Vars.currentplayerstats->mpindex].handicap);
+				damage /= mpHandicapToDamageScale(chrPlayerHandicap(g_Vars.currentplayerstats->mpindex));
 			}
 
 			if (g_Vars.currentplayer->isdead == false && !g_PlayerInvincible) {

@@ -226,6 +226,10 @@ s32 netDedicatedBootTick(void)
 		if (g_PlayerConfigsArray[i].base.name[0] == '\0') {
 			sprintf(g_PlayerConfigsArray[i].base.name, "Player %d\n", i + 1);
 		}
+		// fojo: the extended profile pointers (handicap, classic sight, ...)
+		// are bound when a seat picks a file in the menus. No menus here, so
+		// bind every seat to its stand-in now - chrDamage derefs handicap.
+		iniRegisterPlayerSave(&g_PlayerConfigsArray[i].fileguid, 1, i);
 	}
 
 	if (g_NetJoinLatch) {
