@@ -255,6 +255,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
       "${CMAKE_SOURCE_DIR}/port/src/imgui_skinmatch.cpp"
       "${CMAKE_SOURCE_DIR}/port/src/imgui_extoptions.cpp"
       "${CMAKE_SOURCE_DIR}/port/src/imgui_profiles.cpp"
+      "${CMAKE_SOURCE_DIR}/port/src/imgui_netplay.cpp"
       PROPERTIES COMPILE_OPTIONS "-fpermissive")
   else()
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-changes-meaning>)

@@ -5399,6 +5399,10 @@ enum weaponnum {
 #define NETMODE_CLIENT 2
 // prototype here so any user of the macro links without pulling game/player.h
 // (clang errors on an implicit declaration; gcc only warned).
+#ifdef __cplusplus
+extern "C" int playerGetLocalCount(void);
+#else
 int playerGetLocalCount(void);
+#endif
 #define LOCALPLAYERCOUNT() playerGetLocalCount()
 #endif
