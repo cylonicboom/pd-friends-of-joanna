@@ -1,0 +1,14 @@
+A scenario is a shell fragment sourced by nettest. It may set:
+
+  TEAM_STAGE     solo stage index the host arms (0 = Defection)
+  TEAM_ROLES     role per wire seat, b operative / c coop / a anti / n none
+  TEAM_DIFF      0..3
+  CLIENTS        how many remote clients to start (the host waits for them)
+  RUN_SECS       wall time of the run
+  CLIENT_DELAY   seconds the host boots alone before the first client
+  HOST_DRIVER / CLIENT_DRIVER   scripts/<name>.lua copied in as each process's
+                 scripts/init.lua; the script sees NETTEST.name / NETTEST.host
+  EXTRA_HOST_ARGS / EXTRA_CLIENT_ARGS   appended to the command line
+  PORT, WATCHDOG
+
+Names are episode-style; the file name is the handle the dashboard shows.

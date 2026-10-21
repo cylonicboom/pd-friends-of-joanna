@@ -1,0 +1,143 @@
+#!/bin/bash
+# nettest: run a host and N clients against each other, then say what it proved.
+#
+#   tools/nettest/nettest run <scenario> [--secs N] [--build DIR] [--basedir DIR] [--no-xvfb]
+#   tools/nettest/nettest verdict <rundir>
+#   tools/nettest/nettest index
+#   tools/nettest/nettest list
+#
+# A scenario is a file in scenarios/ that sets a few variables (see
+# scenarios/README). Every process gets its own folder under runs/<ts>-<scenario>/
+# with its own scripts/init.lua (the pad driver), its log (out.txt) and its
+# netplay diag CSV (diag.csv). netverdict.py reads those and writes verdict.json
+# plus a zero-byte PASS or FAIL; mkindex.py rewrites index.js for dashboard.html.
+#
+# Nothing here is a daemon. Nothing deletes. runs/ is scratch and gitignored.
+set -u
+HERE=$(cd "$(dirname "$0")" && pwd)
+REPO=$(cd "$HERE/../.." && pwd)
+RUNS=${NETTEST_RUNS:-$HERE/runs}
+
+usage() { sed -n 2,14p "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+
+cmd=${1:-}; shift || true
+case "$cmd" in
+run) ;;
+verdict) exec python3 "$HERE/netverdict.py" "${1:?rundir}" ;;
+index) exec python3 "$HERE/mkindex.py" "$RUNS" ;;
+list) ls -1t "$RUNS" 2>/dev/null | head -20; exit 0 ;;
+*) usage ;;
+esac
+
+SCENARIO=${1:?scenario}; shift
+SECS=""; BUILD=${NETTEST_BUILD:-}; BASEDIR=${NETTEST_BASEDIR:-}; XVFB=auto
+while [ $# -gt 0 ]; do
+  case "$1" in
+  --secs) SECS=$2; shift 2 ;;
+  --build) BUILD=$2; shift 2 ;;
+  --basedir) BASEDIR=$2; shift 2 ;;
+  --no-xvfb) XVFB=no; shift ;;
+  --xvfb) XVFB=yes; shift ;;
+  *) echo "unknown arg $1"; usage ;;
+  esac
+done
+
+# ---- scenario ---------------------------------------------------------------
+SCEN="$HERE/scenarios/$SCENARIO.sh"
+[ -f "$SCEN" ] || { echo "no scenario $SCEN"; exit 2; }
+# defaults a scenario may override
+TEAM_STAGE=0            # solo stage index (0 = Defection)
+TEAM_ROLES="b,c"        # role per wire seat: b operative, c coop, a anti, n none
+TEAM_DIFF=0
+CLIENTS=1               # remote clients to start
+RUN_SECS=120            # wall time per run
+CLIENT_DELAY=18         # seconds the host gets before the first client starts
+HOST_DRIVER=walker      # scripts/<name>.lua used as each process's init.lua
+CLIENT_DRIVER=walker
+EXTRA_HOST_ARGS=""
+EXTRA_CLIENT_ARGS=""
+PORT=27150
+WATCHDOG=25
+. "$SCEN"
+[ -n "$SECS" ] && RUN_SECS=$SECS
+
+# ---- binary + basedir --------------------------------------------------------
+if [ -z "$BUILD" ]; then
+  for d in "$REPO/build" "$HOME/fn-build" "$REPO/../build"; do
+    [ -d "$d" ] && ls "$d"/pd.* >/dev/null 2>&1 && { BUILD=$d; break; }
+  done
+fi
+BIN=$(ls "$BUILD"/pd.* 2>/dev/null | grep -v '\.dSYM\|\.debug' | head -1)
+[ -x "${BIN:-/nonexistent}" ] || { echo "no pd binary under ${BUILD:-?} (--build DIR)"; exit 2; }
+[ -n "$BASEDIR" ] || { echo "need --basedir DIR (or NETTEST_BASEDIR): the data dir with the rom + mods"; exit 2; }
+
+if [ "$XVFB" = auto ]; then
+  if [ "$(uname)" = Linux ] && command -v xvfb-run >/dev/null; then XVFB=yes; else XVFB=no; fi
+fi
+
+TS=$(date +%Y%m%d-%H%M%S)
+RUN="$RUNS/$TS-$SCENARIO"
+mkdir -p "$RUN"
+SHA=$(git -C "$REPO" rev-parse --short=9 HEAD 2>/dev/null || echo unknown)
+
+# roles -> json list the verdict reads (b=3 c=1 a=2 n=0, slot 0 is always the operative)
+ROLES_JSON=$(python3 - "$TEAM_ROLES" <<'PY'
+import sys
+m={'b':3,'o':3,'c':1,'a':2,'n':0}
+r=[m.get(ch,0) for ch in sys.argv[1].replace(',', '') if ch.strip()]
+r=(r+[0,0,0,0])[:4]; r[0]=3
+print('['+','.join(map(str,r))+']')
+PY
+)
+STAGENUM=$(python3 - "$TEAM_STAGE" <<'PY'
+import sys
+# g_SoloStages order: stagenum of each solo stage index (constants.h STAGE_*)
+stages=[0x30,0x33,0x22,0x2c,0x1d,0x1e,0x2f,0x35,0x19,0x27,0x31,0x1c,0x21,0x38,0x2d,0x34,0x2a,0x37,0x09,0x16,0x4f]
+i=int(sys.argv[1]); print('0x%02x' % stages[i] if 0<=i<len(stages) else '')
+PY
+)
+
+cat > "$RUN/run.json" <<JSON
+{"scenario":"$SCENARIO","started":$(date +%s),"secs":$RUN_SECS,"sha":"$SHA","clients":$CLIENTS,
+ "stageindex":$TEAM_STAGE,"stagenum":"$STAGENUM","roles":$ROLES_JSON,"difficulty":$TEAM_DIFF,
+ "host_driver":"$HOST_DRIVER","client_driver":"$CLIENT_DRIVER","xvfb":"$XVFB","bin":"$BIN"}
+JSON
+
+launch() { # name display secs driver args...
+  local name=$1 disp=$2 secs=$3 driver=$4; shift 4
+  local d="$RUN/$name"
+  mkdir -p "$d/scripts"
+  { echo "NETTEST = { name = \"$name\", host = $([ "$name" = host ] && echo true || echo false) }";
+    cat "$HERE/scripts/$driver.lua"; } > "$d/scripts/init.lua"
+  ln -sfn "$BIN" "$d/pd"
+  local wrap=()
+  if [ "$XVFB" = yes ]; then wrap=(xvfb-run -n "$disp" -s "-screen 0 320x240x24"); fi
+  (
+    cd "$d" || exit 1
+    export LIBGL_ALWAYS_SOFTWARE=${LIBGL_ALWAYS_SOFTWARE-1} SDL_AUDIODRIVER=${SDL_AUDIODRIVER-dummy} LP_NUM_THREADS=${LP_NUM_THREADS-1}
+    timeout "$secs" "${wrap[@]}" ./pd --basedir "$BASEDIR" --no-sound --lua-ai --no-upnp --no-advertise \
+      --log --netdiag "$d/diag.csv" --watchdog "$WATCHDOG" "$@" > "$d/out.txt" 2>&1
+    echo "exit $?" > "$d/EXIT"
+  ) &
+}
+
+echo "nettest: $SCENARIO -> $RUN ($RUN_SECS s, $CLIENTS client(s), xvfb=$XVFB)"
+pkill -x "$(basename "$BIN")" 2>/dev/null; pkill -x pd 2>/dev/null; sleep 1
+rm -f /tmp/.X9[0-9]-lock 2>/dev/null
+
+launch host 90 "$RUN_SECS" "$HOST_DRIVER" --host --port "$PORT" \
+  --team "$TEAM_STAGE" --team-roles "$TEAM_ROLES" --team-diff "$TEAM_DIFF" --team-wait "$CLIENTS" $EXTRA_HOST_ARGS
+sleep "$CLIENT_DELAY"
+for i in $(seq 1 "$CLIENTS"); do
+  launch "cl$i" $((90 + i)) $((RUN_SECS - CLIENT_DELAY)) "$CLIENT_DRIVER" --connect "127.0.0.1:$PORT" $EXTRA_CLIENT_ARGS
+  sleep 2
+done
+wait
+python3 - "$RUN/run.json" <<'PY'
+import json,sys,time
+p=sys.argv[1]; d=json.load(open(p)); d['finished']=int(time.time()); json.dump(d,open(p,'w'))
+PY
+python3 "$HERE/netverdict.py" "$RUN"
+rc=$?
+python3 "$HERE/mkindex.py" "$RUNS" >/dev/null
+exit $rc

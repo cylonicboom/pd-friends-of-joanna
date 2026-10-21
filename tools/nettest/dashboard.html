@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>fojo nettest</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📡</text></svg>">
+<style>
+  :root{
+    color-scheme:light;
+    --bg:#f7f7f4; --panel:#fff; --edge:#e0e0d8; --ink:#1c1e1c; --soft:#666b66; --faint:#9aa09a;
+    --pass:#2a7d55; --fail:#b03a30; --run:#a8761a; --skip:#7a7f7a;
+    --pass-bg:#e4f2ea; --fail-bg:#fae7e4; --run-bg:#faf0dc; --skip-bg:#eeeeea;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+    color-scheme:dark;
+    --bg:#15181a; --panel:#1d2124; --edge:#2c3235; --ink:#e6e9e6; --soft:#a0a8a4; --faint:#6e7672;
+    --pass:#5fc48d; --fail:#f08a7e; --run:#e0b25e; --skip:#8b938e;
+    --pass-bg:#16301f; --fail-bg:#3a1c18; --run-bg:#332715; --skip-bg:#24292b;
+  }}
+  :root[data-theme=dark]{
+    color-scheme:dark;
+    --bg:#15181a; --panel:#1d2124; --edge:#2c3235; --ink:#e6e9e6; --soft:#a0a8a4; --faint:#6e7672;
+    --pass:#5fc48d; --fail:#f08a7e; --run:#e0b25e; --skip:#8b938e;
+    --pass-bg:#16301f; --fail-bg:#3a1c18; --run-bg:#332715; --skip-bg:#24292b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,sans-serif;padding:0 16px 40px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:18px 0 14px;border-bottom:1px solid var(--edge);max-width:940px;margin:0 auto 16px}
+  h1{margin:0;font-size:17px;font-weight:600;letter-spacing:-.2px}
+  .sub{color:var(--soft);font-size:12.5px}
+  .spacer{flex:1 1 auto}
+  main{max-width:940px;margin:0 auto}
+  .row{background:var(--panel);border:1px solid var(--edge);border-radius:6px;margin-bottom:8px;overflow:hidden}
+  .top{display:flex;align-items:center;gap:12px;padding:10px 13px;cursor:pointer;flex-wrap:wrap}
+  .chip{flex:0 0 auto;font:600 10.5px/1 system-ui;letter-spacing:.09em;text-transform:uppercase;padding:5px 8px;border-radius:3px}
+  .pass .chip{color:var(--pass);background:var(--pass-bg)}
+  .fail .chip{color:var(--fail);background:var(--fail-bg)}
+  .running .chip{color:var(--run);background:var(--run-bg)}
+  .slug{font-weight:600}
+  .sha{font-family:var(--mono);font-size:12px;color:var(--faint)}
+  .meta{color:var(--soft);font-size:12.5px}
+  .when{margin-left:auto;color:var(--soft);font-size:12.5px;white-space:nowrap}
+  .tally{font-family:var(--mono);font-size:12px}
+  .tally .p{color:var(--pass)} .tally .f{color:var(--fail)} .tally .s{color:var(--skip)}
+  .body{display:none;border-top:1px solid var(--edge)}
+  .row.open .body{display:block}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  td{padding:5px 13px;border-bottom:1px solid var(--edge);vertical-align:top}
+  td.v{width:52px;font:600 10.5px/1 var(--mono);letter-spacing:.08em;padding-top:8px}
+  td.v.PASS{color:var(--pass)} td.v.FAIL{color:var(--fail)} td.v.SKIP{color:var(--skip)}
+  td.c{white-space:nowrap;width:34%}
+  td.d{color:var(--soft);font-family:var(--mono);font-size:11.5px}
+  tr.FAIL td{background:var(--fail-bg)}
+  .files{display:flex;gap:10px;flex-wrap:wrap;padding:8px 13px;font-family:var(--mono);font-size:11.5px}
+  .files a{color:var(--soft);text-decoration:none;border-bottom:1px dotted var(--edge)}
+  .files a:hover{color:var(--ink)}
+  pre{margin:0;padding:12px 13px;background:var(--bg);border-top:1px solid var(--edge);font-family:var(--mono);font-size:11.5px;line-height:1.45;max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .procname{padding:6px 13px 0;font:600 11px/1 system-ui;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .empty{color:var(--faint);padding:30px 0;text-align:center;font-style:italic}
+  .note{color:var(--faint);font-size:12px;margin-top:18px;text-align:center;max-width:940px;margin-left:auto;margin-right:auto}
+  code{font-family:var(--mono);font-size:12px}
+  .plan{max-width:940px;margin:0 auto 16px;background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:12px 13px;font-size:12.5px;color:var(--soft)}
+  .plan b{color:var(--ink);font-weight:600}
+  .plan ul{margin:6px 0 0 18px;padding:0}
+  .plan li{margin:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>fojo nettest</h1>
+  <span class="sub" id="pulse">waiting…</span>
+  <span class="spacer"></span>
+  <span class="sub" id="counts"></span>
+</header>
+<section class="plan">
+  <b>what a run proves.</b> a host and N clients boot from the CLI, the host arms a Team Mission
+  (<code>--team --team-roles</code>) and starts it when the lobby fills; every process logs
+  <code>team</code>/<code>seat</code>/<code>netcl</code> lines once a second. the verdict pairs those by net tick:
+  <ul>
+    <li><b>boot · connect · stage</b> — server/client start, every client reaches CLSTATE_GAME, every process loads the armed stage with <code>isteam</code></li>
+    <li><b>roles</b> — the seat manifest is identical everywhere; each client sits in a non-operative seat whose role matches what the host armed</li>
+    <li><b>gameplay</b> — the intro cutscene ends (tickmode 1) on every process, and every walker-driven pawn actually covers ground</li>
+    <li><b>agreement</b> — per seat, host vs client position p90 under 200 units (~0.75 s at run speed) and health p90 within 0.1</li>
+    <li><b>stability</b> — no crash, watchdog stall or guard trip in any log; no unexpected <code>WARNING: NET</code>; the prop auditor never says FAIL; tick drift bounded</li>
+  </ul>
+</section>
+<main id="list"><p class="empty">loading index.js…</p></main>
+<p class="note">reads <code>index.js</code>, which <code>nettest</code> rewrites after every run · refreshes every 5s ·
+  run one with <code>tools/nettest/nettest run two-seats-walk --basedir &lt;data dir&gt;</code></p>
+
+<script>
+(function(){
+  "use strict";
+  var POLL = 5000, lastSig = null, openDirs = {};
+  function ago(t){
+    if(!t) return "";
+    var d = Math.floor(Date.now()/1000) - t;
+    if(d < 60) return d + "s ago";
+    if(d < 3600) return Math.round(d/60) + "m ago";
+    if(d < 172800) return Math.round(d/3600) + "h ago";
+    return Math.round(d/86400) + "d ago";
+  }
+  function dur(a,b){ if(!a||!b) return ""; var s=b-a; return s<60 ? s+"s" : Math.floor(s/60)+"m"+(s%60)+"s"; }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
+  var ROLE = {0:"-",1:"coop",2:"anti",3:"op"};
+
+  function render(d){
+    if(!d) return;
+    var list = document.getElementById("list"), runs = d.runs || [];
+    var n = {pass:0, fail:0, running:0};
+    runs.forEach(function(x){ n[x.verdict] = (n[x.verdict]||0)+1; });
+    document.getElementById("counts").textContent = runs.length ?
+      n.pass + " pass · " + n.fail + " fail" + (n.running ? " · " + n.running + " running" : "") : "";
+    document.getElementById("pulse").textContent = d.written ? "index written " + ago(d.written) : "";
+    if(!runs.length){ list.innerHTML = '<p class="empty">no runs yet</p>'; return; }
+    var sig = JSON.stringify(runs);
+    if(sig === lastSig) return;
+    lastSig = sig;
+    list.innerHTML = runs.map(function(x){
+      var c = x.counts || {};
+      var h = '<div class="row ' + x.verdict + (openDirs[x.dir] ? " open" : "") + '" data-dir="' + esc(x.dir) + '">';
+      h += '<div class="top"><span class="chip">' + x.verdict + '</span>';
+      h += '<span class="slug">' + esc(x.scenario) + '</span>';
+      h += '<span class="sha">' + esc(x.sha||"") + '</span>';
+      h += '<span class="meta">' + (x.roles ? x.roles.map(function(r){return ROLE[r]||r;}).filter(function(r){return r!=="-";}).join(" + ") : "") +
+           (x.stagenum ? ' · stage ' + esc(x.stagenum) : "") + (x.xvfb==="yes" ? ' · xvfb' : "") + '</span>';
+      if(c.pass != null) h += '<span class="tally"><span class="p">' + c.pass + ' pass</span> · <span class="f">' + c.fail + ' fail</span>' + (c.skip ? ' · <span class="s">' + c.skip + ' skip</span>' : '') + '</span>';
+      h += '<span class="when">' + esc(x.finished ? dur(x.started, x.finished) + " · " + ago(x.finished) : ago(x.started)) + '</span></div>';
+      h += '<div class="body">';
+      if(x.checks && x.checks.length){
+        h += '<table>' + x.checks.map(function(k){
+          return '<tr class="' + k.verdict + '"><td class="v ' + k.verdict + '">' + k.verdict + '</td><td class="c">' + esc(k.check) + '</td><td class="d">' + esc(k.detail) + '</td></tr>';
+        }).join("") + '</table>';
+      }
+      (x.procs||[]).forEach(function(p){
+        h += '<div class="procname">' + esc(p.name) + (p.exit != null ? ' · exit ' + esc(p.exit) : '') + '</div>';
+        h += '<div class="files"><a href="' + esc(p.log) + '">out.txt</a><a href="' + esc(p.diag) + '">diag.csv</a></div>';
+        if(p.tail) h += '<pre>' + esc(p.tail) + '</pre>';
+      });
+      h += '</div></div>';
+      return h;
+    }).join("");
+  }
+  document.getElementById("list").addEventListener("click", function(e){
+    var top = e.target.closest && e.target.closest(".top"); if(!top) return;
+    if(e.target.closest("a")) return;
+    var row = top.parentNode, dir = row.getAttribute("data-dir");
+    row.classList.toggle("open"); openDirs[dir] = row.classList.contains("open");
+  });
+  function poll(){
+    var s = document.createElement("script");
+    s.src = "index.js?t=" + Date.now();
+    s.onload = function(){ render(window.NETTEST); s.remove(); };
+    s.onerror = function(){ if(lastSig===null) document.getElementById("list").innerHTML = '<p class="empty">no index.js yet — run <code>nettest index</code></p>'; s.remove(); };
+    document.head.appendChild(s);
+  }
+  poll(); setInterval(poll, POLL);
+})();
+</script>
+</body>
+</html>
