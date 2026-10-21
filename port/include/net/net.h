@@ -578,6 +578,17 @@ extern s32 g_NetHostLatch;
 // preparing (retry next frame), true once the latch was consumed.
 s32 netDedicatedBootTick(void);
 
+// fojo: Team Missions over the wire (netteam.c). --team arms a start on the
+// host; both ends load the stage through netTeamEnterStage with the roles
+// manifest from SVC_STAGE_START (NETSTAGEMODE_TEAM).
+extern s32 g_NetTeamStageIndex;
+extern s32 g_NetTeamDifficulty;
+extern s32 g_NetTeamWait;
+extern u8 g_NetTeamRoles[MAX_PLAYERS];
+void netTeamInitFromArgs(void);
+void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles);
+void netTeamServerTick(void);
+
 // Dedicated-server mode. 0 = listen server (host plays), 1 = headless dedicated
 // (no SDL window, no audio device, server-only tick), 2 = windowed dedicated
 // (window open showing a status overlay, no local combatant). Set from the
@@ -799,6 +810,7 @@ void netEndFrame(void);
 // SVC_STAGE_START handler both call this). numplayers = total co-op players N
 // (host + remote partners), up to MAX_PLAYERS.
 void netCoopEnterStage(s32 stagenum, s32 difficulty, s32 numplayers);
+void netCoopResetStageState(void);
 
 // Co-op drop-in: net co-op stages always allocate this many player slots
 // regardless of the connected count, so the prop/syncid layout is identical

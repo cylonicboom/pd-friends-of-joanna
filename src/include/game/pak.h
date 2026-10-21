@@ -167,4 +167,6 @@ extern const char var7f1b424c[];
 extern const char var7f1b4254[];
 extern const char var7f1b425c[];
 
+bool pakIsGamepakReady(void);
+
 #endif

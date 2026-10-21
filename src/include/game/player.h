@@ -120,4 +120,7 @@ void playerSetCamProperties(struct coord *pos, struct coord *up, struct coord *l
 void playerClearMemCamRoom(void);
 void playerSetHeight(s32 eyeheight, s32 headnum);
 
+s32 playerGetCount(void);
+s32 playerGetLocalCount(void);
+
 #endif

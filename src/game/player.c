@@ -77,6 +77,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "video.h"
+#include "net/net.h"
 #include "input.h"
 #include "platform.h"
 #ifndef PLATFORM_N64
@@ -2757,6 +2758,16 @@ void playerTickPauseMenu(void)
 			opened = soloChoosePauseDialog();
 			break;
 		case MENUROOT_FILEMGR:
+#ifndef PLATFORM_N64
+			// netplay: a CLI-latched session (--host / --connect) never opens
+			// the agent file-select — consume the latch directly instead.
+			// False = pak still preparing; stay in PAUSEMODE_PAUSING and
+			// retry next frame.
+			if (g_NetHostLatch || g_NetJoinLatch) {
+				opened = netDedicatedBootTick();
+				break;
+			}
+#endif
 			opened = filemgrConsiderPushingFileSelectDialog();
 			break;
 		case MENUROOT_4MBMAINMENU:
@@ -8187,3 +8198,26 @@ void player0f0c3320(Mtxf *matrices, s32 count)
 		mtxF2L(&sp40, matrices + i);
 	}
 }
+
+#ifndef PLATFORM_N64
+s32 playerGetCount(void)
+{
+	return PLAYERCOUNT();
+}
+
+// How many humans sit at this machine. One in a net game (clients always
+// render a single first-person view, and fojo has no host spectator panels),
+// PLAYERCOUNT() otherwise.
+s32 playerGetLocalCount(void)
+{
+	if (g_NetMode) {
+		return 1;
+	}
+
+	const s32 playercount = PLAYERCOUNT();
+	if (playercount > MAX_LOCAL_PLAYERS) {
+		return MAX_LOCAL_PLAYERS;
+	}
+	return playercount;
+}
+#endif

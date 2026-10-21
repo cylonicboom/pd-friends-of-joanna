@@ -151,7 +151,8 @@ s32 netPlayerOwnsMouse(void)
 		return g_Vars.currentplayer && !g_Vars.currentplayer->isremote
 				&& !g_NetLocalClient->is_spectator;
 	}
-	return g_Vars.currentplayernum == 0;
+	// fojo: offline the mouse belongs to the kbm seat (hot join), not slot 0.
+	return g_Vars.currentplayernum == inputKbmPlayer();
 }
 
 // "Is the current player the primary local viewport?" — the netplay-safe form
@@ -1220,6 +1221,8 @@ void netInit(void)
 		g_NetIdleExitMins = argidleexit > 1440 ? 1440 : argidleexit;
 	}
 
+	netTeamInitFromArgs();
+
 	// Initialise playlist to empty defaults; an actual load (which logs if
 	// the file is missing) only runs when we're going to be a server.
 	playlistFree(&g_NetPlaylist);
@@ -1318,6 +1321,28 @@ s32 netStartServer(u16 port, s32 maxclients)
 	return 0;
 }
 
+// Per-stage reset of the co-op wire bookkeeping (objective mirror, stage
+// flag / alarm / cutscene re-broadcast latches). Shared by netCoopEnterStage
+// and fojo's netTeamEnterStage (netteam.c).
+void netCoopResetStageState(void)
+{
+	// Clear the host-authoritative objective mirror so a previous mission's
+	// completions can't leak into this one (the client overlays these onto its
+	// local objective evaluation; a stale COMPLETE would falsely mark an objective
+	// done before the host's first SVC_OBJECTIVE for the new stage arrives).
+	// Explicit size: only the incomplete `extern u32[]` from net.h is in scope here
+	// (the sized definition is later in this file), so sizeof(array) won't compile.
+	memset(g_NetCoopObjStatuses, 0, sizeof(u32) * MAX_OBJECTIVES);
+	memset(g_NetCoopClientObjDone, 0, sizeof(u8) * MAX_OBJECTIVES); // host: clear client-reported completions
+	memset(g_NetCoopObjToastShown, 0, sizeof(u8) * MAX_OBJECTIVES); // clear per-objective completion-toast latches
+	g_NetLastStageFlags = 0; // re-broadcast flags from scratch for the new stage
+	g_NetLastAlarmActive = 0; // re-broadcast alarm state from scratch for the new stage
+	g_NetCoopLocalStageFlags = 0; // client: clear locally-set stage flags for the new stage
+	g_NetLastCutsceneActive = 0;
+	g_NetLastCutsceneAnim = 0;
+
+}
+
 // Campaign co-op (Phase 0): enter a solo stage in 2-player co-op. Mirrors the
 // solo/co-op start in mainmenu.c (titleSetNextStage -> coop player slots ->
 // setNumPlayers -> difficulty -> mainChangeToStage). Called on the HOST from the
@@ -1357,20 +1382,7 @@ void netCoopEnterStage(s32 stagenum, s32 difficulty, s32 numplayers)
 		g_NetCoopSharedLives = g_NetCoopLivesCount * numplayers;
 	}
 
-	// Clear the host-authoritative objective mirror so a previous mission's
-	// completions can't leak into this one (the client overlays these onto its
-	// local objective evaluation; a stale COMPLETE would falsely mark an objective
-	// done before the host's first SVC_OBJECTIVE for the new stage arrives).
-	// Explicit size: only the incomplete `extern u32[]` from net.h is in scope here
-	// (the sized definition is later in this file), so sizeof(array) won't compile.
-	memset(g_NetCoopObjStatuses, 0, sizeof(u32) * MAX_OBJECTIVES);
-	memset(g_NetCoopClientObjDone, 0, sizeof(u8) * MAX_OBJECTIVES); // host: clear client-reported completions
-	memset(g_NetCoopObjToastShown, 0, sizeof(u8) * MAX_OBJECTIVES); // clear per-objective completion-toast latches
-	g_NetLastStageFlags = 0; // re-broadcast flags from scratch for the new stage
-	g_NetLastAlarmActive = 0; // re-broadcast alarm state from scratch for the new stage
-	g_NetCoopLocalStageFlags = 0; // client: clear locally-set stage flags for the new stage
-	g_NetLastCutsceneActive = 0;
-	g_NetLastCutsceneAnim = 0;
+	netCoopResetStageState();
 
 	g_MissionConfig.iscoop = 1;
 	g_MissionConfig.isanti = 0;
@@ -1603,7 +1615,8 @@ void netCoopSeatClient(struct netclient *ncl, s32 playernum, const char *name, u
 		cfg->options |= OPTION_FORWARDPITCH | OPTION_ASKEDSAVEPLAYER;
 	}
 	cfg->client = ncl;
-	cfg->handicap = 0x80;
+	// fojo: handicap is a pointer into the seat's extended profile (mplayer.c);
+	// the profile owns the value, so nothing to force here.
 	ncl->config = cfg;
 
 	// player bind + wake the dormant pawn. The HOST revives it through the
@@ -2775,6 +2788,9 @@ void netEndFrame(void)
 	// stamped with the same tick as that frame's outgoing state.
 	netPropAuditTick();
 
+	// fojo: armed Team Missions start (--team) once the lobby fills.
+	netTeamServerTick();
+
 	// Dedicated self-reap (--idle-exit / Net.Server.IdleExit): exit cleanly
 	// after N minutes with no remote clients at all. Belt-and-braces against
 	// any master-side empty-instance accounting starvation (observed
@@ -3933,7 +3949,7 @@ void netPlayersAllocate(void)
 
 		cl->config = &g_PlayerConfigsArray[cl->playernum];
 		cl->config->client = cl;
-		cl->config->handicap = 0x80;
+		// fojo: handicap lives in the seat's extended profile; left alone.
 		// Combatants and panels live in disjoint g_Vars.players[] ranges on
 		// the spectator host (combatants at [0..N-1] = cl->playernum, panels
 		// at [N..N+P-1]) so cl->player binds straight to its combatant slot

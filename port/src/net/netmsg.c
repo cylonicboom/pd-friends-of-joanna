@@ -1195,6 +1195,29 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 	}
 
 #ifndef PLATFORM_N64
+	// fojo Team Missions: stage index + difficulty + the roles manifest. The
+	// client runs netTeamEnterStage with the same roles, so both ends seat the
+	// same operative/coop/anti layout. Wire playernum = dense players[] index.
+	if (g_MissionConfig.isteam) {
+		netbufWriteU8(dst, NETSTAGEMODE_TEAM);
+		netbufWriteU8(dst, (u8)g_MissionConfig.stageindex);
+		netbufWriteU8(dst, (u8)g_MissionConfig.difficulty);
+		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+			netbufWriteU8(dst, g_Vars.playerroles[i]);
+		}
+		netbufWriteU8(dst, g_NetNumClients);
+		for (s32 i = 0; i < g_NetMaxClients; ++i) {
+			struct netclient *ncl = &g_NetClients[i];
+			if (ncl->state) {
+				netbufWriteU8(dst, ncl->id);
+				netbufWriteU8(dst, ncl->playernum);
+				netbufWriteU8(dst, (ncl->is_spectator || ncl->jip_pending_unspectate) ? 1 : 0);
+				ncl->state = CLSTATE_GAME;
+			}
+		}
+		return dst->error;
+	}
+
 	// Campaign co-op: a solo stage loaded with coopplayernum set. Send the co-op
 	// mode byte + difficulty and skip the Combat Sim setup entirely; the client
 	// loads the solo stage via the co-op branch in the read.
@@ -1380,6 +1403,48 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 	const u8 mode = netbufReadU8(src);
 
 #ifndef PLATFORM_N64
+	// fojo Team Missions: roles manifest + player manifest, then the same
+	// accept path the host ran (netTeamEnterStage).
+	if (mode == NETSTAGEMODE_TEAM) {
+		const u8 stageindex = netbufReadU8(src);
+		const u8 difficulty = netbufReadU8(src);
+		u8 roles[MAX_PLAYERS];
+		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
+			roles[i] = netbufReadU8(src);
+			if (roles[i] > PLAYERROLE_BOND) {
+				roles[i] = PLAYERROLE_NONE;
+			}
+		}
+		const u8 numplayers = netbufReadU8(src);
+		for (u8 p = 0; p < numplayers; ++p) {
+			const u8 id = netbufReadU8(src);
+			const u8 pn = netbufReadU8(src);
+			const u8 spec = netbufReadU8(src);
+			struct netclient *ncl = netResolveWireClient(id);
+			if (!spec && pn >= MAX_PLAYERS) {
+				sysLogPrintf(LOG_WARNING, "NET: SVC_STAGE bad team playernum %u for client %u", pn, id);
+				return 2;
+			}
+			if (ncl) {
+				ncl->id = id;
+				ncl->is_spectator = spec;
+				ncl->playernum = spec ? NET_PLAYERNUM_SPECTATOR : pn;
+				ncl->state = CLSTATE_GAME;
+				ncl->player = NULL;
+			}
+		}
+		if (src->error) {
+			return src->error;
+		}
+		if (stageindex >= NUM_SOLOSTAGES) {
+			sysLogPrintf(LOG_WARNING, "NET: SVC_STAGE bad team stage index %u", stageindex);
+			return 2;
+		}
+		g_NetLocalClient->state = CLSTATE_GAME;
+		netTeamEnterStage((s32)stageindex, (s32)difficulty, roles);
+		return src->error;
+	}
+
 	// Campaign co-op: load the solo stage via the co-op path (mainmenu-style),
 	// NOT mpStartMatch. Combat Sim setup is not on the wire in this mode.
 	if (mode == NETSTAGEMODE_COOP) {
