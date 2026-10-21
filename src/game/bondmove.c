@@ -41,13 +41,21 @@
 #include "lib/rng.h"
 #include "lib/mtx.h"
 #include "lib/anim.h"
+#include "lib/model.h"
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
 #include <math.h>
+#include "game/propsnd.h"
 #include "input.h"
 #include "weightyaim.h" // [weightyaim]
 #include "video.h"
+#include "system.h"
+#include "utils.h"
+#include "net/net.h"
+#include "net/netmsg.h"
+
+// netplay: the chaos globals Kai defined here live in chaosstate.c on fojo.
 
 static void bgunProcessQuickDetonate(struct movedata *data, u32 c1buttons, u32 c1buttonsthisframe, u32 buttons1, u32 buttons2) {
 	if ((((c1buttons & (buttons1)) && (c1buttonsthisframe & (buttons2)))
@@ -108,6 +116,336 @@ static void bgunProcessInputAltButton(struct movedata *data, s8 contpad, s32 i)
 		}
 		g_Vars.currentplayer->altdowntime = 0;
 		bgun0f0a8c50();
+	}
+}
+
+static inline f32 bmoveLerpAngle(f32 a, f32 b, f32 t)
+{
+	f32 d = b - a;
+	while (d > M_BADTAU * 0.5f) {
+		d -= M_BADTAU;
+	}
+	while (d < -M_BADTAU * 0.5f) {
+		d += M_BADTAU;
+	}
+	return a + d * t;
+}
+
+// Apply the most-recent incoming snapshot for a remote player and run the
+// per-frame derived state (crouch, aim/zoom, weapon switch, fire, reload).
+// Reads from pl->client->inmove[head] (newest) and inmove[head-1] (previous),
+// pulled from the NET_SNAPSHOT_COUNT ring buffer that SVC_PLAYER_MOVE writes.
+// Position lerping is done separately in bwalkUpdateRemote; this function
+// handles input-derived state plus lerps movespeed and snaps view angles —
+// see the comment block on the angle assignment below for why angles aren't
+// lerped. The animation block at the end is a client-only animnum snap so
+// server-driven animation events (hit reactions, pickups, etc.) propagate
+// despite the local chrTick picking its own anim from synced inputs.
+static inline void bmoveProcessRemoteInput(const bool allowc1buttons)
+{
+	struct player *pl = g_Vars.currentplayer;
+	if (!pl->client) {
+		return;
+	}
+
+	const u32 head = pl->client->inmove_head;
+	struct netplayermove *inmove = &pl->client->inmove[head];
+	struct netplayermove *inmoveprev = &pl->client->inmove[(head + NET_SNAPSHOT_COUNT - 1) % NET_SNAPSHOT_COUNT];
+	s32 moveticks = inmove->tick - inmoveprev->tick;
+	if (moveticks > (s32)g_NetInterpTicks) {
+		moveticks = (s32)g_NetInterpTicks;
+	}
+
+	const bool handled = (pl->client->inmovetick >= inmove->tick);
+
+	if (!inmove->tick) {
+		// no input yet: seed both slots with current state to avoid false lerps
+		inmove->pos = inmoveprev->pos = pl->prop->pos;
+		inmove->angles[0] = inmoveprev->angles[0] = pl->vv_theta;
+		inmove->angles[1] = inmoveprev->angles[1] = pl->vv_verta;
+		inmove->ucmd = 0;
+	}
+
+	if (inmove->ucmd & UCMD_DUCK) {
+		pl->crouchpos = CROUCHPOS_DUCK; // fojo: kai's Classic no-mid-crouch not ported
+	} else if (inmove->ucmd & UCMD_SQUAT) {
+		pl->crouchpos = CROUCHPOS_SQUAT;
+	} else {
+		pl->crouchpos = CROUCHPOS_STAND;
+	}
+
+	pl->bondactivateorreload = 0;
+
+	pl->eyesshut = (inmove->ucmd & UCMD_EYESSHUT) != 0;
+
+	// CLOAK: mirror the owner's synced cloak STATE bit onto this remote
+	// player's chr. The decision (devicesactive / ammo / cloakpause) runs only
+	// on the owning machine — chrUpdateCloak's decision region is skipped for
+	// remote players so it can't fight this. Edge-detected so the cloak on/off
+	// sound plays once per transition, positionally at this player's prop.
+	if (pl->prop && pl->prop->chr) {
+		struct chrdata *plchr = pl->prop->chr;
+		const bool wantcloak = (inmove->ucmd & UCMD_CLOAKED) != 0;
+		const bool iscloaked = (plchr->hidden & CHRHFLAG_CLOAKED) != 0;
+		if (wantcloak != iscloaked) {
+			if (wantcloak) {
+				chrCloak(plchr, true);
+			} else {
+				chrUncloak(plchr, true);
+			}
+		}
+	}
+
+	pl->speedtheta = 0.f; // TODO: figure out if anglespeed is even required
+	pl->speedverta = 0.f;
+	pl->crouchoffset = inmove->crouchofs;
+
+	pl->oldcrosspos[0] = pl->crosspos[0];
+	pl->oldcrosspos[1] = pl->crosspos[1];
+	pl->crosspos[0] = inmove->crosspos[0];
+	pl->crosspos[1] = inmove->crosspos[1];
+
+	// denormalize crosspos x
+	pl->crosspos[0] -= (f32)(SCREEN_WIDTH_LO / 2);
+	pl->crosspos[0] = (f32)(SCREEN_WIDTH_LO / 2) + pl->crosspos[0] / pl->aspect * SCREEN_ASPECT;
+
+	pl->crosspos2[0] = pl->crosspos[0];
+	pl->crosspos2[1] = pl->crosspos[1];
+
+	pl->insightaimmode = (inmove->ucmd & UCMD_AIMMODE) != 0;
+	if (pl->insightaimmode) {
+		pl->gunzoomfovs[0] = pl->gunzoomfovs[1] = pl->gunzoomfovs[2] = inmove->zoomfov;
+	}
+
+	f32 zoomfov = 0.f;
+	if (pl->insightaimmode) {
+		zoomfov = currentPlayerGetGunZoomFov();
+	}
+	if (bgunGetWeaponNum(HAND_RIGHT) == WEAPON_AR34 && pl->hands[HAND_RIGHT].gset.weaponfunc == FUNC_SECONDARY) {
+		zoomfov = currentPlayerGetGunZoomFov();
+	}
+	if (zoomfov <= 0.f) {
+		zoomfov = pl->client->settings.fovy;
+	}
+	playerTweenFovY(zoomfov);
+	playerUpdateZoom();
+
+	for (s32 h = 0; h < 2; ++h) {
+		pl->hands[h].crosspos[0] = pl->crosspos[0];
+		pl->hands[h].crosspos[1] = pl->crosspos[1];
+	}
+
+	// Weapon switch: gated like the RELOAD apply below — once per NEW move
+	// (!handled), never per frame. The server's rebroadcasts carry UCMD_SELECT
+	// for the whole switch duration (switchtoweaponnum stays set while the
+	// equip anim plays), and this block used to run every frame the newest
+	// move had the bit — restarting the equip animation continuously (reads as
+	// "the weapon constantly reloading" to observers/spectators), and forever
+	// if that move went stale (death idle, stream gap). The differs-checks
+	// also stop re-triggering when the wire repeats an already-applied or
+	// in-flight switch across consecutive moves.
+	if ((inmove->ucmd & UCMD_SELECT) && !handled) {
+		pl->gunctrl.dualwielding = (inmove->ucmd & UCMD_SELECT_DUAL) != 0;
+		if (inmove->weaponnum >= 0
+				&& inmove->weaponnum != bgunGetWeaponNum(HAND_RIGHT)
+				&& inmove->weaponnum != pl->gunctrl.switchtoweaponnum) {
+			bgunEquipWeapon(inmove->weaponnum);
+		}
+	}
+
+	// Weapon heartbeat reconcile (proto 87). The SELECT block above only fires on
+	// a weapon *switch*; the client's initial/scripted loadout and any missed
+	// SELECT edge otherwise leave this remote pawn on a stale or absent weapon,
+	// so the observer sees the wrong gun / no gun / no muzzle flash. curweaponnum
+	// carries the client's currently-held weapon every move: if it disagrees with
+	// what the pawn holds and no switch is in flight, equip it. The same guards as
+	// the SELECT block (not throwing, no switch queued, differs from current and
+	// from the queued switch) keep this from restarting the equip anim every tick.
+	if (inmove->curweaponnum >= 0
+			&& !(inmove->ucmd & UCMD_SELECT)
+			&& !pl->gunctrl.throwing
+			&& pl->gunctrl.switchtoweaponnum < 0
+			&& inmove->curweaponnum != bgunGetWeaponNum(HAND_RIGHT)) {
+		pl->gunctrl.dualwielding = (inmove->ucmd & UCMD_SELECT_DUAL) != 0;
+		bgunEquipWeapon(inmove->curweaponnum);
+	}
+
+	if ((inmove->ucmd & UCMD_SECONDARY) && !bgunIsUsingSecondaryFunction()) {
+		bgunConsiderToggleGunFunction(0, false, false, true);
+	} else if (!(inmove->ucmd & UCMD_SECONDARY) && bgunIsUsingSecondaryFunction()) {
+		// do not switch back to primary if in the process of throwing laptop
+		if (!(bgunGetWeaponNum(HAND_RIGHT) == WEAPON_LAPTOPGUN && pl->hands[HAND_RIGHT].state == HANDSTATE_ATTACK)) {
+			bgunConsiderToggleGunFunction(0, false, false, true);
+		}
+	}
+
+	// Remote pawns never run the local pad-read path that clears
+	// waitforzrelease (bmoveTick's joyGetButtons(Z_TRIG)==0 check), so the flag
+	// would latch forever. The slayer fly-by-wire steering sets it every tick
+	// while flying its rocket (player.c), so without this a remote flyer could
+	// never fire again ("one rocket per round"); it also affects any other
+	// waitforzrelease weapon (sniper zoom, etc.) for remote pawns. Mirror the
+	// local release off the wire: clear once the client is no longer holding fire.
+	if (pl->waitforzrelease && !(inmove->ucmd & UCMD_FIRE)) {
+		pl->waitforzrelease = false;
+	}
+
+	const bool fireguns = (inmove->ucmd & UCMD_FIRE) && !pl->waitforzrelease && allowc1buttons;
+
+	bgunTickGameplay(fireguns);
+
+	if (fireguns && g_NetMode == NETMODE_SERVER) {
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, pl->client);
+	}
+
+	if (!handled && (inmove->ucmd & UCMD_RELOAD)) {
+		pl->bondactivateorreload |= JO_ACTION_RELOAD;
+	}
+
+	if (g_NetMode == NETMODE_SERVER) {
+		// UCMD_ACTIVATE is a one-tick press, but several moves can arrive in a single
+		// frame at high ping (the per-frame event drain makes bursts common) while
+		// only inmove[head] is read for input below -- an activate on a skipped
+		// (non-head) move was silently lost, so the host never opened the door the
+		// client already predicted ("works sometimes"). Scan every move newer than the
+		// last-processed tick so the press is caught; each move falls in exactly one
+		// tick's unprocessed window, so it fires once (no door double-toggle). The
+		// interact position (inmove[head] via the swap in currentPlayerInteract) stays
+		// within the 200u door-interact range even if head overshot the press a little.
+		if (!handled) {
+			s32 k;
+			for (k = 0; k < NET_SNAPSHOT_COUNT; k++) {
+				const struct netplayermove *m =
+						&pl->client->inmove[(head + NET_SNAPSHOT_COUNT - k) % NET_SNAPSHOT_COUNT];
+				if (m->tick <= pl->client->inmovetick) {
+					break;
+				}
+				if (m->ucmd & UCMD_ACTIVATE) {
+					pl->bondactivateorreload |= JO_ACTION_ACTIVATE;
+					break;
+				}
+			}
+		}
+
+		if (g_Vars.bondvisible && (bgunIsFiring(HAND_RIGHT) || bgunIsFiring(HAND_LEFT))) {
+			f32 noiseradius = 0.f;
+			if (bgunIsFiring(HAND_RIGHT) && bgunGetNoiseRadius(HAND_RIGHT) > noiseradius) {
+				noiseradius = bgunGetNoiseRadius(HAND_RIGHT);
+			}
+			if (bgunIsFiring(HAND_LEFT) && bgunGetNoiseRadius(HAND_LEFT) > noiseradius) {
+				noiseradius = bgunGetNoiseRadius(HAND_LEFT);
+			}
+			chrsCheckForNoise(noiseradius);
+		}
+	}
+
+	bgunSetSightVisible(GUNSIGHTREASON_NOTAIMING, pl->insightaimmode);
+
+	// INTERPOLATION: find two snapshots in the ring buffer bracketing the desired
+	// tick, then lerp speeds between them. The target is g_NetInterpTicks behind
+	// the freshest snapshot (interp_lag re-baselines our local clock into the
+	// snapshot clock domain — ping-independent; see netUpdateInterpLag), matching
+	// bwalkUpdateRemote so angles/speeds and position share one interp point.
+	const u32 lagticks = (u32)(pl->client->interp_lag + 0.5f) + g_NetInterpTicks;
+	const u32 desired_tick = (g_NetTick > lagticks) ? (g_NetTick - lagticks) : 0;
+
+	const struct netplayermove *snap_newer = NULL;
+	const struct netplayermove *snap_older = NULL;
+	for (s32 i = 0; i < NET_SNAPSHOT_COUNT; ++i) {
+		const struct netplayermove *s =
+			&pl->client->inmove[(head + NET_SNAPSHOT_COUNT - i) % NET_SNAPSHOT_COUNT];
+		if (!s->tick) {
+			break;
+		}
+		if (s->tick >= desired_tick) {
+			snap_newer = s;
+		} else {
+			snap_older = s;
+			break;
+		}
+	}
+
+	const bool forceangle = !inmoveprev->tick || !moveticks || (inmove->ucmd & UCMD_FL_FORCEANGLE);
+
+	// ANGLE HANDLING — server SNAPS, client INTERPOLATES.
+	// On the SERVER these angles drive the remote player's bgunTick: the
+	// shot-direction ray shotCreate fires through the playerUpdateShootRot
+	// matrix. They must be SNAPPED to the authoritative aim of the move that
+	// carried the FIRE bit — lerping them backward by ~g_NetInterpTicks (to
+	// match the position lerp) made quick-tap shots the shooter saw land graze
+	// and register no damage (hit ray ~3 ticks behind the real aim).
+	// On a CLIENT these angles drive ONLY the rendered pose and the spectated
+	// first-person camera — the server owns hit detection, not us — so we
+	// INTERPOLATE them at the same desired_tick as position/speeds. This makes
+	// a spectated player's viewport as smooth as their body instead of stepping
+	// at the packet rate (the documented "spectator gun direction snaps
+	// step-wise" cost). verta (pitch) is bounded so a plain lerp is fine; theta
+	// (yaw) wraps, so use the shortest-path lerp.
+	if (g_NetMode == NETMODE_CLIENT && !forceangle && snap_newer && snap_older) {
+		const u32 aspan = snap_newer->tick - snap_older->tick;
+		const f32 at = (aspan > 0) ? (f32)(desired_tick - snap_older->tick) / (f32)aspan : 1.f;
+		pl->vv_theta = bmoveLerpAngle(snap_older->angles[0], snap_newer->angles[0], at);
+		pl->vv_verta = lerpf(snap_older->angles[1], snap_newer->angles[1], at);
+	} else {
+		pl->vv_theta = inmove->angles[0];
+		pl->vv_verta = inmove->angles[1];
+	}
+
+	if (forceangle || !snap_newer) {
+		// Snap speeds immediately (force or no usable history)
+		pl->speedgo = pl->speedforwards  = inmove->movespeed[0];
+		pl->speedstrafe = pl->speedsideways = inmove->movespeed[1];
+	} else if (snap_newer && snap_older) {
+		const u32 span = snap_newer->tick - snap_older->tick;
+		const f32 t = (span > 0) ? (f32)(desired_tick - snap_older->tick) / (f32)span : 1.f;
+		pl->speedgo = pl->speedforwards  = lerpf(snap_older->movespeed[0], snap_newer->movespeed[0], t);
+		pl->speedstrafe = pl->speedsideways = lerpf(snap_older->movespeed[1], snap_newer->movespeed[1], t);
+	} else {
+		// Only one snapshot: drive speeds gently toward it
+		const f32 dt = 1.f / (f32)(moveticks > 0 ? moveticks : 1);
+		pl->speedgo = pl->speedforwards  = lerpf(inmoveprev->movespeed[0], inmove->movespeed[0], dt);
+		pl->speedstrafe = pl->speedsideways = lerpf(inmoveprev->movespeed[1], inmove->movespeed[1], dt);
+	}
+
+	if (pl->bondmovemode == MOVEMODE_GRAB) {
+		bgrabUpdateSpeedTheta();
+	} else if (pl->bondmovemode == MOVEMODE_WALK) {
+		if (bmoveGetCrouchPos() != CROUCHPOS_STAND) {
+			pl->speedmaxtime60 = 0;
+		}
+		bwalkSetSwayTargetf(inmove->leanofs);
+	} else if (pl->bondmovemode == MOVEMODE_BIKE) {
+		// TODO
+	}
+
+	if (inmove->movespeed[0] > 0.95f) {
+		pl->speedmaxtime60 += g_Vars.lvupdate60;
+	} else {
+		pl->speedmaxtime60 = 0;
+	}
+
+	// ANIMATION SYNC (client-side only). The server captures animnum/animframe
+	// in the move it ships back to the originating client and broadcasts to
+	// observers. Each viewer's local chrTick for the remote player picks its
+	// own anim from the synced input state, so walk/run cycles converge
+	// naturally — but server-driven events (hit reactions, pickups, death,
+	// scripted transitions) don't, because those decisions live entirely on
+	// the server. Snap to the server's animnum whenever it differs from what
+	// the local chrTick currently has. Same-animnum ticks fall through so the
+	// local frame advance continues — calling modelSetAnimation every frame
+	// would reset framea/frameb and visibly snap the cycle backward.
+	// Guards: animnum==0 means the server's chr wasn't loaded when the move
+	// was captured (no usable value), and animHasFrames protects animLoadHeader
+	// from out-of-range ids that would crash inside the anim table lookup.
+	if (g_NetMode == NETMODE_CLIENT && inmove->animnum > 0 && animHasFrames(inmove->animnum) &&
+			pl->prop && pl->prop->chr && pl->prop->chr->model && pl->prop->chr->model->anim) {
+		struct anim *anim = pl->prop->chr->model->anim;
+		if (anim->animnum != inmove->animnum) {
+			// Merge time 16 matches the host's chr transitions (player.c:6186) so a
+			// server-driven anim switch cross-fades like the base game instead of
+			// popping (was 0.0625, effectively instant) — same fix as sim anim sync.
+			modelSetAnimation(pl->prop->chr->model, inmove->animnum, anim->flip, (f32)inmove->animframe, 1.0f, 16.0f);
+		}
 	}
 }
 
@@ -356,6 +694,47 @@ void bmoveApplyMoveData(struct movedata *data)
 	} else if (g_Vars.currentplayer->bondmovemode == MOVEMODE_WALK) {
 		bwalkApplyMoveData(data);
 	}
+
+#ifndef PLATFORM_N64
+	// record some inputs if this is a local player
+	if (g_NetMode && !g_Vars.currentplayer->isremote) {
+		g_Vars.currentplayer->ucmd = 0;
+		if (g_Vars.currentplayer->isdead) {
+			if (g_NetMode == NETMODE_CLIENT) {
+				if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)) {
+					g_Vars.currentplayer->ucmd |= UCMD_RESPAWN;
+				}
+			}
+		} else {
+			if (data->triggeron) {
+				g_Vars.currentplayer->ucmd |= UCMD_FIRE;
+			}
+			if (data->aiming) {
+				g_Vars.currentplayer->ucmd |= UCMD_AIMMODE;
+			}
+			if (g_Vars.currentplayer->bondactivateorreload & JO_ACTION_ACTIVATE) {
+				g_Vars.currentplayer->ucmd |= UCMD_ACTIVATE;
+			}
+			if (g_Vars.currentplayer->bondactivateorreload & JO_ACTION_RELOAD) {
+				g_Vars.currentplayer->ucmd |= UCMD_RELOAD;
+			}
+			if (data->eyesshut) {
+				g_Vars.currentplayer->ucmd |= UCMD_EYESSHUT;
+			}
+			if (data->weaponbackoffset || data->weaponforwardoffset) {
+				g_Vars.currentplayer->ucmd |= UCMD_SELECT;
+			}
+			// Cloak STATE (not an input): mirror our chr's cloak flag so remote
+			// machines can apply it (UCMD_CLOAKED in bmoveProcessRemoteInput).
+			// The decision itself (device/ammo/cloakpause) stays owner-local in
+			// chrUpdateCloak; this just publishes the result every move.
+			if (g_Vars.currentplayer->prop && g_Vars.currentplayer->prop->chr
+					&& (g_Vars.currentplayer->prop->chr->hidden & CHRHFLAG_CLOAKED)) {
+				g_Vars.currentplayer->ucmd |= UCMD_CLOAKED;
+			}
+		}
+	}
+#endif
 }
 
 void bmoveUpdateSpeedTheta(void)
@@ -709,7 +1088,7 @@ void bmoveResetMoveData(struct movedata *data)
 	// Lua "Inverted Look" (pd.invert_look, from Kai): flip whatever the player
 	// runs. The stored option itself is never touched, so nothing can persist
 	// mid-effect.
-	if (g_ChaosInvertLook) {
+	if (g_ChaosInvertLook && !g_Vars.currentplayer->isremote) { // netplay: chaos input effects act on the local pawn only
 		data->invertpitch = !data->invertpitch;
 	}
 #endif
@@ -822,11 +1201,22 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	f32 newverta;
 #ifndef PLATFORM_N64
 	const f32 mlookscale = g_Vars.lvupdate240 ? (4.f / (f32)g_Vars.lvupdate240) : 4.f;
-	const bool allowmlook = (g_Vars.currentplayernum == inputKbmPlayer()) && (allowc1x || allowc1y);
+	// netplay: the local pawn may sit at any slot; netPlayerOwnsMouse falls
+	// back to the kbm seat offline.
+	const bool allowmlook = netPlayerOwnsMouse() && (allowc1x || allowc1y);
 	bool allowmcross = false;
 #endif
 
 	controlmode = optionsGetControlMode(g_Vars.currentplayerstats->mpindex);
+
+#ifndef PLATFORM_N64
+	// netplay (Kai be46717): a remote pawn is driven by its owner's moves,
+	// not a pad on this machine.
+	if (g_Vars.currentplayer->isremote || controlmode == CONTROLMODE_NA) {
+		bmoveProcessRemoteInput(allowc1buttons);
+		return;
+	}
+#endif
 	weaponnum = bgunGetWeaponNum(HAND_RIGHT);
 	canmanualzoom = weaponHasAimFlag(weaponnum, INVAIMFLAG_MANUALZOOM);
 	contpad1 = optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex);
@@ -862,7 +1252,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// Lua "Button thief" (pd.button_block, from Kai): strip the stolen buttons
 	// from this tick's gameplay input. Keyboard/mouse route through the same
 	// virtual pad, so this covers every binding of the stolen action.
-	if (g_ChaosButtonMask) {
+	if (g_ChaosButtonMask && !g_Vars.currentplayer->isremote) {
 		c1buttons &= ~g_ChaosButtonMask;
 		c1buttonsthisframe &= ~g_ChaosButtonMask;
 		// The aim-mode toggle, fire-while-aiming, reload and next-weapon reads
@@ -873,7 +1263,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 
 	// Lua "Take a break" (pd.player_freeze): fojo's roll and jump are read
 	// through c1allowedbuttons, which the movedata wipe below doesn't reach.
-	if (g_ChaosPlayerFreeze && !g_Vars.currentplayer->isdead) {
+	if (g_ChaosPlayerFreeze && !g_Vars.currentplayer->isdead && !g_Vars.currentplayer->isremote) {
 		c1allowedbuttons &= ~(u32)(BUTTON_ROLL | BUTTON_JUMP);
 	}
 #endif
@@ -917,7 +1307,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// negating it here flips all four axes. Scripted autowalk drives
 	// synthetic stick input aimed at a WORLD target, so it is exempt or the
 	// player would walk away from it.
-	if ((g_ChaosGormless || g_ChaosControlReverse)
+	if ((g_ChaosGormless || g_ChaosControlReverse) && !g_Vars.currentplayer->isremote
 			&& g_Vars.tickmode != TICKMODE_AUTOWALK) {
 		movedata.c1stickxsafe = -movedata.c1stickxsafe;
 		movedata.c1stickysafe = -movedata.c1stickysafe;
@@ -935,7 +1325,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// Lua "Take a break" (pd.player_freeze, from Kai): kill the movement stick
 	// here; the rest of the input is zeroed after all input is finalised,
 	// just before bgunTickGameplay below.
-	if (g_ChaosPlayerFreeze && g_Vars.tickmode != TICKMODE_AUTOWALK) {
+	if (g_ChaosPlayerFreeze && g_Vars.tickmode != TICKMODE_AUTOWALK && !g_Vars.currentplayer->isremote) {
 		movedata.c1stickxsafe = 0;
 		movedata.c1stickysafe = 0;
 		movedata.c1stickxraw = 0;
@@ -957,7 +1347,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 		// deltas lvTick banked on zero-tick frames so no mouse motion is lost.
 		// No extra scaling: mlookscale is already 4/lvupdate240, so the banked
 		// delta lands 1:1 on the frame it is released.
-		if (g_ChaosTimeStop) {
+		if (g_ChaosTimeStop && !g_Vars.currentplayer->isremote) {
 			movedata.freelookdx += g_ChaosLookBankX;
 			movedata.freelookdy += g_ChaosLookBankY;
 			g_ChaosLookBankX = 0.0f;
@@ -971,7 +1361,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 		}
 		// Lua "Gormless": invert the whole mouse look (both axes). Stacks with
 		// the invert-pitch option above by design.
-		if (g_ChaosGormless || g_ChaosControlReverse) {
+		if ((g_ChaosGormless || g_ChaosControlReverse) && !g_Vars.currentplayer->isremote) {
 			movedata.freelookdx = -movedata.freelookdx;
 			movedata.freelookdy = -movedata.freelookdy;
 		}
@@ -1436,7 +1826,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 				// the button-set variables covers every downstream read in the
 				// 1.x/PC styles; on PC mouse1 aims and mouse2 shoots. The 2.x
 				// dual-pad styles keep normal mapping.
-				if (g_ChaosGormless) {
+				if (g_ChaosGormless && !g_Vars.currentplayer->isremote) {
 					u32 tmpbuttons = shootbuttons;
 					shootbuttons = aimbuttons;
 					aimbuttons = tmpbuttons;
@@ -2154,7 +2544,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// dpad step buttons) lands in digitalstep* inside the control-mode
 	// routing. Swap the finalised step directions here. Autowalk is exempt
 	// like the stick negate above.
-	if ((g_ChaosGormless || g_ChaosControlReverse)
+	if ((g_ChaosGormless || g_ChaosControlReverse) && !g_Vars.currentplayer->isremote
 			&& g_Vars.tickmode != TICKMODE_AUTOWALK) {
 		// Strafe reverses for both effects; forward/back for Gormless only.
 		bool tmpstep = movedata.digitalstepleft;
@@ -2372,7 +2762,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// Chaos "Cyclone Frenzy" gun-lock (pd.gun_lock): force secondary fire on
 	// both hands, hold the trigger (auto-fire), and suppress weapon cycling.
 	// amOpen (the weapon menu) is blocked at its own definition.
-	if (g_ChaosGunLock
+	if (g_ChaosGunLock && !g_Vars.currentplayer->isremote
 			&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED
 			&& !g_Vars.currentplayer->isdead) {
 		g_Vars.currentplayer->hands[HAND_RIGHT].gset.weaponfunc = FUNC_SECONDARY;
@@ -2385,7 +2775,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// Chaos "Knife fight" lock (pd.knife_lock): suppress weapon cycling only
 	// (the knife is used normally — no forced function or auto-swing). amOpen
 	// blocked at its def.
-	if (g_ChaosKnifeLock
+	if (g_ChaosKnifeLock && !g_Vars.currentplayer->isremote
 			&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED
 			&& !g_Vars.currentplayer->isdead) {
 		movedata.weaponforwardoffset = 0;
@@ -2395,7 +2785,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// Chaos "Secondaries only" (pd.force_secondary): pin both hands to the
 	// secondary function. Re-asserted every tick (a function toggle or weapon
 	// switch reverts it for one frame at most); everything else is left alone.
-	if (g_ChaosForceSecondary
+	if (g_ChaosForceSecondary && !g_Vars.currentplayer->isremote
 			&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED
 			&& !g_Vars.currentplayer->isdead) {
 		g_Vars.currentplayer->hands[HAND_RIGHT].gset.weaponfunc = FUNC_SECONDARY;
@@ -2409,7 +2799,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// 0x0200 high byte). Armed on the player's real press; disarmed when the clip
 	// empties (one tap == one mag) or after a safety cap. A held trigger simply
 	// re-arms next tick, so ordinary auto fire is unchanged.
-	if (g_ChaosMagDump
+	if (g_ChaosMagDump && !g_Vars.currentplayer->isremote
 			&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED
 			&& !g_Vars.currentplayer->isdead) {
 		struct hand *rhand = &g_Vars.currentplayer->hands[HAND_RIGHT];
@@ -2455,7 +2845,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// reads as "press = rapid fire" rather than auto-fire. Automatic weapons
 	// (0x0100) already re-fire on a held trigger, so leave them untouched and
 	// only pulse the single-shot SHOOT funcs (0x0000).
-	if (g_ChaosRapidFire
+	if (g_ChaosRapidFire && !g_Vars.currentplayer->isremote
 			&& g_Vars.currentplayer->pausemode == PAUSEMODE_UNPAUSED
 			&& !g_Vars.currentplayer->isdead && movedata.triggeron) {
 		struct weaponfunc *rfunc = currentPlayerGetWeaponFunction(HAND_RIGHT);
@@ -2472,20 +2862,20 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// movedata level, after every control-style branch; the digital step is
 	// consumed uniformly by bwalk. Before the freeze block so Take a Break
 	// still wins.
-	if (g_ChaosForcedMarch && !g_Vars.currentplayer->isdead) {
+	if (g_ChaosForcedMarch && !g_Vars.currentplayer->isdead && !g_Vars.currentplayer->isremote) {
 		movedata.digitalstepforward = true;
 		movedata.digitalstepback = false;
 	}
 
 	// Chaos "Itchy Trigger Finger" (pd.forced_fire): hold the trigger down.
-	if (g_ChaosForcedFire && !g_Vars.currentplayer->isdead) {
+	if (g_ChaosForcedFire && !g_Vars.currentplayer->isdead && !g_Vars.currentplayer->isremote) {
 		movedata.triggeron = true;
 	}
 
 	// Lua "Take a break" (pd.player_freeze, from Kai): block ALL player input
 	// (movement, look, shooting, crouching, leaning, weapon switching,
 	// activate/reload) while the world keeps running. Pause still works.
-	if (g_ChaosPlayerFreeze && !g_Vars.currentplayer->isdead) {
+	if (g_ChaosPlayerFreeze && !g_Vars.currentplayer->isdead && !g_Vars.currentplayer->isremote) {
 		movedata.triggeron = false;
 		movedata.freelookdx = 0.0f;
 		movedata.freelookdy = 0.0f;
@@ -2516,7 +2906,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	// LOWEST crouch. The crouchpos state machine already ran this frame, so
 	// override its result directly. CROUCHPOS_SQUAT, not DUCK: the constants
 	// run SQUAT=0, DUCK=1, STAND=2.
-	if (g_ChaosForcedCrouch && !g_Vars.currentplayer->isdead) {
+	if (g_ChaosForcedCrouch && !g_Vars.currentplayer->isdead && !g_Vars.currentplayer->isremote) {
 		g_Vars.currentplayer->crouchpos = CROUCHPOS_SQUAT;
 	}
 #endif
@@ -2827,6 +3217,7 @@ void bmoveProcessInput(bool allowc1x, bool allowc1y, bool allowc1buttons, bool i
 	}
 
 	g_Vars.currentplayer->speedtheta = g_Vars.currentplayer->speedthetacontrol;
+
 	bmoveUpdateSpeedTheta();
 
 	if (movedata.detonating) {
@@ -3066,6 +3457,30 @@ void bmoveTick(bool allowc1x, bool allowc1y, bool allowc1buttons, bool ignorec2)
 	f32 zdiff;
 	f32 distance;
 
+#ifndef PLATFORM_N64
+	// Crash ledger #18/#20/#21 (one family): under net stress the local
+	// player's pawn can be torn down — or freed AND recycled (garbage union
+	// pointers, not just NULL) — while playerTick still runs a movement tick
+	// (round-transition race). Movement sim is meaningless without a live
+	// player pawn, and its consumers (bwalkTick, bondhead, chrGetRotY,
+	// footsteps below) all deref prop/chr. Validate the pawn ONCE at the
+	// choke point: prop present, still a PLAYER prop (a recycled slot loses
+	// the type), chr present. Log throttled so the generator stays visible.
+	if (g_NetMode != NETMODE_NONE
+			&& (g_Vars.currentplayer->prop == NULL
+				|| g_Vars.currentplayer->prop->type != PROPTYPE_PLAYER
+				|| g_Vars.currentplayer->prop->chr == NULL)) {
+		static u32 lastwarn60 = 0;
+		if (g_Vars.lvframe60 - lastwarn60 > TICKS(60)) {
+			lastwarn60 = g_Vars.lvframe60;
+			sysLogPrintf(LOG_WARNING, "bmoveTick: pawn invalid (prop %p type %d) — skipping movement tick",
+					(void *)g_Vars.currentplayer->prop,
+					g_Vars.currentplayer->prop ? g_Vars.currentplayer->prop->type : -1);
+		}
+		return;
+	}
+#endif
+
 	bmoveProcessInput(allowc1x, allowc1y, allowc1buttons, ignorec2);
 
 	if (g_Vars.currentplayer->bondmovemode == MOVEMODE_BIKE) {
@@ -3143,7 +3558,22 @@ void bmoveTick(bool allowc1x, bool allowc1y, bool allowc1buttons, bool ignorec2)
 				sound = footstepChooseSound(chr, distance > 10);
 
 				if (sound != -1) {
-					snd00010718(0, 0, AL_VOL_FULL, AL_PAN_CENTER, sound, 1, 1, -1, true);
+#ifndef PLATFORM_N64
+					// This block runs for REMOTE players too (bmoveTick under
+					// setCurrentPlayerNum; the MP gate above only skips Combat
+					// Sim), so in net co-op a partner's footsteps played at full
+					// volume, centre pan, "in your head". Route remote players
+					// through the positional channel at their pawn — the same
+					// psCreate the NPC path uses (footstepCheckDefault). The
+					// local player keeps the non-positional N64 path.
+					if (g_Vars.currentplayer->isremote && g_Vars.currentplayer->prop) {
+						psCreate(NULL, g_Vars.currentplayer->prop, sound, -1, -1,
+								PSFLAG_0400, 0, PSTYPE_FOOTSTEP, NULL, -1, NULL, -1, -1, -1, -1);
+					} else
+#endif
+					{
+						snd00010718(0, 0, AL_VOL_FULL, AL_PAN_CENTER, sound, 1, 1, -1, true);
+					}
 				}
 			}
 		}
@@ -3275,7 +3705,13 @@ void bmoveUpdateHead(f32 arg0, f32 arg1, f32 arg2, Mtxf *arg3, f32 arg4)
 	bheadUpdate(sp244, arg2);
 	mtx4LoadXRotation(BADDEG2RAD(360 - g_Vars.currentplayer->vv_verta360), &sp180);
 
+#ifdef PLATFORM_N64
 	if (optionsGetHeadRoll(g_Vars.currentplayerstats->mpindex)) {
+#else
+	// in net games only allow headroll in the death animation
+	// TODO: figure out how to deal with headroll in other situations
+	if (optionsGetHeadRoll(g_Vars.currentplayerstats->mpindex) && (!g_NetMode || g_Vars.currentplayer->isdead)) {
+#endif
 		mtx00016d58(&sp116,
 				0, 0, 0,
 				-g_Vars.currentplayer->headlook.x, -g_Vars.currentplayer->headlook.y, -g_Vars.currentplayer->headlook.z,

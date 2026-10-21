@@ -33,7 +33,221 @@
 #include "types.h"
 #include "game/chaosstate.h"
 #ifndef PLATFORM_N64
-extern f32 fabsf(f32);
+#include "net/net.h"
+#include "system.h"
+#include "utils.h"
+
+static inline void lerpcoord(struct coord *c, const struct coord *a, const struct coord *b, const f32 t) {
+	c->x = lerpf(a->x, b->x, t);
+	c->y = lerpf(a->y, b->y, t);
+	c->z = lerpf(a->z, b->z, t);
+}
+
+// Stale-snapshot threshold lives in net.c as g_NetStaleSnapshotTicks (was
+// a local #define here originally) so the /stale console command can tune
+// it at runtime. Default 30 ticks (~500ms) tolerates UpdateFrames=2..3 +
+// jitter without false snapping; bump higher for very sparse update rates.
+//
+// Symptom this fixes: with default UpdateFrames or a brief drop, the
+// snapshot ring fills with old entries, the lerp keeps converging on the
+// SAME pair of pre-stall snapshots, and the remote chr looks frozen on
+// the client. The frozen player has to physically move to push a fresh
+// outmove out, which then unsticks the lerp. With this fallback the
+// chr instead snaps to the newest known position once snapshots go stale,
+// so a temporary network hiccup doesn't leave the local view glued to a
+// past pose.
+static void bwalkUpdateRemote(void)
+{
+	struct player *pl = g_Vars.currentplayer;
+	struct netclient *cl = pl->client;
+
+	// PROBE: dedicated-server stale-position investigation. Throttled to ~1Hz
+	// per call (netDiagLogf is a no-op when no diag log file is open). Logs
+	// entry state so we can see whether this fires at all for the remote
+	// player, and what inmove vs prop->pos look like.
+	if (cl && (g_NetTick % 60u) == 0u) {
+		const u32 h = cl->inmove_head;
+		netDiagLogf("bwalkrem_enter",
+			"cl=%u pnum=%u isremote=%d ucmd=0x%08x inmove_tick=%u inmove_pos=(%.1f,%.1f,%.1f) prop_pos=(%.1f,%.1f,%.1f) ipick=%u",
+			cl->id, (unsigned)cl->playernum, pl->isremote ? 1 : 0,
+			(unsigned)pl->ucmd, cl->inmove[h].tick,
+			cl->inmove[h].pos.x, cl->inmove[h].pos.y, cl->inmove[h].pos.z,
+			pl->prop ? pl->prop->pos.x : 0.f, pl->prop ? pl->prop->pos.y : 0.f, pl->prop ? pl->prop->pos.z : 0.f,
+			(unsigned)g_NetInterpTicks);
+	}
+
+	// Server: when a force correction is pending (playerStartNewLife just ran,
+	// set UCMD_FL_FORCEMASK on player->ucmd), prop->pos holds the authoritative
+	// spawn position. Do not override it with the client's stale inmove here —
+	// the client's CLC_MOVE still reports the death position for several frames
+	// until the force correction packet propagates and the client starts sending
+	// from the new spawn. Without this guard, bwalkUpdateRemote fires every
+	// lvTickPlayer frame and writes DEATH_POS back into prop->pos, so every
+	// subsequent SVC_PLAYER_MOVE (which carries prop->pos) "force-corrects" the
+	// client to the death point rather than the spawn.
+	//
+	// Also gate on cl->forcetick: the auto-clear in netmsgClcMoveRead only fires
+	// when forcetick is non-zero (it compares against outmoveack). In the
+	// dedicated-server / no-host flow the remote player's ucmd is initialised
+	// with FORCEMASK bits but forcetick is 0, so the clear never runs and the
+	// guard locks the server's view of the client at spawn forever. If forcetick
+	// is 0 the FORCEMASK bits are stale init artifacts, not an active pending
+	// force — fall through to the normal inmove path.
+	if (g_NetMode == NETMODE_SERVER && (pl->ucmd & UCMD_FL_FORCEMASK) && cl->forcetick) {
+		if (cl && (g_NetTick % 60u) == 0u) {
+			netDiagLogf("bwalkrem_skip_force", "cl=%u forcetick=%u", cl->id, cl->forcetick);
+		}
+		return;
+	}
+
+	// One-shot clear of stale init FORCEMASK bits so subsequent ticks don't have
+	// to redo the forcetick check. Mirror the normal auto-clear path's effect.
+	if (g_NetMode == NETMODE_SERVER && (pl->ucmd & UCMD_FL_FORCEMASK) && !cl->forcetick) {
+		pl->ucmd &= ~UCMD_FL_FORCEMASK;
+	}
+
+	const u32 head = cl->inmove_head;
+	const struct netplayermove *inmove = &cl->inmove[head];
+	const struct netplayermove *inmoveprev = &cl->inmove[(head + NET_SNAPSHOT_COUNT - 1) % NET_SNAPSHOT_COUNT];
+
+	u16 cdtype = CDTYPE_ALL;
+
+	cl->inmovetick = inmove->tick;
+	cl->renderbehind = inmove->renderbehind; // proto 63: shooter's render offset, used by netLagCompBegin for the exact rewind tick
+
+	pl->bondshotspeed.x = 0.f;
+	pl->bondshotspeed.y = 0.f;
+	pl->bondshotspeed.z = 0.f;
+	pl->bondbreathing = 0.f;
+
+	// Stale-snapshot detection: if the newest snapshot we have is older
+	// than BWALK_STALE_SNAPSHOT_TICKS ticks behind g_NetTick, the lerp
+	// path below would just keep converging toward the same out-of-date
+	// pair of snapshots. Promote this to a forcepos so we hard-snap to
+	// the newest known position and reset the interp window — fresh
+	// snapshots that arrive later will resume normal lerp from there.
+	// Guard against inmove->tick == 0 (slot still empty, no snapshots
+	// received yet) — that's handled by the !inmoveprev->tick branch in
+	// the regular forcepos check below.
+	// Compare against interp_lag so a snapshot is "stale" only when it falls
+	// g_NetStaleSnapshotTicks BEYOND this client's expected path lag (a genuine
+	// stream stall), not merely because steady ping is high. Without the
+	// interp_lag term, constant high latency (~21 ticks at 350ms) would read as
+	// stale and force-snap every frame instead of interpolating.
+	const bool stale_snapshot = (inmove->tick != 0)
+		&& (g_NetTick > inmove->tick)
+		&& ((g_NetTick - inmove->tick) > (u32)(cl->interp_lag + 0.5f) + g_NetStaleSnapshotTicks);
+
+	// Explicit force or very large drift: snap to server position immediately.
+	const bool forcepos = !inmoveprev->tick ||
+		(inmove->ucmd & UCMD_FL_FORCEPOS) ||
+		stale_snapshot ||
+		(fabsf(pl->prop->pos.x - inmove->pos.x) > 512.f) ||
+		(fabsf(pl->prop->pos.y - inmove->pos.y) > 512.f) ||
+		(fabsf(pl->prop->pos.z - inmove->pos.z) > 512.f);
+
+	// Extrapolate movement for the current tick before applying correction
+	bwalk0f0c69b8();
+
+	if (forcepos) {
+		pl->prop->pos = inmove->pos;
+		cl->lerpticks = g_NetInterpTicks + 1;
+		cdtype = CDTYPE_PLAYERS;
+		if (cl && (g_NetTick % 60u) == 0u) {
+			netDiagLogf("bwalkrem_exit_force", "cl=%u prop_pos=(%.1f,%.1f,%.1f)",
+				cl->id, pl->prop->pos.x, pl->prop->pos.y, pl->prop->pos.z);
+		}
+	} else {
+		// Entity interpolation: find two snapshots bracketing the desired tick
+		// and interpolate between them. The target is g_NetInterpTicks behind the
+		// freshest snapshot we hold for this client, NOT behind our local clock:
+		// interp_lag re-baselines g_NetTick into the snapshot clock domain so the
+		// bracket search keeps finding data at any ping (see netUpdateInterpLag),
+		// while g_NetInterpTicks stays the steady-state jitter margin.
+		const u32 lagticks = (u32)(cl->interp_lag + 0.5f) + g_NetInterpTicks;
+		const u32 desired_tick = (g_NetTick > lagticks) ? (g_NetTick - lagticks) : 0;
+
+		const struct netplayermove *snap_newer = NULL;
+		const struct netplayermove *snap_older = NULL;
+
+		for (s32 i = 0; i < NET_SNAPSHOT_COUNT; ++i) {
+			const struct netplayermove *s =
+				&cl->inmove[(head + NET_SNAPSHOT_COUNT - i) % NET_SNAPSHOT_COUNT];
+			if (!s->tick) {
+				break; // empty slot, stop searching
+			}
+			if (s->tick >= desired_tick) {
+				snap_newer = s;
+			} else {
+				snap_older = s;
+				break;
+			}
+		}
+
+		struct coord delta = { 0.f, 0.f, 0.f };
+		struct coord target;
+
+		if (snap_newer && snap_older) {
+			// Interpolate between the two bracketing snapshots
+			const u32 span = snap_newer->tick - snap_older->tick;
+			const f32 t = (span > 0) ?
+				(f32)(desired_tick - snap_older->tick) / (f32)span : 1.f;
+			lerpcoord(&target, &snap_older->pos, &snap_newer->pos, t);
+		} else if (snap_newer) {
+			// Only one snapshot available: lerp toward it
+			target = snap_newer->pos;
+		} else {
+			// desired_tick is ahead of every snapshot we hold (late packet /
+			// jitter spike). Rather than freeze (the old behaviour, which made
+			// remote players stutter and then hard-snap under jitter), dead-reckon
+			// from the two newest snapshots' velocity for up to g_NetExtrapMaxTicks
+			// ticks. Capped so a missed direction change can only overshoot a
+			// little; with the cap at 0 this degrades to "converge to newest",
+			// still smoother than standing still. Needs two real snapshots for a
+			// velocity reference.
+			if (inmove->tick && inmoveprev->tick && inmove->tick > inmoveprev->tick
+					&& desired_tick > inmove->tick) {
+				u32 ahead = desired_tick - inmove->tick;
+				if (ahead > g_NetExtrapMaxTicks) {
+					ahead = g_NetExtrapMaxTicks;
+				}
+				const f32 vscale = (f32)ahead / (f32)(inmove->tick - inmoveprev->tick);
+				target.x = inmove->pos.x + (inmove->pos.x - inmoveprev->pos.x) * vscale;
+				target.y = inmove->pos.y + (inmove->pos.y - inmoveprev->pos.y) * vscale;
+				target.z = inmove->pos.z + (inmove->pos.z - inmoveprev->pos.z) * vscale;
+				if (cl && (g_NetTick % 60u) == 0u) {
+					netDiagLogf("bwalkrem_exit_extrap", "cl=%u desired=%u ahead=%u target=(%.1f,%.1f,%.1f)",
+						cl->id, desired_tick, ahead, target.x, target.y, target.z);
+				}
+			} else {
+				// No velocity reference (only one snapshot ever): stand still.
+				if (cl && (g_NetTick % 60u) == 0u) {
+					netDiagLogf("bwalkrem_exit_nosnap", "cl=%u desired=%u",
+						cl->id, desired_tick);
+				}
+				return;
+			}
+		}
+
+		// Drive toward the interpolated target using the existing collision-
+		// aware walker so we don't phase through walls during corrections.
+		const f32 moveticks = (snap_newer && snap_older) ?
+			(f32)(snap_newer->tick - snap_older->tick) : 1.f;
+		const f32 dt = (moveticks > 0.f) ? (1.f / moveticks) : 1.f;
+		delta.x = g_Vars.lvupdate60freal * (target.x - pl->prop->pos.x) * dt;
+		delta.y = g_Vars.lvupdate60freal * (target.y - pl->prop->pos.y) * dt;
+		delta.z = g_Vars.lvupdate60freal * (target.z - pl->prop->pos.z) * dt;
+		bwalk0f0c63bc(&delta, pl->swaytarget == 0.0f, cdtype);
+		cl->lerpticks += g_Vars.lvupdate60;
+		if (cl && (g_NetTick % 60u) == 0u) {
+			netDiagLogf("bwalkrem_exit_interp",
+				"cl=%u target=(%.1f,%.1f,%.1f) delta=(%.2f,%.2f,%.2f) prop_pos=(%.1f,%.1f,%.1f)",
+				cl->id, target.x, target.y, target.z,
+				delta.x, delta.y, delta.z,
+				pl->prop->pos.x, pl->prop->pos.y, pl->prop->pos.z);
+		}
+	}
+}
 #endif
 
 void bwalkInit(void)
@@ -929,7 +1143,8 @@ void bwalkUpdateSpeedSideways(f32 targetspeed, f32 accelspeed, s32 mult)
 	// match the forward slide. Strafe is a SIGNED axis, so "am I slowing
 	// down?" is a magnitude question, not which side of targetspeed we are on:
 	// full-left to full-right passes through zero and is a decel then an accel.
-	{
+	// netplay: a remote pawn's motion is wire-driven, not accelerated here.
+	if (!g_Vars.currentplayer->isremote) {
 		f32 cur = g_Vars.currentplayer->speedstrafe;
 		f32 m = (fabsf(targetspeed) < fabsf(cur)) ? g_ChaosIceDecel : g_ChaosIceAccel;
 
@@ -969,7 +1184,8 @@ void bwalkUpdateSpeedForwards(f32 targetspeed, f32 accelspeed)
 	// sliding" (the slide IS the decay toward a targetspeed of 0 after the
 	// stick is released). Split into accel and decel scales so they can be
 	// tuned apart; pd.ice_floor mirrors accel into decel when given one value.
-	{
+	// netplay: a remote pawn's motion is wire-driven, not accelerated here.
+	if (!g_Vars.currentplayer->isremote) {
 		f32 cur = g_Vars.currentplayer->speedgo;
 		f32 m = (fabsf(targetspeed) < fabsf(cur)) ? g_ChaosIceDecel : g_ChaosIceAccel;
 
@@ -1094,7 +1310,7 @@ void bwalkUpdateVertical(void)
 	{
 		static u32 lasttickframe = 0xffffffffu;
 
-		if (g_ChaosTrapdoorTicks > 0) {
+		if (g_ChaosTrapdoorTicks > 0 && !g_Vars.currentplayer->isremote) { // netplay: a remote pawn falls on its owner's machine
 			ground = -35000.0f;
 
 			if ((u32)g_Vars.lvframe60 != lasttickframe) {
@@ -2440,7 +2656,17 @@ void bwalkTick(void)
 	bwalkUpdatePrevPos();
 	bwalkUpdateTheta();
 	bmoveUpdateVerta();
+
+#ifndef PLATFORM_N64
+	// netplay (Kai be46717): a remote pawn's position comes off the wire -
+	// interpolated / extrapolated between its owner's snapshots - instead of
+	// the local movement integration.
+	if (g_Vars.currentplayer->isremote) {
+		bwalkUpdateRemote();
+	} else
+#endif
 	bwalk0f0c69b8();
+
 	bwalkUpdateVertical();
 
 #if VERSION >= VERSION_NTSC_1_0
