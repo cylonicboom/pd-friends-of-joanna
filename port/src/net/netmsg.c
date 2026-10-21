@@ -615,6 +615,7 @@ u32 netmsgClcChatRead(struct netbuf *src, struct netclient *srccl)
 	strncpy(chat, msg, sizeof(chat) - 1);
 	chat[sizeof(chat) - 1] = '\0';
 	sysLogPrintf(LOG_CHAT, "%s", chat);
+	netChatLogPush(chat);
 	netbufStartWrite(&g_NetMsgRel);
 	netmsgSvcChatWrite(&g_NetMsgRel, chat);
 	netSend(NULL, &g_NetMsgRel, true, NETCHAN_DEFAULT);
@@ -1152,6 +1153,7 @@ u32 netmsgSvcChatRead(struct netbuf *src, struct netclient *srccl)
 	const char *msg = netbufReadStr(src);
 	if (msg && !src->error) {
 		sysLogPrintf(LOG_CHAT, "%s", msg);
+		netChatLogPush(msg);
 	}
 	return src->error;
 }
@@ -6214,5 +6216,63 @@ u32 netmsgClcVoteRead(struct netbuf *src, struct netclient *srccl)
 	const u8 idx = netbufReadU8(src);
 	if (src->error) return src->error;
 	netServerVoteRecord(srccl, idx);
+	return 0;
+}
+
+/* fojo: the Team Missions lobby (netteam.c). host -> clients in the hub. */
+u32 netmsgSvcTeamLobbyWrite(struct netbuf *dst)
+{
+	const struct netteamlobby *lb = &g_NetTeamLobby;
+
+	netbufWriteU8(dst, SVC_TEAM_LOBBY);
+	netbufWriteS8(dst, lb->stageindex);
+	netbufWriteU8(dst, lb->difficulty);
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		netbufWriteU8(dst, lb->roles[i]);
+	}
+	netbufWriteU8(dst, lb->numclients);
+	for (s32 i = 0; i < lb->numclients; i++) {
+		netbufWriteU8(dst, lb->clients[i].id);
+		netbufWriteS8(dst, lb->clients[i].seat);
+		netbufWriteU16(dst, lb->clients[i].ping);
+		netbufWriteStr(dst, lb->clients[i].name);
+	}
+	return dst->error;
+}
+
+u32 netmsgSvcTeamLobbyRead(struct netbuf *src, struct netclient *srccl)
+{
+	struct netteamlobby lb;
+	memset(&lb, 0, sizeof(lb));
+
+	lb.stageindex = netbufReadS8(src);
+	lb.difficulty = netbufReadU8(src);
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		lb.roles[i] = netbufReadU8(src);
+	}
+	const u8 n = netbufReadU8(src);
+	for (s32 i = 0; i < n; i++) {
+		const u8 id = netbufReadU8(src);
+		const s8 seat = netbufReadS8(src);
+		const u16 ping = netbufReadU16(src);
+		const char *name = netbufReadStr(src);
+		if (i < NET_MAX_CLIENTS) {
+			lb.clients[i].id = id;
+			lb.clients[i].seat = seat;
+			lb.clients[i].ping = ping;
+			strncpy(lb.clients[i].name, name ? name : "", NET_MAX_NAME - 1);
+			lb.clients[i].name[NET_MAX_NAME - 1] = '\0';
+			lb.numclients++;
+		}
+	}
+
+	if (src->error) {
+		return src->error;
+	}
+	if (g_NetMode != NETMODE_CLIENT) {
+		return 0; // the host builds its own
+	}
+	lb.valid = 1;
+	g_NetTeamLobby = lb;
 	return 0;
 }

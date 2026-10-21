@@ -55,6 +55,7 @@
 #define SVC_HTM_STATE    0x5a // Hack-that-Mac: uplink holder + active downloader + terminal team + download progress (on-change + 1s heartbeat)
 #define SVC_PAC_STATE    0x5b // Pop-a-Cap: current victim (wire-keyed) + age (on-change + 1s heartbeat)
 #define SVC_CTC_CAPTURE  0x5c // Capture-the-Case: one-shot "case captured/scored" event (capturer wire-key + captured team) — drives the SFX_MP_SCOREPOINT + 3-way HUD on clients, since the scoring branch returns TICKOP_NONE so no SVC_PROP_PICKUP fires
+#define SVC_TEAM_LOBBY   0x5e // fojo: Team Missions lobby (stage, difficulty, roles, seated clients) — host -> hub clients, 1s + on change (netteam.c)
 #define SVC_ALARM        0x5d // co-op: host-authoritative alarm state (alarmIsActive, 1 byte) — on change + 1s heartbeat heal (the g_StageFlags pattern); clients mirror via alarmActivate/alarmDeactivate so the klaxon plays and monitor-script alarmIsActive() conditionals agree with the host (proto 85)
 
 #define CLC_BAD      0x00 // trash
@@ -165,6 +166,8 @@ u32 netmsgSvcStageFlagsWrite(struct netbuf *dst);
 u32 netmsgSvcStageFlagsRead(struct netbuf *src, struct netclient *srccl);
 u32 netmsgSvcAlarmWrite(struct netbuf *dst, u8 active);
 u32 netmsgSvcAlarmRead(struct netbuf *src, struct netclient *srccl);
+u32 netmsgSvcTeamLobbyWrite(struct netbuf *dst);
+u32 netmsgSvcTeamLobbyRead(struct netbuf *src, struct netclient *srccl);
 
 // SVC_CUTSCENE (co-op): mirror the host's in-engine cutscene state. In-engine
 // cutscenes (intro, mid-mission, outro) all run through playerStartCutscene /

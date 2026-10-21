@@ -2028,6 +2028,8 @@ s32 netDisconnect(void)
 		return -1;
 	}
 
+	g_NetTeamLobby.valid = 0; // fojo: the lobby window shows "not connected" again
+
 	// Tell the master we're going away (best-effort) while the socket is still
 	// up and we're still in NETMODE_SERVER. No-op on clients.
 	netMasterUnregister();
@@ -2100,6 +2102,7 @@ s32 netDisconnect(void)
 	netDiagClose();
 
 	sysLogPrintf(LOG_CHAT, "NET: disconnected");
+	netChatLogPush("disconnected");
 
 	if (wasingame) {
 		// skip the "want to save" dialog for all players
@@ -2342,6 +2345,11 @@ static void netClientEvConnect(const u32 data)
 static void netClientEvDisconnect(const u32 reason)
 {
 	sysLogPrintf(LOG_CHAT, "NET: disconnected from server: %s (%u)", netGetDisconnectReason(reason), reason);
+	{
+		char line[NET_CHATLOG_LEN];
+		snprintf(line, sizeof(line), "disconnected from server: %s", netGetDisconnectReason(reason));
+		netChatLogPush(line);
+	}
 	netDisconnect();
 }
 
@@ -2387,6 +2395,7 @@ static void netClientEvReceive(struct netclient *cl)
 			case SVC_CHR_TALK: rc = netmsgSvcChrTalkRead(&cl->in, cl); break;
 			case SVC_STAGE_FLAGS: rc = netmsgSvcStageFlagsRead(&cl->in, cl); break;
 			case SVC_ALARM: rc = netmsgSvcAlarmRead(&cl->in, cl); break;
+			case SVC_TEAM_LOBBY: rc = netmsgSvcTeamLobbyRead(&cl->in, cl); break;
 			case SVC_CUTSCENE: rc = netmsgSvcCutsceneRead(&cl->in, cl); break;
 			case SVC_COOP_LIVES: rc = netmsgSvcCoopLivesRead(&cl->in, cl); break;
 			case SVC_TIMESCALE: rc = netmsgSvcTimescaleRead(&cl->in, cl); break;
@@ -2791,6 +2800,7 @@ void netEndFrame(void)
 
 	// fojo: armed Team Missions start (--team) once the lobby fills; per-second team diag.
 	netTeamServerTick();
+	netTeamLobbyTick();
 	netTeamDiagTick();
 
 	// Dedicated self-reap (--idle-exit / Net.Server.IdleExit): exit cleanly
@@ -4853,6 +4863,7 @@ void netChatPrintf(struct netclient *dst, const char *fmt, ...)
 
 	if (g_NetMode == NETMODE_SERVER) {
 		sysLogPrintf(LOG_CHAT, "%s", tmp);
+		netChatLogPush(tmp);
 		netmsgSvcChatWrite(&buf, tmp);
 	} else {
 		netmsgClcChatWrite(&buf, tmp);
@@ -8342,6 +8353,11 @@ PD_CONSTRUCTOR static void netConfigInit(void)
 	configRegisterInt("Chaos.EventPort", &g_ChaosEventPort, 0, 65535);
 
 	configRegisterString("Net.Client.LastJoinAddr", g_NetLastJoinAddr, NET_MAX_ADDR);
+	// fojo: what the Team Missions lobby window last had (netteam.c). the
+	// roles string is --team-roles' shape, "b,c,a,n"; slot 0 is always b.
+	configRegisterInt("Net.Team.Stage", &g_NetTeamStageIndex, -1, NUM_SOLOSTAGES - 1);
+	configRegisterInt("Net.Team.Difficulty", &g_NetTeamDifficulty, DIFF_A, DIFF_PD);
+	configRegisterString("Net.Team.Roles", g_NetTeamRolesCfg, sizeof(g_NetTeamRolesCfg));
 	configRegisterUInt("Net.Client.InRate", &g_NetClientInRate, 0, 10 * 1024 * 1024);
 	configRegisterUInt("Net.Client.OutRate", &g_NetClientOutRate, 0, 10 * 1024 * 1024);
 	configRegisterUInt("Net.Client.UpdateFrames", &g_NetClientUpdateRate, 0, 60);

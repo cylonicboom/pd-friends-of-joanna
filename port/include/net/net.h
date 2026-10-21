@@ -585,10 +585,55 @@ extern s32 g_NetTeamStageIndex;
 extern s32 g_NetTeamDifficulty;
 extern s32 g_NetTeamWait;
 extern u8 g_NetTeamRoles[MAX_PLAYERS];
+extern char g_NetTeamRolesCfg[16]; // pd.ini form of g_NetTeamRoles, "b,c,a,n"
+void netTeamRolesFromCfg(void);     // apply g_NetTeamRolesCfg (after config load)
+void netTeamRolesToCfg(void);       // write g_NetTeamRoles back
 void netTeamInitFromArgs(void);
 void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles);
 void netTeamServerTick(void);
 void netTeamDiagTick(void);
+
+// The Team Missions lobby as the window sees it (fojOS, imgui_netplay.cpp).
+// The host builds it from g_NetClients + g_NetTeamRoles every frame and
+// broadcasts it as SVC_TEAM_LOBBY (once a second, and when it changes) to
+// clients sitting in the hub; a client just reads it. seat is the wire
+// playernum the client will get at stage start (netPlayersAllocate's order:
+// host 0, then remotes in client-table order), -1 when it won't get one.
+struct netteamlobbyclient {
+	u8 id;
+	s8 seat;
+	u16 ping;
+	char name[NET_MAX_NAME];
+};
+
+struct netteamlobby {
+	u8 valid;
+	s8 stageindex;
+	u8 difficulty;
+	u8 roles[MAX_PLAYERS];
+	u8 numclients;
+	struct netteamlobbyclient clients[NET_MAX_CLIENTS];
+};
+
+extern struct netteamlobby g_NetTeamLobby;
+
+void netTeamLobbyBuild(void);                  // host: refresh g_NetTeamLobby from live state
+void netTeamLobbyTick(void);                   // host: broadcast (from netEndFrame)
+s32 netTeamSetStage(s32 stageindex);           // host; 0 if locked / out of range
+void netTeamSetDifficulty(s32 difficulty);     // host
+void netTeamSetRole(s32 seat, u8 role);        // host; seat 1..MAX_PLAYERS-1
+s32 netTeamStageUnlocked(s32 stageindex);      // host's save, the Team Missions menu's rule
+s32 netTeamCanStart(char *why, u32 whylen);    // host; why = the reason when 0
+s32 netTeamStart(void);                        // host: enter the stage now
+
+// Chat as the window sees it: a ring of the lines the console used to show.
+#define NET_CHATLOG_LINES 48
+#define NET_CHATLOG_LEN   160
+void netChatLogPush(const char *line);
+s32 netChatLogCount(void);
+const char *netChatLogGet(s32 index);          // 0 = oldest kept
+void netChatLogClear(void);
+void netChatSend(const char *text);            // "<name>: text" to everyone
 
 // Dedicated-server mode. 0 = listen server (host plays), 1 = headless dedicated
 // (no SDL window, no audio device, server-only tick), 2 = windowed dedicated
