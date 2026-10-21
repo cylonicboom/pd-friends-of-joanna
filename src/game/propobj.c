@@ -80,6 +80,12 @@
 #include "data.h"
 #include "textures.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#include "net/netmsg.h"
+#include "net/netprop.h"
+#include "system.h"
+#endif
 #include "string.h"
 #ifndef PLATFORM_N64
 #include "system.h"
@@ -164,6 +170,20 @@ bool doorCallLift(struct prop *doorprop, bool allowclose)
 {
 	struct doorobj *door = doorprop->door;
 	bool handled = false;
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// Clients never drive lifts (server-authoritative). For a LIFT DOOR,
+		// consume the activation (return "handled" = true) so the client doesn't
+		// open it locally and expose an empty shaft the player could fall into —
+		// the door's open arrives via SVC_PROP_DOOR when the lift is actually
+		// present. Non-lift doors are handled normally.
+		if (door->base.hidden & OBJHFLAG_LIFTDOOR) {
+			return true;
+		}
+		return handled;
+	}
+#endif
 
 	if (door->base.hidden & OBJHFLAG_LIFTDOOR) {
 		struct linkliftdoorobj *link = g_LiftDoors;
@@ -2109,6 +2129,22 @@ struct prop *objInit(struct defaultobj *obj, struct modeldef *modeldef, struct p
 		obj->prop = prop;
 		obj->damage = 0;
 		obj->projectile = NULL;
+#ifndef PLATFORM_N64
+		// Combat Sim only: reset kill-attribution ownership for the (possibly
+		// recycled) obj slot. A pooled weapon/hat slot keeps its previous life's
+		// owner nibble, and the fresh prop's mirror is -1, so objGetOwnerPlayerNum
+		// would fall back to a stale TRUNCATED nibble (sim index 16+ wraps onto
+		// human slots 0-3 — the AFK-player phantom-kill bug), and a never-owned
+		// object read as "player 0". Nibble 0xf = "no owner" (see the getter);
+		// every legitimate creation/pickup/damage path sets the real owner after
+		// objInit returns. Solo/co-op keep the vanilla nibble untouched — the
+		// campaign relies on the owner-0 default (e.g. G5 Building's pre-placed
+		// remote mines detonate for Bond because their owner reads 0).
+		if (g_Vars.normmplayerisrunning) {
+			obj->hidden |= 0xf0000000;
+			prop->ownerplayernum = -1;
+		}
+#endif
 		obj->shadecol[0] = 0;
 		obj->shadecol[1] = 0;
 		obj->shadecol[2] = 0;
@@ -4222,10 +4258,50 @@ void objLand(struct prop *prop, struct coord *arg1, struct coord *arg2, bool *em
 bool propExplode(struct prop *prop, s32 exptype)
 {
 	struct defaultobj *obj = prop->obj;
-	s32 playernum = (obj->hidden & 0xf0000000) >> 28;
+	s32 playernum = objGetOwnerPlayerNum(obj);
 	bool result;
+#ifndef PLATFORM_N64
+	// CLIENT + synced prop: suppress the LOCAL detonation entirely. The host
+	// owns the lifecycle — its propExplode broadcasts SVC_EXPLOSION (visual)
+	// and the ensuing free arrives as SVC_PROP_FREE, so a client-local blast
+	// double-rendered the explosion and applied client-side damage off the
+	// client's diverged physics (the projdiag Phase-2a question — answered by
+	// construction: clients no longer self-detonate). Returning false also
+	// leaves the conditional mine/timer callers un-freed locally, which is the
+	// desired "wire owns the lifetime" behaviour; the unconditional grenade
+	// callers still set OBJHFLAG_DELETING and reap cleanly through the fixed
+	// teardown path, with the wire blast as the only visual. Client-local
+	// (syncid 0) props keep the vanilla path.
+	if (g_NetMode == NETMODE_CLIENT && prop->syncid) {
+		netPropLogEvent(prop, NETPROP_EV_EXPLODE_GATED, (u16)exptype);
+		return false;
+	}
 
-	if (prop->parent) {
+	// SVC_EXPLOSION wire position. Defaults to the prop's own pos, but for a prop
+	// embedded in a chr (prop->parent) we broadcast the CHR's world position so the
+	// client renders the blast ON the chr instead of at the wall/floor where the
+	// mine originally stuck. The host already DAMAGES at the chr (the prop->parent
+	// branch below explodes there); only this broadcast position was wrong.
+	struct coord net_exppos = prop->pos;
+	RoomNum net_exprooms[ARRAYCOUNT(prop->rooms)];
+	bool net_useparentpos = false;
+#endif
+
+#ifndef PLATFORM_N64
+	// Only a prop genuinely EMBEDDED in a chr (mine/knife stuck in a body) should
+	// explode at the parent chr's position. A fired projectile (rocket / prox mine /
+	// dragon) whose hand-detach didn't run on the headless server keeps prop->parent
+	// = the FIRER but is NOT embedded — taking the parent->pos branch teleported the
+	// blast onto the instigator (both the SVC_EXPLOSION visual and the server-side
+	// damage). It flew correctly (prop->pos is the real detonation point), so a
+	// non-embedded parented prop must explode at its own pos via the branches below.
+	const bool useparentbranch = (prop->parent != NULL)
+			&& (obj->hidden & OBJHFLAG_EMBEDDED) != 0;
+#else
+	const bool useparentbranch = (prop->parent != NULL);
+#endif
+
+	if (useparentbranch) {
 		struct prop *parent = prop->parent;
 		struct coord pos;
 		RoomNum rooms[8];
@@ -4233,8 +4309,28 @@ bool propExplode(struct prop *prop, s32 exptype)
 		while (parent->parent) {
 			parent = parent->parent;
 		}
+#ifndef PLATFORM_N64
+		net_exppos = parent->pos;
+		for (s32 ri = 0; ri < ARRAYCOUNT(prop->rooms); ri++) {
+			net_exprooms[ri] = parent->rooms[ri];
+		}
+		net_useparentpos = true;
+#endif
 
-		if (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK) {
+		if ((prop->flags & PROPFLAG_ONTHISSCREENTHISTICK)
+#ifndef PLATFORM_N64
+				// In netplay always take the parent->pos branch below for a chr-
+				// attached prop. The on-screen branch transforms pos by
+				// camGetProjectionMtxF, which yields a bad position in the host's tick
+				// context; explosionCreateComplex then fails, propExplode returns
+				// false, and the caller never sets OBJHFLAG_DELETING — so a mine stuck
+				// to a chr that's ON-SCREEN when detonated never gets freed or
+				// broadcast (it only frees once the chr is off everyone's screen and
+				// this branch is skipped). parent->pos is the correct, screen-
+				// independent explosion location for a stuck prop anyway.
+				&& g_NetMode == NETMODE_NONE
+#endif
+				) {
 			Mtxf *mtx = modelGetRootMtx(obj->model);
 
 			pos.x = mtx->m[3][0];
@@ -4270,6 +4366,31 @@ bool propExplode(struct prop *prop, s32 exptype)
 	} else {
 		result = explosionCreateComplex(NULL, &prop->pos, prop->rooms, exptype, playernum);
 	}
+
+#ifndef PLATFORM_N64
+	// Broadcast the explosion to clients when this is a server-owned networked
+	// prop. propExplode is called server-side only (weapon tick runs on server);
+	// clients see the effect via SVC_EXPLOSION. For a chr-embedded prop send the
+	// chr's position (net_exppos) so the blast renders on the chr, not the stick
+	// spot; otherwise the prop's own pos — close enough for timer-detonated
+	// projectiles that are near their logical position when they detonate.
+	if (g_NetMode == NETMODE_SERVER && prop->syncid) {
+		// Diag: confirms the teleport root — parentpnum is the chr prop->parent
+		// resolves to (the firer if the hand-detach didn't run), emb the embedded
+		// flag. Pre-fix, a non-embedded parented projectile broadcast parentpos.
+		netDiagLogf("expl", "wn=%d owner=%d emb=%d useparent=%d parentpnum=%d ppos=(%.0f,%.0f,%.0f)",
+				(prop->type == PROPTYPE_WEAPON && prop->weapon) ? (s32)prop->weapon->weaponnum : -1,
+				playernum, (obj->hidden & OBJHFLAG_EMBEDDED) ? 1 : 0,
+				(s32)net_useparentpos,
+				(prop->parent && prop->parent->chr) ? mpPlayerGetIndex(prop->parent->chr) : -1,
+				prop->pos.x, prop->pos.y, prop->pos.z);
+		netmsgSvcExplosionWrite(&g_NetMsgRel, exptype,
+				net_useparentpos ? &net_exppos : &prop->pos,
+				net_useparentpos ? net_exprooms : prop->rooms);
+	}
+	// (The Phase-2a "client reached propExplode" projdiag branch is gone: the
+	// client+synced case now early-returns at the top of this function.)
+#endif
 
 	return result;
 }
@@ -4415,7 +4536,7 @@ void weaponTick(struct prop *prop)
 				// Nbombs detonate when they hit the ground, so this code only
 				// runs if it's airborne for the entire duration of its timer.
 				struct prop *ownerprop = NULL;
-				s32 ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+				s32 ownerplayernum = objGetOwnerPlayerNum(obj);
 
 				if (g_Vars.normmplayerisrunning) {
 					struct chrdata *chr = mpGetChrFromPlayerIndex(ownerplayernum);
@@ -4491,7 +4612,7 @@ void weaponTick(struct prop *prop)
 	} else if (weapon->weaponnum == WEAPON_REMOTEMINE) {
 		// Handle remote mines
 		if (g_PlayersDetonatingMines != 0) {
-			s32 ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+			s32 ownerplayernum = objGetOwnerPlayerNum(obj);
 			struct chrdata *parentchr = prop->parent ? prop->parent->chr : NULL;
 
 			// If a player manages to throw a mine on themselves, it will not detonate.
@@ -4514,10 +4635,10 @@ void weaponTick(struct prop *prop)
 						if (g_PlayersDetonatingMines != 0) {
 							weapon->timer240 = 0;
 						}
-					} else if (g_PlayersDetonatingMines & 1 << ownerplayernum) {
+					} else if ((u32)ownerplayernum < 32U && (g_PlayersDetonatingMines & 1 << ownerplayernum)) {
 						weapon->timer240 = 0;
 					}
-				} else if (g_PlayersDetonatingMines & 1 << ownerplayernum) {
+				} else if ((u32)ownerplayernum < 32U && (g_PlayersDetonatingMines & 1 << ownerplayernum)) {
 					weapon->timer240 = 0;
 				}
 			}
@@ -4570,7 +4691,7 @@ void weaponTick(struct prop *prop)
 			if (weapon->weaponnum == WEAPON_NBOMB) {
 				u32 stack;
 				struct prop *ownerprop = NULL;
-				s32 ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+				s32 ownerplayernum = objGetOwnerPlayerNum(obj);
 
 				if (g_Vars.normmplayerisrunning) {
 					struct chrdata *chr = mpGetChrFromPlayerIndex(ownerplayernum);
@@ -4733,15 +4854,55 @@ void weaponTick(struct prop *prop)
 	// HARDFREEING. They then fade out over 1 second, at which point they are
 	// given the REAPABLE flag and soon freed.
 	if (obj->flags3 & OBJFLAG3_HARDFREEING) {
-		weapon->fadeouttimer60 -= g_Vars.lvupdate60;
+#ifndef PLATFORM_N64
+		// CLIENT: never locally hard-free a SYNCED weapon. The fade ran on the
+		// client's own 20-on-screen budget, so a client could free a dropped
+		// gun the host still tracks — and nothing re-spawns it (the reconcile
+		// only reaps extras, it never re-sends missing props), leaving a
+		// permanent per-client hole. It was also the generator behind crash
+		// ledger #16: the fadeout's TICKOP_FREE ran the bare-propFree path
+		// that orphaned weapon slots. The host hard-frees on its own budget
+		// and broadcasts SVC_PROP_FREE; client-local (syncid 0) props keep
+		// fading normally.
+		if (g_NetMode == NETMODE_CLIENT && prop->syncid) {
+			netPropLogEvent(prop, NETPROP_EV_HARDFREE_GATED, 0);
+		} else
+#endif
+		{
+			weapon->fadeouttimer60 -= g_Vars.lvupdate60;
 
-		if (weapon->fadeouttimer60 <= 0) {
-			weapon->fadeouttimer60 = 0;
-			obj->hidden |= OBJHFLAG_DELETING;
+			if (weapon->fadeouttimer60 <= 0) {
+				weapon->fadeouttimer60 = 0;
+				obj->hidden |= OBJHFLAG_DELETING;
+			}
 		}
 	}
 
+#ifndef PLATFORM_N64
+	{
+		bool canhardfree = (obj->flags3 & OBJFLAG3_CANHARDFREE) != 0;
+		bool counts = (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK) != 0;
+
+		// Client mirror of the gate above: don't even ENTER hard-freeing for a
+		// synced prop (the wire owns its lifetime).
+		if (g_NetMode == NETMODE_CLIENT && prop->syncid) {
+			canhardfree = false;
+		}
+
+#ifdef DEDICATED_SERVER
+		// Headless: no render pass ever sets the on-screen flag, so the
+		// vanilla 20-on-screen hard-free budget NEVER fires and dropped guns
+		// accumulate unboundedly — the weapon-slot churn/saturation feeding
+		// the crash-ledger families. Count every hard-freeable gun instead
+		// (the budget becomes "20 total dropped guns", slightly stricter than
+		// a listen host's "20 visible" but bounded and broadcast-correct).
+		counts = true;
+#endif
+
+		if (canhardfree && counts) {
+#else
 	if ((obj->flags3 & OBJFLAG3_CANHARDFREE) && (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK)) {
+#endif
 		g_Vars.hardfreeabletally++;
 
 		if (g_Vars.hardfreeabletally > 20) {
@@ -4750,6 +4911,9 @@ void weaponTick(struct prop *prop)
 			obj->flags3 |= OBJFLAG3_HARDFREEING;
 		}
 	}
+#ifndef PLATFORM_N64
+	}
+#endif
 }
 
 void func0f07063c(struct prop *prop, bool arg1)
@@ -5135,6 +5299,11 @@ void liftGoToStop(struct liftobj *lift, s32 stopnum)
 			// Sanity check to make sure lift is actually not moving
 			if (lift->dist == 0 && lift->speed == 0) {
 				lift->levelaim = stopnum;
+#ifndef PLATFORM_N64
+				if (g_NetMode == NETMODE_SERVER) {
+					netmsgSvcPropLiftWrite(&g_NetMsgRel, lift->base.prop);
+				}
+#endif
 				return;
 			}
 		}
@@ -5181,6 +5350,12 @@ void liftGoToStop(struct liftobj *lift, s32 stopnum)
 			lift->speed = -lift->speed;
 			lift->levelaim = stopnum;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropLiftWrite(&g_NetMsgRel, lift->base.prop);
+		}
+#endif
 	}
 }
 
@@ -6730,6 +6905,12 @@ s32 projectileTick(struct defaultobj *obj, bool *embedded)
 				}
 
 				if (projectile->speed.f[0] == 0.0f && projectile->speed.f[2] == 0.0f && projectile->unk0dc == 0.0f) {
+#ifndef PLATFORM_N64
+					if (g_NetMode == NETMODE_SERVER) {
+						// sliding object has stopped, sync the final position just in case
+						netmsgSvcPropMoveWrite(&g_NetMsgRel, prop, NULL);
+					}
+#endif
 					objFreeProjectile(obj);
 				}
 
@@ -7102,11 +7283,11 @@ s32 projectileTick(struct defaultobj *obj, bool *embedded)
 									}
 								}
 							} else if (weapon->weaponnum == WEAPON_ROCKET || weapon->weaponnum == WEAPON_HOMINGROCKET) {
-								s32 ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+								s32 ownerplayernum = objGetOwnerPlayerNum(obj);
 
 								if (g_EmbedProp->type == PROPTYPE_CHR || (g_EmbedProp->type == PROPTYPE_PLAYER && g_EmbedProp->chr)) {
 #if VERSION < VERSION_NTSC_1_0
-									s32 ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+									s32 ownerplayernum = objGetOwnerPlayerNum(obj);
 #endif
 									struct prop *ownerprop2 = NULL;
 
@@ -8204,6 +8385,13 @@ void liftTick(struct prop *prop)
 				stop = (stop + 1) % 4;
 			} while (lift->pads[stop] < 0);
 
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_CLIENT) {
+				// don't start if we're not the authority
+				return;
+			}
+#endif
+
 			liftGoToStop(lift, stop);
 		}
 	}
@@ -8700,7 +8888,7 @@ void autogunTick(struct prop *prop)
 				}
 
 				if (g_Vars.normmplayerisrunning) {
-					ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+					ownerplayernum = objGetOwnerPlayerNum(obj);
 
 					if (autogun->nextchrtest == ownerplayernum) {
 						continue;
@@ -9135,7 +9323,7 @@ void autogunTickShoot(struct prop *autogunprop)
 				struct gset gset = { WEAPON_RCP45, 0, 0, FUNC_PRIMARY };
 				struct prop *ownerprop = NULL;
 				struct chrdata *ownerchr = NULL;
-				s32 ownerplayernum = (obj->hidden & 0xf0000000) >> 28;
+				s32 ownerplayernum = objGetOwnerPlayerNum(obj);
 
 				if (g_Vars.normmplayerisrunning) {
 					// Multiplayer - it must be a laptop gun
@@ -11130,11 +11318,34 @@ s32 objTickPlayer(struct prop *prop)
 
 	if (obj->hidden & OBJHFLAG_ISRETICK) {
 		obj->hidden &= ~OBJHFLAG_ISRETICK;
-	} else if ((obj->hidden & OBJHFLAG_PROJECTILE) && (obj->projectile->flags & PROJECTILEFLAG_SLIDING) == 0) {
+	} else if ((obj->hidden & OBJHFLAG_PROJECTILE) && obj->projectile && (obj->projectile->flags & PROJECTILEFLAG_SLIDING) == 0) {
 		prop->flags &= ~PROPFLAG_ONTHISSCREENTHISTICK;
 		obj->hidden |= OBJHFLAG_ISRETICK;
 		return TICKOP_RETICK;
 	}
+
+#ifndef PLATFORM_N64
+	// BACKSTOP: never DELETING-reap a CTC/HTM token (briefcase / data uplink) on
+	// a client. The server owns its lifetime via SVC_PROP_FREE; a stray LOCAL
+	// OBJHFLAG_DELETING (the bot child-chain reap on a sim respawn, a mispredicted
+	// pickup, etc.) would otherwise destroy the enemy / returned case so it never
+	// renders (observed: returned CTC cases vanish client-side with no choke-point
+	// free). This is NOT gated on prop->syncid: a token created by the client's
+	// deterministic ctcInitProps has no syncid until propActivate assigns one, and
+	// if a local reap flags it DELETING in that window the syncid-gated form let it
+	// through — the case was then freed before its first move, so it was missing at
+	// stage start on SOME loads (timing-dependent on when the reap raced the
+	// activate). Keyed on weaponnum alone, the token is protected the instant it
+	// exists. Clear the flag and keep the prop; an authoritative free (which frees
+	// by syncid via netPropFreeSynced, not through this DELETING path) still works.
+	if (g_NetMode == NETMODE_CLIENT && (obj->hidden & OBJHFLAG_DELETING)
+			&& obj->type == OBJTYPE_WEAPON) {
+		const s32 wn = ((struct weaponobj *)obj)->weaponnum;
+		if (wn == WEAPON_BRIEFCASE2 || wn == WEAPON_DATAUPLINK) {
+			obj->hidden &= ~OBJHFLAG_DELETING;
+		}
+	}
+#endif
 
 	if (obj->hidden & OBJHFLAG_DELETING) {
 		pass = false;
@@ -11171,8 +11382,40 @@ s32 objTickPlayer(struct prop *prop)
 		struct projectile *projectile = obj->projectile;
 
 		if (projectile->ownerprop && playermgrGetPlayerNumByProp(projectile->ownerprop) >= 0) {
+			// fulltick is set when the owner is the currentplayer for THIS
+			// iteration of the per-player propsTickPlayer loop. Because the
+			// loop iterates every player in g_Vars.players[] (host + remotes
+			// on the server), every player-owned projectile gets exactly one
+			// iteration where its owner == currentplayer — so projectileTick
+			// runs exactly once per game frame for each projectile.
+			//
+			// An earlier patch forced fulltick=true on NETMODE_SERVER under
+			// the false premise that PLAYERCOUNT()==1 on the server. It's
+			// not — playerGetCount() counts every g_Vars.players[] entry,
+			// remote pawns included, so PLAYERCOUNT() equals total players.
+			// Forcing fulltick=true made projectileTick run PLAYERCOUNT()×
+			// per frame (rockets / grenades flew at 2× speed at 2 players,
+			// 3× at 3, etc. — the "host physics 2× speed" report).
 			fulltick = (projectile->ownerprop == g_Vars.currentplayer->prop);
 		}
+
+#ifndef PLATFORM_N64
+		// CLIENT: fly EVERY synced projectile once per frame. The owner gate above
+		// only fullticks a projectile owned by THIS machine's currentplayer — but on
+		// a client the owners of synced projectiles are SIMS and REMOTE players,
+		// never the local currentplayer, so projectileTick (below, gated on fulltick)
+		// never ran: the rocket/grenade/mine froze invisibly at the muzzle and never
+		// flew or detonated ("no rockets visible" on a dedicated server). The host
+		// owns the authoritative lifecycle (spawn / free / explosion); the client
+		// just needs to run the flight locally to render it. Anchor to the primary
+		// local pawn's iteration so it advances exactly once per frame (not Nx for
+		// split-screen / spectator panels).
+		if (g_NetMode == NETMODE_CLIENT && prop->syncid
+				&& g_NetLocalClient && g_Vars.currentplayer
+				&& g_Vars.currentplayer == g_NetLocalClient->player) {
+			fulltick = true;
+		}
+#endif
 	}
 
 	if (model->anim) {
@@ -11505,7 +11748,7 @@ s32 objTickPlayer(struct prop *prop)
 
 	if (obj->hidden & OBJHFLAG_DAMAGEFORBOUNCE) {
 		obj->hidden &= ~OBJHFLAG_DAMAGEFORBOUNCE;
-		objDamage(obj, RANDOMFRAC() * 4.0f + 2.0f, &prop->pos, WEAPON_NONE, (obj->hidden & 0xf0000000) >> 28);
+		objDamage(obj, RANDOMFRAC() * 4.0f + 2.0f, &prop->pos, WEAPON_NONE, objGetOwnerPlayerNum(obj));
 	}
 
 	if (fulltick) {
@@ -11522,8 +11765,25 @@ s32 objTickPlayer(struct prop *prop)
 Gfx *propsRenderBeams(Gfx *gdl)
 {
 	struct prop *prop = g_Vars.activeprops;
+#ifndef PLATFORM_N64
+	s32 iter = 0;
+#endif
 
 	while (prop) {
+#ifndef PLATFORM_N64
+		// Guard against a corrupted active-prop list (a prop freed without
+		// being delisted on netplay clients) that turns this walk into a cycle
+		// or steps onto an out-of-pool pointer — either would hang or crash the
+		// beam render. Cap iterations at the pool size and range-check the node.
+		// See the propstick-walk-crash notes / proptick_guard family.
+		if (prop < g_Vars.props || prop >= g_Vars.props + g_Vars.maxprops ||
+				++iter > g_Vars.maxprops) {
+			sysLogPrintf(LOG_WARNING,
+				"propsbeams_guard: corrupt active-prop walk (prop %p iter %d max %d); aborting beam render",
+				prop, iter, g_Vars.maxprops);
+			break;
+		}
+#endif
 		if (prop->type == PROPTYPE_CHR) {
 			struct chrdata *chr = prop->chr;
 
@@ -14379,6 +14639,12 @@ void objBounce(struct defaultobj *obj, struct coord *gundir2d)
 		projectile->speed.z += 3.3333333f * dir.z;
 		projectile->ownerprop = g_Vars.currentplayer->prop;
 		projectile->bouncecount = 1;
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, &rot);
+		}
+#endif
 	}
 }
 
@@ -14483,6 +14749,11 @@ void objApplyMomentum(struct defaultobj *obj, struct coord *speed, f32 rotation,
 				projectile->unk0ec = 0.07852732f;
 				projectile->unk0f0 = 6.6666665f;
 			}
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_SERVER) {
+				netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, NULL);
+			}
+#endif
 			return;
 		}
 
@@ -14513,6 +14784,12 @@ void objApplyMomentum(struct defaultobj *obj, struct coord *speed, f32 rotation,
 			projectile->unk0ec = 0.07852732f;
 			projectile->unk0f0 = 1.6666666f;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER) {
+			netmsgSvcPropMoveWrite(&g_NetMsgRel, obj->prop, NULL);
+		}
+#endif
 	}
 }
 
@@ -14858,6 +15135,22 @@ bool objDrop(struct prop *prop, bool lazy)
 			}
 		}
 
+#ifndef PLATFORM_N64
+		// A held item just dropped into the world (sim disarm, death drop, etc.):
+		// it's now detached, active and positioned. Held items are never spawned
+		// to clients as world props (the chr-state weapon sync drives the held
+		// visual), so without this the dropped pickup is invisible and ungrabbable
+		// on clients. Broadcast the spawn so it appears on the ground; pickup stays
+		// server-authoritative (SVC_PROP_PICKUP). Weapon/obj only — matches the
+		// SVC_PROP_FREE / reconcile scope (the reconcile backstop covers a miss).
+		// netSyncPropSpawn carries the role/state gates and also ships the
+		// initial SVC_PROP_MOVE (this site used to send the spawn alone), so
+		// the client gets the drop's initial fall/projectile state too.
+		if (prop->obj && (prop->type == PROPTYPE_WEAPON || prop->type == PROPTYPE_OBJ)) {
+			netSyncPropSpawn(prop);
+		}
+#endif
+
 		return true;
 	}
 
@@ -14868,18 +15161,74 @@ bool objDrop(struct prop *prop, bool lazy)
  * Make an object fall. Eg. due to it sitting on a table which is now destroyed,
  * or because it was a chopper that is now destroyed.
  */
+/**
+ * Record the combatant index that owns this object for kill attribution.
+ *
+ * The N64 owner field is the top nibble of obj->hidden, so it only holds 0..15.
+ * The port's offline 32-simulants feature packs combatants at indices 0..35
+ * (4 players, then 32 bots), so a bot at index >= 16 used to truncate to the low
+ * nibble and credit its explosion/projectile/destructible kills to a human slot
+ * 0..3. We keep writing the nibble (the wire and any direct reader still use it)
+ * but also mirror the full index onto the prop so objGetOwnerPlayerNum can return
+ * it untruncated. N64 behaviour is unchanged (the prop field is port-only).
+ */
+void objSetOwnerPlayerNum(struct defaultobj *obj, s32 playernum)
+{
+	obj->hidden = (obj->hidden & 0x0fffffff) | (((u32)playernum & 0xf) << 28);
+
+#ifndef PLATFORM_N64
+	if (obj->prop) {
+		// -2 records an EXPLICIT "no owner" write (vanilla callers pass -1,
+		// which packs to nibble 0xf); -1 stays the "mirror unset" sentinel
+		// consumed by the getter's nibble fallback.
+		obj->prop->ownerplayernum = (playernum < 0) ? -2 : (s16)playernum;
+	}
+#endif
+}
+
+/**
+ * Resolve the owning combatant index, preferring the untruncated prop value when
+ * it has been set (see objSetOwnerPlayerNum). Falls back to the legacy nibble.
+ *
+ * Port: nibble 0xf is vanilla's "no owner" (an objDamage(-1) write). On N64 it
+ * resolved to NULL naturally (mpGetChrFromPlayerIndex(15) with <=12 combatants),
+ * but the port allows 16+ combatants, so combatant index 15 is a REAL entry in
+ * g_MpAllChrPtrs and every ownerless explosion was suddenly credited to whoever
+ * sat at packed index 15. Return -1 for both the explicit no-owner mirror and
+ * the 0xf nibble so the consumers' mpGetChrFromPlayerIndex(-1) == NULL guards
+ * restore the vanilla "no credit" behaviour. A genuine combatant-15 owner is
+ * still returned correctly via the mirror (set at creation/pickup/damage).
+ */
+s32 objGetOwnerPlayerNum(struct defaultobj *obj)
+{
+#ifndef PLATFORM_N64
+	if (obj->prop) {
+		if (obj->prop->ownerplayernum >= 0) {
+			return obj->prop->ownerplayernum;
+		}
+		if (obj->prop->ownerplayernum == -2) {
+			return -1;
+		}
+	}
+
+	if ((obj->hidden & 0xf0000000) == 0xf0000000) {
+		return -1;
+	}
+#endif
+
+	return (obj->hidden & 0xf0000000) >> 28;
+}
+
 void objFall(struct defaultobj *obj, s32 playernum)
 {
 #if VERSION >= VERSION_NTSC_1_0
 	if (obj->type == OBJTYPE_AUTOGUN && g_Vars.normmplayerisrunning) {
 		// Don't set owner playernum
 	} else {
-		obj->hidden &= 0x0fffffff;
-		obj->hidden |= (playernum << 28) & 0xf0000000;
+		objSetOwnerPlayerNum(obj, playernum);
 	}
 #else
-	obj->hidden &= 0x0fffffff;
-	obj->hidden |= (playernum << 28) & 0xf0000000;
+	objSetOwnerPlayerNum(obj, playernum);
 #endif
 
 	if ((obj->flags2 & OBJFLAG2_NOFALL) == 0
@@ -15524,12 +15873,10 @@ void func0f085050(struct prop *prop, f32 damage, struct coord *pos, s32 arg3, s3
 	if (obj->type == OBJTYPE_AUTOGUN && g_Vars.normmplayerisrunning) {
 		// do nothing
 	} else {
-		obj->hidden &= 0x0fffffff;
-		obj->hidden |= (playernum << 28) & 0xf0000000;
+		objSetOwnerPlayerNum(obj, playernum);
 	}
 #else
-	obj->hidden &= 0x0fffffff;
-	obj->hidden |= (playernum << 28) & 0xf0000000;
+	objSetOwnerPlayerNum(obj, playernum);
 #endif
 
 	if ((obj->hidden & OBJHFLAG_HASOWNER) == 0) {
@@ -15612,23 +15959,56 @@ bool objIsMortal(struct defaultobj *obj)
 void objTakeGunfire(struct defaultobj *obj, f32 damage, struct coord *pos, s32 weaponnum, s32 playernum)
 {
 	if ((obj->flags2 & OBJFLAG2_IMMUNETOGUNFIRE) == 0) {
+#ifndef PLATFORM_N64
+		// The server can't reliably re-simulate a remote player's shot (their
+		// weapon gset is only partially synced), so when our own local player's
+		// gunfire hits a destructible prop, report it to the server like a chr
+		// hit (CLC_HIT). The server validates, applies, and broadcasts
+		// SVC_PROP_DAMAGE -- which we then apply via objDamage's damage<0 path.
+		// objDamage below no-ops on the client for positive damage, so there's
+		// no local double-apply. Gunfire only -- explosions stay server-side.
+		if (g_NetMode == NETMODE_CLIENT && damage > 0.0f
+				&& g_Vars.currentplayer && !g_Vars.currentplayer->isremote
+				&& obj->prop && obj->prop->type != PROPTYPE_CHR
+				&& obj->prop->type != PROPTYPE_PLAYER) {
+			netClientReportPropHit(obj->prop, damage, pos, weaponnum);
+		}
+#endif
 		objDamage(obj, damage, pos, weaponnum, playernum);
 	}
 }
 
 void objDamage(struct defaultobj *obj, f32 damage, struct coord *pos, s32 weaponnum, s32 playernum)
 {
+#ifndef PLATFORM_N64
+	// if we aren't the authority, don't do anything, unless called from netmsg handler
+	if (g_NetMode == NETMODE_CLIENT) {
+		if (damage < 0.f) {
+			// HACK: negative damage means we were called from netmsg.c
+			damage = -damage;
+		} else {
+			return;
+		}
+	} else if (g_NetMode == NETMODE_SERVER) {
+		// chr damage is handled by a separate message (SVC_CHR_DAMAGE); doors sync
+		// via SVC_PROP_DOOR, not prop-damage -- excluding them stops a reliable-
+		// channel flood when sims spray gunfire at indestructible doors.
+		if (obj->prop && obj->prop->type != PROPTYPE_CHR
+				&& obj->prop->type != PROPTYPE_DOOR) {
+			netmsgSvcPropDamageWrite(&g_NetMsgRel, obj->prop, damage, pos, weaponnum, playernum);
+		}
+	}
+#endif
+
 	// Store the attacker playernum into the object's "hidden" field
 #if VERSION >= VERSION_NTSC_1_0
 	// ...but not for deployed laptop guns in multiplayer, because those bits
 	// designate the owner of the gun
 	if (obj->type != OBJTYPE_AUTOGUN || !g_Vars.normmplayerisrunning) {
-		obj->hidden &= 0x0fffffff;
-		obj->hidden |= (playernum << 28) & 0xf0000000;
+		objSetOwnerPlayerNum(obj, playernum);
 	}
 #else
-	obj->hidden &= 0x0fffffff;
-	obj->hidden |= (playernum << 28) & 0xf0000000;
+	objSetOwnerPlayerNum(obj, playernum);
 #endif
 
 	if (obj->type == OBJTYPE_GASBOTTLE && objGetDestroyedLevel(obj) == 1) {
@@ -16167,6 +16547,23 @@ void objHit(struct shotdata *shotdata, struct hit *hit)
 				}
 			}
 
+#ifndef PLATFORM_N64
+			// Remote shooter on the server: CLC_PROP_HIT applies this damage
+			// (evaluated at the client's own aim tick), so applying the
+			// server's lag-comp'd trace TOO double-damaged the prop — the
+			// pre-existing listen-host quirk the §6.1 mirror inherited
+			// (PORT_HEADLESS_BLIND_SERVER.md). Mirror the chrHit pattern:
+			// record that the authoritative trace also detected this hit (so
+			// the CLC_PROP_HIT claim can be validated, Net.Server.HitValidate)
+			// and skip the local apply. objHit is shot-trace-only context
+			// (currentplayer == the shooter); sim/AI gunfire reaches
+			// objTakeGunfire by other callers and is unaffected.
+			if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+				if (g_Vars.currentplayer->client && prop->syncid) {
+					netServerRecordDetectedHit(g_Vars.currentplayer->client, (u16)prop->syncid);
+				}
+			} else
+#endif
 			objTakeGunfire(obj, damage, &sp110, shotdata->gset.weaponnum, g_Vars.currentplayernum);
 
 			if (obj->model->definition->skel == &g_SkelWindowedDoor && !hit->slowsbullet) {
@@ -16200,6 +16597,10 @@ void objHit(struct shotdata *shotdata, struct hit *hit)
 				pushdir.y = shotdata->gundir3d.y;
 				pushdir.z = shotdata->gundir3d.z;
 
+#ifndef PLATFORM_N64
+				// don't push anything if we're not the authority
+				if (g_NetMode != NETMODE_CLIENT)
+#endif
 				func0f082e84(obj, &spa4, &pushdir, &spb0, true);
 			} else {
 				bool bounce = false;
@@ -16221,6 +16622,13 @@ void objHit(struct shotdata *shotdata, struct hit *hit)
 				if (obj->flags2 & OBJFLAG2_LINKEDTOSAFE) {
 					bounce = false;
 				}
+
+#ifndef PLATFORM_N64
+				// don't bounce anything if we're not the authority
+				if (g_NetMode == NETMODE_CLIENT) {
+					bounce = false;
+				}
+#endif
 
 				if (bounce) {
 					objBounce(obj, &shotdata->gundir2d);
@@ -16286,8 +16694,16 @@ bool objTestForInteract(struct prop *prop)
 		maybe = false;
 	}
 
+#ifndef PLATFORM_N64
+	// Server-side remote player: no render pass sets PROPFLAG_ONTHISSCREENTHISTICK,
+	// so treat the object as eligible and rely on the geometric checks below.
+	const bool noscreen = g_NetMode == NETMODE_SERVER && g_Vars.currentplayer
+			&& g_Vars.currentplayer->isremote;
+#else
+	const bool noscreen = false;
+#endif
 	if (maybe
-			&& (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK)
+			&& (noscreen || (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK))
 			&& objIsHealthy(obj)
 			&& (obj->flags & OBJFLAG_CANNOT_ACTIVATE) == 0) {
 		struct prop *playerprop = g_Vars.currentplayer->prop;
@@ -17467,14 +17883,73 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 	s32 result;
 	bool given = false;
 
+#ifndef PLATFORM_N64
+	netDiagLogf("pickup_attempt",
+			"prop_sid=%u objtype=%d pnum=%d client=%p isdead=%d netmode=%d",
+			(unsigned)prop->syncid, obj ? (s32)obj->type : -1,
+			g_Vars.currentplayernum,
+			(void *)g_Vars.currentplayer->client,
+			(s32)g_Vars.currentplayer->isdead, g_NetMode);
+
+	// Orphaned-slot guard: between a mid-match disconnect and the next
+	// stage transition, players[N]->client is NULL (netClientReset cleared
+	// the backlink; netPlayersAllocate hasn't re-bound yet). Without this
+	// guard, propPickupByPlayer would consume the prop server-side while
+	// the SVC_PROP_PICKUP gate below silently drops the wire write,
+	// making weapons / ammo disappear from every connected client's view
+	// without explanation.
+	if (g_NetMode == NETMODE_SERVER && !g_Vars.currentplayer->client) {
+		return TICKOP_NONE;
+	}
+#endif
+
+#ifndef PLATFORM_N64
+	// A wire-driven pickup (the client applying the host's SVC_PROP_PICKUP) is
+	// processed during pre-tick message handling, where lvupdate240 can be 0 on a
+	// render-only frame (the detPinTimestep paused-frame pin). The host already
+	// granted it, so the lvupdate240 == 0 bail must NOT apply here: the box is
+	// removed regardless (netmsgSvcPropPickupRead runs the tickop after this), but
+	// the ammo/weapon would never enter the client's inventory — the box vanishes
+	// with no item, intermittently, depending on which frame the packet lands on.
+	// The isdead guard still stands.
+	if (g_Vars.currentplayer->isdead || (g_Vars.lvupdate240 == 0 && g_NetPickupWireShowMsg < 0)) {
+		return TICKOP_NONE;
+	}
+#else
 	if (g_Vars.currentplayer->isdead || g_Vars.lvupdate240 == 0) {
 		return TICKOP_NONE;
+	}
+#endif
+
+	// Suppress HUD pickup messages during cutscenes (e.g. items given at
+	// mission start via aiGiveObjectToChr). In co-op, keep showing them for
+	// MID-mission pickups (once the player has reached normal gameplay this stage)
+	// so the client sees "picked up X" for items like Cassandra's necklace grabbed
+	// during a scripted moment — only the intro loadout gives stay suppressed.
+#ifndef PLATFORM_N64
+	if (g_NetPickupWireShowMsg >= 0) {
+		// Wire-driven pickup (SVC_PROP_PICKUP): clients can't grab OBJ/key items
+		// themselves (objTestForPickup early-returns on NETMODE_CLIENT), so these
+		// always come from the host, which already decided whether to show the toast
+		// against ITS cutscene state at the pickup moment. Mirror that verbatim — the
+		// client's own in_cutscene can differ (the host grabbed Cassandra's necklace
+		// during a host-side scripted beat), which previously dropped the toast.
+		showhudmsg = (g_NetPickupWireShowMsg != 0);
+	} else
+#endif
+	if (g_Vars.in_cutscene
+#ifndef PLATFORM_N64
+			&& !(NET_COOP_GAME() && g_CoopGameplayStarted)
+#endif
+			)
+	{
+		showhudmsg = false;
 	}
 
 	switch (obj->type) {
 	case OBJTYPE_KEY:
 		if (g_Vars.in_cutscene == false) {
-			sndStart(var80095200, SFX_PICKUP_KEYCARD, NULL, -1, -1, -1, -1, -1);
+			playerSndStart(var80095200, SFX_PICKUP_KEYCARD, NULL, g_Vars.currentplayernum, -1, -1, -1);
 		}
 
 		if (showhudmsg) {
@@ -17544,6 +18019,11 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 
 					if (sp64) {
 						weaponPlayPickupSound(weapon->weaponnum);
+#ifndef PLATFORM_N64
+						if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+							netmsgSvcPropPickupWrite(&g_NetMsgRel, g_Vars.currentplayer->client, prop, sp64, showhudmsg);
+						}
+#endif
 					}
 
 					return sp64;
@@ -17711,6 +18191,16 @@ s32 propPickupByPlayer(struct prop *prop, bool showhudmsg)
 		break;
 	}
 
+#ifndef PLATFORM_N64
+	if (result != TICKOP_NONE && g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+		netDiagLogf("pickup_svc_write", "cl=%u prop_sid=%u result=%d",
+				(unsigned)g_Vars.currentplayer->client->id,
+				(unsigned)prop->syncid, result);
+		netmsgSvcPropPickupWrite(&g_NetMsgRel, g_Vars.currentplayer->client, prop, result, showhudmsg);
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+	}
+#endif
+
 	if (result == TICKOP_FREE && (obj->hidden & OBJHFLAG_TAGGED) == 0) {
 		objFree(obj, false, obj->hidden2 & OBJH2FLAG_CANREGEN);
 		return TICKOP_FREE;
@@ -17734,6 +18224,21 @@ s32 objTestForPickup(struct prop *prop)
 	if (obj->hidden & OBJHFLAG_DELETING) {
 		return TICKOP_NONE;
 	}
+
+#ifndef PLATFORM_N64
+	// Clients (co-op AND Combat Sim) run the same read-only pickup checks as
+	// the host and, when they would pick up, reach the request site at the
+	// bottom of this function. Co-op clients take locally + tell the host
+	// (responsiveness; the host's echo back is skipped). Combat Sim clients
+	// send CLC_PICKUP_REQUEST and take NOTHING locally — the host's
+	// SVC_PROP_PICKUP echo is the only give (netmsgSvcPropPickupRead applies
+	// our own pickups in Combat Sim precisely because of this). The host's own
+	// proximity scan for remote pawns (propsTestForPickup's latest-pos swap)
+	// remains as the second detection path; double-grants are impossible
+	// because the first grant frees/DELETING-flags the prop and the request
+	// handler resolves a freed syncid to NULL. (This replaces the old Combat
+	// Sim client hard-bail that made floor weapons intangible — catalog §5.1.)
+#endif
 
 	if (func0f085194(obj) && obj->type != OBJTYPE_HAT) {
 		if (obj->flags & OBJFLAG_UNCOLLECTABLE) {
@@ -17955,6 +18460,31 @@ s32 objTestForPickup(struct prop *prop)
 		}
 
 		if (pickup) {
+#ifndef PLATFORM_N64
+			// Co-op client: pick the item up LOCALLY (responsive — correct inventory +
+			// toast, exactly like single-player, in the normal render context) AND tell
+			// the host, which applies it authoritatively for objectives / action blocks
+			// and informs the OTHER clients. The host's echo back to us is ignored
+			// (netmsgSvcPropPickupRead skips our own pickups) so we don't double-give.
+			// Earlier this deferred entirely to the host (return TICKOP_NONE), but the
+			// host's SVC_PROP_PICKUP apply ran in net-processing context where
+			// propPickupByPlayer early-returns (lvupdate240==0), so invGiveProp never
+			// ran and the item never entered the client's inventory.
+			if (g_NetMode == NETMODE_CLIENT) {
+				netClientRequestPickup(prop);
+				netPropLogEvent(prop, NETPROP_EV_PICKUP_REQ, 0);
+
+				// Combat Sim: defer entirely to the host's SVC_PROP_PICKUP
+				// echo (which netmsgSvcPropPickupRead applies for our own
+				// pickups when coopplayernum < 0). Taking locally here would
+				// double-give, because unlike co-op there is no skip-own
+				// filter on the echo. Costs ~1 RTT of pickup latency, same as
+				// the host-scan path that already serves Combat Sim clients.
+				if (!NET_COOP_GAME()) {
+					return TICKOP_NONE;
+				}
+			}
+#endif
 			return propPickupByPlayer(prop, true);
 		}
 	}
@@ -18230,6 +18760,86 @@ struct weaponobj *weaponCreate(bool musthaveprop, bool musthavemodel, struct mod
 		return tmp;
 	}
 
+#ifndef PLATFORM_N64
+	// CLIENT force-recycle victim preference (net churn reduction). When the 50
+	// slots are full and we must recycle a live one, prefer a slot that is NOT a
+	// synced prop (syncid 0 = a client-local weapon — a client-physics drop / stuck
+	// projectile). Recycling a SYNCED weapon the host still tracks desyncs the client
+	// and makes the host's prop-reconcile re-spawn it next heartbeat => MORE churn,
+	// the opposite of the goal. A syncid-0 slot is cheap to drop. This only fires
+	// when such a candidate exists; otherwise it falls through to the vanilla
+	// selection below unchanged (server / N64 never enter this branch). Mirrors the
+	// vanilla `usable` test: skip projectiles/regen/heldrocket and held (parented,
+	// non-embedded) weapons; prefer an off-screen victim.
+	if (g_NetMode == NETMODE_CLIENT) {
+		s32 localoff = -1;
+		s32 localany = -1;
+		// LAST-RESORT projectile victims. A client renders remote/sim weapon fire
+		// as syncid-0 LOCAL projectiles; when the client falls behind the dedicated
+		// server these flood every weapon slot (g_MaxWeaponSlots) and weaponCreate
+		// returns NULL —
+		// starving every AUTHORITATIVE spawn (dropped weapons, CTC cases, etc.), so
+		// the host's prop-reconcile keeps re-sending them and the client keeps
+		// dropping them (observed: 1400+ "prop with syncid N does not exist" on a
+		// returned CTC case). A gameplay prop must win over a transient visual
+		// rocket: allow reaping a FREE-FLYING local projectile, but only after the
+		// non-projectile victims above are exhausted (so a normal swap never evicts
+		// a live projectile), and prefer an off-screen one. This also self-caps the
+		// local projectile pool at the slot count instead of letting it grow
+		// unbounded. vanilla weaponCreate never recycles projectiles; this is the
+		// client-only escape valve.
+		s32 projoff = -1;
+		s32 projany = -1;
+		s32 j;
+		for (j = 0; j < g_MaxWeaponSlots; j++) {
+			struct weaponobj *w = &g_WeaponSlots[j];
+			if (w->base.prop == NULL || w->base.prop->syncid != 0) {
+				continue;
+			}
+			if ((w->base.hidden2 & OBJH2FLAG_CANREGEN)
+					|| (w->base.flags & OBJFLAG_HELDROCKET)) {
+				continue;
+			}
+			const bool offscreen = (w->base.prop->flags & (PROPFLAG_ONTHISSCREENTHISTICK | PROPFLAG_ONANYSCREENTHISTICK | PROPFLAG_ONANYSCREENPREVTICK)) == 0;
+			if (w->base.hidden & OBJHFLAG_PROJECTILE) {
+				// Only a free-flying one (no parent — never a held or embedded
+				// mine/knife, which belong to a chr's state).
+				if (w->base.prop->parent == NULL) {
+					if (projany < 0) {
+						projany = j;
+					}
+					if (offscreen && projoff < 0) {
+						projoff = j;
+					}
+				}
+				continue;
+			}
+			if (w->base.prop->parent && (w->base.hidden & OBJHFLAG_EMBEDDED) == 0) {
+				continue; // held in a hand — leave it (mirrors vanilla `usable`)
+			}
+			if (localany < 0) {
+				localany = j;
+			}
+			if (offscreen) {
+				localoff = j;
+				break;
+			}
+		}
+		// Priority: off-screen non-proj > any non-proj > off-screen proj > any proj.
+		s32 pick = (localoff >= 0) ? localoff
+				: (localany >= 0) ? localany
+				: (projoff >= 0) ? projoff
+				: projany;
+		if (pick >= 0) {
+			// Through the teardown choke point (same objFreePermanently
+			// underneath) so the eviction lands in the lifecycle ring.
+			netPropFreeSynced(g_WeaponSlots[pick].base.prop, NETPROP_FREE_RECYCLE);
+			g_NextWeaponSlot = (pick + 1) % g_MaxWeaponSlots;
+			return &g_WeaponSlots[pick];
+		}
+	}
+#endif
+
 	if (sp40 >= 0) {
 		if (g_WeaponSlots[sp40].base.prop) {
 			objFreePermanently(&g_WeaponSlots[sp40].base, true);
@@ -18271,6 +18881,71 @@ struct weaponobj *func0f08a364(void)
 {
 	return weaponCreate(false, false, NULL);
 }
+
+#ifndef PLATFORM_N64
+/**
+ * Port-only (netplay server + client): reap ORPHANED weapon slots.
+ *
+ * A projectile/weapon prop freed by a path that clears the prop but not this
+ * weaponobj's back-pointer leaves g_WeaponSlots[i].base.prop referencing a prop
+ * whose union no longer points back (freed => prop->obj NULL, or recycled to a
+ * different obj). Such orphan slots count as occupied AND, being projectile-flagged,
+ * are EXCLUDED from weaponCreate's recycle scan, so they accumulate (diag census
+ * projdead ~14-19 of proj ~26) until the weapon-slot pool saturates: weaponCreate then
+ * returns NULL (the SVC_PROP_SPAWN write-at-0 crash) and force-recycle evicts the
+ * live host props (synced->0 => sync collapse => rooms stop loading / void). This is
+ * the open Family-A free-without-clear corruption: clients CRASH on it; the headless
+ * dedicated server silently fails to spawn drops/projectiles once its own pool
+ * saturates and then streams that to everyone — so this runs on BOTH roles.
+ *
+ * Release any slot whose back-pointer is broken so the slot is reusable. The prop is
+ * already freed / owned by something else, so NEVER touch it (no propFree/propDelist).
+ * The orphaning free skipped objFree (objFree clears base.prop), so this weaponobj's
+ * own model was never freed -> free it here (no double-free) to avoid a model-pool
+ * leak, then clear the slot.
+ */
+void weaponSlotsReapOrphans(void)
+{
+	s32 i;
+
+	// Netplay only (server + client). Single-player / N64 use the clean objFree
+	// path and never orphan a slot, so this is a no-op there anyway.
+	if (g_NetMode == NETMODE_NONE || g_WeaponSlots == NULL) {
+		return;
+	}
+
+	for (i = 0; i < g_MaxWeaponSlots; i++) {
+		struct defaultobj *obj = &g_WeaponSlots[i].base;
+		struct prop *prop = obj->prop;
+
+		// Empty slot, or a live weapon whose prop's union points back at us.
+		if (prop == NULL || prop->obj == obj) {
+			continue;
+		}
+
+		// Orphan: prop freed/recycled without releasing this slot.
+		// VERIFICATION (crash ledger #16): with the propExecuteTickOperation source
+		// fix in place this should never fire — any `orphan_reap` line means another
+		// generator still bare-frees a weapon prop. Throttled.
+		g_NetAuditOrphanFires++; // soak auditor (every reap, not just logged ones)
+		{
+			static u32 lastlog60 = 0;
+			if (lastlog60 == 0 || g_Vars.lvframe60 - lastlog60 > TICKS(30)) {
+				lastlog60 = g_Vars.lvframe60;
+				netDiagLogf("orphan_reap", "slot=%d wpn=%d", i, (s32)g_WeaponSlots[i].weaponnum);
+			}
+		}
+
+		if (obj->model) {
+			modelmgrFreeModel(obj->model);
+			obj->model = NULL;
+		}
+		obj->projectile = NULL;
+		obj->hidden = 0;
+		obj->prop = NULL;
+	}
+}
+#endif
 
 struct hatobj *hatCreate(bool musthaveprop, bool musthavemodel, struct modeldef *modeldef)
 {
@@ -18608,8 +19283,7 @@ bool chrEquipWeapon(struct weaponobj *weapon, struct chrdata *chr)
 		if (g_Vars.mplayerisrunning) {
 			s32 playernum = mpPlayerGetIndex(chr);
 
-			weapon->base.hidden &= 0x0fffffff;
-			weapon->base.hidden |= (playernum << 28) & 0xf0000000;
+			objSetOwnerPlayerNum(&weapon->base, playernum);
 		}
 
 		if ((weapon->base.flags & OBJFLAG_WEAPON_AICANNOTUSE) == 0) {
@@ -18958,8 +19632,7 @@ struct weaponobj *weaponCreateProjectileFromGset(s32 modelnum, struct gset *gset
 			if (g_Vars.mplayerisrunning) {
 				s32 index = mpPlayerGetIndex(chr);
 
-				weapon->base.hidden &= 0x0fffffff;
-				weapon->base.hidden |= ((index << 28) & 0xf0000000);
+				objSetOwnerPlayerNum(&weapon->base, index);
 			}
 
 			prop->forcetick = true;
@@ -19330,6 +20003,39 @@ void doorsCheckAutomatic(void)
 	struct prop *doorprop;
 	s16 *propnumptr;
 	s16 propnums[256];
+
+#ifndef PLATFORM_N64
+	// Automatic doors are NOT predicted on clients: the locally-ticked
+	// open/wait/close cycle interleaving with the host's keyframes proved too
+	// fiddly (reopen-during-close, portal/timer skew), and with the host-side
+	// reported-position swap below the host opens them promptly anyway — the
+	// remaining delay is ~one-way latency, which is acceptable. Clients are
+	// driven purely by SVC_PROP_DOOR. Manual (Use-button) doors keep their
+	// prediction in currentPlayerInteract.
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+
+	// Host: a remote pawn's pos here is the INTERPOLATED (lagged) one, so the
+	// proximity test trails the client's predicted open by the interp delay — at
+	// speed the client reaches a door the host hasn't opened yet and gets
+	// CSP-corrected back out of it ("door animates open but stays solid").
+	// Evaluate the automatic-door check at the client's latest reported position
+	// instead (the currentPlayerInteract / pickup pos-swap pattern), restored at
+	// the end of the function.
+	struct coord autosavedpos;
+	bool autoposswapped = false;
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote
+			&& g_Vars.currentplayer->client && g_Vars.currentplayer->prop) {
+		struct netclient *cl = g_Vars.currentplayer->client;
+		const struct netplayermove *m = &cl->inmove[cl->inmove_head];
+		if (m->tick) {
+			autosavedpos = g_Vars.currentplayer->prop->pos;
+			g_Vars.currentplayer->prop->pos = m->pos;
+			autoposswapped = true;
+		}
+	}
+#endif
 
 	roomGetProps(g_Vars.currentplayer->prop->rooms, propnums, 256);
 	propnumptr = propnums;
@@ -20118,6 +20824,11 @@ void doorSetMode(struct doorobj *door, s32 newmode)
 	} else {
 		door->mode = newmode;
 	}
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER) {
+		netmsgSvcPropDoorWrite(&g_NetMsgRel, door->base.prop, g_Vars.currentplayer->client);
+	}
+#endif
 }
 
 /**
@@ -20275,6 +20986,21 @@ bool func0f08e8ac(struct prop *prop, struct coord *pos, f32 arg2, bool arg3)
 	bool result = false;
 	u32 stack;
 
+#ifndef PLATFORM_N64
+	// Blind-server Tier 1 (docs/PORT_HEADLESS_BLIND_SERVER.md §9): on a
+	// headless dedicated host the authoritative sim must never be gated on
+	// visibility — this predicate decides chrTick's needsupdate and
+	// objTickPlayer's pass2 (full tick + model matrices + the on-screen
+	// flags propsSort reads), and the on-screen vs off-screen child FREE
+	// branch (ghost-mine class). The normal body can't answer honestly
+	// here anyway: ROOMFLAG_ONSCREEN reflects only the last synthetic
+	// visibility pass's player, and camIsPosInFovAndVisibleRoom tests one
+	// player's frustum. Everything is "seen" by the server.
+	if (g_NetDedicatedMode == 1 && g_NetMode == NETMODE_SERVER) {
+		return true;
+	}
+#endif
+
 	rooms = prop->rooms;
 	roomnum = *rooms;
 
@@ -20312,12 +21038,27 @@ bool func0f08e8ac(struct prop *prop, struct coord *pos, f32 arg2, bool arg3)
 
 bool posIsInDrawDistance(struct coord *pos)
 {
-	struct coord *campos = &g_Vars.currentplayer->cam_pos;
-	f32 x = pos->x - campos->x;
-	f32 y = pos->y - campos->y;
-	f32 z = pos->z - campos->z;
-	f32 aggregate = x * x + y * y + z * z;
+	struct coord *campos;
+	f32 x;
+	f32 y;
+	f32 z;
+	f32 aggregate;
 	bool result = true;
+
+#ifndef PLATFORM_N64
+	// Blind-server Tier 1: no draw distance on the authoritative sim (see
+	// func0f08e8ac above). Keeps the hoverbike / CANFILLVIEWPORT pass2
+	// branches from culling on a remote slot's camera distance.
+	if (g_NetDedicatedMode == 1 && g_NetMode == NETMODE_SERVER) {
+		return true;
+	}
+#endif
+
+	campos = &g_Vars.currentplayer->cam_pos;
+	x = pos->x - campos->x;
+	y = pos->y - campos->y;
+	z = pos->z - campos->z;
+	aggregate = x * x + y * y + z * z;
 
 	if (aggregate > 32000 * 32000) {
 		result = false;
@@ -20884,9 +21625,18 @@ bool doorTestForInteract(struct prop *prop)
 	bool checkmore = true;
 	struct doorobj *door = prop->door;
 
+#ifndef PLATFORM_N64
+	// On the server a remote player has no render pass, so
+	// PROPFLAG_ONTHISSCREENTHISTICK is never set -- treat the door as eligible
+	// and let the geometric distance / room / LoS checks below decide.
+	const bool noscreen = g_NetMode == NETMODE_SERVER && g_Vars.currentplayer
+			&& g_Vars.currentplayer->isremote;
+#else
+	const bool noscreen = false;
+#endif
 	if ((door->base.flags & OBJFLAG_CANNOT_ACTIVATE) == 0
 			&& door->maxfrac > 0
-			&& (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK)) {
+			&& (noscreen || (prop->flags & PROPFLAG_ONTHISSCREENTHISTICK))) {
 		bool maybe = false;
 		bool usingeyespy = g_Vars.currentplayer->eyespy && g_Vars.currentplayer->eyespy->active;
 		struct prop *playerprop = usingeyespy ? g_Vars.currentplayer->eyespy->prop : g_Vars.currentplayer->prop;
@@ -21379,12 +22129,79 @@ Gfx *countdownTimerRender(Gfx *gdl)
 	s32 ms;
 	s32 y;
 
+#ifndef PLATFORM_N64
+	// Combat Sim remaining-time display: render in the campaign mission
+	// timer's spot and style (bottom-left, green numeric text — see
+	// hudmsgRenderMissionTimer) instead of the solo bomb-timer's bottom-centre
+	// digits. Solo missions keep the original rendering below.
+	if (!g_CountdownTimerOff && g_Vars.normmplayerisrunning) {
+		extern s32 g_HudPaddingX; // hudmsg.c (no header decl)
+		extern s32 g_HudPaddingY;
+		extern void formatTime(char *dst, s32 time60, s32 precision); // savebuffer.h
+		char buffer[24];
+		s32 mptimery;
+		s32 mpx;
+		s32 mpviewleft = viGetViewLeft() / g_ScaleX;
+		s32 mpplayercount = LOCALPLAYERCOUNT();
+		s32 mpplayernum = g_Vars.currentplayernum;
+		f32 mpvalue60 = g_CountdownTimerValue60;
+
+		if (mpvalue60 < 0.0f) {
+			mpvalue60 = 0.0f;
+		}
+
+		// position formula mirrored from hudmsgRenderMissionTimer
+		mptimery = viGetViewTop() + viGetViewHeight() - g_HudPaddingY - 8;
+
+		if (mpplayercount == 2) {
+			if (IS4MB() || (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL && mpplayernum == 0)) {
+				mptimery += 10;
+			} else {
+				mptimery += 2;
+			}
+		} else if (mpplayercount >= 3) {
+			if (mpplayernum < 2) {
+				mptimery += 10;
+			} else {
+				mptimery += 2;
+			}
+		} else {
+			if (optionsGetEffectiveScreenSize() != SCREENSIZE_FULL) {
+				mptimery += 8;
+			}
+		}
+
+		if (mpplayercount == 2 && (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || IS4MB()) && mpplayernum == 1) {
+			mpviewleft -= 14;
+		} else if (mpplayercount >= 3 && (mpplayernum & 1) == 1) {
+			mpviewleft -= 14;
+		}
+
+		formatTime(buffer, (s32)mpvalue60, TIMEPRECISION_HUNDREDTHS);
+
+		mpx = mpviewleft + g_HudPaddingX + 3;
+
+		if (mpplayercount < 2 || (mpplayercount == 2 && optionsGetScreenSplit() == SCREENSPLIT_HORIZONTAL)) {
+			gSPExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT, g_HudAlignModeL);
+		}
+
+		gdl = text0f153628(gdl);
+		gdl = textRender(gdl, &mpx, &mptimery, buffer, g_CharsNumeric, g_FontNumeric,
+				0x00ff00a0, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
+		gdl = text0f153780(gdl);
+
+		gSPClearExtraGeometryModeEXT(gdl++, G_ASPECT_MODE_EXT);
+
+		return gdl;
+	}
+#endif
+
 	if (!g_CountdownTimerOff) {
 		f32 value60 = g_CountdownTimerValue60;
 		u32 stack;
 		s32 viewright = viGetViewLeft() + (viGetViewWidth() >> 1);
 		s32 y = viGetViewTop() + viGetViewHeight() - 18;
-		s32 playercount = PLAYERCOUNT();
+		s32 playercount = LOCALPLAYERCOUNT();
 		char *fmt = ":\n";
 
 		if (playercount == 2) {
@@ -21639,6 +22456,13 @@ void weaponCreateForPlayerDrop(s32 weaponnum)
 	struct chrdata *chr;
 	u32 stack2;
 
+#ifndef PLATFORM_N64
+	// don't do anything if we're not the authority
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
+
 	chr = g_Vars.currentplayer->prop->chr;
 	prop = weaponCreateForChr(chr, playermgrGetModelOfWeapon(weaponnum), weaponnum, OBJFLAG_WEAPON_AICANNOTUSE, NULL, NULL);
 
@@ -21649,6 +22473,10 @@ void weaponCreateForPlayerDrop(s32 weaponnum)
 		if (weaponnum == WEAPON_BRIEFCASE2) {
 			scenarioHandleDroppedToken(chr, prop);
 		}
+
+#ifndef PLATFORM_N64
+		netSyncPropSpawn(prop);
+#endif
 	}
 }
 

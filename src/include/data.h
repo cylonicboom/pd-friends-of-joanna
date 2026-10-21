@@ -620,4 +620,8 @@ extern struct texturesurfaceconfig g_VanillaTextures[NUM_TEXTURES];
 
 #endif // PLATFORM_N64
 
+#ifndef PLATFORM_N64
+extern s32 g_CoopGameplayStarted; // player.c: co-op pickup-toast gate
+#endif
+
 #endif

@@ -17069,7 +17069,7 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 	bool result = false;
 	u32 nodetype;
 	union modelrwdata *rwdata;
-	struct player *player;
+	struct player *player = NULL;
 	f32 ground;
 
 	pos2.x = pos->x;

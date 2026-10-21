@@ -3878,7 +3878,7 @@ u32 netmsgSvcPropSpawnRead(struct netbuf *src, struct netclient *srccl)
 
 u32 netmsgSvcPropDamageWrite(struct netbuf *dst, struct prop *prop, f32 damage, struct coord *pos, s32 weaponnum, s32 playernum)
 {
-	if (!prop || !prop->obj) {
+	if (!prop || !prop->syncid || !prop->obj) {
 		return dst->error;
 	}
 	netbufWriteU8(dst, SVC_PROP_DAMAGE);
@@ -4011,6 +4011,9 @@ u32 netmsgSvcPropPickupRead(struct netbuf *src, struct netclient *srccl)
 
 u32 netmsgSvcPropUseWrite(struct netbuf *dst, struct prop *prop, struct netclient *usercl, const s32 tickop)
 {
+	if (!prop || !prop->syncid) {
+		return dst->error;
+	}
 	netbufWriteU8(dst, SVC_PROP_USE);
 	netbufWritePropPtr(dst, prop);
 	netbufWriteU8(dst, usercl->id);
@@ -4064,7 +4067,9 @@ u32 netmsgSvcPropUseRead(struct netbuf *src, struct netclient *srccl)
 
 u32 netmsgSvcPropDoorWrite(struct netbuf *dst, struct prop *prop, struct netclient *usercl)
 {
-	if (prop->type != PROPTYPE_DOOR || !prop->door) {
+	// fojo: a prop without a syncid (the hub's doors - no ids are handed out
+	// there) has nothing a peer could resolve; don't put it on the wire.
+	if (!prop || !prop->syncid || prop->type != PROPTYPE_DOOR || !prop->door) {
 		return dst->error;
 	}
 
@@ -4172,7 +4177,7 @@ u32 netmsgSvcPropDoorRead(struct netbuf *src, struct netclient *srccl)
 
 u32 netmsgSvcPropLiftWrite(struct netbuf *dst, struct prop *prop)
 {
-	if (prop->type != PROPTYPE_OBJ || !prop->obj || prop->obj->type != OBJTYPE_LIFT) {
+	if (!prop || !prop->syncid || prop->type != PROPTYPE_OBJ || !prop->obj || prop->obj->type != OBJTYPE_LIFT) {
 		return dst->error;
 	}
 

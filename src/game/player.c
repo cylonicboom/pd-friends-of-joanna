@@ -1999,10 +1999,25 @@ void playerRemoveChrBody(void)
 	}
 }
 
+#ifndef PLATFORM_N64
+// netplay co-op: true once the local player has reached normal gameplay this
+// stage. Pickup toasts for mid-mission cutscene pickups show; the intro
+// loadout gives stay quiet. Reset on the GE fade-in, set when control is
+// handed over.
+s32 g_CoopGameplayStarted = 0;
+#endif
+
 void playerSetTickMode(s32 tickmode)
 {
 	g_Vars.tickmode = tickmode;
 	g_Vars.in_cutscene = false;
+#ifndef PLATFORM_N64
+	if (tickmode == TICKMODE_GE_FADEIN) {
+		g_CoopGameplayStarted = false;
+	} else if (tickmode == TICKMODE_NORMAL) {
+		g_CoopGameplayStarted = true;
+	}
+#endif
 }
 
 void playerBeginGeFadeIn(void)
@@ -8200,6 +8215,22 @@ void player0f0c3320(Mtxf *matrices, s32 count)
 }
 
 #ifndef PLATFORM_N64
+// netplay: a player-attributed one-shot sound. For a REMOTE pawn (its actions
+// replay here under setCurrentPlayerNum) attenuate positionally; the local
+// pawn hears it in its head as vanilla does.
+struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s32 playernum, f32 pitch, s32 fxbus, s32 fxmix)
+{
+	s32 vol = -1;
+	s32 pan = -1;
+	const struct player *pl = (playernum >= 0 && playernum < MAX_PLAYERS) ? g_Vars.players[playernum] : NULL;
+
+	if (g_NetMode && pl && pl->isremote && pl->prop) {
+		psGetTheoreticalVolPan(&pl->prop->pos, pl->prop->rooms, sound, &vol, &pan);
+	}
+
+	return sndStart(arg0, sound, handle, vol, pan, pitch, fxbus, fxmix);
+}
+
 s32 playerGetCount(void)
 {
 	return PLAYERCOUNT();

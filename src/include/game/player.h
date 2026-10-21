@@ -121,6 +121,7 @@ void playerClearMemCamRoom(void);
 void playerSetHeight(s32 eyeheight, s32 headnum);
 
 s32 playerGetCount(void);
+struct sndstate *playerSndStart(s32 arg0, s16 sound, struct sndstate **handle, s32 playernum, f32 pitch, s32 fxbus, s32 fxmix);
 s32 playerGetLocalCount(void);
 
 #endif
