@@ -56,6 +56,9 @@
 #include "lib/libc/ll.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 /**
  * @cmd 0000
@@ -5126,6 +5129,16 @@ bool aiEndLevel(void)
  */
 bool ai00dd(void)
 {
+#ifndef PLATFORM_N64
+	// netplay: a client's bg scripts run too (they hand out equipment), but
+	// the cutscene state is the host's: it arrives over SVC_CUTSCENE. ending
+	// it here put the client into gameplay while the host still held the
+	// intro (its segment-1 ailist waits on frames the client's didn't).
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		g_Vars.aioffset += 2;
+		return false;
+	}
+#endif
 	playerEndCutscene();
 	g_Vars.aioffset += 2;
 	return false;
@@ -5162,6 +5175,15 @@ bool aiSetCameraAnimation(void)
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
 	s16 anim_id = cmd[3] | (cmd[2] << 8);
 
+#ifndef PLATFORM_N64
+	// netplay: see ai00dd - the host's SVC_CUTSCENE mirror starts (and
+	// re-points) the client's cutscene. a local start would race it with a
+	// segment the host may already have skipped.
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		g_Vars.aioffset += 4;
+		return false;
+	}
+#endif
 	playerStartCutscene(anim_id);
 
 	if (g_Vars.currentplayer->haschrbody == false) {
