@@ -6147,6 +6147,14 @@ void playerTick(bool arg0)
 		}
 
 		if (g_Vars.currentplayer->redbloodfinished && g_Vars.currentplayer->deathanimfinished) {
+#ifndef PLATFORM_N64
+			// netplay: mission failure is the HOST's call - its copy of this
+			// block ends the stage for everyone (SVC_STAGE_END). A client
+			// evaluating it against its own view would end alone.
+			if (g_NetMode == NETMODE_CLIENT) {
+				// nothing: wait for the host
+			} else
+#endif
 			if (g_Vars.mplayerisrunning == false) {
 				mainEndStage();
 			} else if (g_Vars.currentcoopplayernum >= 0) {

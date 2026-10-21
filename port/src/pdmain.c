@@ -92,6 +92,7 @@
 #include <string.h>
 #include <ultra64.h>
 #include "watchdog.h"
+#include "net/net.h"
 
 extern u32 g_NumModDirs;
 extern u8 *g_MempHeap;
@@ -1087,8 +1088,8 @@ void mainLoop(void) {
   if (g_StageNum == STAGE_CITRAINING && IS4MB()) {
     g_StageNum = STAGE_4MBMENU;
   }
-
   rngSetSeed(detBootSeed(osGetCount()));
+  rngCosmeticSetSeed(osGetCount()); // netplay: cosmetic stream, unsynced, may diverge
 
   // Outer loop - this is infinite because ending is never changed
   while (!ending) {
@@ -1423,6 +1424,9 @@ void mainTick(void) {
 void mainEndStage(void) {
   sndStopNosedive();
 
+  // netplay: stop any spectate before the stage tears down (no-op otherwise)
+  netSpectateStop();
+
   if (!g_MainIsEndscreen) {
     pak0f11c6d0();
     joyDisableTemporarily();
@@ -1435,6 +1439,12 @@ void mainEndStage(void) {
         setCurrentPlayerNum(i);
 
         teamCalculateAwards();
+        // netplay: awards are tallied for every seat (the host owns the
+        // stats), but only a LOCAL seat gets an endscreen pushed here - a
+        // remote pawn's menu is never drawn on this machine.
+        if (g_NetMode && g_Vars.currentplayer->isremote) {
+          continue;
+        }
         printf("mainEndStage: before endscreenPushTeam (player %d)\n", i);
         endscreenPushTeam();
       }
@@ -1447,6 +1457,9 @@ void mainEndStage(void) {
       endscreenPrepare();
       musicStartMenu();
     }
+
+    // netplay: the host tells every client the stage is over (SVC_STAGE_END)
+    netServerStageEnd();
   }
 
   g_MainIsEndscreen = true;
@@ -1483,5 +1496,20 @@ s32 mainGetStageNum(void) { return g_StageNum; }
 void func0000e990(void) {
   objectivesCheckAll();
   objectivesDisableChecking();
+
+  // netplay: the mission end is HOST-authoritative. A client that genuinely
+  // completed only tells the host (CLC_STAGE_COMPLETE) and waits for
+  // SVC_STAGE_END; the host's outro plays for everyone via SVC_CUTSCENE and
+  // its mainEndStage ends the stage for all. A client reaching here with
+  // objectives incomplete is aborting or dying out: leave the session and end
+  // its own stage as plain solo.
+  if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+    if (objectiveIsAllComplete()) {
+      netClientStageComplete();
+      return;
+    }
+    netDisconnect();
+  }
+
   mainEndStage();
 }
