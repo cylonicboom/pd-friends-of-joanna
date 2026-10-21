@@ -30,6 +30,7 @@
 #include "utils.h"
 #include "game/mplayer/setup.h"
 #include "ext_tex.h"
+#include "watchdog.h"
 #include "skinmatch.h"
 #include "mpk.h"
 #include "textrace.h"
@@ -192,6 +193,7 @@ int main(int argc, const char **argv)
 	// rest of the net flags; a latch set here makes the main menu auto-host
 	// or auto-join once the save file is loaded.
 	netInit();
+	watchdogInit();
 
 	g_ValidGbcRomFound = romdataCheckGbcRom();
 

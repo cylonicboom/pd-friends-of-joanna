@@ -2934,6 +2934,8 @@ static inline void *seg_addr(uintptr_t w1) {
 
 uintptr_t clearMtx;
 
+uint32_t g_GfxDlCmdCount = 0;
+
 static void gfx_run_dl(Gfx* cmd) {
     // puts("dl");
     int dummy = 0;
@@ -2946,6 +2948,21 @@ static void gfx_run_dl(Gfx* cmd) {
     for (;;) {
         uint32_t opcode = cmd->words.w0 >> 24;
         // gfx_print_cmd(cmd);
+        {
+            // fojo netplay diag: a display list that never ends. Count the
+            // commands this frame; past the cap, say where we are and bail.
+            extern uint32_t g_GfxDlCmdCount;
+            static uint32_t s_dlwatch_logged = 0;
+            if (++g_GfxDlCmdCount > 4000000u) {
+                if (s_dlwatch_logged < 4u) {
+                    fprintf(stderr, "gfx_run_dl: >4M commands this frame; cmd=%p op=0x%02x w0=%08x w1=%08x dlstart=%p - abandoning frame\n",
+                            (void *)cmd, opcode, cmd->words.w0, (uint32_t)cmd->words.w1, (void *)dListStart);
+                    fflush(stderr);
+                    s_dlwatch_logged++;
+                }
+                return;
+            }
+        }
         switch (opcode) {
                 // RSP commands:
             case G_NOOP:
@@ -3572,6 +3589,7 @@ uint32_t num_dls = 0;
 extern "C" void gfx_run(Gfx* commands) {
     ++num_dls;
     gfx_sp_reset();
+    g_GfxDlCmdCount = 0;
 
     // puts("New frame");
 

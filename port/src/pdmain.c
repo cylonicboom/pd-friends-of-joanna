@@ -91,6 +91,7 @@
 #include <PR/ultrasched.h>
 #include <string.h>
 #include <ultra64.h>
+#include "watchdog.h"
 
 extern u32 g_NumModDirs;
 extern u8 *g_MempHeap;
@@ -1321,6 +1322,10 @@ void mainTick(void) {
   Gfx *gdlstart = NULL;
   OSScMsg msg = {OS_SC_DONE_MSG};
   s32 i;
+
+  g_WatchdogFrame++;
+
+  g_WatchdogFrame++;
 
   if (g_MainChangeToStageNum < 0) {
     if (inputKeyJustPressed(VK_F2) && inputGetKeyModState() & KM_SHIFT) {
