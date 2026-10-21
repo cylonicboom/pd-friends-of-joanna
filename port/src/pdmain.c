@@ -1325,7 +1325,16 @@ void mainTick(void) {
 
   g_WatchdogFrame++;
 
-  g_WatchdogFrame++;
+  {
+    // netplay diag: a frame that took seconds says what the sim was fed.
+    static u64 s_lastus = 0;
+    const u64 nowus = sysGetMicroseconds();
+    if (s_lastus && nowus - s_lastus > 2000000ull) {
+      sysLogPrintf(LOG_WARNING, "mainTick: previous frame took %.1f s (stage 0x%02x lvupdate240 %d diffframe240 %d players %d chrs %d)",
+          (nowus - s_lastus) / 1e6, g_StageNum, g_Vars.lvupdate240, g_Vars.diffframe240, PLAYERCOUNT(), g_NumChrs);
+    }
+    s_lastus = nowus;
+  }
 
   if (g_MainChangeToStageNum < 0) {
     if (inputKeyJustPressed(VK_F2) && inputGetKeyModState() & KM_SHIFT) {

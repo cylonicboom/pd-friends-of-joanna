@@ -2632,10 +2632,26 @@ void propsTickPlayer(bool islastplayer)
 	// background and decide if they should be ticked.
 	done = false;
 	if (1);
+#ifndef PLATFORM_N64
+	s32 tickwalk = 0;
+#endif
 	for (prop = g_Vars.activeprops; !done; ) {
 		op = TICKOP_NONE;
 		savednext = prop->next;
 		done = savednext == g_Vars.pausedprops;
+
+#ifndef PLATFORM_N64
+		// netplay diag: the active walk visits each prop once (a RETICK
+		// appends it once more). Past 4x the pool something cycles - say
+		// which prop and end the walk for this frame instead of hanging.
+		if (++tickwalk > g_Vars.maxprops * 4) {
+			sysLogPrintf(LOG_WARNING,
+					"proptick_guard: active walk past %d visits at prop %d (type %d flags 0x%x syncid %u active %d next %d); aborting tick walk",
+					tickwalk, (s32)(prop - g_Vars.props), prop->type, prop->flags, prop->syncid, prop->active,
+					prop->next ? (s32)(prop->next - g_Vars.props) : -1);
+			break;
+		}
+#endif
 
 		// Tally up reasons for the prop to be in the foreground.
 		// The i variable is being reused as the score value.
