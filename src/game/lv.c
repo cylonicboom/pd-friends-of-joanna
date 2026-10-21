@@ -103,6 +103,7 @@
 #include "video.h"
 #include "system.h"
 #include "det.h"
+#include "net/net.h"
 #endif
 
 struct sndstate *g_MiscSfxAudioHandles[3];
@@ -2250,6 +2251,21 @@ s32 lvGetSlowMotionType(void)
 	return SLOWMOTION_OFF;
 }
 
+#ifndef PLATFORM_N64
+// netplay (Kai be46717): true on frames the sim step is slow-motion. The host
+// mirrors it to clients with SVC_TIMESCALE so both ends halve the same step.
+s32 g_LvSlomoEngaged = false;
+
+static void lvSlomoEngage(void)
+{
+	if (g_NetMode != NETMODE_CLIENT) {
+		g_LvSlomoEngaged = true;
+	}
+}
+#else
+#define lvSlomoEngage()
+#endif
+
 void lvTick(void)
 {
 	s32 j;
@@ -2307,6 +2323,15 @@ void lvTick(void)
 	} else {
 		s32 slowmo = lvGetSlowMotionType();
 		g_Vars.lvupdate240 = g_Vars.diffframe240;
+
+#ifndef PLATFORM_N64
+		// netplay (Kai): re-decide slow-motion engagement each frame on the
+		// server / offline; a net client keeps the wire-driven value from
+		// SVC_TIMESCALE.
+		if (g_NetMode != NETMODE_CLIENT) {
+			g_LvSlomoEngaged = false;
+		}
+#endif
 
 #ifndef PLATFORM_N64
 		// Lua SUPERHOT (pd.time_stop, from Kai): a literal time stop. The game
@@ -2368,6 +2393,7 @@ void lvTick(void)
 			if (g_Vars.speedpillon == false || g_Vars.in_cutscene) {
 				if (g_Vars.lvupdate240 > LV_SLOMO_TICK_CAP) {
 					g_Vars.lvupdate240 = LV_SLOMO_TICK_RATE;
+					lvSlomoEngage();
 				}
 			}
 		} else if (slowmo == SLOWMOTION_SMART) {
@@ -2399,6 +2425,7 @@ void lvTick(void)
 					if (foundnearbychr) {
 						if (g_Vars.lvupdate240 > LV_SLOMO_TICK_CAP) {
 							g_Vars.lvupdate240 = LV_SLOMO_TICK_RATE;
+					lvSlomoEngage();
 						}
 					} else {
 						if (g_Vars.lvupdate240 > TICKS(8)) {
@@ -2408,6 +2435,7 @@ void lvTick(void)
 				} else {
 					if (g_Vars.lvupdate240 > LV_SLOMO_TICK_CAP) {
 						g_Vars.lvupdate240 = LV_SLOMO_TICK_RATE;
+					lvSlomoEngage();
 					}
 				}
 			}
@@ -2416,6 +2444,7 @@ void lvTick(void)
 			if (g_Vars.speedpillon && g_Vars.in_cutscene == false) {
 				if (g_Vars.lvupdate240 > LV_SLOMO_TICK_CAP) {
 					g_Vars.lvupdate240 = LV_SLOMO_TICK_RATE;
+					lvSlomoEngage();
 				}
 			}
 		}

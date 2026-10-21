@@ -74,4 +74,13 @@ u32 detBootSeed(u32 seed);
 // One-line status to the log (mode, frame count, divergence if any).
 void detLogInfo(void);
 
+// True while detPinTimestep overrides lvupdate240 (record/replay, or netplay
+// once its 60 Hz pin lands here). lvTick's slow-motion halving stands down
+// while this is set; the pin halves the step itself.
+s32 detTickPinActive(void);
+
+// Console-command hook the Kai net layer chains to (dethash / detinfo /
+// detrec / detplay). Returns 1 when the word was consumed.
+s32 detConsoleCommand(const char *cmd, const char *arg);
+
 #endif

@@ -24,6 +24,17 @@
 #define MAX_MPPLAYERCONFIGS    (MAX_PLAYERS + MAX_COOPCHRS)
 #define MAX_OBJECTIVES         10
 #define MAX_PLAYERS            4
+// netplay (Kai be46717). Kai split "humans on this machine" (MAX_LOCAL_PLAYERS)
+// from "humans in the room" (MAX_PLAYERS 16); fojo keeps both at 4 for now -
+// d-coop-player-model on the board is where that widening gets decided. The
+// wire caps sims at NET_MAX_BOTS, which is MAX_BOTS here.
+#define MAX_LOCAL_PLAYERS      MAX_PLAYERS
+#define NET_MAX_BOTS           MAX_BOTS
+#define MAX_PLAYERNAME         15
+#define MPCHRSLOTS_PLAYERS_MASK ((1ULL << MAX_PLAYERS) - 1)
+#define MPCHRSLOTS_BOTS_MASK    (((1ULL << MAX_BOTS) - 1) << MAX_PLAYERS)
+#define NET_MPCHRSLOTS_BOTS_MASK (((1ULL << NET_MAX_BOTS) - 1) << MAX_PLAYERS)
+#define MPCHRSLOT(n)            (1ULL << (n))
 #define MAX_PROPSPERROOMCHUNK  7
 #define MAX_ROOMPROPLISTCHUNKS 256
 #define MAX_SQUADRONS          16
@@ -946,6 +957,7 @@
 #define CONTROLMODE_23 6
 #define CONTROLMODE_24 7
 #define CONTROLMODE_PC 8 // "pc port" controls; enabled in the .ini file
+#define CONTROLMODE_NA 9 // netplay: dummy controls for remote players (Kai)
 
 #define COUNTDOWNTIMERREASON_AI        0x01
 #define COUNTDOWNTIMERREASON_NOCONTROL 0x10
@@ -1882,6 +1894,9 @@
 // (g_ChaosGunLock / g_ChaosKnifeLock) is active — the pause-menu Inventory's
 // Equip is a weapon-switch avenue the locks must close. From Kai (be46717).
 #define MENUDIALOGFLAG_WEAPONLOCK_HIDDEN 0x8000
+// Sibling skipped by menuPushDialog's carousel walk while g_NetMode !=
+// NETMODE_NONE (offline-only Simulants pages). Kai be46717.
+#define MENUDIALOGFLAG_NETPLAY_HIDDEN    0x4000
 #endif
 
 #define MENUDIALOGSTATE_PREOPEN    0
@@ -5340,4 +5355,47 @@ enum weaponnum {
 #define MOD_DARKNOON 3 // Dark Noon Mod
 #define MOD_GOLDFINGER_64 4  // Goldfinger 64 Mod
 #define MOD_FOJO 5 // Friends of Joanna Mod
+#endif
+
+#ifndef PLATFORM_N64
+// netplay (Kai be46717). The host is NETMODE_SERVER; gate server-only writes on
+// g_NetMode != NETMODE_CLIENT. LOCALPLAYERCOUNT is how many humans sit at THIS
+// machine - 1 in a net game, PLAYERCOUNT() otherwise.
+// Kai's three extra Combat Sim scenarios (ids 7/8 in its 3-bit field) are
+// not ported; the ids are reserved so the net layer's comparisons compile and
+// are simply never true here. Do not reuse 7 or 8 for a fojo scenario without
+// looking at what Kai's wire does with them.
+// Kai's Combat Sim option bits the net layer names. fojo's options word is
+// still u32 and these features are not ported, so each is 0: no bit is ever
+// set, every test on them is false, and the playlist parser reports them as
+// unknown. Giving them real bits is a fojo decision (they would collide with
+// fojo's jump bits at 0xe0000000 otherwise).
+#define MPOPTION_HOSTSPECTATOR          0ULL
+#define MPOPTION_SPECTATEONDEATH        0ULL
+#define MPOPTION_GOLDENEYE              0ULL
+#define MPOPTION_NOCULL                 0ULL
+#define MPOPTION_AUTOLIFTS              0ULL
+#define MPOPTION_KILLCAM                0ULL
+#define MPOPTION_LASTATTACKERKILL       0ULL
+#define MPOPTION_CONTROLLERS_ONLY       0ULL
+#define MPOPTION_CLASSIC_SNAPLEAN       0ULL
+#define MPOPTION_CLASSIC_NOCROUCHACC    0ULL
+#define MPOPTION_CLASSIC_RELOAD         0ULL
+#define MPOPTION_CLASSIC_LEDGEWALL      0ULL
+#define MPOPTION_CLASSIC_SIGHT          0ULL
+#define MPOPTION_CLASSIC_HIDESIGHT      0ULL
+#define MPOPTION_CLASSIC_GEHUD          0ULL
+#define MPOPTION_CLASSIC_NOSECONDARY    0ULL
+#define MPOPTION_CLASSIC_NOMIDCROUCH    0ULL
+#define MPOPTION_CLASSIC_NODUALWIELD    0ULL
+#define MPOPTION_CLASSIC_IFRAMES        0ULL
+#define MPOPTION_CLASSIC_NOBLUR         0ULL
+#define MPSCENARIO_COUNT (MPSCENARIO_CAPTURETHECASE + 1)
+#define MPSCENARIO_PAINTROOM 7
+#define MPSCENARIO_ZONES     8
+#define MPSCENARIO_RACE      8
+#define NETMODE_NONE 0
+#define NETMODE_SERVER 1
+#define NETMODE_CLIENT 2
+#define LOCALPLAYERCOUNT() playerGetLocalCount()
 #endif

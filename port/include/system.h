@@ -11,7 +11,13 @@ enum LogLevel {
   LOG_NOTE,
   LOG_WARNING,
   LOG_ERROR,
+  // netplay code from Kai logs chat / net status at LOG_CHAT, which there
+  // also meant "show on the console". fojo has no console; it is a note.
+  LOG_CHAT = LOG_NOTE,
 };
+// Kai's "log but keep off the console" flag; no console here, so it is nothing.
+#define LOGFLAG_NOCON 0
+
 
 void sysInitArgs(s32 argc, const char **argv);
 void sysInit(void);

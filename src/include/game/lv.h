@@ -32,6 +32,9 @@ void lvUpdateSoloHandicaps(void);
 s32 sub54321(s32 value);
 void lvUpdateCutsceneTime(void);
 s32 lvGetSlowMotionType(void);
+#ifndef PLATFORM_N64
+extern s32 g_LvSlomoEngaged; // netplay: this frame's slow-motion decision (lv.c)
+#endif
 void lvTick(void);
 void lvTickPlayer(void);
 void lvCheckPauseStateChanged(void);

@@ -16727,6 +16727,80 @@ void func0f04b740(void)
 	// empty
 }
 
+#ifndef PLATFORM_N64
+// netplay (Kai be46717): the net-snap entry point (CSP teleport / force-move).
+bool chrSetPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 theta, bool findground)
+{
+	// Net-snap entry point (CSP teleport / force-move). Unlike its sibling
+	// chrMoveToPos this is reached directly from wire-driven paths, so guard the
+	// pointers it unconditionally dereferences below (chr->prop->rooms,
+	// chr->model->...) — a spectator / mid-spawn remote slot can momentarily have
+	// a NULL model or prop. See docs/netplay-code-review-2026.md (M-1).
+	if (chr == NULL || chr->prop == NULL || chr->model == NULL || pos == NULL || rooms == NULL) {
+		return false;
+	}
+
+	const f32 angle = BADDEG2RAD(360.f - theta);
+
+	if (findground) {
+		const u32 oldhidden = chr->hidden;
+		chr->hidden |= CHRHFLAG_WARPONSCREEN;
+		const bool ret = chrMoveToPos(chr, pos, rooms, angle, true);
+		if ((oldhidden & CHRHFLAG_WARPONSCREEN) == 0) {
+			chr->hidden &= ~CHRHFLAG_WARPONSCREEN;
+		}
+	}
+
+	bool newrooms = false;
+	for (s32 i = 0; i < ARRAYCOUNT(chr->prop->rooms) && rooms[i] >= 0; ++i) {
+		if (chr->prop->rooms[i] != rooms[i]) {
+			newrooms = true;
+			break;
+		}
+	}
+
+	propSetPerimEnabled(chr->prop, false);
+
+	chr->prop->pos = *pos;
+
+	const f32 ground = cdFindGroundInfoAtCyl(pos, chr->radius, rooms, &chr->floorcol,
+			&chr->floortype, NULL, &chr->floorroom, NULL, NULL);
+
+	chr->ground = ground;
+	chr->manground = ground;
+	chr->sumground = ground * (PAL ? 8.4175090789795f : 9.999998f);
+
+	if (newrooms) {
+		propDeregisterRooms(chr->prop);
+		roomsCopy(rooms, chr->prop->rooms);
+		chr0f0220ac(chr);
+	}
+
+	modelSetRootPosition(chr->model, pos);
+
+	const u16 nodetype = chr->model->definition->rootnode->type;
+
+	if ((nodetype & 0xff) == MODELNODETYPE_CHRINFO) {
+		union modelrwdata *rwdata = modelGetNodeRwData(chr->model, chr->model->definition->rootnode);
+		rwdata->chrinfo.ground = ground;
+	}
+
+	chrSetLookAngle(chr, angle);
+
+	if (chr->prop->type == PROPTYPE_PLAYER) {
+		struct player *player = g_Vars.players[playermgrGetPlayerNumByProp(chr->prop)];
+		player->vv_manground = ground;
+		player->vv_ground = ground;
+		player->vv_theta = theta;
+		player->unk1c64 = 1;
+	}
+
+	propSetPerimEnabled(chr->prop, true);
+
+	return true;
+}
+#endif
+
 bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 angle, bool force)
 {
 	struct coord pos2;

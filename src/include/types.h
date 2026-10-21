@@ -353,6 +353,14 @@ struct prop {
   /*0x3f*/ u8 active : 1;
   /*0x40*/ struct wallhit *opawallhits; // opaque
   /*0x44*/ struct wallhit *xluwallhits; // translucent
+#ifndef PLATFORM_N64
+  // netplay (from Kai be46717): 1-based index into g_Vars.props handed out at
+  // stage start by netSyncIdsAllocate; the wire names props by it. 0 = never
+  // networked (client-local). Full owner index for explosions / projectiles /
+  // destructibles; -1 = unset, fall back to the obj->hidden nibble.
+  /*net*/ u32 syncid;
+  /*net*/ s16 ownerplayernum;
+#endif
 };
 
 struct packedpad {
@@ -1189,6 +1197,35 @@ struct act_skjump {
   /*0x50*/ f32 ground;
 };
 
+#ifndef PLATFORM_N64
+// One entry of a networked chr's client-side pose interpolation ring
+// (chrdata.netsnaps). Populated from SVC_PROP_MOVE (netmsg.c) stamped with
+// the local receive tick; consumed every frame by netChrInterpolate (net.c),
+// which reconstructs the whole facing pose (position + body yaw + aim) for
+// one consistent past instant. NET_SNAPSHOT_COUNT (net.h) entries, allocated
+// lazily out of line on the first recorded snapshot (MEMPOOL_STAGE), so only
+// chrs a CLIENT interpolates pay for it. From Kai be46717.
+struct chrnetsnap {
+	u32 tick;            // local g_NetTick when this snapshot arrived (0 = empty)
+	struct coord pos;    // wire world position
+	f32 yrot;            // body yaw (radians)
+	f32 angleoffset;     // waist twist decoupling facing from move dir (aibot)
+	f32 aimupback;       // upper-body aim joints (gun direction)
+	f32 aimsideback;
+	f32 aimuplshoulder;
+	f32 aimuprshoulder;
+	s16 animnum;         // leg/body animation at this instant (0 = none)
+	s16 framea;          // anim frame index at this instant
+	f32 speed;           // anim playback speed at this instant
+	RoomNum rooms[8];    // wire room membership at this instant
+};
+#ifdef __cplusplus
+static_assert(sizeof(struct chrnetsnap) == 64, "chrnetsnap layout changed - audit netChrRecordSnapshot/netChrInterpolate and the ring alloc in net.c");
+#else
+_Static_assert(sizeof(struct chrnetsnap) == 64, "chrnetsnap layout changed - audit netChrRecordSnapshot/netChrInterpolate and the ring alloc in net.c");
+#endif
+#endif
+
 struct chrdata {
   /*0x000*/ s16 chrnum;
   /*0x002*/ s8 accuracyrating;
@@ -1468,6 +1505,11 @@ struct chrdata {
       hiddenelsemask; // used by aiSetHiddenElseMask and aiIfChrActivatedObject
   /*ext*/ s32
       coopplayernum; // used to lock onto specific coop partner in team missions
+#ifndef PLATFORM_N64
+  // netplay (Kai be46717): client-side pose ring, see struct chrnetsnap.
+  /*net*/ struct chrnetsnap *netsnaps;
+  /*net*/ u32 netsnaphead; // newest netsnaps[] entry (meaningless while NULL)
+#endif
 };
 
 // This appears to be misnamed. Not only is it projectiles such as grenades and
@@ -3073,6 +3115,33 @@ struct player {
   /*ext*/ f32 thirdpersonbodytheta;
   /*ext*/ bool thirdpersonbodyset;
   /*ext*/ s32 thirdpersonfirehold;
+#ifndef PLATFORM_N64
+  // netplay (Kai be46717). ucmd: this tick's UCMD_* bits, composed locally
+  // (bondmove) or applied from the wire for a remote pawn. isremote: driven by
+  // SVC_PLAYER_MOVE, not a local pad. client: the netclient seated here.
+  /*net*/ u32 ucmd;
+  /*net*/ bool isremote;
+  /*net*/ struct netclient *client;
+  // Fly-by-wire steering capture (proto 76): per-tick rotation rates the
+  // slayer steering block stores for netClientRecordMove; the fire latch and
+  // the most recent owned powered-projectile spawn.
+  /*net*/ f32 fbw_pitch;
+  /*net*/ f32 fbw_yaw;
+  /*net*/ s8 fbw_rsticky;
+  /*net*/ u32 fbw_pendingframe;
+  /*net*/ u16 fbw_spawnsyncid;
+  /*net*/ u32 fbw_spawnframe;
+  // Combat Sim respawn options (proto 77): g_NetTick at or after which
+  // respawn is permitted (0 = not pending); i-frame ticks after a respawn.
+  /*net*/ u32 respawnallowtick;
+  /*net*/ s32 respawnprotect60;
+  // Host-spectator panel marker (not ported; always 0 here) and the drop-in
+  // dormant-slot marker: a pre-allocated player slot with no client seated,
+  // parked dead+hidden at stage start, revived via SVC_COOP_CLAIM.
+  /*net*/ u8 is_spectator;
+  /*net*/ u8 spectator_panel;
+  /*net*/ u8 isdormant;
+#endif
 };
 
 struct ailist {
@@ -4413,6 +4482,9 @@ struct mpplayerconfig {
   u8 *showoperativename;
   s32 teamagentindex;
   s32 configindex;
+#ifndef PLATFORM_N64
+  /*net*/ struct netclient *client; // netplay (Kai be46717): the client this config belongs to
+#endif
 };
 
 struct mpbotconfig {
@@ -4469,6 +4541,23 @@ struct mpsetup {
   // Used to restore the non-player bits of chrslots upon entering Combat
   // Simulator, after playing Co-Op/Counter-Op with a human sim.
   u16 storedbotbits;
+  // netplay (Kai be46717): the port-only Combat Sim options Kai's wire carries
+  // in SVC_STAGE_START / CLC_ADMIN_SETUP. INERT HERE - no fojo menu sets them
+  // and no scenario reads them (Kai's Graffiti / Zones / Race / global Lives /
+  // static spawns are not ported). They exist so the message layout stays
+  // Kai's; a fojo host and client only ever exchange zeros.
+  u8 kohstatichill;
+  u8 ctcteambase[4];
+  u8 htbstaticpad;
+  u8 htmstaticpad;
+  u8 paintclaimtime;
+  u8 zonescoretime;
+  u8 zonecapturetime;
+  u8 elimlivesmode;
+  u8 elimlives;
+  u8 racelaps;
+  u8 racepitytime;
+  u8 respawndelay;
 #endif
 };
 

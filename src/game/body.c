@@ -1202,3 +1202,21 @@ void bodyCalculateHeadOffset(struct modeldef *headmodeldef, s32 headnum, s32 bod
 		}
 	}
 }
+
+#ifndef PLATFORM_N64
+// netplay (Kai be46717): bound a wire body/head index before anything
+// dereferences g_HeadsAndBodies (a bad SVC_CHR_SPAWN index was an OOB read).
+s32 bodyGetHeadsAndBodiesCount(void)
+{
+	static s32 count = -1;
+
+	if (count < 0) {
+		s32 i = 0;
+		while (g_HeadsAndBodies[i].filenum) {
+			i++;
+		}
+		count = i;
+	}
+	return count;
+}
+#endif

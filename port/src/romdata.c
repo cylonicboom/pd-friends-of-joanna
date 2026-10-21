@@ -174,6 +174,7 @@ extern char modDirs[64][FS_MAXPATH + 1];
 static u8 *romDataSeg;
 static u32 romDataSegSize;
 static const char *romName = ROMDATA_ROM_NAME;
+const char *g_RomName = ROMDATA_ROM_NAME; // netplay: CLC_AUTH compares the two ends' rom filenames
 s32 loadingFileNum;
 
 enum loadsource {
@@ -2195,6 +2196,7 @@ s32 romdataInit(void)
 	const char *altRomName = sysArgGetString("--rom-file");
 	if (altRomName) {
 		romName = altRomName;
+		g_RomName = altRomName;
 	}
 
 	romdataLoadRom();

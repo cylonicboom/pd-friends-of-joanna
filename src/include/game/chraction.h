@@ -277,6 +277,9 @@ void chrFadeCorpse(struct chrdata *chr);
 void chrFadeCorpseWhenOffScreen(struct chrdata *chr);
 void chrTickTest(struct chrdata *chr);
 void chrSetLookAngle(struct chrdata *chr, f32 angle);
+#ifndef PLATFORM_N64
+bool chrSetPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 angle, bool findground); // netplay snap
+#endif
 f32 chrGetRotY(struct chrdata *chr);
 void chrSetRotY(struct chrdata *chr, f32 arg1);
 void chrResetAimEndProperties(struct chrdata *chr);

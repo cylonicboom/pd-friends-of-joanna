@@ -561,6 +561,11 @@ void detEndTick(void)
 	}
 }
 
+s32 detTickPinActive(void)
+{
+	return g_DetMode == DET_RECORD || g_DetMode == DET_REPLAY;
+}
+
 /* ---- control ---- */
 
 void detStop(void)
@@ -655,4 +660,31 @@ void detLogInfo(void)
 		sysLogPrintf(LOG_NOTE, "DET: %d mismatches; first diverge frame=%d sub=%s",
 				g_DetMismatchCount, g_DetFirstDivergeFrame, g_DetFirstDivergeSub);
 	}
+}
+
+/* ---- command surface (chained from netConsoleCommand) ---- */
+
+s32 detConsoleCommand(const char *cmd, const char *arg)
+{
+	if (strcmp(cmd, "dethash") == 0 || strcmp(cmd, "detinfo") == 0) {
+		detLogInfo();
+		return 1;
+	}
+	if (strcmp(cmd, "detrec") == 0) {
+		if (*arg) {
+			detStartRecord(arg);
+		} else {
+			detStop();
+		}
+		return 1;
+	}
+	if (strcmp(cmd, "detplay") == 0) {
+		if (*arg) {
+			detStartReplay(arg, 0);
+		} else {
+			detStop();
+		}
+		return 1;
+	}
+	return 0;
 }
