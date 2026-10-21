@@ -153,6 +153,22 @@ static void bwalkUpdateRemote(void)
 		pl->prop->pos = inmove->pos;
 		cl->lerpticks = g_NetInterpTicks + 1;
 		cdtype = CDTYPE_PLAYERS;
+
+		// a snap can be hundreds of units (a seat that spawned below the
+		// floor and was lifted by the host, or one we first saw mid-fall).
+		// bwalkUpdateVertical rebuilds pos.y from vv_manground every frame
+		// and the rooms/ground come from the pawn's *current* rooms, so a
+		// snapped pos with stale vertical state is undone the same frame: the
+		// remote pawn stays glued at the old floor while every snapshot says
+		// otherwise. re-seat the rooms at the new pos and put the pawn on the
+		// ground the snapshot implies.
+		if (fabsf(pl->prop->pos.y - pl->vv_manground - pl->vv_eyeheight) > 64.f) {
+			bmoveUpdateRooms(pl);
+			pl->vv_manground = pl->vv_ground = pl->prop->pos.y - pl->vv_eyeheight;
+			pl->bdeltapos.y = 0.0f;
+			pl->isfalling = false;
+			pl->fallstart = g_Vars.lvframe60;
+		}
 		if (cl && (g_NetTick % 60u) == 0u) {
 			netDiagLogf("bwalkrem_exit_force", "cl=%u prop_pos=(%.1f,%.1f,%.1f)",
 				cl->id, pl->prop->pos.x, pl->prop->pos.y, pl->prop->pos.z);
