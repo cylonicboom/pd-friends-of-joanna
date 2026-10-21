@@ -158,6 +158,43 @@ void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles)
 }
 
 /**
+ * Both ends, once a second from netEndFrame: the state a test plan reads.
+ * One `team` line per seat: role, pos, dead, lives, and the stage/tickmode
+ * header so a reader can tell cutscene from gameplay.
+ */
+void netTeamDiagTick(void)
+{
+	if (!g_NetMode || (g_NetTick % 60u) != 30u) {
+		return;
+	}
+	netDiagLogf("team", "stage=0x%02x tickmode=%d cutscene=%d lvframe60=%d players=%d bond=%d coop=%d anti=%d isteam=%d endscreen=%d",
+			g_StageNum, g_Vars.tickmode, g_Vars.in_cutscene, g_Vars.lvframe60, PLAYERCOUNT(),
+			g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.antiplayernum, g_MissionConfig.isteam, g_MainIsEndscreen);
+	for (s32 i = 0; i < g_NetMaxClients; i++) {
+		struct netclient *cl = &g_NetClients[i];
+		if (cl->state) {
+			s32 slot = -1;
+			for (s32 p = 0; p < MAX_PLAYERS; p++) {
+				if (cl->player && g_Vars.players[p] == cl->player) {
+					slot = p;
+				}
+			}
+			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient);
+		}
+	}
+	for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+		struct player *pl = g_Vars.players[i];
+		if (!pl) {
+			continue;
+		}
+		netDiagLogf("seat", "i=%d role=%d remote=%d client=%d pos=(%.1f,%.1f,%.1f) dead=%d lives=%d health=%.2f ucmd=0x%08x",
+				i, g_Vars.playerroles[i], (s32)pl->isremote, pl->client ? (s32)pl->client->id : -1,
+				pl->prop ? pl->prop->pos.x : 0.0f, pl->prop ? pl->prop->pos.y : 0.0f, pl->prop ? pl->prop->pos.z : 0.0f,
+				(s32)pl->isdead, pl->livesremaining, pl->bondhealth, pl->ucmd);
+	}
+}
+
+/**
  * Host, once per frame from netEndFrame. Waits in the hub for --team-wait
  * remote clients to reach the lobby, then starts the armed team mission.
  */

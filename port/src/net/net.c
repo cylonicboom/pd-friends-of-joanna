@@ -2788,8 +2788,9 @@ void netEndFrame(void)
 	// stamped with the same tick as that frame's outgoing state.
 	netPropAuditTick();
 
-	// fojo: armed Team Missions start (--team) once the lobby fills.
+	// fojo: armed Team Missions start (--team) once the lobby fills; per-second team diag.
 	netTeamServerTick();
+	netTeamDiagTick();
 
 	// Dedicated self-reap (--idle-exit / Net.Server.IdleExit): exit cleanly
 	// after N minutes with no remote clients at all. Belt-and-braces against
@@ -3825,7 +3826,11 @@ void netPlayersAllocate(void)
 	s32 playernum = 0;
 
 	s_netSlot0SwapOccupant = NULL;
-	if (g_NetMode == NETMODE_CLIENT && !g_NetLocalClient->is_spectator) {
+	// fojo: no slot-0 swap in a Team Mission. The wire playernum IS the seat
+	// (g_Vars.playerroles[] is per seat), so swapping the local pawn to slot 0
+	// would hand a client the operative's role (d-net-slot-identity). The
+	// "local player is players[0]" sites key on g_NetLocalClient instead.
+	if (g_NetMode == NETMODE_CLIENT && !g_NetLocalClient->is_spectator && !g_MissionConfig.isteam) {
 		// Always put the LOCAL player at local index 0 — the invariant the whole
 		// decompiled codebase assumes ("the local player is g_Vars.players[0]";
 		// ~every currentplayernum==0 / playernum!=0 idiom). Client-side that means
