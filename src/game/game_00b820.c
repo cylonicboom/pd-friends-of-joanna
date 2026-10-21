@@ -11,6 +11,9 @@
 #include "lib/rng.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#endif
 
 struct prop *g_DangerousProps[12];
 
@@ -23,6 +26,9 @@ void resetSomeStageThings(void)
 	}
 
 	g_StageFlags = 0;
+#ifndef PLATFORM_N64
+	g_NetCoopLocalStageFlags = 0; // netplay: a client's locally-set stage flags reset with the stage
+#endif
 
 	g_EnemyAccuracyScale = 1;
 	g_PlayerDamageRxScale = 1;

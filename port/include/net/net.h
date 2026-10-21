@@ -588,6 +588,7 @@ extern u8 g_NetTeamRoles[MAX_PLAYERS];
 void netTeamInitFromArgs(void);
 void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles);
 void netTeamServerTick(void);
+void netTeamDiagTick(void);
 
 // Dedicated-server mode. 0 = listen server (host plays), 1 = headless dedicated
 // (no SDL window, no audio device, server-only tick), 2 = windowed dedicated
@@ -817,6 +818,9 @@ void netCoopResetStageState(void);
 // the wire's purposes whatever the roles are (an operative + an anti only
 // has coopplayernum -1). Drop-in / dormant-slot code stays on kai's gate.
 #define NET_COOP_GAME() (g_Vars.coopplayernum >= 0 || g_MissionConfig.isteam)
+
+// chraction.c: stage flags a co-op client's own scripts set (OR-merged over the host mirror)
+extern u32 g_NetCoopLocalStageFlags;
 
 // Co-op drop-in: net co-op stages always allocate this many player slots
 // regardless of the connected count, so the prop/syncid layout is identical

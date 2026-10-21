@@ -15,6 +15,8 @@
 #include "game/training.h"
 #include "game/lang.h"
 #include "game/propobj.h"
+#include "game/luaai.h"
+#include "net/net.h"
 #include "bss.h"
 #include "lib/dma.h"
 #include "lib/memp.h"
@@ -341,7 +343,7 @@ s32 objectiveCheck(s32 index)
 	// INCOMPLETE, 2 = force COMPLETE, 0 = off. Display AND the mission-end
 	// all-complete check both route through objectiveCheck, so a held-down
 	// objective blocks completion until the effect releases it.
-	if (index >= 0 && index < MAX_OBJECTIVES && g_ChaosObjectiveForce[index] != 0) {
+	if (g_NetMode == NETMODE_NONE && index >= 0 && index < MAX_OBJECTIVES && g_ChaosObjectiveForce[index] != 0) {
 		objstatus = g_ChaosObjectiveForce[index] == 2
 				? OBJECTIVE_COMPLETE : OBJECTIVE_INCOMPLETE;
 	}
@@ -350,6 +352,44 @@ s32 objectiveCheck(s32 index)
 	if (debugForceAllObjectivesComplete()) {
 		objstatus = OBJECTIVE_COMPLETE;
 	}
+
+#ifndef PLATFORM_N64
+	// Campaign co-op: the host is authoritative for objective state. Overlay the
+	// host's broadcast status (SVC_OBJECTIVE -> g_NetCoopObjStatuses) onto the
+	// client's local evaluation as a UNION with a COMPLETE-LATCH: a wire COMPLETE
+	// (the host's world finished it, incl. the other player's actions the host runs)
+	// OR a previously-shown COMPLETE (the cached g_ObjectiveStatuses) forces COMPLETE.
+	// The latch stops the flicker seen when an unstable LOCAL eval — a position /
+	// inventory check on a boundary — drops back to incomplete before the host has
+	// confirmed it; objectives don't un-complete in practice, so latching is safe and
+	// also captures a client-local completion the host can't see (e.g. a HOLOGRAPH
+	// keyed on the client's own camera). FAILED still applies if not already complete.
+	// Host-side this whole block is skipped (it computes the authoritative status it
+	// broadcasts). All-zero default = INCOMPLETE = no-op before any broadcast.
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()
+			&& index >= 0 && index < MAX_OBJECTIVES) {
+		if (g_NetCoopObjStatuses[index] == OBJECTIVE_COMPLETE
+				|| g_ObjectiveStatuses[index] == OBJECTIVE_COMPLETE) {
+			objstatus = OBJECTIVE_COMPLETE;
+		} else if (g_NetCoopObjStatuses[index] == OBJECTIVE_FAILED
+				&& objstatus != OBJECTIVE_COMPLETE) {
+			objstatus = OBJECTIVE_FAILED;
+		}
+	}
+
+	// Co-op host: latch objectives a client reported done via CLC_OBJECTIVE_DONE.
+	// Those completions hinge on events the host can't witness itself — the client
+	// entering a scripted trigger room, throwing a mine onto an object, or a
+	// holograph keyed on the client's own camera — so the host's local eval above
+	// stays INCOMPLETE for them. Folding the client's report in makes the host's
+	// authoritative status COMPLETE, which objectivesCheckAll then broadcasts to all.
+	// Don't override a genuine FAILED.
+	if (g_NetMode == NETMODE_SERVER && NET_COOP_GAME()
+			&& index >= 0 && index < MAX_OBJECTIVES
+			&& g_NetCoopClientObjDone[index] && objstatus != OBJECTIVE_FAILED) {
+		objstatus = OBJECTIVE_COMPLETE;
+	}
+#endif
 
 	return objstatus;
 }
@@ -384,7 +424,15 @@ void objectivesShowHudmsg(char *buffer, s32 hudmsgtype)
 	for (i = 0; i < PLAYERCOUNT(); i++) {
 		setCurrentPlayerNum(i);
 
-		if (g_Vars.currentplayer == g_Vars.bond || g_Vars.currentplayer == g_Vars.coop) {
+		// fojo: setCurrentPlayerNum re-seats g_Vars.coop, so this matches every
+		// coop seat. netplay: only a LOCAL player gets the toast - a remote
+		// pawn's HUD is never drawn here, but its toast would still take the
+		// centre-screen slot and block the local one.
+		if ((g_Vars.currentplayer == g_Vars.bond || g_Vars.currentplayer == g_Vars.coop)
+#ifndef PLATFORM_N64
+				&& !g_Vars.currentplayer->isremote
+#endif
+				) {
 			hudmsgCreateWithFlags(buffer, hudmsgtype, HUDMSGFLAG_DELAY | HUDMSGFLAG_ALLOWDUPES);
 		}
 	}
@@ -393,23 +441,87 @@ void objectivesShowHudmsg(char *buffer, s32 hudmsgtype)
 }
 #endif
 
+#ifndef PLATFORM_N64
+// Co-op: show the "Objective N: Completed / Incomplete / Failed" toast for a single
+// objective, host-authoritative — called from netmsgSvcObjectiveRead when the host's
+// SVC_OBJECTIVE broadcast flips a status. Mirrors the per-objective branch in
+// objectivesCheckAll so the displayed number + wording match exactly. The displayed
+// number ("Objective N") is the count of difficulty-matching objectives up to this
+// index, same as objectivesCheckAll's availableindex.
+void objectivesShowStatusForIndex(s32 objindex, s32 status)
+{
+	char buffer[50] = "";
+	s32 availableindex = 0;
+	s32 j;
+
+	if (objindex < 0 || objindex > g_ObjectiveLastIndex) {
+		return;
+	}
+	if (!(objectiveGetDifficultyBits(objindex) & (1 << lvGetDifficulty()))) {
+		return; // this objective isn't shown at the current difficulty
+	}
+
+	for (j = 0; j < objindex; j++) {
+		if (objectiveGetDifficultyBits(j) & (1 << lvGetDifficulty())) {
+			availableindex++;
+		}
+	}
+
+	sprintf(buffer, "%s %d: ", langGet(L_MISC_044), availableindex + 1); // "Objective"
+
+	if (status == OBJECTIVE_COMPLETE) {
+		strcat(buffer, langGet(L_MISC_045)); // "Completed"
+		objectivesShowHudmsg(buffer, HUDMSGTYPE_OBJECTIVECOMPLETE);
+	} else if (status == OBJECTIVE_INCOMPLETE) {
+		strcat(buffer, langGet(L_MISC_046)); // "Incomplete"
+		objectivesShowHudmsg(buffer, HUDMSGTYPE_OBJECTIVECOMPLETE);
+	} else if (status == OBJECTIVE_FAILED) {
+		strcat(buffer, langGet(L_MISC_047)); // "Failed"
+		objectivesShowHudmsg(buffer, HUDMSGTYPE_OBJECTIVEFAILED);
+	}
+}
+#endif
+
 void objectivesCheckAll(void)
 {
 	s32 availableindex = 0;
 	s32 i;
 	char buffer[50] = "";
+#ifndef PLATFORM_N64
+	bool netobjchanged = false;
+#endif
 
 	if (!g_ObjectiveChecksDisabled) {
 		for (i = 0; i <= g_ObjectiveLastIndex; i++) {
 			s32 status = objectiveCheck(i);
 
+#ifndef PLATFORM_N64
+			const bool objjusttransitioned = (g_ObjectiveStatuses[i] != status);
+#endif
+
 			if (g_ObjectiveStatuses[i] != status) {
 				g_ObjectiveStatuses[i] = status;
+#ifndef PLATFORM_N64
+				netobjchanged = true;
+
+				// Co-op client: if WE just completed an objective the host doesn't know
+				// about (its mirrored status isn't COMPLETE), report it so the host
+				// latches it and rebroadcasts authoritative completion to everyone.
+				// Covers objectives whose trigger the host can't witness (client room
+				// entry / throw-on-object / camera holograph). Reliable, one send.
+				if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()
+						&& status == OBJECTIVE_COMPLETE
+						&& i < MAX_OBJECTIVES
+						&& g_NetCoopObjStatuses[i] != OBJECTIVE_COMPLETE) {
+					netClientSendObjectiveDone(i);
+				}
+
+#endif
 
 #ifndef PLATFORM_N64
 				// Per-objective completion event. Edge-triggered on the
 				// transition to COMPLETE; stage + difficulty key it uniquely.
-				if (status == OBJECTIVE_COMPLETE) {
+				if (status == OBJECTIVE_COMPLETE && g_NetMode != NETMODE_CLIENT) {
 					extern void luaEmitObjective(s32 stageindex, s32 difficulty, s32 objindex, s32 status);
 					luaEmitObjective(g_MissionConfig.stageindex, lvGetDifficulty(), i, status);
 				}
@@ -453,10 +565,39 @@ void objectivesCheckAll(void)
 				}
 			}
 
+#ifndef PLATFORM_N64
+			// Co-op: an objective can complete while the full HUD isn't rendering (a
+			// scripted beat / cutscene), so this loop doesn't run and the transition
+			// toast above is missed; once the HUD returns g_ObjectiveStatuses is already
+			// COMPLETE so no transition fires. Show the toast the first time we see the
+			// objective COMPLETE with the HUD up (this loop only runs with the HUD up),
+			// unless the transition above already showed it this frame (avoids a double).
+			if (NET_COOP_GAME()
+					&& status == OBJECTIVE_COMPLETE
+					&& i < MAX_OBJECTIVES
+					&& !g_NetCoopObjToastShown[i]
+					&& (objectiveGetDifficultyBits(i) & (1 << lvGetDifficulty()))) {
+				if (!objjusttransitioned) {
+					objectivesShowStatusForIndex(i, OBJECTIVE_COMPLETE);
+				}
+				g_NetCoopObjToastShown[i] = 1;
+			}
+#endif
+
 			if (objectiveGetDifficultyBits(i) & (1 << lvGetDifficulty())) {
 				availableindex++;
 			}
 		}
+
+#ifndef PLATFORM_N64
+		// Co-op host: when any objective status changed, push the authoritative
+		// array to clients so their objective HUD + mission debrief match (reliable,
+		// so on-change is sufficient — no late joins in co-op). Host-only; the
+		// NETMODE_SERVER guard is inside netServerBroadcastObjectives.
+		if (netobjchanged && g_NetMode == NETMODE_SERVER && NET_COOP_GAME()) {
+			netServerBroadcastObjectives();
+		}
+#endif
 	}
 }
 
