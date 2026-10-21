@@ -78,6 +78,7 @@
 #ifndef PLATFORM_N64
 #include "video.h"
 #include "net/net.h"
+#include "net/netmsg.h"
 #include "input.h"
 #include "platform.h"
 #ifndef PLATFORM_N64
@@ -275,6 +276,15 @@ f32 playerChooseSpawnLocation(f32 chrradius, struct coord *dstpos, RoomNum *dstr
 		// Note the closest chr's distance.
 		// Decide whether the pad is considered to be ok, bad or very bad.
 		for (i = 0; i < playercount; i++) {
+#ifndef PLATFORM_N64
+			// Netplay: a player slot can be NULL/unbound here at stage load when the
+			// synced chrslots player count disagrees with the combatants actually
+			// bound by netPlayersAllocate (spectator clients, stale round state).
+			// Skip rather than deref NULL->prop. See docs/PORT_DEDICATED_SERVER_TRIAGE.md.
+			if (!g_Vars.players[i]) {
+				continue;
+			}
+#endif
 			if (g_Vars.players[i]->prop
 					&& g_Vars.players[i]->prop != prop
 					&& (!prop || chrCompareTeams(prop->chr, g_Vars.players[i]->prop->chr, compare))) {
@@ -530,6 +540,10 @@ void playerStartNewLife(void)
 
 	g_Vars.currentplayer->dostartnewlife = false;
 	g_Vars.currentplayer->respawnpending = false;
+#ifndef PLATFORM_N64
+	g_Vars.currentplayer->respawnallowtick = 0;
+	g_Vars.currentplayer->respawnprotect60 = 0;
+#endif
 
 	if (g_Vars.currentcoopplayernum < 0) {
 		struct prop *prop = g_Vars.currentplayer->prop->child;
@@ -560,6 +574,16 @@ void playerStartNewLife(void)
 
 	hudmsgsSetOn(0xffffffff);
 
+#ifndef PLATFORM_N64
+	// netplay client: don't pick a spawn. The host's choice arrives via the
+	// SVC_PLAYER_MOVE force flags; a local pick would diverge and the echo-back
+	// CSP path never corrects it (the server echoes our own pos, error 0).
+	if (g_NetMode == NETMODE_CLIENT && g_Vars.currentplayer->prop) {
+		pos = g_Vars.currentplayer->prop->pos;
+		roomsCopy(g_Vars.currentplayer->prop->rooms, rooms);
+		angle = g_Vars.currentplayer->vv_theta * M_BADTAU / 360.0f;
+	} else
+#endif
 	angle = M_BADTAU - scenarioChooseSpawnLocation(60, &pos, rooms, g_Vars.currentplayer->prop); // var7f1ad534
 
 	groundy = cdFindGroundInfoAtCyl(&pos, 30, rooms,
@@ -725,6 +749,27 @@ void playerStartNewLife(void)
 	if (g_Vars.currentplayer->prop->chr) {
 		g_Vars.currentplayer->prop->chr->chrflags &= ~CHRCFLAG_HIDDEN;
 	}
+
+#ifndef PLATFORM_N64
+	// Tell the client to hard-snap to this spawn position via chrSetPos on the
+	// next SVC_PLAYER_MOVE. Without this, the client smoothly CSP-corrects from
+	// its (RNG-desynced) locally-chosen spawn to the server's authoritative
+	// spawn over NET_CSP_CORR_FRAMES, while its physics ground state is still
+	// set for the wrong spawn — which makes the player fall through the floor.
+	if (g_NetMode == NETMODE_SERVER) {
+		g_Vars.currentplayer->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
+		// Latch forcetick directly for a remote client's respawn, exactly like the
+		// stage-load force (lv.c) and the co-op buddy spawn (player.c:1968 below).
+		// Without it, the bondwalk.c one-shot clear wipes the bare FORCEMASK while
+		// forcetick == 0 (bwalkUpdateRemote runs before netClientRecordMove's
+		// auto-latch could fire), so no force correction is sent and the server
+		// adopts the client's stale DEATH position instead of this fresh spawn —
+		// the "respawn on death spot" bug, which also fails host-side pickup tests.
+		if (g_Vars.currentplayer->isremote && g_Vars.currentplayer->client) {
+			g_Vars.currentplayer->client->forcetick = g_NetTick;
+		}
+	}
+#endif
 }
 
 void playerLoadDefaults(void)
@@ -1352,6 +1397,12 @@ void playerSpawn(void)
 	}
 
 	playerUpdatePerimInfo();
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+	}
+#endif
 }
 
 void playerResetBond(struct playerbond *pb, struct coord *pos)
@@ -2142,6 +2193,34 @@ void playerEndCutscene(void)
 		playerSetTickMode(TICKMODE_NORMAL);
 		g_PlayerTriggerGeFadeIn = false;
 		bmoveSetModeForAllPlayers(MOVEMODE_WALK);
+
+#ifndef PLATFORM_N64
+		// netplay: the intro cutscene re-centred every player on its start
+		// pad, so the stage-load spawn offsets are gone by the time control
+		// returns here. Host-authoritative: drop each remote pawn a few units
+		// off the operative again and force-snap it to its client (the client
+		// reaches playerEndCutscene via the SVC_CUTSCENE mirror and takes the
+		// snap). fojo seats up to MAX_PLAYERS, so every seated remote moves.
+		if (g_NetMode == NETMODE_SERVER && NET_COOP_GAME()) {
+			struct player *lead = g_Vars.players[g_Vars.bondplayernum];
+			if (lead && lead->prop && lead->prop->chr) {
+				for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+					struct player *mate = g_Vars.players[i];
+					if (i == g_Vars.bondplayernum || !mate || !mate->prop
+							|| !mate->prop->chr || !mate->client || !mate->isremote) {
+						continue;
+					}
+					struct coord spawnpos = lead->prop->pos;
+					RoomNum spawnrooms[8];
+					roomsCopy(lead->prop->rooms, spawnrooms);
+					chrAdjustPosForSpawn(30, &spawnpos, spawnrooms, 0.0f, true, true, true);
+					chrSetPos(mate->prop->chr, &spawnpos, spawnrooms, lead->vv_theta, true);
+					mate->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
+					mate->client->forcetick = g_NetTick;
+				}
+			}
+		}
+#endif
 	}
 }
 
@@ -3427,6 +3506,20 @@ s16 playerGetFbHeight(void)
 #if VERSION >= VERSION_NTSC_1_0
 bool playerHasSharedViewport(void)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode) {
+		// Host spectator mode wants the split-screen quadrant math so each
+		// panel gets its own viewport rect. Without this exemption every
+		// panel reads the full-screen rect from playerGetViewport*() and
+		// they all draw on top of each other — only the last panel survives.
+		if (g_NetMode == NETMODE_SERVER && g_NetLocalClient && g_NetLocalClient->is_spectator
+				&& g_StageNum != STAGE_CITRAINING) {
+			return false;
+		}
+		return true;
+	}
+#endif
+
 	if ((g_Vars.coopplayernum >= 0 || g_Vars.antiplayernum >= 0)
 			&& menuGetRoot() == MENUROOT_MPENDSCREEN
 			&& g_IsModalMenuMode == 0) {
@@ -3447,14 +3540,14 @@ s16 playerGetViewportWidth(void)
 	if ((!g_InCutscene || g_MainIsEndscreen) && menuGetRoot() != MENUROOT_COOPCONTINUE)
 #endif
 	{
-		if (PLAYERCOUNT() >= 3) {
+		if (LOCALPLAYERCOUNT() >= 3) {
 			// 3/4 players
 			width = g_ViModes[g_ViRes].width / 2;
 
 			if (g_Vars.currentplayernum == 0 || g_Vars.currentplayernum == 2) {
 				width--;
 			}
-		} else if (PLAYERCOUNT() == 2) {
+		} else if (LOCALPLAYERCOUNT() == 2) {
 			if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || g_Vars.fourmeg2player) {
 				// 2 players vsplit
 				width = g_ViModes[g_ViRes].width / 2;
@@ -3487,7 +3580,7 @@ s16 playerGetViewportLeft(void)
 #endif
 	s16 left;
 
-	if (PLAYERCOUNT() >= 3 && something != 0) {
+	if (LOCALPLAYERCOUNT() >= 3 && something != 0) {
 		if (g_Vars.currentplayernum == 1 || g_Vars.currentplayernum == 3) {
 			// 3/4 players - right side
 			left = g_ViModes[g_ViRes].width / 2 + g_ViModes[g_ViRes].fbwidth - g_ViModes[g_ViRes].width;
@@ -3495,7 +3588,7 @@ s16 playerGetViewportLeft(void)
 			// 3/4 players - left side
 			left = g_ViModes[g_ViRes].fbwidth - g_ViModes[g_ViRes].width;
 		}
-	} else if (PLAYERCOUNT() == 2 && something != 0) {
+	} else if (LOCALPLAYERCOUNT() == 2 && something != 0) {
 		if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL || g_Vars.fourmeg2player) {
 			if (g_Vars.currentplayernum == 1) {
 				// 2 players vsplit - right side
@@ -3520,7 +3613,7 @@ s16 playerGetViewportHeight(void)
 {
 	s16 height;
 
-	if (PLAYERCOUNT() >= 2
+	if (LOCALPLAYERCOUNT() >= 2
 #if VERSION >= VERSION_NTSC_1_0
 			&& !playerHasSharedViewport()
 #else
@@ -3535,7 +3628,7 @@ s16 playerGetViewportHeight(void)
 			height = tmp / 2;
 		}
 
-		if (PLAYERCOUNT() == 2) {
+		if (LOCALPLAYERCOUNT() == 2) {
 			if (optionsGetScreenSplit() == SCREENSPLIT_VERTICAL) {
 				height = tmp;
 			} else if (g_Vars.currentplayernum == 0 && IS8MB()) {
@@ -3571,7 +3664,7 @@ s16 playerGetViewportTop(void)
 {
 	s16 top;
 
-	if (PLAYERCOUNT() >= 2
+	if (LOCALPLAYERCOUNT() >= 2
 #if VERSION >= VERSION_NTSC_1_0
 			&& !playerHasSharedViewport()
 #else
@@ -3582,12 +3675,12 @@ s16 playerGetViewportTop(void)
 		top = g_ViModes[g_ViRes].fulltop;
 
 #if VERSION >= VERSION_NTSC_1_0
-		if (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL || PLAYERCOUNT() != 2)
+		if (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL || LOCALPLAYERCOUNT() != 2)
 #else
 		if (optionsGetScreenSplit() != SCREENSPLIT_VERTICAL)
 #endif
 		{
-			if (PLAYERCOUNT() == 2
+			if (LOCALPLAYERCOUNT() == 2
 					&& g_Vars.currentplayernum == 1
 					&& optionsGetScreenSplit() != SCREENSPLIT_VERTICAL
 					&& !g_Vars.fourmeg2player) {
@@ -5151,6 +5244,29 @@ void playerTick(bool arg0)
 		}
 	}
 
+#ifndef PLATFORM_N64
+	// Net (proto 76): the SLAYERROCKETSTATIC -> NORMAL transition lives only in
+	// lvRender, which never runs for a remote pawn on the server. Without this a
+	// remote flyer whose rocket died (detonate / out-of-bounds / death — every
+	// path above sets STATIC) would wedge at STATIC forever server-side. Bridge
+	// it straight to NORMAL (the client plays the vanilla static-then-normal cut
+	// from its own lvRender).
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote
+			&& g_Vars.currentplayer->visionmode == VISIONMODE_SLAYERROCKETSTATIC) {
+		g_Vars.currentplayer->visionmode = VISIONMODE_NORMAL;
+	}
+
+	// Respawn Invulnerability (proto 77): count down the i-frame window. Runs on
+	// the machine simulating the pawn (server for remote pawns, local for host),
+	// the same place playerDieByShooter gates on it.
+	if (g_Vars.currentplayer->respawnprotect60 > 0) {
+		g_Vars.currentplayer->respawnprotect60 -= g_Vars.lvupdate60;
+		if (g_Vars.currentplayer->respawnprotect60 < 0) {
+			g_Vars.currentplayer->respawnprotect60 = 0;
+		}
+	}
+#endif
+
 	if (g_Vars.tickmode != TICKMODE_CUTSCENE) {
 		g_InCutscene = false;
 	}
@@ -5391,8 +5507,9 @@ void playerTick(bool arg0)
 				if (optionsGetForwardPitch(g_Vars.currentplayerstats->mpindex)) {
 					sp178 = -sp178;
 				}
-				// mouse control
-				if (g_Vars.currentplayernum == inputKbmPlayer()) {
+				// mouse control (netPlayerOwnsMouse: in a net game only the local
+				// pawn may read the mouse, whichever slot it sits at)
+				if (netPlayerOwnsMouse()) {
 					f32 mdx, mdy;
 					inputMouseGetScaledDelta(&mdx, &mdy);
 					if (mdx || mdy) {
@@ -6578,6 +6695,30 @@ Gfx *hudvdReset(Gfx *gdl)
 }
 #endif
 
+/**
+ * Did this player ask to respawn this frame? Vanilla reads the seat's pad.
+ * netplay: a remote pawn on the host asked through UCMD_RESPAWN on its last
+ * move; a client never decides for itself (the host respawns it and
+ * force-snaps the spawn).
+ */
+static bool playerWantsRespawn(void)
+{
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->isremote) {
+		const struct netclient *cl = g_Vars.currentplayer->client;
+		return cl && (cl->inmove[cl->inmove_head].ucmd & UCMD_RESPAWN) != 0;
+	}
+	if (g_NetMode == NETMODE_CLIENT) {
+		return false;
+	}
+	// netplay host: a seat with no client (an unfilled team role) never asks
+	if (g_NetMode && !g_Vars.currentplayer->client) {
+		return false;
+	}
+#endif
+	return joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) != 0;
+}
+
 Gfx *playerRenderHud(Gfx *gdl)
 {
 	if (g_Vars.currentplayer->cameramode == CAMERAMODE_THIRDPERSON) {
@@ -6798,7 +6939,7 @@ Gfx *playerRenderHud(Gfx *gdl)
 
 						if (g_Vars.antiplayernum >= 0 && g_Vars.currentplayer == g_Vars.anti) {
 							// Anti
-							if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused()) {
+							if (playerWantsRespawn() && !mpIsPaused()) {
 								g_Vars.currentplayer->dostartnewlife = true;
 							}
 						} else {
@@ -6812,7 +6953,7 @@ Gfx *playerRenderHud(Gfx *gdl)
 									// Counted lives (1-100): only allow if lives remain
 									if (g_MissionConfig.lives == -1 || g_Vars.currentplayer->livesremaining > 0) {
 										g_Vars.currentplayer->coopcanrestart = true;
-										canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
+										canrestart = playerWantsRespawn() && !mpIsPaused();
 										if (canrestart) {
 											g_Vars.currentplayer->dostartnewlife = true;
 										}
@@ -6835,7 +6976,7 @@ Gfx *playerRenderHud(Gfx *gdl)
 								}
 							else if (!needBuddyAlive || (!g_Vars.bond->isdead || !g_Vars.coop->isdead)) {
 								// Check for button press to respawn
-								canrestart = joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000) && !mpIsPaused();
+								canrestart = playerWantsRespawn() && !mpIsPaused();
 
 								f32 totalhealth;
 								u32 buddyplayernum = g_Vars.bondplayernum;
@@ -6947,7 +7088,7 @@ Gfx *playerRenderHud(Gfx *gdl)
 							}
 						}
 
-						if (joyGetButtons(optionsGetContpadNum1(g_Vars.currentplayerstats->mpindex), 0xb000)
+						if (playerWantsRespawn()
 								&& !mpIsPaused()
 								&& g_NumReasonsToEndMpMatch == 0) {
 							canrestart = true;
@@ -7056,21 +7197,60 @@ void playerDie(bool force)
 	struct chrdata *chr = g_Vars.currentplayer->prop->chr;
 	s32 shooter;
 
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		return;
+	}
+#endif
+
 	if (chr->lastshooter >= 0 && chr->timeshooter > 0) {
 		shooter = chr->lastshooter;
 	} else {
 		shooter = g_Vars.currentplayernum;
 	}
 
+	// NOTE: env/fall/knockback deaths attribute to the victim here (lastshooter is
+	// dead code). The "Last Attacker Attribution" option recovers the real killer
+	// centrally in mpstatsRecordDeath (the single kill-feed + score choke point), so
+	// we don't duplicate that logic at this call site.
 	playerDieByShooter(shooter, force);
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+		netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+	}
+#endif
 }
 
 void playerDieByShooter(u32 shooter, bool force)
 {
-#if VERSION >= VERSION_NTSC_1_0
-	if (!g_Vars.currentplayer->isdead && (force || !g_Vars.currentplayer->invincible))
+#ifndef PLATFORM_N64
+	// Respawn Invulnerability (proto 77): block non-forced deaths during the 2s
+	// post-respawn i-frame window. `force` (kill-plane / disconnect kill) still
+	// bypasses. Reuses the invincibility-cheat gate; uses a separate timed field.
+	const bool iframeprotected = g_Vars.currentplayer->respawnprotect60 > 0;
 #else
-	if (!g_Vars.currentplayer->isdead && (force || !g_Vars.currentplayer->invincible || !g_Vars.currentplayer->training))
+	const bool iframeprotected = false;
+#endif
+#ifndef PLATFORM_N64
+	// Diag: every player death attempt on the server — the shooter passed in, the
+	// victim (cur), whether it's a forced (env/kill-plane) death, the i-frame gate,
+	// and the victim's current lastattacker. A gunshot kill showing as a suicide will
+	// have shooter == cur here (it came via playerDie's suicide fallback, not
+	// chrDamage's playerDieByShooter(attacker)) — revealing the death routed through
+	// the env path instead of the gunfire path.
+	if (g_NetMode == NETMODE_SERVER && g_Vars.mplayerisrunning && g_Vars.currentplayer) {
+		struct chrdata *vc = g_Vars.currentplayer->prop ? g_Vars.currentplayer->prop->chr : NULL;
+		netDiagLogf("pdie", "shooter=%u cur=%d force=%d isdead=%d iframe=%d latk=%d",
+				shooter, (s32)g_Vars.currentplayernum, (s32)force,
+				(s32)g_Vars.currentplayer->isdead, (s32)iframeprotected,
+				(vc && vc->lastattacker && vc->lastattacker->prop) ? mpPlayerGetIndex(vc->lastattacker) : -1);
+	}
+#endif
+#if VERSION >= VERSION_NTSC_1_0
+	if (!g_Vars.currentplayer->isdead && (force || (!g_Vars.currentplayer->invincible && !iframeprotected)))
+#else
+	if (!g_Vars.currentplayer->isdead && (force || ((!g_Vars.currentplayer->invincible || !g_Vars.currentplayer->training) && !iframeprotected)))
 #endif
 	{
 		u32 prevplayernum = g_MpPlayerNum;
