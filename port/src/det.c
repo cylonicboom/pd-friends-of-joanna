@@ -31,6 +31,8 @@
 #include "platform.h"
 #include "lib/joy.h"
 #include "det.h"
+#include "net/net.h"
+#include "game/lv.h"
 
 s32 g_DetMode = DET_OFF;
 
@@ -241,7 +243,7 @@ void detComputeHash(struct dethash *out)
 
 void detPinTimestep(void)
 {
-	if (g_DetMode != DET_RECORD && g_DetMode != DET_REPLAY) {
+	if (!detTickPinActive()) {
 		return;
 	}
 	// Respect pause: when the engine chose a zero step (paused / cutscene
@@ -256,8 +258,55 @@ void detPinTimestep(void)
 	// `* lvupdate60f` sites inherit the step untouched. (4 -> lvupdate60=1,
 	// lvupdate60f=1.0.) This also overrides any slow-motion cap lvTick
 	// applied above it: a recording is a fixed 1/60 by definition.
-	g_Vars.lvupdate240 = 4;
-	g_Vars.lvupdate240rem = 0;
+	if (g_DetMode == DET_RECORD || g_DetMode == DET_REPLAY) {
+		g_Vars.lvupdate240 = 4;
+		g_Vars.lvupdate240rem = 0;
+		return;
+	}
+
+	// netplay (kai): the sim advances in whole 1/60 steps at real-time rate on
+	// both machines, however fast either renders. lvTick runs once per render
+	// frame, so a slow frame emits several steps' worth at once (one combined
+	// dt - the engine is built for variable dt) and a fast one emits none
+	// (lvupdate240 = 0, a no-advance frame like a paused one). Anti-spiral
+	// capped at 6 steps: a stage-load hitch on a slow renderer otherwise
+	// handed the first frame seconds of sim time, and modelTickAnim walked
+	// every anim frame of every chr in that one frame (the client "stall").
+	{
+		static s32 accum240 = 0;
+		s32 step = 4;
+		s32 nsteps;
+
+		accum240 += g_Vars.diffframe240;
+		if (accum240 < 0) {
+			accum240 = 0;
+		}
+		nsteps = accum240 / step;
+		accum240 -= nsteps * step;
+		if (nsteps > 6) {
+			nsteps = 6;
+			accum240 = 0; // drop the backlog rather than chase it
+		}
+		step *= nsteps;
+
+		// slow motion / combat boost: halve the pinned step, remainder-carried.
+		// the host decides (g_LvSlomoEngaged from lvTick); clients mirror it
+		// via SVC_TIMESCALE, so both ends advance the same sim time per tick.
+		if (g_LvSlomoEngaged) {
+			static s32 slomorem = 0;
+			const s32 total = step + slomorem;
+			slomorem = total & 1;
+			step = total >> 1;
+		}
+
+		g_Vars.lvupdate240 = step;
+		// zero the remainder only for a 4-aligned step (the canonical 1/60:
+		// lvupdate240 4 -> lvupdate60 1). a halved step of 2 must accumulate
+		// so lvupdate60 alternates 0/1 instead of sitting at 0 forever.
+		if (step > 0 && (step & 3) == 0) {
+			g_Vars.lvupdate240rem = 0;
+		}
+	}
 }
 
 /* ---- record / replay ---- */
@@ -563,7 +612,7 @@ void detEndTick(void)
 
 s32 detTickPinActive(void)
 {
-	return g_DetMode == DET_RECORD || g_DetMode == DET_REPLAY;
+	return g_DetMode == DET_RECORD || g_DetMode == DET_REPLAY || g_NetMode != 0;
 }
 
 /* ---- control ---- */
