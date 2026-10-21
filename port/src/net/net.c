@@ -69,7 +69,7 @@ s32 g_NetMode = NETMODE_NONE;
 // SVC_STAGE_FLAGS on change (plus a periodic heal). Reset at co-op stage entry.
 // Defined here (above netCoopEnterStage's reset) since it's file-static — unlike
 // g_NetCoopObjStatuses, which has an extern in net.h covering its forward use.
-u32 g_NetCoopLocalStageFlags = 0; // co-op client: stage flags this client's own scripts set (chraction.c ORs into it); fojo keeps the definition here
+extern u32 g_NetCoopLocalStageFlags; // chraction.c: stage flags a co-op client's own scripts set
 u32 g_NetLastStageFlags;
 
 // Last alarm state broadcast to co-op clients (SVC_ALARM, the g_StageFlags
@@ -1556,7 +1556,7 @@ static void netCoopDormantInit(void)
 {
 	s32 ndormant = 0;
 
-	if (!g_NetMode || g_Vars.coopplayernum < 0) {
+	if (!g_NetMode || g_Vars.coopplayernum < 0 || g_MissionConfig.isteam) {
 		return;
 	}
 
@@ -1654,7 +1654,7 @@ void netServerCoopClaim(struct netclient *cl)
 {
 	s32 slot = -1;
 
-	if (g_NetMode != NETMODE_SERVER || !cl || g_Vars.coopplayernum < 0) {
+	if (g_NetMode != NETMODE_SERVER || !cl || g_Vars.coopplayernum < 0 || g_MissionConfig.isteam) {
 		return;
 	}
 
@@ -1938,7 +1938,7 @@ void netServerBroadcastChrTalk(struct prop *prop, s32 audioid)
 {
 	// Co-op only: in Combat Sim, sim speech isn't replicated (and would be a
 	// behaviour change). The call sites just hand us the speaking chr's prop.
-	if (g_NetMode != NETMODE_SERVER || g_Vars.coopplayernum < 0 || !prop || !prop->syncid) {
+	if (g_NetMode != NETMODE_SERVER || !NET_COOP_GAME() || !prop || !prop->syncid) {
 		return;
 	}
 
@@ -2266,7 +2266,7 @@ static void netServerEvDisconnect(struct netclient *cl)
 	// rejoin — netServerCoopClaim matches CLC_AUTH names against this) and
 	// park the pawn dormant; broadcast the release so every client parks it
 	// too. The reservation holds until mission end or the owner returns.
-	if (cl->state == CLSTATE_GAME && g_Vars.coopplayernum >= 0
+	if (cl->state == CLSTATE_GAME && g_Vars.coopplayernum >= 0 && !g_MissionConfig.isteam
 			&& cl->playernum < MAX_PLAYERS && cl->player) {
 		const s32 slot = cl->playernum;
 		strncpy(g_NetCoopReservedNames[slot], cl->settings.name,
@@ -3044,7 +3044,7 @@ void netEndFrame(void)
 			// the buffer nears full, so every NPC updates over a few ticks (interpolation
 			// hides the gap) and the packet never overflows. Player moves were already
 			// written above, so the threshold accounts for them.
-			if (svsendtick && g_Vars.coopplayernum >= 0 && g_ChrSlots) {
+			if (svsendtick && NET_COOP_GAME() && g_ChrSlots) {
 				const s32 numslots = chrsGetNumSlots();
 				if (g_NetRelevancy) {
 					// P2: per-client relevancy cull (see the sim loop above). Each remote
@@ -3121,7 +3121,7 @@ void netEndFrame(void)
 			// Unreliable (g_NetMsg) like the sim/NPC moves above: latest-wins, and a
 			// dropped frame self-heals on the next tick / cursor sweep.
 			// svsendtick: rides the same state-send cadence as the chr streams.
-			if (svsendtick && g_Vars.coopplayernum >= 0) {
+			if (svsendtick && NET_COOP_GAME()) {
 				const s32 maxprops = g_Vars.maxprops;
 				// MERGED single scan (was two full passes): moving objs are sent
 				// inline every tick; settled objs are only COLLECTED here (first
@@ -3220,7 +3220,7 @@ void netEndFrame(void)
 			// doors (synced via SVC_PROP_DOOR; wire pos breaks the open anim).
 			// Unreliable (g_NetMsg): latest-wins, self-heals next tick/sweep.
 			// svsendtick: rides the same state-send cadence as the chr streams.
-			if (svsendtick && g_Vars.coopplayernum < 0 && g_Vars.normmplayerisrunning) {
+			if (svsendtick && !NET_COOP_GAME() && g_Vars.normmplayerisrunning) {
 				const s32 maxprops = g_Vars.maxprops;
 				// MERGED single scan (same structure as the co-op block above):
 				// projectile-motion props send inline every tick; settled props
@@ -3307,7 +3307,7 @@ void netEndFrame(void)
 			// immediacy, plus a heartbeat heal at a free phase offset (KoH 0, score
 			// 15, lobby 30, stats 45) in case a change landed before the client was
 			// in CLSTATE_GAME.
-			if (g_Vars.coopplayernum >= 0
+			if (NET_COOP_GAME()
 					&& (g_StageFlags != g_NetLastStageFlags
 						|| (g_NetTick % NET_HEARTBEAT_INTERVAL) == 20u)) {
 				g_NetLastStageFlags = g_StageFlags;
@@ -3321,7 +3321,7 @@ void netEndFrame(void)
 			// change + a heartbeat heal at phase 25 (the g_StageFlags pattern;
 			// free phase — KoH 0, reconcile 10, score 15, flags 20, lobby 30,
 			// stats 45, timescale 50).
-			if (g_Vars.coopplayernum >= 0) {
+			if (NET_COOP_GAME()) {
 				const u8 alarmnow = alarmIsActive() ? 1 : 0;
 				if (alarmnow != g_NetLastAlarmActive
 						|| (g_NetTick % NET_HEARTBEAT_INTERVAL) == 25u) {
@@ -3337,7 +3337,7 @@ void netEndFrame(void)
 			// mid-scene until the host moves). Broadcast on transition (reliable, so a
 			// single send is enough). A heartbeat re-send while active heals a join
 			// that missed the start edge.
-			if (g_Vars.coopplayernum >= 0) {
+			if (NET_COOP_GAME()) {
 				const s32 active = (g_Vars.tickmode == TICKMODE_CUTSCENE) ? 1 : 0;
 				const s16 anim = g_CutsceneAnimNum;
 				if (active != g_NetLastCutsceneActive
@@ -3978,7 +3978,7 @@ void netPlayersAllocate(void)
 	// from SVC_STAGE_START. Resolving here (not in the SVC_STAGE_START write) is what
 	// makes the third-person chrbody pick up the right body, not just the first-person
 	// hands (which re-derive every frame and so updated even when the bits landed late).
-	if (g_NetMode == NETMODE_SERVER && g_Vars.coopplayernum >= 0) {
+	if (g_NetMode == NETMODE_SERVER && g_Vars.coopplayernum >= 0 && !g_MissionConfig.isteam) {
 		if (g_NetLocalClient) {
 			g_NetLocalClient->settings.coopbodytype = (u8)g_NetCoopBodyMode;
 		}

@@ -812,6 +812,12 @@ void netEndFrame(void);
 void netCoopEnterStage(s32 stagenum, s32 difficulty, s32 numplayers);
 void netCoopResetStageState(void);
 
+// fojo: "is this a co-op style game" for the wire. Kai keyed everything on
+// g_Vars.coopplayernum >= 0 (one coop buddy). A Team Mission is co-op for
+// the wire's purposes whatever the roles are (an operative + an anti only
+// has coopplayernum -1). Drop-in / dormant-slot code stays on kai's gate.
+#define NET_COOP_GAME() (g_Vars.coopplayernum >= 0 || g_MissionConfig.isteam)
+
 // Co-op drop-in: net co-op stages always allocate this many player slots
 // regardless of the connected count, so the prop/syncid layout is identical
 // on every machine (the deterministic-allocation invariant) and a mid-mission

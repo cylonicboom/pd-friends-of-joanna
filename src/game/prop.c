@@ -271,7 +271,7 @@ void propFree(struct prop *prop)
 	// syncid.
 	if (g_NetMode == NETMODE_SERVER && prop->syncid
 			&& ((prop->type == PROPTYPE_WEAPON || prop->type == PROPTYPE_OBJ)
-				|| (prop->type == PROPTYPE_CHR && g_Vars.coopplayernum >= 0 && g_NetCoopChrLifecycle))
+				|| (prop->type == PROPTYPE_CHR && NET_COOP_GAME() && g_NetCoopChrLifecycle))
 			&& g_NetLocalClient && g_NetLocalClient->state == CLSTATE_GAME) {
 		netmsgSvcPropFreeWrite(&g_NetMsgRel, prop);
 	}
@@ -2788,7 +2788,7 @@ void propsTickPlayer(bool islastplayer)
 					// open animation (opens then snaps to centre). Doors stay synced
 					// via SVC_PROP_DOOR; only movable objects are wire-driven here.
 					const bool objrestore = g_NetCoopObjWireDriven
-							&& g_NetMode == NETMODE_CLIENT && g_Vars.coopplayernum >= 0
+							&& g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()
 							&& prop->type == PROPTYPE_OBJ && prop->syncid && prop->obj;
 					if (objrestore) {
 						objwirepos = prop->pos;

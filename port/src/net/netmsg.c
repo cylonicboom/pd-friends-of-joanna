@@ -2023,7 +2023,7 @@ u32 netmsgClcStageCompleteRead(struct netbuf *src, struct netclient *srccl)
 	// client-witnessed latches from CLC_OBJECTIVE_DONE): a client whose local
 	// abort/death-fade slipped a completion notify through must not end the
 	// mission for everyone.
-	if (g_NetMode == NETMODE_SERVER && g_Vars.coopplayernum >= 0 && !g_MainIsEndscreen) {
+	if (g_NetMode == NETMODE_SERVER && NET_COOP_GAME() && !g_MainIsEndscreen) {
 		if (!objectiveIsAllComplete()) {
 			sysLogPrintf(LOG_WARNING, "NET: client %u reported mission complete but objectives aren't - ignored", srccl->id);
 			return src->error;
@@ -2042,7 +2042,7 @@ u32 netmsgClcObjectiveDoneRead(struct netbuf *src, struct netclient *srccl)
 	// objectiveCheck includes it; the host's objectivesCheckAll then sees COMPLETE
 	// and rebroadcasts the authoritative status to everyone via SVC_OBJECTIVE.
 	const u8 objindex = netbufReadU8(src);
-	if (!src->error && g_NetMode == NETMODE_SERVER && g_Vars.coopplayernum >= 0
+	if (!src->error && g_NetMode == NETMODE_SERVER && NET_COOP_GAME()
 			&& objindex < MAX_OBJECTIVES) {
 		g_NetCoopClientObjDone[objindex] = 1;
 	}
@@ -2241,7 +2241,7 @@ u32 netmsgClcStageReadyRead(struct netbuf *src, struct netclient *srccl)
 		// ours), so seat it on a dormant/reserved slot now — after the
 		// snapshot, so the claim + respawn force-snap land on a caught-up
 		// world. Combat Sim keeps the round-boundary seating instead.
-		if (g_Vars.coopplayernum >= 0) {
+		if (g_Vars.coopplayernum >= 0 && !g_MissionConfig.isteam) {
 			netServerCoopClaim(srccl);
 		}
 	}
@@ -3190,7 +3190,7 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 			// long-standing "dead sims keep their hitbox" bug); sims respawn cleanly
 			// because the top-of-block ACT_STAND reset takes over once the wire
 			// actiontype is alive again. Gate matches the gravity clamp / tick-skip.
-			if ((chr->aibot || g_Vars.coopplayernum >= 0) && chr->prop && chr->prop->syncid) {
+			if ((chr->aibot || NET_COOP_GAME()) && chr->prop && chr->prop->syncid) {
 				if (wireactiontype == ACT_DEAD) {
 					chr->actiontype = ACT_DEAD;
 				} else if (wireactiontype == ACT_DIE) {
@@ -3977,7 +3977,7 @@ u32 netmsgSvcPropPickupRead(struct netbuf *src, struct netclient *srccl)
 	// ONLY source of our own pickup — apply it, or weapons/ammo vanish on the host but
 	// stay on the client and never enter our inventory. Other clients always apply it
 	// so the prop disappears from their world.
-	if (actcl == g_NetLocalClient && g_Vars.coopplayernum >= 0) {
+	if (actcl == g_NetLocalClient && NET_COOP_GAME()) {
 		return src->error;
 	}
 
@@ -4336,7 +4336,7 @@ u32 netmsgSvcPropReconcileWrite(struct netbuf *dst)
 		// of standing at their spawn points forever. Combat Sim is excluded
 		// — sims/players are never freed mid-match, so the list would only
 		// grow for nothing.
-		else if (g_Vars.coopplayernum >= 0 && prop->syncid
+		else if (NET_COOP_GAME() && prop->syncid
 				&& prop->syncid < NET_RECONCILE_MAXSYNCID
 				&& prop->type == PROPTYPE_CHR && prop->chr) {
 			netbufWriteU16(dst, (u16)prop->syncid);
@@ -4375,7 +4375,7 @@ u32 netmsgSvcPropReconcileRead(struct netbuf *src, struct netclient *srccl)
 			// Use the engine's full teardown (objDetach/embedment/model/rooms/free),
 			// same as SVC_PROP_FREE — a ghost may be a child of a chr (stuck mine).
 			netPropFreeSynced(prop, NETPROP_FREE_RECONCILE);
-		} else if (g_Vars.coopplayernum >= 0 && prop->type == PROPTYPE_CHR) {
+		} else if (NET_COOP_GAME() && prop->type == PROPTYPE_CHR) {
 			// Co-op chr ghost (proto 61): an NPC the host freed before we
 			// joined. Reap through the engine's own delete flag, exactly like
 			// the SVC_PROP_FREE chr path — chrRemove dereferences chr->model,
@@ -4451,7 +4451,7 @@ u32 netmsgSvcCoopClaimRead(struct netbuf *src, struct netclient *srccl)
 		return 1;
 	}
 
-	if (g_NetMode != NETMODE_CLIENT || g_Vars.coopplayernum < 0) {
+	if (g_NetMode != NETMODE_CLIENT || g_Vars.coopplayernum < 0 || g_MissionConfig.isteam) {
 		return 0; // server is authoritative; ignore in the wrong mode
 	}
 

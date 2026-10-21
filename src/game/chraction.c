@@ -59,6 +59,11 @@
 #include "lib/vi.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "net/net.h"
+#include "net/netmsg.h"
+#include "net/netprop.h"
+#endif
 #include "game/chaosstate.h"
 
 // fojo: a seat's handicap lives in its extended profile, bound when the seat
@@ -1350,6 +1355,9 @@ struct attackanimgroup var80067e48 = { var80067d28, 0xffffffff };
 struct attackanimgroup *g_LieAttackAnims = &var80067e48;
 
 u32 g_StageFlags = 0;
+#ifndef PLATFORM_N64
+u32 g_NetCoopLocalStageFlags = 0; // co-op client: flags this client's scripts set locally (OR-merged over the host mirror)
+#endif
 
 struct chrdata *g_BgChrs = NULL;
 s16 *g_BgChrnums = NULL;
@@ -4782,6 +4790,12 @@ void chrDamageByMisc(struct chrdata *chr, f32 damage, struct coord *vector, stru
 
 void chrDamageByLaser(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, gset, prop, HITPART_GENERAL,
 			true,      // damageshield
 			chr->prop, // prop2
@@ -4795,6 +4809,33 @@ void chrDamageByLaser(struct chrdata *chr, f32 damage, struct coord *vector, str
 
 void func0f0341dc(struct chrdata *chr, f32 damage, struct coord *vector, struct gset *gset, struct prop *prop, s32 hitpart, struct prop *prop2, struct modelnode *node, struct model *model, s32 side, s16 *arg10)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// Report the hit to the server. It runs chrDamage there and broadcasts
+		// SVC_CHR_DAMAGE back to all clients. Only send if the target has a
+		// syncid — unsynced props (e.g. local-only debris) have none.
+		//
+		// ONLY for the LOCAL player's own gunfire. The client also simulates
+		// REMOTE players' guns locally (bgunTick runs for remote pawns to drive
+		// visuals/positional audio), and that simulation's shots land here too —
+		// reporting those echoed every other player's hits to the server as OUR
+		// hits: the victim took the damage twice, and whenever the echo landed
+		// the killing blow the kill was credited to this client (the "AFK player
+		// racking up eliminations" bug — an idle client's machine echoing the
+		// host's shots). Same guard netClientReportPropHit has always had.
+		if (chr->prop && chr->prop->syncid
+				&& g_Vars.currentplayer && !g_Vars.currentplayer->isremote) {
+			netbufStartWrite(&g_NetMsgRel);
+			netmsgClcHitWrite(&g_NetMsgRel, chr, damage, vector, gset, (s16)hitpart, (s16)side, arg10);
+			netSend(g_NetLocalClient, &g_NetMsgRel, true, NETCHAN_CONTROL);
+			// Hidden test feature: immediate local hit confirmation (centred
+			// marker), so the shooter gets feedback now instead of after the
+			// server's SVC_CHR_DAMAGE round-trip. No-op unless /hitmarker is on.
+			g_NetHitmarkerExpireTick = g_NetTick + NET_HITMARKER_TICKS;
+		}
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, gset, prop, hitpart,
 			true,      // damageshield
 			prop2,     // prop2
@@ -4840,6 +4881,13 @@ void chrDamageByImpact(struct chrdata *chr, f32 damage, struct coord *vector, st
 	struct model *model = NULL;
 	s32 side = 0;
 
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
+
 	if (chrGetShield(chr) >= 0 && chr->model) {
 		chrCalculateShieldHit(chr, &chr->prop->pos, vector, &node, &hitpart, &model, &side);
 	}
@@ -4857,6 +4905,12 @@ void chrDamageByImpact(struct chrdata *chr, f32 damage, struct coord *vector, st
 
 void chrDamageByExplosion(struct chrdata *chr, f32 damage, struct coord *vector, struct prop *prop, struct coord *explosionpos)
 {
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT) {
+		// don't do anything if we're not the authority
+		return;
+	}
+#endif
 	chrDamage(chr, damage, vector, NULL, prop, HITPART_GENERAL,
 			true,      // damageshield
 			chr->prop, // prop2
@@ -4992,6 +5046,14 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 	// damage.
 	if (g_ChaosDamageScale >= 0.0f && g_ChaosDamageScale != 1.0f) {
 		damage *= g_ChaosDamageScale;
+	}
+
+	// netplay: the host is the damage authority; clients replay this exact
+	// hit from SVC_CHR_DAMAGE (the chrDamageBy* originators early-return on
+	// a client, so a client only ever reaches here as that replay).
+	if (g_NetMode == NETMODE_SERVER) {
+		netmsgSvcChrDamageWrite(&g_NetMsgRel, chr, damage, vector, gset, aprop, hitpart,
+				damageshield, prop2, side, arg11, explosion, explosionpos);
 	}
 #endif
 
@@ -5234,6 +5296,26 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 			aplayernum = playermgrGetPlayerNumByProp(aprop);
 		}
 	}
+
+#ifndef PLATFORM_N64
+	// Diag: every server-side damage event attributed to a HUMAN attacker,
+	// with the damage MECHANISM (weapon / explosion flag / attacker prop type
+	// / attacker liveness). A kill credited to an idle player will show up
+	// here as an hdmg line naming the path that carried their prop as aprop —
+	// the missing fact in the "AFK player racking up eliminations" reports.
+	if (g_NetMode == NETMODE_SERVER && g_Vars.normmplayerisrunning
+			&& aplayernum >= 0 && aplayernum < PLAYERCOUNT()) {
+		const s32 apn = (aprop && aprop->type == PROPTYPE_PLAYER)
+				? playermgrGetPlayerNumByProp(aprop) : -1;
+		const bool apnok = apn >= 0 && apn < PLAYERCOUNT() && g_Vars.players[apn];
+		netDiagLogf("hdmg", "a=%d cur=%d v=%d dmg=%.2f wpn=%d exp=%d atype=%d aremote=%d adead=%d",
+				aplayernum, (s32)g_Vars.currentplayernum, mpPlayerGetIndex(chr),
+				damage, gset ? (s32)gset->weaponnum : -1, explosion ? 1 : 0,
+				aprop ? (s32)aprop->type : -1,
+				apnok ? (s32)g_Vars.players[apn]->isremote : -1,
+				apnok ? (s32)g_Vars.players[apn]->isdead : -1);
+	}
+#endif
 
 	// If using the shotgun, scale the damage based on distance
 	if (aprop && aprop->type == PROPTYPE_CHR && gset->weaponnum == WEAPON_SHOTGUN) {
@@ -5561,6 +5643,21 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 					}
 
 					g_Vars.currentplayer->bondhealth -= amount / healthscale;
+#ifndef PLATFORM_N64
+					// Diag: log EVERY server-side player hit — the attacker, whether it
+					// resolves to self, and the resulting health. A gunshot kill showing
+					// as a suicide means either no pdmg line at all for the victim before
+					// death (damage routed elsewhere) or an atk=self line clobbering the
+					// real attacker. self=1 means aprop == the victim.
+					if (g_NetMode == NETMODE_SERVER && g_Vars.normmplayerisrunning) {
+						netDiagLogf("pdmg", "v=%d atk=%d self=%d aprop=%d dmg=%.1f hp=%.2f",
+								g_Vars.currentplayernum,
+								(aprop && aprop->chr) ? mpPlayerGetIndex(aprop->chr) : -1,
+								(aprop == vprop) ? 1 : 0,
+								aprop ? (s32)aprop->type : -1,
+								amount, g_Vars.currentplayer->bondhealth);
+					}
+#endif
 
 					chr->lastattacker = (aprop ? aprop->chr : NULL);
 
@@ -5665,6 +5762,12 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 					playerCheckIfShotInBack(prevplayernum, vector->x, vector->z);
 				}
 			}
+
+#ifndef PLATFORM_N64
+			if (g_NetMode == NETMODE_SERVER && g_Vars.currentplayer->client) {
+				netmsgSvcPlayerStatsWrite(&g_NetMsgRel, g_Vars.currentplayer->client);
+			}
+#endif
 
 			setCurrentPlayerNum(prevplayernum);
 			return;
@@ -6016,6 +6119,17 @@ void chrDie(struct chrdata *chr, s32 aplayernum)
 		chr->aioffset = 0;
 
 		mpstatsRecordDeath(aplayernum, mpPlayerGetIndex(chr));
+#ifndef PLATFORM_N64
+		// On a net client the server is authoritative for sim deaths and
+		// respawns. Calling botinvDropAll here marks the held weapon props
+		// OBJHFLAG_DELETING (via botinvSwitchToWeapon) which frees them and
+		// clears their syncids. Any in-flight SVC_PROP_MOVE for a projectile
+		// the sim just fired still references the weapon's syncid as ownerprop
+		// — that lookup then fails ("prop with syncid N does not exist"). Keep
+		// the weapons alive; the server's SVC_PROP_MOVE chr-state block will
+		// drive the weapon change when botSpawn runs server-side.
+		if (g_NetMode != NETMODE_CLIENT) {
+#endif
 		botinvDropAll(chr, chr->aibot->weaponnum);
 
 #if VERSION >= VERSION_NTSC_1_0
@@ -6024,6 +6138,9 @@ void chrDie(struct chrdata *chr, s32 aplayernum)
 		chr->aibot->unk04c_04 = false;
 		chr->aibot->unk04c_03 = false;
 		chr->aibot->hasuplink = false;
+#endif
+#ifndef PLATFORM_N64
+		}
 #endif
 	}
 }
@@ -6253,6 +6370,25 @@ bool chrIsRoomOffScreen(struct chrdata *chr, struct coord *waypos, RoomNum *wayr
 
 	if (offscreen) {
 		for (i = 0; i < PLAYERCOUNT(); i++) {
+#ifndef PLATFORM_N64
+			// netplay: a slot can carry a stale prop between a disconnect and
+			// the next stage (netClientReset clears only the client backlink).
+			// Skip a NULL / orphaned / out-of-pool prop instead of deref'ing it.
+			// Offline every seat is local and has no client: don't gate on it.
+			if (!g_Vars.players[i] || !g_Vars.players[i]->prop) {
+				continue;
+			}
+			if (g_NetMode && !g_Vars.players[i]->client) {
+				continue;
+			}
+			{
+				struct prop *pp = g_Vars.players[i]->prop;
+				if (pp < g_Vars.props || pp >= g_Vars.props + g_Vars.maxprops
+						|| pp->type != PROPTYPE_PLAYER) {
+					continue;
+				}
+			}
+#endif
 			portal00018148(waypos, &g_Vars.players[i]->prop->pos, wayrooms, sp50, 0, 0);
 
 			if (arrayIntersects(g_Vars.players[i]->prop->rooms, sp50)) {
@@ -7279,6 +7415,7 @@ void chrRecordLastVisibleTargetTime(struct chrdata *chr)
 {
 	chr->lastvisibletarget60 = g_Vars.lvframe60;
 }
+
 
 bool chrHasLosToEntity(struct chrdata *chr, struct coord *chrpos, RoomNum *chrrooms, bool allowextraheight, u32 attackflags, u32 entityid)
 {
@@ -10142,6 +10279,24 @@ void chrUpdateFireslot(struct chrdata *chr, s32 handnum, bool withsound, bool wi
 
 				if (chr);
 #endif
+#ifndef PLATFORM_N64
+				// ON-TRANSITION broadcast: tell clients that a sim just fired.
+				// Clients gate botTick to server-only (sim AI doesn't run on
+				// clients), so without this message they get no muzzle flash
+				// and no positional shot sound. Sent on the reliable channel
+				// (g_NetMsgRel) so the matching OFF message in chrTickShoot
+				// can't outpace this one and leave the gunfire visual stuck on.
+				// Sims (aibot) AND campaign co-op NPCs: both are net-replicated chrs
+				// whose firing the client doesn't compute locally (botTick / NPC AI
+				// is server-gated), so both need the ON message for the shot sound +
+				// flash onset. Co-op NPCs aren't aibots, so the aibot test alone left
+				// their gunfire silent on clients. Matches the OFF gate below (synced
+				// chr) and the co-op gate used elsewhere.
+				if (g_NetMode == NETMODE_SERVER && (chr->aibot || NET_COOP_GAME())
+						&& chr->prop && chr->prop->syncid) {
+					netmsgSvcChrFireWrite(&g_NetMsgRel, chr, (u8)handnum, soundnum);
+				}
+#endif
 			}
 
 			if (withbeam) {
@@ -11910,6 +12065,25 @@ void chrTickShoot(struct chrdata *chr, s32 handnum)
 				osSyncPrintf("numshots(%d) = %d", handnum, chr->aibot->loadedammo[handnum]);
 			}
 
+#ifndef PLATFORM_N64
+			// OFF-TRANSITION broadcast: tell clients to clear the sim's muzzle
+			// flash when firing stops. The matching on-transition is sent from
+			// chrUpdateFireslot above (with soundnum>0). Compare the current
+			// gunfire-visible state (`was`) against the value chrSetFiring is
+			// about to set (`will`); only send when transitioning visible→hidden,
+			// otherwise we'd flood the reliable channel with redundant zeros.
+			// Use g_NetMsgRel so an on→off pair can't be dropped out of order.
+			// Defensive: weaponIsGunfireVisible derefs heldprop->obj without
+			// null-checking, so guard both pointers explicitly.
+			if (g_NetMode == NETMODE_SERVER && chr->prop && chr->prop->syncid) {
+				struct prop *heldprop = chrGetHeldProp(chr, handnum);
+				const bool was = (heldprop && heldprop->obj) ? weaponIsGunfireVisible(heldprop) : false;
+				const bool will = firingthisframe && normalshoot;
+				if (was && !will) {
+					netmsgSvcChrFireWrite(&g_NetMsgRel, chr, (u8)handnum, 0);
+				}
+			}
+#endif
 			chrSetFiring(chr, handnum, firingthisframe && normalshoot);
 		} else {
 			chrSetFiring(chr, handnum, firingthisframe);
@@ -14720,8 +14894,18 @@ void chraTick(struct chrdata *chr)
 
 #ifndef PLATFORM_N64
 		// editor hold on this one chr (inspector); the global pause lives
-		// inside chraiExecute itself
-		if (!chr->aipaused)
+		// inside chraiExecute itself.
+		//
+		// netplay: NPC AI is host-authoritative. On a client, a synced chr
+		// (one with a syncid) is position/anim-driven by the host's chr-state
+		// broadcast and held at ACT_STAND, so its ailist must not run here -
+		// local combat/navigation decisions would desync. Bg chrs (the
+		// setup's monitor scripts) have no syncid and still run: they hand
+		// out mission-start equipment and gate on stage flags the host
+		// mirrors (netmsgSvcStageFlagsRead OR-merges the local set).
+		if (!chr->aipaused
+				&& !(g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()
+					&& chr->prop && chr->prop->syncid))
 #endif
 		chraiExecute(chr, PROPTYPE_CHR);
 
@@ -14785,7 +14969,28 @@ void chraTick(struct chrdata *chr)
 				case ACT_ANIM:   chrTickAnim(chr);   break;
 				case ACT_PATROL: chrTickPatrol(chr); pass = false; break;
 				}
-			} else {
+			}
+#ifndef PLATFORM_N64
+			// Skip the per-action tick for net-replicated chrs on a client:
+			// Combat Sim sim bots (chr->aibot) AND campaign co-op NPCs (any
+			// synced chr while coopplayernum is set — co-op NPCs are NOT aibots,
+			// so the aibot test alone misses them). The server's actiontype isn't
+			// synced (would crash because the chr->act_* union data isn't synced
+			// either — see netmsgSvcPropMoveRead chr-state block), and running
+			// chrTickStand here every frame would clobber the synced anim/yrot
+			// from SVC_PROP_MOVE bit-4 with stand-pose defaults. That fight is
+			// what made dying co-op NPCs flicker between the death anim (re-applied
+			// by netChrInterpolate) and an idle pose (re-chosen by
+			// chrChooseStandAnimation when the non-looping death anim finished).
+			// The model anim frame still advances during render via modelTickAnim,
+			// so skipping the action tick is purely a positive: no overwrite of
+			// synced state, no crash from missing union data.
+			else if (g_NetMode == NETMODE_CLIENT && (chr->aibot
+					|| (NET_COOP_GAME() && chr->prop && chr->prop->syncid))) {
+				// intentionally empty — anim/orientation come from net sync
+			}
+#endif
+			else {
 				switch (chr->actiontype) {
 				case ACT_STAND:           chrTickStand(chr);           break;
 				case ACT_KNEEL:           chrTickKneel(chr);           break;
@@ -15611,6 +15816,7 @@ void chrsClearRefsToPlayer(s32 playernum)
 	}
 }
 
+
 s32 chrResolveId(struct chrdata *ref, s32 id)
 {
 	if (ref) {
@@ -15866,11 +16072,28 @@ bool chrHasFlagById(struct chrdata *ref, u32 chrnum, u32 flag, u32 bank)
 void chrSetStageFlag(struct chrdata *chr, u32 flag)
 {
 	g_StageFlags |= flag;
+
+#ifndef PLATFORM_N64
+	// Co-op client: remember flags our own scripts set so the host's SVC_STAGE_FLAGS
+	// mirror (which overwrites g_StageFlags) can't clear them out from under a script
+	// loop guard. Without this an objective monitor whose "complete" guard is a stage
+	// flag the host hasn't set yet re-enters its branch every mirror tick, re-firing
+	// show_hudmsg + set_object_sound_playing (the ECM-mine message + sound spam).
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		g_NetCoopLocalStageFlags |= flag;
+	}
+#endif
 }
 
 void chrUnsetStageFlag(struct chrdata *chr, u32 flag)
 {
 	g_StageFlags = g_StageFlags & ~flag;
+
+#ifndef PLATFORM_N64
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		g_NetCoopLocalStageFlags &= ~flag;
+	}
+#endif
 }
 
 bool chrHasStageFlag(struct chrdata *chr, u32 flag)
@@ -16567,7 +16790,19 @@ struct prop *chrSpawnAtCoord(s32 bodynum, s32 headnum, struct coord *pos, RoomNu
 
 	if (chrsGetNumFree() > 1) {
 		if (headnum < 0) {
+#ifndef PLATFORM_N64
+			// Bodies with a BUILT-IN head (skedar, Elvis, Dr Caroll — the
+			// unk00_01 bit) must spawn headless: the setup path
+			// (bodyAllocateChr) skips head selection for them entirely, and
+			// bolting a human head on makes the model build fail (chaos
+			// pd.spawn_body of a Skedar King returned NULL here). Keep the
+			// negative headnum so body0f02ce8c takes the no-head path.
+			if (!g_HeadsAndBodies[bodynum].unk00_01) {
+				headnum = bodyChooseHead(bodynum);
+			}
+#else
 			headnum = bodyChooseHead(bodynum);
+#endif
 		}
 
 		pos2.x = pos->x;
@@ -16613,6 +16848,23 @@ struct prop *chrSpawnAtCoord(s32 bodynum, s32 headnum, struct coord *pos, RoomNu
 					if (spawnflags & SPAWNFLAG_NOBLOOD) {
 						chr->noblood = true;
 					}
+
+#ifndef PLATFORM_N64
+					// Campaign co-op: this is a RUNTIME chr spawn (reinforcement,
+					// scripted guard, clone) that only the host runs — the client's
+					// NPC AI/scripts are gated off, so it never creates this chr and
+					// the guard is invisible there. Broadcast it so the client makes
+					// a matching shell with this server-assigned syncid; the chr-state
+					// broadcast then drives its pose/anim/weapons/HP. Gated to an
+					// in-progress game so setup-time spawns (deterministic positional
+					// syncids, created identically on both sides) aren't re-sent.
+					if (g_NetMode == NETMODE_SERVER && g_NetCoopChrLifecycle
+							&& NET_COOP_GAME()
+							&& prop->syncid && g_NetLocalClient
+							&& g_NetLocalClient->state == CLSTATE_GAME) {
+						netServerBroadcastChrSpawn(prop, angle, spawnflags);
+					}
+#endif
 
 					return prop;
 				}
@@ -16866,6 +17118,12 @@ bool chrMoveToPos(struct chrdata *chr, struct coord *pos, RoomNum *rooms, f32 an
 			player->vv_verta = 0;
 			player->unk1c64 = 1;
 		}
+
+#ifndef PLATFORM_N64
+		if (g_NetMode == NETMODE_SERVER && player) {
+			player->ucmd |= UCMD_FL_FORCEPOS | UCMD_FL_FORCEANGLE | UCMD_FL_FORCEGROUND;
+		}
+#endif
 
 		result = true;
 	}
