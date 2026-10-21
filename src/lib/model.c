@@ -4509,6 +4509,11 @@ void modelInit(struct model *model, struct modeldef *modeldef, u32 *rwdatas, boo
 	// fourth player's head model in fresh memory is where that went wrong.
 	model->unk01 = 0;
 	model->chr = NULL;
+	// matrices is only assigned when the model is first render-prepped
+	// (modelSetMatrices). until then it is whatever the memory held, and
+	// a pawn nobody has drawn yet (a remote seat on a listen host) leaked
+	// that into netLagCompBegin's root-matrix patch. NULL means not built.
+	model->matrices = NULL;
 #endif
 	model->definition = modeldef;
 	model->rwdatas = rwdatas;
