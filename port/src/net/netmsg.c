@@ -1889,6 +1889,8 @@ u32 netmsgSvcCutsceneRead(struct netbuf *src, struct netclient *srccl)
 		return src->error;
 	}
 
+	netCutsceneHistoryNote(active, animnum);
+
 	if (active) {
 		// Start (or re-point to) the host's cutscene if we're not already playing it.
 		// The client may have started its own copy via the cutscene trigger chr's AI,
@@ -2865,6 +2867,19 @@ u32 netmsgSvcPropMoveWrite(struct netbuf *dst, struct prop *prop, struct coord *
 		if (cshield < 0.f) cshield = 0.f;
 		if (cshield > 8.f) cshield = 8.f;
 		netbufWriteU8(dst, (u8)(cshield * (255.0f / 8.0f) + 0.5f));
+		// a non-finite damage poisons the whole packet on the client
+		// (netbufReadF32 refuses it -> "malformed 0x30", every message
+		// behind it in the packet dropped). seen on defection, one chr,
+		// intermittently. name it here and send a sane value.
+		if (!isfinite(chr->damage)) {
+			static u32 s_nanwarntick = 0xffffffffu;
+			if (s_nanwarntick != g_NetTick) {
+				s_nanwarntick = g_NetTick;
+				sysLogPrintf(LOG_WARNING, "NET: chr syncid %u (chrnum %d head %d body %d act %d) has damage %f - sent as 0",
+						prop->syncid, chr->chrnum, chr->headnum, chr->bodynum, chr->actiontype, chr->damage);
+			}
+			chr->damage = 0.0f;
+		}
 		netbufWriteF32(dst, chr->damage);
 	}
 
