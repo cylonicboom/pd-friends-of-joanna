@@ -5216,8 +5216,21 @@ bool aiSetCameraAnimation(void)
 bool aiIfInCutscene(void)
 {
 	u8 *cmd = g_Vars.ailist + g_Vars.aioffset;
+	bool incutscene = g_Vars.in_cutscene;
 
-	if (g_Vars.in_cutscene) {
+#ifndef PLATFORM_N64
+	// netplay: on a client the scene is the host's. in_cutscene comes from
+	// the LOCAL frame counter, and a client whose sim runs ahead of the
+	// host's (or behind) finishes the anim at a different net tick - its
+	// intro list then un-hid the seats seconds before the host's did. the
+	// wire's word instead: the scene runs until the host ends it or starts
+	// the next one.
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME() && g_Vars.tickmode == TICKMODE_CUTSCENE) {
+		incutscene = netCutsceneStarted(g_CutsceneAnimNum) && !netCutsceneEnded(g_CutsceneAnimNum);
+	}
+#endif
+
+	if (incutscene) {
 		g_Vars.aioffset = chraiGoToLabel(g_Vars.ailist, g_Vars.aioffset, cmd[2]);
 	} else {
 		g_Vars.aioffset += 3;
