@@ -2153,6 +2153,16 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 	// see them tagged as (spec) in the lobby UI.
 	const bool jip = (g_NetLocalClient && g_NetLocalClient->state > CLSTATE_LOBBY);
 
+	// fojo: a Team Mission has no seat for a late joiner - no dormant seats,
+	// no spectator face - so the JIP spectator path would hand them a stage
+	// with no pawn and no viewport. refuse until the mission ends and
+	// everyone is back in the lobby (hot join is its own thread).
+	if (jip && g_MissionConfig.isteam) {
+		sysLogPrintf(LOG_NOTE | LOGFLAG_NOCON, "NET: %s rejected: team mission in progress", addrstr);
+		enet_peer_disconnect(peer, DISCONNECT_LATE);
+		return;
+	}
+
 	struct netclient *cl = NULL;
 
 	// id 0 is the local client
