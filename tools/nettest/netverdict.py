@@ -21,6 +21,8 @@ TICK_PAIR_TOL = 8    # ticks, how far apart two samples may be and still pair (b
                      # log on the second boundary of the shared net tick)
 DRIFT_MAX = 180      # ticks, worst tick-clock drift a process may report
 MOVE_MIN = 40.0      # world units, how far a driven pawn must travel in xz during gameplay
+CUT_PAIR_TOL = 40    # ticks, a cutscene edge may land this far apart on the two sides (one frame
+                     # of wire lag against once-a-second sampling)
 WARN_ALLOW = (       # net warnings that do not fail a run
     "tick clock drift",
     "SVC_PROP_MOVE: obj body for syncid 1 unapplied",   # the hub's first move before ids exist
@@ -170,6 +172,61 @@ def run(rundir):
         play = [f for _, _, f in p.diag.get("team", []) if f.get("tickmode") == "1" and f.get("cutscene") == "0"
                 and (expect_stage is None or f.get("stage") == expect_stage)]
         check(results, f"{p.name}: gameplay reached", bool(play), f"{len(play)} second(s) of gameplay logged")
+
+    # 5a. the intro plays in lockstep: the seconds a process spends in
+    # tickmode 6 (cutscene) at the stage, host vs client, keyed by net tick.
+    # the client's scripts hold at 0111/00dd on the host's SVC_CUTSCENE, so
+    # the two sets should differ by at most a second or two at each edge.
+    if host:
+        def cut_ticks(p):
+            return {t for t, _, f in p.diag.get("team", []) if f.get("tickmode") == "6"
+                    and (expect_stage is None or f.get("stage") == expect_stage)}
+        hcut = cut_ticks(host)
+        for c in clients:
+            ccut = cut_ticks(c)
+            if not hcut and not ccut:
+                check(results, f"{c.name}: cutscene in lockstep", False, "no cutscene seconds on either side", skip=True)
+                continue
+            # pair each second with the nearest on the other side (±TICK_PAIR_TOL)
+            def unmatched(a, b):
+                return sum(1 for t in a if not any(abs(t - u) <= CUT_PAIR_TOL for u in b))
+            only_c = unmatched(ccut, hcut)
+            only_h = unmatched(hcut, ccut)
+            check(results, f"{c.name}: cutscene in lockstep", only_c <= 2 and only_h <= 2,
+                  f"host {len(hcut)} s in cutscene, client {len(ccut)} s; {only_c} client-only, {only_h} host-only seconds")
+
+        # 5a'. while the intro plays, the non-operative seats are hidden on
+        # every machine (the setup's set_chr_chrflag(CHR_COOP/ANTI, HIDDEN)).
+        # a client that raced the scene showed them standing on their pads.
+        for p in procs.values():
+            cut = cut_ticks(p)
+            if not cut:
+                check(results, f"{p.name}: seats hidden in the intro", False, "no cutscene seconds", skip=True)
+                continue
+            sb = p.seats_by_tick()
+            shown = 0
+            samples = 0
+            for t in cut:
+                for i, f in sb.get(t, {}).items():
+                    if i == 0 or "hidden" not in f:
+                        continue
+                    samples += 1
+                    if f.get("hidden") != "1":
+                        shown += 1
+            if samples == 0:
+                check(results, f"{p.name}: seats hidden in the intro", False, "no seat samples carry hidden=", skip=True)
+            else:
+                # the first second or two before the list reaches the hide is tolerated
+                check(results, f"{p.name}: seats hidden in the intro", shown <= 2,
+                      f"{shown} of {samples} cutscene seat-seconds visible")
+
+    # 5a''. the mission didn't end on its own: no endscreen on any machine
+    # during a walk run (an instafail - a critical chr dead - shows here).
+    for p in procs.values():
+        ends = [f for _, _, f in p.diag.get("team", []) if f.get("endscreen") not in (None, "0")
+                and (expect_stage is None or f.get("stage") == expect_stage)]
+        check(results, f"{p.name}: mission didn't end early", not ends,
+              f"{len(ends)} second(s) of endscreen" if ends else "no endscreen")
 
     # 5b. the local pawn moved: a frozen pawn (pad routed to a controller that
     # doesn't exist) agrees with the host perfectly and proves nothing.

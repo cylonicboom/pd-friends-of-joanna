@@ -52,6 +52,7 @@ TEAM_DIFF=0
 CLIENTS=1               # remote clients to start
 RUN_SECS=120            # wall time per run
 CLIENT_DELAY=18         # seconds the host gets before the first client starts
+INTRO_GRAB_AT=7         # seconds after the last client launch to grab the intro frame
 HOST_DRIVER=walker      # scripts/<name>.lua used as each process's init.lua
 CLIENT_DRIVER=walker
 EXTRA_HOST_ARGS=""
@@ -160,6 +161,14 @@ if [ "$XVFB" = yes ] && command -v import >/dev/null; then
     }
     grab "$RUN/host" 90
     for i in $(seq 1 "$CLIENTS"); do grab "$RUN/cl$i" $((90 + i)); done
+  ) &
+  # and one early, while the intro should be playing on every machine
+  (
+    sleep "$INTRO_GRAB_AT"
+    for i in $(seq 1 "$CLIENTS"); do
+      import -display :$((90 + i)) -window root "$RUN/cl$i/frame-intro.png" 2>> "$RUN/cl$i/import.txt"
+    done
+    import -display :90 -window root "$RUN/host/frame-intro.png" 2>> "$RUN/host/import.txt"
   ) &
 fi
 wait

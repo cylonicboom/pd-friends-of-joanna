@@ -48,6 +48,8 @@ def one(d):
             "exit": exitcode,
             "log": f"runs/{d}/{name}/out.txt",
             "diag": f"runs/{d}/{name}/diag.csv",
+            "frames": [f"runs/{d}/{name}/{fn}" for fn in ("frame-intro.png", "frame.png")
+                       if os.path.exists(os.path.join(pd, fn))],
             # the lines a reader wants first: net notes, warnings, stalls
             "tail": "\n".join(l for l in tail(os.path.join(pd, "out.txt")).splitlines()
                               if ("NET:" in l or "WARNING" in l or "FATAL" in l or "watchdog" in l))[-6000:],
