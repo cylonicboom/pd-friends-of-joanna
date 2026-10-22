@@ -188,6 +188,24 @@ def run(rundir):
             far = max(math.hypot(x - x0, z - z0) for x, _, z in pts)
             check(results, f"{p.name}: own pawn moved", far >= MOVE_MIN, f"seat {ls} travelled {far:.0f} units across {len(pts)} gameplay samples")
 
+    # 5c. the frame isn't black. frame.png is a root-window grab of each
+    # process's xvfb display at 3/4 of the run (nettest, ImageMagick import).
+    for p in procs.values():
+        fp = os.path.join(p.dir, "frame.png")
+        if not os.path.exists(fp):
+            check(results, f"{p.name}: frame drawn", False, "no frame.png (no xvfb / no ImageMagick)", skip=True)
+            continue
+        try:
+            from PIL import Image
+            im = Image.open(fp).convert("L")
+            px = list(im.get_flattened_data() if hasattr(im, "get_flattened_data") else im.getdata())
+            mean = sum(px) / max(1, len(px))
+            lit = sum(1 for v in px if v > 24) / max(1, len(px))
+            check(results, f"{p.name}: frame drawn", mean > 6.0 and lit > 0.05,
+                  f"mean {mean:.1f}/255, {lit*100:.0f}% of pixels lit")
+        except Exception as e:  # PIL missing, bad png
+            check(results, f"{p.name}: frame drawn", False, f"could not read frame.png: {e}", skip=True)
+
     # 6/7. agreement: host vs each client, per seat, paired by tick
     if host:
         hs = host.seats_by_tick()
