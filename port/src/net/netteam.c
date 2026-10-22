@@ -165,6 +165,14 @@ void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles)
 	g_MissionConfig.iscoop = false;
 	g_MissionConfig.isanti = false;
 	g_MissionConfig.pdmode = true; // players must explicitly join (the hub sets this too)
+	// the knobs the Team Missions menu resolves on accept
+	// (menuhandlerTeamStartMission). without this the f32s were whatever
+	// was there - 0 on a CLI boot - and chrDamage divided by it: inf damage,
+	// a dead chr the moment anything hit it, and a NaN that poisoned every
+	// SVC_PROP_MOVE packet it rode in.
+	g_MissionConfig.pdmodehealthf = func0f1036ac(g_MissionConfig.pdmodehealth, PDMODEPROP_HEALTH);
+	g_MissionConfig.pdmodedamagef = func0f1036ac(g_MissionConfig.pdmodedamage, PDMODEPROP_DAMAGE);
+	g_MissionConfig.pdmodeaccuracyf = func0f1036ac(g_MissionConfig.pdmodeaccuracy, PDMODEPROP_ACCURACY);
 	g_MissionConfig.difficulty = difficulty;
 	g_MissionConfig.stageindex = stageindex;
 	g_MissionConfig.stagenum = g_SoloStages[stageindex].stagenum;

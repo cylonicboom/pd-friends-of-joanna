@@ -1204,6 +1204,11 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 		netbufWriteU8(dst, NETSTAGEMODE_TEAM);
 		netbufWriteU8(dst, (u8)g_MissionConfig.stageindex);
 		netbufWriteU8(dst, (u8)g_MissionConfig.difficulty);
+		// the pd mode knobs (enemy health / damage / accuracy, 0..255): the
+		// host's, so every machine divides damage by the same number
+		netbufWriteU8(dst, g_MissionConfig.pdmodehealth);
+		netbufWriteU8(dst, g_MissionConfig.pdmodedamage);
+		netbufWriteU8(dst, g_MissionConfig.pdmodeaccuracy);
 		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
 			netbufWriteU8(dst, g_Vars.playerroles[i]);
 		}
@@ -1410,6 +1415,9 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 	if (mode == NETSTAGEMODE_TEAM) {
 		const u8 stageindex = netbufReadU8(src);
 		const u8 difficulty = netbufReadU8(src);
+		const u8 pdhealth = netbufReadU8(src);
+		const u8 pddamage = netbufReadU8(src);
+		const u8 pdaccuracy = netbufReadU8(src);
 		u8 roles[MAX_PLAYERS];
 		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
 			roles[i] = netbufReadU8(src);
@@ -1443,6 +1451,9 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 			return 2;
 		}
 		g_NetLocalClient->state = CLSTATE_GAME;
+		g_MissionConfig.pdmodehealth = pdhealth;
+		g_MissionConfig.pdmodedamage = pddamage;
+		g_MissionConfig.pdmodeaccuracy = pdaccuracy;
 		netTeamEnterStage((s32)stageindex, (s32)difficulty, roles);
 		return src->error;
 	}
