@@ -14,9 +14,10 @@ had it" is a distance between two numbers, not an opinion.
 """
 import json, math, os, re, sys, time
 
-POS_TOL = 200.0      # world units, 90th percentile host-vs-client per seat. a running pawn
-                     # covers ~260/s, so this is ~0.75 s of interp lag + pairing slack
+POS_TOL = 120.0      # world units, 90th percentile distance from a client sample to the host's
+                     # path (see POS_LAG_TOL); the old same-tick metric needed 200 for lag alone
 HEALTH_TOL = 0.1     # bondhealth, 90th percentile
+POS_LAG_TOL = 90     # ticks, how far along the host's path a client sample may lag or lead
 TICK_PAIR_TOL = 8    # ticks, how far apart two samples may be and still pair (both sides
                      # log on the second boundary of the shared net tick)
 DRIFT_MAX = 180      # ticks, worst tick-clock drift a process may report
@@ -67,6 +68,18 @@ def fnum(v, default=None):
 def parse_pos(v):
     m = re.match(r'\(([-\d.]+),([-\d.]+),([-\d.]+)\)', v or "")
     return tuple(float(x) for x in m.groups()) if m else None
+
+
+def seg_dist(p, a, b):
+    """distance from point p to segment ab (3-vectors)"""
+    ab = [b[k] - a[k] for k in range(3)]
+    ap = [p[k] - a[k] for k in range(3)]
+    l2 = sum(v * v for v in ab)
+    if l2 <= 1e-9:
+        return math.dist(p, a)
+    t = max(0.0, min(1.0, sum(ap[k] * ab[k] for k in range(3)) / l2))
+    q = [a[k] + t * ab[k] for k in range(3)]
+    return math.dist(p, q)
 
 
 def pct(values, p):
@@ -228,6 +241,21 @@ def run(rundir):
         check(results, f"{p.name}: mission didn't end early", not ends,
               f"{len(ends)} second(s) of endscreen" if ends else "no endscreen")
 
+    # 5a3. nobody died at spawn: a seat that reads dead in the first five
+    # seconds of gameplay fell through the world or spawned in the wrong place
+    # (seen: the counter-op dropping from y=-624 to the kill plane on defection).
+    for p in procs.values():
+        play = sorted(t for t, _, f in p.diag.get("team", []) if f.get("tickmode") == "1" and f.get("cutscene") == "0"
+                      and (expect_stage is None or f.get("stage") == expect_stage))
+        if not play:
+            check(results, f"{p.name}: nobody died at spawn", False, "no gameplay", skip=True)
+            continue
+        early = set(play[:5])
+        sb = p.seats_by_tick()
+        died = sorted({i for t in early for i, f in sb.get(t, {}).items() if f.get("dead") not in (None, "0")})
+        check(results, f"{p.name}: nobody died at spawn", not died,
+              ("seat(s) " + ", ".join(str(i) for i in died) + " dead in the first 5 s") if died else "all seats alive")
+
     # 5b. the local pawn moved: a frozen pawn (pad routed to a controller that
     # doesn't exist) agrees with the host perfectly and proves nothing.
     for p in procs.values():
@@ -269,8 +297,15 @@ def run(rundir):
         hticks = sorted(hs)
         for c in clients:
             cs = c.seats_by_tick()
+            # gameplay only: in the intro the seats are hidden and parked at
+            # their un-grounded spawn pos on the client (a constant 50-70
+            # units of y), which is not a sync question
+            cplay = {t for t, _, f in c.diag.get("team", []) if f.get("tickmode") == "1" and f.get("cutscene") == "0"
+                     and (expect_stage is None or f.get("stage") == expect_stage)}
             dists, dhp, pairs = {}, {}, 0
             for ct, seats in cs.items():
+                if ct not in cplay:
+                    continue
                 # nearest host sample
                 best = None
                 for ht in hticks:
@@ -283,9 +318,35 @@ def run(rundir):
                     hf = hs[best].get(i)
                     if not hf:
                         continue
-                    a, b = parse_pos(f.get("pos")), parse_pos(hf.get("pos"))
-                    if a and b:
-                        dists.setdefault(i, []).append(math.dist(a, b))
+                    a = parse_pos(f.get("pos"))
+                    if not a:
+                        continue
+                    # a running pawn covers ~260 units/s and the two sides
+                    # sample it once a second with interp lag between them,
+                    # so "same tick, same spot" is the wrong question. ask
+                    # instead how far the client's sample is from the host's
+                    # PATH: the nearest host sample within POS_LAG_TOL ticks.
+                    # a lagging-but-faithful path scores near 0; a real
+                    # divergence (a stuck pawn, a wrong snap) stays large.
+                    # the host samples once a second and a pawn covers ~260
+                    # units in that second, so measure against the segments
+                    # between consecutive host samples, not the samples.
+                    dmin = None
+                    prev = None
+                    for ht in hticks:
+                        if ht < ct - POS_LAG_TOL:
+                            continue
+                        if ht > ct + POS_LAG_TOL:
+                            break
+                        hb = parse_pos(hs[ht].get(i, {}).get("pos"))
+                        if not hb:
+                            continue
+                        d = seg_dist(a, prev, hb) if prev else math.dist(a, hb)
+                        if dmin is None or d < dmin:
+                            dmin = d
+                        prev = hb
+                    if dmin is not None:
+                        dists.setdefault(i, []).append(dmin)
                     ha, hb = fnum(f.get("health")), fnum(hf.get("health"))
                     if ha is not None and hb is not None:
                         dhp.setdefault(i, []).append(abs(ha - hb))
@@ -294,7 +355,7 @@ def run(rundir):
                 continue
             worst = max((pct(v, 0.9) for v in dists.values()), default=0.0)
             detail = ", ".join(f"seat{i} p90 {pct(v,0.9):.0f} max {max(v):.0f}" for i, v in sorted(dists.items()))
-            check(results, f"{c.name}: positions agree with host", worst <= POS_TOL, f"{pairs} paired seconds; {detail}")
+            check(results, f"{c.name}: positions agree with host", worst <= POS_TOL, f"{pairs} paired seconds, path distance; {detail}")
             worsth = max((pct(v, 0.9) for v in dhp.values()), default=0.0)
             check(results, f"{c.name}: health agrees with host", worsth <= HEALTH_TOL,
                   ", ".join(f"seat{i} p90 {pct(v,0.9):.2f}" for i, v in sorted(dhp.items())))

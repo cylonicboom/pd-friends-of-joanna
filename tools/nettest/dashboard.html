@@ -84,7 +84,7 @@
     <li><b>boot · connect · stage</b> — server/client start, every client reaches CLSTATE_GAME, every process loads the armed stage with <code>isteam</code></li>
     <li><b>roles</b> — the seat manifest is identical everywhere; each client sits in a non-operative seat whose role matches what the host armed</li>
     <li><b>gameplay</b> — the intro cutscene ends (tickmode 1) on every process, and every walker-driven pawn actually covers ground</li>
-    <li><b>agreement</b> — per seat, host vs client position p90 under 200 units (~0.75 s at run speed) and health p90 within 0.1</li>
+    <li><b>agreement</b> — per seat, each client sample within 120 units (p90) of the host's path, and health p90 within 0.1</li>
     <li><b>stability</b> — no crash, watchdog stall or guard trip in any log; no unexpected <code>WARNING: NET</code>; the prop auditor never says FAIL; tick drift bounded</li>
   </ul>
 </section>

@@ -35,7 +35,7 @@ check into `verdict.json`, plus a zero-byte `PASS` or `FAIL` beside it:
 | roles match host · own seat role | the seat manifest is identical everywhere, and each client's local seat is a non-operative seat with the armed role |
 | gameplay reached | `tickmode=1 cutscene=0` was logged at the stage (the intro was skipped) |
 | own pawn moved | a walker-driven seat covered ≥ 40 units in xz during gameplay. a pawn whose pad routes to a controller that doesn't exist agrees with the host perfectly and proves nothing |
-| positions agree | per seat, host-vs-client distance p90 ≤ 200 units over paired seconds (~0.75 s at run speed) |
+| positions agree | per seat, distance from each client sample to the host's path (nearest host sample within 1.5 s) p90 ≤ 120 units |
 | health agrees | per seat, `bondhealth` p90 within 0.1 |
 | no crash or stall | no `FATAL`, watchdog stall, anim-walk or prop-walk guard in the log |
 | no net warnings | no `WARNING: NET` beyond the allow-list in `netverdict.py` |
