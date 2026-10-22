@@ -220,9 +220,10 @@ void netTeamDiagTick(void)
 		return;
 	}
 	lastsec = sec;
-	netDiagLogf("team", "stage=0x%02x tickmode=%d cutscene=%d lvframe60=%d players=%d bond=%d coop=%d anti=%d isteam=%d endscreen=%d",
+	netDiagLogf("team", "stage=0x%02x tickmode=%d cutscene=%d lvframe60=%d players=%d bond=%d coop=%d anti=%d isteam=%d endscreen=%d csanim=%d csframe=%d",
 			g_StageNum, g_Vars.tickmode, g_Vars.in_cutscene, g_Vars.lvframe60, PLAYERCOUNT(),
-			g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.antiplayernum, g_MissionConfig.isteam, g_MainIsEndscreen);
+			g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.antiplayernum, g_MissionConfig.isteam, g_MainIsEndscreen,
+			g_CutsceneAnimNum, g_CutsceneCurAnimFrame60);
 	for (s32 i = 0; i < g_NetMaxClients; i++) {
 		struct netclient *cl = &g_NetClients[i];
 		if (cl->state) {
@@ -241,10 +242,11 @@ void netTeamDiagTick(void)
 			continue;
 		}
 		s32 pad = optionsGetContpadNum1(g_Vars.playerstats[i].mpindex);
-		netDiagLogf("seat", "i=%d role=%d remote=%d client=%d pos=(%.1f,%.1f,%.1f) dead=%d lives=%d health=%.2f ucmd=0x%08x go=%.2f/%.2f pad=%d stick=%d/%d mode=%d",
+		netDiagLogf("seat", "i=%d role=%d remote=%d client=%d pos=(%.1f,%.1f,%.1f) dead=%d lives=%d health=%.2f hidden=%d ucmd=0x%08x go=%.2f/%.2f pad=%d stick=%d/%d mode=%d",
 				i, g_Vars.playerroles[i], (s32)pl->isremote, pl->client ? (s32)pl->client->id : -1,
 				pl->prop ? pl->prop->pos.x : 0.0f, pl->prop ? pl->prop->pos.y : 0.0f, pl->prop ? pl->prop->pos.z : 0.0f,
-				(s32)pl->isdead, pl->livesremaining, pl->bondhealth, pl->ucmd,
+				(s32)pl->isdead, pl->livesremaining, pl->bondhealth,
+				(pl->prop && pl->prop->chr && (pl->prop->chr->chrflags & CHRCFLAG_HIDDEN)) ? 1 : 0, pl->ucmd,
 				pl->speedforwards, pl->speedsideways, pad,
 				pl->isremote ? 0 : joyGetStickX(pad), pl->isremote ? 0 : joyGetStickY(pad),
 				optionsGetControlMode(g_Vars.playerstats[i].mpindex));
