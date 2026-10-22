@@ -627,6 +627,15 @@ s32 netTeamStageUnlocked(s32 stageindex);      // host's save, the Team Missions
 s32 netTeamCanStart(char *why, u32 whylen);    // host; why = the reason when 0
 s32 netTeamStart(void);                        // host: enter the stage now
 
+// What the host's cutscene mirror has shown this stage (SVC_CUTSCENE). The
+// client's own scripts don't start or end cutscenes (chraicommands 0111 /
+// 00dd), they WAIT on these so the list's choreography - hides, spawns,
+// chr anims - runs in step with the host's scene instead of racing ahead.
+s32 netCutsceneStarted(s16 animnum);   // the wire started this anim at some point this stage
+s32 netCutsceneEnded(s16 animnum);     // ...and has since ended it (or started another)
+void netCutsceneHistoryReset(void);    // stage entry
+void netCutsceneHistoryNote(s32 active, s16 animnum);
+
 // Chat as the window sees it: a ring of the lines the console used to show.
 #define NET_CHATLOG_LINES 48
 #define NET_CHATLOG_LEN   160

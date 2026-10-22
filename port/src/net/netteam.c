@@ -623,3 +623,62 @@ void netChatSend(const char *text)
 	}
 	netChat(NULL, text);
 }
+
+/* ------------------------------------------------------------------------
+ * Cutscene history (client). A ring of the anims SVC_CUTSCENE started, each
+ * with whether it has ended. The intro list on a client waits on these.
+ * ---------------------------------------------------------------------- */
+
+#define NET_CUTSCENE_HISTORY 16
+static s16 s_csAnim[NET_CUTSCENE_HISTORY];
+static u8 s_csEnded[NET_CUTSCENE_HISTORY];
+static s32 s_csCount = 0;
+
+void netCutsceneHistoryReset(void)
+{
+	s_csCount = 0;
+}
+
+void netCutsceneHistoryNote(s32 active, s16 animnum)
+{
+	if (active) {
+		// a re-send of the running scene (heartbeat) is not a new start
+		if (s_csCount > 0 && s_csAnim[s_csCount - 1] == animnum && !s_csEnded[s_csCount - 1]) {
+			return;
+		}
+		// a new start ends whatever was running
+		if (s_csCount > 0) {
+			s_csEnded[s_csCount - 1] = 1;
+		}
+		if (s_csCount == NET_CUTSCENE_HISTORY) {
+			memmove(s_csAnim, s_csAnim + 1, sizeof(s_csAnim) - sizeof(s_csAnim[0]));
+			memmove(s_csEnded, s_csEnded + 1, sizeof(s_csEnded) - sizeof(s_csEnded[0]));
+			s_csCount--;
+		}
+		s_csAnim[s_csCount] = animnum;
+		s_csEnded[s_csCount] = 0;
+		s_csCount++;
+	} else if (s_csCount > 0) {
+		s_csEnded[s_csCount - 1] = 1;
+	}
+}
+
+s32 netCutsceneStarted(s16 animnum)
+{
+	for (s32 i = s_csCount - 1; i >= 0; i--) {
+		if (s_csAnim[i] == animnum) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+s32 netCutsceneEnded(s16 animnum)
+{
+	for (s32 i = s_csCount - 1; i >= 0; i--) {
+		if (s_csAnim[i] == animnum) {
+			return s_csEnded[i];
+		}
+	}
+	return 0;
+}

@@ -1327,6 +1327,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 // and fojo's netTeamEnterStage (netteam.c).
 void netCoopResetStageState(void)
 {
+	netCutsceneHistoryReset();
 	// Clear the host-authoritative objective mirror so a previous mission's
 	// completions can't leak into this one (the client overlays these onto its
 	// local objective evaluation; a stale COMPLETE would falsely mark an objective

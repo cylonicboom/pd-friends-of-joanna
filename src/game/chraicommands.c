@@ -5135,6 +5135,13 @@ bool ai00dd(void)
 	// it here put the client into gameplay while the host still held the
 	// intro (its segment-1 ailist waits on frames the client's didn't).
 	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		// hold the list here until the host's scene has ended, so what
+		// follows (un-hides, the post-cutscene state) lands when it does
+		// on the host. a scene the wire never showed us is not waited on.
+		if (g_Vars.tickmode == TICKMODE_CUTSCENE
+				|| (netCutsceneStarted(g_CutsceneAnimNum) && !netCutsceneEnded(g_CutsceneAnimNum))) {
+			return true;
+		}
 		g_Vars.aioffset += 2;
 		return false;
 	}
@@ -5180,6 +5187,13 @@ bool aiSetCameraAnimation(void)
 	// re-points) the client's cutscene. a local start would race it with a
 	// segment the host may already have skipped.
 	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		// hold the list here until the host's mirror has started this very
+		// scene (or already shown and ended it - a skip that beat us here),
+		// so the choreography after this command - hides, the jumpship, the
+		// chr anims - runs in step with the scene instead of racing it.
+		if (!netCutsceneStarted(anim_id)) {
+			return true;
+		}
 		g_Vars.aioffset += 4;
 		return false;
 	}
