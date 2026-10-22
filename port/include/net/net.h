@@ -584,6 +584,7 @@ s32 netDedicatedBootTick(void);
 extern s32 g_NetTeamStageIndex;
 extern s32 g_NetTeamDifficulty;
 extern s32 g_NetTeamWait;
+extern s32 g_NetTeamArmed;
 extern u8 g_NetTeamRoles[MAX_PLAYERS];
 extern char g_NetTeamRolesCfg[16]; // pd.ini form of g_NetTeamRoles, "b,c,a,n"
 void netTeamRolesFromCfg(void);     // apply g_NetTeamRolesCfg (after config load)

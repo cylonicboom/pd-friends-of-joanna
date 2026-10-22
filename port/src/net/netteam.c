@@ -48,6 +48,7 @@
 s32 g_NetTeamStageIndex = -1;
 s32 g_NetTeamDifficulty = DIFF_A;
 s32 g_NetTeamWait = -1;
+s32 g_NetTeamArmed = 0; // --team given: netTeamServerTick auto-starts at --team-wait. the window never sets it.
 u8 g_NetTeamRoles[MAX_PLAYERS] = { PLAYERROLE_BOND, PLAYERROLE_COOP, PLAYERROLE_NONE, PLAYERROLE_NONE };
 char g_NetTeamRolesCfg[16] = "b,c,n,n";
 
@@ -126,6 +127,7 @@ void netTeamInitFromArgs(void)
 		return;
 	}
 	g_NetTeamStageIndex = idx;
+	g_NetTeamArmed = 1;
 
 	const s32 diff = sysArgGetInt("--team-diff", DIFF_A);
 	g_NetTeamDifficulty = (diff < DIFF_A) ? DIFF_A : (diff > DIFF_PD) ? DIFF_PD : diff;
@@ -247,7 +249,7 @@ void netTeamDiagTick(void)
  */
 void netTeamServerTick(void)
 {
-	if (g_NetMode != NETMODE_SERVER || g_NetTeamStageIndex < 0) {
+	if (g_NetMode != NETMODE_SERVER || !g_NetTeamArmed || g_NetTeamStageIndex < 0) {
 		return;
 	}
 	if (g_StageNum != STAGE_CITRAINING || g_MainChangeToStageNum >= 0) {
@@ -284,7 +286,7 @@ void netTeamServerTick(void)
 	// playermgrAllocatePlayers(-1) seats them and netPlayersAllocate leaves them
 	// unbound (no client), so they idle. One start per arm.
 	const s32 idx = g_NetTeamStageIndex;
-	g_NetTeamStageIndex = -1;
+	g_NetTeamArmed = 0; // one start per arm; the stage stays selected for the lobby window
 	s_teamArmedTick = 0;
 	netTeamEnterStage(idx, g_NetTeamDifficulty, g_NetTeamRoles);
 }
