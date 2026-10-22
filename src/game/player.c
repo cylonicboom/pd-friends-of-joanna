@@ -2200,14 +2200,18 @@ void playerEndCutscene(void)
 		// returns here. Host-authoritative: drop each remote pawn a few units
 		// off the operative again and force-snap it to its client (the client
 		// reaches playerEndCutscene via the SVC_CUTSCENE mirror and takes the
-		// snap). fojo seats up to MAX_PLAYERS, so every seated remote moves.
+		// snap). fojo seats up to MAX_PLAYERS, so every seated co-op remote
+		// moves - and ONLY co-op: the counter-op has its own pad, and dropping
+		// it beside the operative on defection's helipad put it off the edge
+		// half the time (dead at the kill plane four seconds into gameplay).
 		if (g_NetMode == NETMODE_SERVER && NET_COOP_GAME()) {
 			struct player *lead = g_Vars.players[g_Vars.bondplayernum];
 			if (lead && lead->prop && lead->prop->chr) {
 				for (s32 i = 0; i < PLAYERCOUNT(); i++) {
 					struct player *mate = g_Vars.players[i];
 					if (i == g_Vars.bondplayernum || !mate || !mate->prop
-							|| !mate->prop->chr || !mate->client || !mate->isremote) {
+							|| !mate->prop->chr || !mate->client || !mate->isremote
+							|| g_Vars.coopplayers[i] != mate) {
 						continue;
 					}
 					struct coord spawnpos = lead->prop->pos;
