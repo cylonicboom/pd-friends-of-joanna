@@ -6274,6 +6274,32 @@ s8 pakFindDeviceForNewFile(u32 pakfiletype)
 
 	return -1;
 }
+
+/*
+ * fojo: a page with nothing on it, for something to move onto: put an empty
+ * page on a channel (one already in the pool if it has one spare, else a new
+ * page file) and bring it up, which gives it a PD filesystem and a serial.
+ * The serial, or -1 if every channel is pinned or the page would not come up.
+ */
+s32 pakAddPage(void)
+{
+	const s32 channel = mpkMountBlankPage(pakPinnedChannels());
+
+	if (channel < 0) {
+		sysLogPrintf(LOG_ERROR, "pak: no channel free for a new page");
+		return -1;
+	}
+
+	pakReprobeNow(channel);
+
+	if (!mempakIsReady(channel)) {
+		sysLogPrintf(LOG_ERROR, "pak: new page on controller pak %d did not come up (state %d)",
+				channel + 1, g_Paks[channel].state);
+		return -1;
+	}
+
+	return pakGetSerial(channel);
+}
 #else
 s8 pakFindBySerial(s32 findserial)
 {

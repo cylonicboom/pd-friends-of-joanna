@@ -42,7 +42,8 @@ s32 mpProfileGetOperative(const struct fileguid *guid);
 s32 mpProfileSetOperative(const struct fileguid *guid, s32 index);
 
 // Move an unseated profile to the pak whose PD serial is `dstserial`
-// (pakGetSerial(SAVEDEVICE_GAMEPAK) for the game pak): copy, verify, then
+// (pakGetSerial(SAVEDEVICE_GAMEPAK) for the game pak, MPPROFILE_PAK_NEW for
+// an empty page): copy, verify, then
 // remove the original, journalled so a crash is finished at the next boot.
 // Its pd.ini sections go with it. `out` gets its new guid.
 #define MPPROFILE_MOVE_OK        0
@@ -52,6 +53,11 @@ s32 mpProfileSetOperative(const struct fileguid *guid, s32 index);
 #define MPPROFILE_MOVE_FULL     -4 // no room on the destination
 #define MPPROFILE_MOVE_READONLY -5 // a --player-ro pak on either side
 #define MPPROFILE_MOVE_UNSAVED  -6 // edits waiting in the save queue
+#define MPPROFILE_MOVE_NOPAGE   -7 // a new page could not be made
+
+// as `dstserial`: a page with nothing on it - a spare one from the pool, or
+// a new page file
+#define MPPROFILE_PAK_NEW       -2
 s32 mpProfileMove(const struct fileguid *guid, s32 dstserial, struct fileguid *out);
 
 // finishes a move a crash interrupted; every frame, from the save queue

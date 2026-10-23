@@ -409,6 +409,7 @@ static const char *profMoveError(s32 ret)
 	case MPPROFILE_MOVE_READONLY: return "a read-only pak can't take or give up a profile";
 	case MPPROFILE_MOVE_UNSAVED:  return "edits still waiting to be written; nothing moved";
 	case MPPROFILE_MOVE_PAKERROR: return "pak error, nothing moved";
+	case MPPROFILE_MOVE_NOPAGE:   return "couldn't make a new page, nothing moved";
 	default:                      return "bad pak or profile";
 	}
 }
@@ -424,11 +425,15 @@ static void profDrawPak(const profilerow &row)
 	const bool unsaved = saveQueueIsDirty() != 0;
 	const bool pending = g_ProfReq != PROFREQ_NONE || unsaved;
 
-	if (g_ProfPakPick <= 0) {
+	if (g_ProfPakPick <= 0 && g_ProfPakPick != MPPROFILE_PAK_NEW) {
 		g_ProfPakPick = row.guid.deviceserial;
 	}
 
-	profPakLabel(g_ProfPakPick, current, sizeof(current), &readonly);
+	if (g_ProfPakPick == MPPROFILE_PAK_NEW) {
+		snprintf(current, sizeof(current), "+ new page");
+	} else {
+		profPakLabel(g_ProfPakPick, current, sizeof(current), &readonly);
+	}
 
 	ImGui::BeginDisabled(row.seat >= 0 || row.pakreadonly || pending);
 	ImGui::SetNextItemWidth(ImGui::GetFontSize() * 9.0f);
@@ -453,6 +458,15 @@ static void profDrawPak(const profilerow &row)
 				g_ProfPakPick = serial;
 			}
 			ImGui::PopID();
+		}
+
+		// the adder slot: an empty page from the pool, or a new page file
+		if (ImGui::Selectable("+ new page", g_ProfPakPick == MPPROFILE_PAK_NEW)) {
+			g_ProfPakPick = MPPROFILE_PAK_NEW;
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("A page with nothing on it: a spare one from the pool if\n"
+					"there is one, otherwise a new page file.");
 		}
 		ImGui::EndCombo();
 	}

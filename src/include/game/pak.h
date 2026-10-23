@@ -152,6 +152,9 @@ void pakClearAllBitflags(u8 *flags);
 void pakN64FontCodeToAscii(char *src, char *dst, s32 len);
 s8 pakFindBySerial(s32 deviceserial);
 #ifndef PLATFORM_N64
+s32 pakAddPage(void);
+#endif
+#ifndef PLATFORM_N64
 s8 pakFindDeviceForNewFile(u32 pakfiletype);
 #endif
 s8 pakFindMountedBySerial(s32 deviceserial);

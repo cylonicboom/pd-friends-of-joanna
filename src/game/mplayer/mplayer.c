@@ -5515,7 +5515,8 @@ s32 mpProfileMove(const struct fileguid *guid, s32 dstserial, struct fileguid *o
   s8 device;
   s32 i;
 
-  if (!guid || !guid->fileid || guid->deviceserial == 0xFFFF || dstserial <= 0 || dstserial == guid->deviceserial) {
+  if (!guid || !guid->fileid || guid->deviceserial == 0xFFFF
+      || (dstserial <= 0 && dstserial != MPPROFILE_PAK_NEW) || dstserial == guid->deviceserial) {
     return MPPROFILE_MOVE_BADARGS;
   }
 
@@ -5535,6 +5536,15 @@ s32 mpProfileMove(const struct fileguid *guid, s32 dstserial, struct fileguid *o
 
   if (mpProfileReadBody(guid, &buffer, &hash) != 0) {
     return MPPROFILE_MOVE_PAKERROR;
+  }
+
+  // the adder slot: an empty page, brought up now that the body is in hand
+  if (dstserial == MPPROFILE_PAK_NEW) {
+    dstserial = pakAddPage();
+
+    if (dstserial <= 0) {
+      return MPPROFILE_MOVE_NOPAGE;
+    }
   }
 
   // mounting the destination may take the source's channel; the body is in
