@@ -477,7 +477,10 @@ void savebufferWriteData(struct savebuffer *buffer, u8 *data, u8 len)
 void savebufferReadString_ext(struct savebuffer *buffer, char *dst, bool addlinebreak, u8 len)
 {
 	bool foundnull = false;
-	s32 index = 0;
+	// -1, not 0: a string whose first byte is the null never writes dst[0],
+	// and starting at 0 put the terminator at dst[1] -- an empty name came
+	// back as one byte of whatever the caller's stack held there.
+	s32 index = -1;
 	s32 i;
 
 	for (i = 0; i < len; i++) {
