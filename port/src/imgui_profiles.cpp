@@ -14,6 +14,9 @@
 //    overlay renders, like hot join
 //  - and is refused while the save queue holds anything: an edit that has
 //    not been flushed yet must not be in flight when a seat changes hands
+//  - a profile can be moved to another pak (the game pak, a pool page, a
+//    --player pak), move-only: never both copies, never neither
+//    (mpProfileMove). Not while seated, and never to or from a read-only pak
 
 #include <stdio.h>
 #include <string.h>
@@ -28,6 +31,7 @@
 #include "types.h"
 #include "mod.h"
 #include "mpprofiles.h"
+#include "mpk.h"
 #include "savequeue.h"
 // types.h defines bool as s32 for the C side; ImGui wants the real thing
 #undef bool
@@ -40,6 +44,7 @@
 extern "C" s32 hotjoinProfileCount(void);
 extern "C" void hotjoinInvalidateProfiles(void);
 extern "C" s32 hotjoinProfileInfo(s32 index, char *name, u32 namelen, struct fileguid *guid, s32 *boundslot);
+extern "C" s32 pakGetSerial(s8 device);
 extern "C" s32 mpGetNumHeads(void);
 extern "C" u32 mpGetNumBodies(void);
 extern "C" char *mpGetBodyName(u8 mpbodynum);
@@ -59,6 +64,8 @@ struct profilerow {
 	s32 head;
 	s32 body;
 	s32 operative;
+	char pak[40];
+	s32 pakreadonly;
 };
 
 static std::vector<profilerow> g_ProfRows;
@@ -71,12 +78,26 @@ static char g_ProfEditName[MPPROFILE_NAME_MAX + 1] = "";
 static bool g_ProfConfirmDelete = false;
 static char g_ProfMessage[128] = "";
 static s32 g_ProfSeatPick = 0;        // the seat the Seat button targets
+static s32 g_ProfPakPick = -1;        // the serial the Move button targets
 
 // one seat change, run by imguiProfilesRunRequests after the frame
-enum { PROFREQ_NONE, PROFREQ_SEAT, PROFREQ_UNSEAT };
+enum { PROFREQ_NONE, PROFREQ_SEAT, PROFREQ_UNSEAT, PROFREQ_MOVE };
 static s32 g_ProfReq = PROFREQ_NONE;
 static struct fileguid g_ProfReqGuid = { 0, 0 };
 static s32 g_ProfReqSeat = -1;
+static s32 g_ProfReqSerial = -1;
+
+// where a profile lives, for a person: the game pak, a pool page, a --player pak
+static void profPakLabel(s32 serial, char *out, size_t outlen, s32 *readonly)
+{
+	*readonly = 0;
+
+	if (serial == pakGetSerial(SAVEDEVICE_GAMEPAK)) {
+		snprintf(out, outlen, "game pak");
+	} else if (!mpkPageInfoBySerial(serial, out, (s32)outlen, readonly)) {
+		snprintf(out, outlen, "%x?", serial);
+	}
+}
 
 static void profCopyName(char *out, size_t outlen, const char *in)
 {
@@ -116,6 +137,7 @@ static void profRefresh(void)
 		row.body = -1;
 		mpProfileGetHeadBody(&row.guid, &row.head, &row.body);
 		row.operative = mpProfileGetOperative(&row.guid);
+		profPakLabel(row.guid.deviceserial, row.pak, sizeof(row.pak), &row.pakreadonly);
 		g_ProfRows.push_back(row);
 	}
 
@@ -204,7 +226,7 @@ static void profDrawCreate(void)
 
 static void profDrawTable(void)
 {
-	if (!ImGui::BeginTable("##profiles", 5,
+	if (!ImGui::BeginTable("##profiles", 6,
 			ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_ScrollY,
 			ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 9.0f))) {
 		return;
@@ -216,6 +238,7 @@ static void profDrawTable(void)
 	ImGui::TableSetupColumn("head", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	ImGui::TableSetupColumn("body", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 	ImGui::TableSetupColumn("operative", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+	ImGui::TableSetupColumn("pak", ImGuiTableColumnFlags_WidthStretch, 0.9f);
 	ImGui::TableHeadersRow();
 
 	for (s32 i = 0; i < (s32)g_ProfRows.size(); i++) {
@@ -228,6 +251,7 @@ static void profDrawTable(void)
 		if (ImGui::Selectable(row.name[0] ? row.name : "(unnamed)", g_ProfSel == i, ImGuiSelectableFlags_SpanAllColumns)) {
 			g_ProfSel = i;
 			g_ProfSelGuid = row.guid;
+			g_ProfPakPick = -1;
 			snprintf(g_ProfEditName, sizeof(g_ProfEditName), "%s", row.name);
 			g_ProfConfirmDelete = false;
 		}
@@ -251,6 +275,9 @@ static void profDrawTable(void)
 		ImGui::TableNextColumn();
 		profOperativeLabel(row.operative, row.name, label, sizeof(label));
 		ImGui::TextUnformatted(label);
+
+		ImGui::TableNextColumn();
+		ImGui::TextUnformatted(row.pak);
 	}
 
 	// each seat's engine default, for reference only
@@ -280,6 +307,8 @@ static void profDrawTable(void)
 		ImGui::TableNextColumn();
 		profOperativeLabel(cfg->teamagentindex, name, label, sizeof(label));
 		ImGui::TextDisabled("%s", label);
+		ImGui::TableNextColumn();
+		ImGui::TextDisabled("-");
 	}
 
 	ImGui::EndTable();
@@ -372,6 +401,79 @@ static void profDrawSeat(const profilerow &row)
 	}
 }
 
+static const char *profMoveError(s32 ret)
+{
+	switch (ret) {
+	case MPPROFILE_MOVE_SEATED:   return "unseat it first";
+	case MPPROFILE_MOVE_FULL:     return "no free profile slot on that pak";
+	case MPPROFILE_MOVE_READONLY: return "a read-only pak can't take or give up a profile";
+	case MPPROFILE_MOVE_UNSAVED:  return "edits still waiting to be written; nothing moved";
+	case MPPROFILE_MOVE_PAKERROR: return "pak error, nothing moved";
+	default:                      return "bad pak or profile";
+	}
+}
+
+// the pak picker: the game pak, then every page that has a PD filesystem
+// and can be written
+static void profDrawPak(const profilerow &row)
+{
+	char label[48];
+	char current[48];
+	s32 readonly;
+	const s32 gamepak = pakGetSerial(SAVEDEVICE_GAMEPAK);
+	const bool unsaved = saveQueueIsDirty() != 0;
+	const bool pending = g_ProfReq != PROFREQ_NONE || unsaved;
+
+	if (g_ProfPakPick <= 0) {
+		g_ProfPakPick = row.guid.deviceserial;
+	}
+
+	profPakLabel(g_ProfPakPick, current, sizeof(current), &readonly);
+
+	ImGui::BeginDisabled(row.seat >= 0 || row.pakreadonly || pending);
+	ImGui::SetNextItemWidth(ImGui::GetFontSize() * 9.0f);
+	if (ImGui::BeginCombo("##pakpick", current)) {
+		if (gamepak > 0 && ImGui::Selectable("game pak", g_ProfPakPick == gamepak)) {
+			g_ProfPakPick = gamepak;
+		}
+
+		for (s32 i = 0; ; i++) {
+			s32 serial;
+
+			if (!mpkPageInfo(i, &serial, label, sizeof(label), &readonly)) {
+				break;
+			}
+
+			if (serial <= 0 || readonly) {
+				continue;
+			}
+
+			ImGui::PushID(i);
+			if (ImGui::Selectable(label, serial == g_ProfPakPick)) {
+				g_ProfPakPick = serial;
+			}
+			ImGui::PopID();
+		}
+		ImGui::EndCombo();
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(g_ProfPakPick == row.guid.deviceserial);
+	if (ImGui::Button("Move")) {
+		g_ProfReq = PROFREQ_MOVE;
+		g_ProfReqGuid = row.guid;
+		g_ProfReqSerial = g_ProfPakPick;
+	}
+	ImGui::EndDisabled();
+	ImGui::EndDisabled();
+
+	if (row.seat >= 0 && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("Loaded in seat %d. Unseat it first.", row.seat + 1);
+	} else if (row.pakreadonly && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+		ImGui::SetTooltip("On a --player-ro pak, which is never written.");
+	}
+}
+
 void imguiProfilesRunRequests(void)
 {
 	const s32 req = g_ProfReq;
@@ -388,6 +490,27 @@ void imguiProfilesRunRequests(void)
 	// something may have been edited in between
 	if (saveQueueIsDirty()) {
 		profSay("%s", "edits still waiting to be written; nothing done");
+		return;
+	}
+
+	if (req == PROFREQ_MOVE) {
+		struct fileguid moved;
+		char where[48];
+		char msg[96];
+		s32 readonly;
+
+		ret = mpProfileMove(&g_ProfReqGuid, g_ProfReqSerial, &moved);
+
+		if (ret == MPPROFILE_MOVE_OK) {
+			profPakLabel(moved.deviceserial, where, sizeof(where), &readonly);
+			snprintf(msg, sizeof(msg), "moved to %s", where);
+			profSay("%s", msg);
+			g_ProfSelGuid = moved;
+			g_ProfPakPick = -1;
+		} else {
+			profSay("%s", profMoveError(ret));
+		}
+
 		return;
 	}
 
@@ -430,6 +553,7 @@ static void profDrawEdit(void)
 	}
 
 	profDrawSeat(row);
+	profDrawPak(row);
 
 	// name
 	ImGui::SetNextItemWidth(ImGui::GetFontSize() * 9.0f);

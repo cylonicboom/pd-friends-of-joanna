@@ -39,6 +39,15 @@ s32 mpkNumPages(void);
 // the PD serial of the page at this index, -1 if it has no PD filesystem yet
 s32 mpkPageSerialAt(s32 index);
 
+// page `index` of every page loaded (pool and --player): its PD serial (-1
+// when it has no PD filesystem yet), a name for a person ("page-0003",
+// "kara.mpk") and whether changes to it are kept only in memory. false past
+// the last page.
+bool mpkPageInfo(s32 index, s32 *serial, char *label, s32 labellen, s32 *readonly);
+
+// the same, for the page whose PD filesystem has this serial; false if none
+bool mpkPageInfoBySerial(s32 serial, char *label, s32 labellen, s32 *readonly);
+
 // whether the channel holds a --player page rather than a pool page
 bool mpkChannelIsExternal(s32 channel);
 

@@ -17,6 +17,7 @@ void osEepromFlush(void);
 // writes that record it - slot name hashes, and a pak save for players that
 // have a file. A no-op when nothing changed.
 void mpProfileFlushDirty(void);
+void mpProfileMoveTick(void);
 
 /*
  * The backstop. An idle frame almost always comes along sooner than this -
@@ -151,6 +152,9 @@ static s32 saveQueueFrameWasIdle(void)
 void saveQueueTick(void)
 {
 	g_SaveQueueFrame++;
+
+	// a profile move the last session did not finish (cheap once settled)
+	mpProfileMoveTick();
 
 	if (!saveQueueIsDirty()) {
 		return;

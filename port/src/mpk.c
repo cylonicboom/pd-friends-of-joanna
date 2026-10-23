@@ -807,6 +807,54 @@ static void mpkMountPlayerArgs(void)
 	}
 }
 
+static void mpkPageLabel(const struct mpkpage *page, char *label, s32 labellen)
+{
+	const char *base = strrchr(page->path, '/');
+	const char *back = strrchr(page->path, '\\');
+	s32 len;
+
+	if (back && (!base || back > base)) {
+		base = back;
+	}
+
+	base = base ? base + 1 : page->path;
+	len = (s32)strlen(base);
+
+	// a pool page is known by its number; a --player pak by its file name
+	if (!page->external && len > 4 && !strcasecmp(base + len - 4, ".mpk")) {
+		len -= 4;
+	}
+
+	snprintf(label, labellen, "%.*s%s", len, base, page->readonly ? " (read-only)" : "");
+}
+
+bool mpkPageInfo(s32 index, s32 *serial, char *label, s32 labellen, s32 *readonly)
+{
+	if (index < 0 || index >= g_MpkNumPages) {
+		return false;
+	}
+
+	*serial = mpkPageSerial(index);
+	*readonly = g_MpkPages[index].readonly;
+	mpkPageLabel(&g_MpkPages[index], label, labellen);
+
+	return true;
+}
+
+bool mpkPageInfoBySerial(s32 serial, char *label, s32 labellen, s32 *readonly)
+{
+	const s32 index = serial > 0 ? mpkFindPageBySerial(serial) : -1;
+
+	if (index < 0) {
+		return false;
+	}
+
+	*readonly = g_MpkPages[index].readonly;
+	mpkPageLabel(&g_MpkPages[index], label, labellen);
+
+	return true;
+}
+
 bool mpkChannelIsExternal(s32 channel)
 {
 	return channel >= 0 && channel < MAXCONTROLLERS && g_MpkChannelPage[channel] >= 0

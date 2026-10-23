@@ -269,6 +269,54 @@ s32 configMigrateKey(const char *oldkey, const char *newkey)
 	return cur != NULL;
 }
 
+static bool configKeyInSection(const char *key, const char *sec, size_t seclen)
+{
+	return !strncasecmp(key, sec, seclen) && key[seclen] == '.';
+}
+
+s32 configRenameSection(const char *oldsec, const char *newsec)
+{
+	const size_t oldlen = strlen(oldsec);
+	const size_t newlen = strlen(newsec);
+	char buf[CONFIG_MAX_KEYNAME + 1];
+	s32 moved = 0;
+
+	if (!oldlen || !newlen || !strcasecmp(oldsec, newsec)) {
+		return 0;
+	}
+
+	// a stale section at the destination (a fileid used before) goes; its
+	// entry stays in the table, keyless, and configSave skips it
+	for (s32 i = 0; i < numSettings; ++i) {
+		if (configKeyInSection(settings[i].key, newsec, newlen)) {
+			free(settings[i].pending);
+			settings[i].pending = NULL;
+			settings[i].ptr = NULL;
+			settings[i].key[0] = '\0';
+			settings[i].seclen = 0;
+		}
+	}
+
+	for (s32 i = 0; i < numSettings; ++i) {
+		struct configentry *cfg = &settings[i];
+
+		if (!configKeyInSection(cfg->key, oldsec, oldlen)) {
+			continue;
+		}
+
+		if (snprintf(buf, sizeof(buf), "%s%s", newsec, cfg->key + oldlen) >= (s32)sizeof(buf) - 1) {
+			sysLogPrintf(LOG_WARNING, "config: %s%s is too long a key; left under [%s]", newsec, cfg->key + oldlen, oldsec);
+			continue;
+		}
+
+		strcpy(cfg->key, buf);
+		cfg->seclen += (s32)newlen - (s32)oldlen;
+		moved++;
+	}
+
+	return moved;
+}
+
 void configUnbindKey(const char *key)
 {
 	struct configentry *cfg = configFindEntry(key);

@@ -44,6 +44,7 @@
 #include "mod.h"
 #include "mpprofiles.h"
 #include "seatprofile.h"
+#include "mpk.h"
 #endif
 
 // bss
@@ -5380,6 +5381,287 @@ s32 mpProfileDelete(const struct fileguid *guid) {
   saveQueueMarkConfig();
 
   return 0;
+}
+
+/*
+ * Moving a profile to another pak.
+ *
+ * Copy, verify, flush; then remove the original, flush again. A journal
+ * names the move from before the first flush to after the second, so a crash
+ * anywhere in between is finished at the next boot (mpProfileMoveTick)
+ * rather than leaving two copies, or none: the copy is only trusted if it
+ * reads back with the original's hash, and the original is only removed if
+ * it still has it. Catherine's rule (c-pak-pages, 2026-10-08): move-only,
+ * never both copies, never neither.
+ *
+ * The profile's pd.ini sections ([MpPlayer.<serial>-<fileid>] and the ones
+ * below it) are renamed in place to the new guid, so its head and body
+ * hashes, operative, Game options and binds go with it.
+ */
+#define MPPROFILE_MOVE_JOURNAL "$S/profilemove.txt"
+
+/*
+ * The device a profile's pak is on. The game pak first: it is never
+ * PAKTYPE_MEMORY, so pakFindMountedBySerial (mempakIsReady) does not see
+ * it, and pakFindBySerial would go looking for a page with its serial.
+ */
+static s8 mpProfileDevice(s32 serial) {
+  if (serial == pakGetSerial(SAVEDEVICE_GAMEPAK) && g_Paks[SAVEDEVICE_GAMEPAK].state == PAKSTATE_READY) {
+    return SAVEDEVICE_GAMEPAK;
+  }
+
+  return pakFindBySerial(serial);
+}
+
+static u32 mpProfileBodyHash(const u8 *bytes, s32 len) {
+  u32 hash = 2166136261u;
+  s32 i;
+
+  for (i = 0; i < len; i++) {
+    hash = (hash ^ bytes[i]) * 16777619u;
+  }
+
+  return hash;
+}
+
+static bool mpProfileMoveJournal(const struct fileguid *src, const struct fileguid *dst, u32 hash) {
+  FILE *f = fsFileOpenWriteAtomic(MPPROFILE_MOVE_JOURNAL);
+
+  if (!f) {
+    return false;
+  }
+
+  if (src) {
+    fprintf(f, "move %x %x %x %x %08x\n", src->deviceserial, src->fileid, dst->deviceserial, dst->fileid, hash);
+  } else {
+    fprintf(f, "idle\n");
+  }
+
+  return fsFileCommitAtomic(f, MPPROFILE_MOVE_JOURNAL) != 0;
+}
+
+// the profile's body, read into a cleared buffer so its hash is stable
+static s32 mpProfileReadBody(const struct fileguid *guid, struct savebuffer *buffer, u32 *hash) {
+  const s8 device = mpProfileDevice(guid->deviceserial);
+
+  if (device < 0) {
+    return -1;
+  }
+
+  savebufferClear(buffer);
+
+  if (pakReadBodyAtGuid(device, guid->fileid, buffer->bytes, 0) != 0) {
+    return -1;
+  }
+
+  *hash = mpProfileBodyHash(buffer->bytes, sizeof(buffer->bytes));
+
+  return 0;
+}
+
+// the second half: the original goes, the pd.ini sections follow the copy
+static void mpProfileMoveFinish(const struct fileguid *src, const struct fileguid *dst, u32 hash) {
+  struct savebuffer buffer;
+  char oldsec[32];
+  char newsec[32];
+  u32 srchash;
+  s32 index;
+  s8 device;
+
+  if (mpProfileReadBody(src, &buffer, &srchash) == 0 && srchash == hash) {
+    device = mpProfileDevice(src->deviceserial);
+
+    if (device < 0 || !pakDeleteFile(device, src->fileid)) {
+      sysLogPrintf(LOG_WARNING, "profile move: could not remove %x-%x; it stays as a second copy",
+                   src->deviceserial, src->fileid);
+    }
+  }
+
+  // an entry left over from an earlier profile with the new guid would win
+  // lookups over the moved one
+  index = getExtendedProfileIndexFromFileGuid(dst);
+
+  if (index >= 0) {
+    g_ExtendedProfiles[index].fileguid.fileid = 0;
+    g_ExtendedProfiles[index].fileguid.deviceserial = 0;
+  }
+
+  snprintf(oldsec, sizeof(oldsec), "MpPlayer.%x-%x", src->deviceserial, src->fileid);
+  snprintf(newsec, sizeof(newsec), "MpPlayer.%x-%x", dst->deviceserial, dst->fileid);
+  configRenameSection(oldsec, newsec);
+
+  index = getExtendedProfileIndexFromFileGuid(src);
+
+  if (index >= 0) {
+    g_ExtendedProfiles[index].fileguid = *dst;
+  }
+
+  saveQueueMarkConfig();
+  saveQueueFlush();
+}
+
+s32 mpProfileMove(const struct fileguid *guid, s32 dstserial, struct fileguid *out) {
+  struct savebuffer buffer;
+  struct savebuffer check;
+  struct fileguid dst;
+  u32 fileids[1024];
+  u32 hash;
+  u32 checkhash;
+  s32 blankid = 0;
+  s32 numblank = 0;
+  s32 newfileid = 0;
+  s32 readonly = 0;
+  char label[64];
+  s8 device;
+  s32 i;
+
+  if (!guid || !guid->fileid || guid->deviceserial == 0xFFFF || dstserial <= 0 || dstserial == guid->deviceserial) {
+    return MPPROFILE_MOVE_BADARGS;
+  }
+
+  if (mpProfileSeatOf(guid) >= 0) {
+    return MPPROFILE_MOVE_SEATED;
+  }
+
+  if (saveQueueIsDirty()) {
+    return MPPROFILE_MOVE_UNSAVED;
+  }
+
+  // a read-only pak can neither take the copy nor give the original up
+  if ((mpkPageInfoBySerial(guid->deviceserial, label, sizeof(label), &readonly) && readonly)
+      || (mpkPageInfoBySerial(dstserial, label, sizeof(label), &readonly) && readonly)) {
+    return MPPROFILE_MOVE_READONLY;
+  }
+
+  if (mpProfileReadBody(guid, &buffer, &hash) != 0) {
+    return MPPROFILE_MOVE_PAKERROR;
+  }
+
+  // mounting the destination may take the source's channel; the body is in
+  // hand, and the source is found again by serial when it is removed
+  device = mpProfileDevice(dstserial);
+
+  if (device < 0 || pakGetFileIdsByType(device, PAKFILETYPE_MPPLAYER, fileids) != 0) {
+    return MPPROFILE_MOVE_PAKERROR;
+  }
+
+  // as in mpProfileCreateBlank: a never-written slot reads back as 10, and
+  // one has to stay free for _pakSaveAtGuid
+  for (i = 0; fileids[i] != 0; i++) {
+    savebufferClear(&check);
+
+    if (pakReadBodyAtGuid(device, fileids[i], check.bytes, 0) == 10) {
+      if (blankid == 0) {
+        blankid = fileids[i];
+      }
+      numblank++;
+    }
+  }
+
+  if (numblank < 2) {
+    return MPPROFILE_MOVE_FULL;
+  }
+
+  if (pakSaveAtGuid(device, blankid, PAKFILETYPE_MPPLAYER, buffer.bytes, &newfileid, NULL) != 0) {
+    return MPPROFILE_MOVE_PAKERROR;
+  }
+
+  dst.fileid = newfileid ? newfileid : blankid;
+  dst.deviceserial = dstserial;
+
+  if (mpProfileReadBody(&dst, &check, &checkhash) != 0 || checkhash != hash) {
+    sysLogPrintf(LOG_ERROR, "profile move: the copy at %x-%x did not read back; original kept",
+                 dst.deviceserial, dst.fileid);
+    device = mpProfileDevice(dstserial);
+    if (device >= 0) {
+      pakDeleteFile(device, dst.fileid);
+    }
+    saveQueueFlush();
+    return MPPROFILE_MOVE_PAKERROR;
+  }
+
+  if (!mpProfileMoveJournal(guid, &dst, hash)) {
+    // without the journal a crash could leave two copies; do not go on
+    device = mpProfileDevice(dstserial);
+    if (device >= 0) {
+      pakDeleteFile(device, dst.fileid);
+    }
+    saveQueueFlush();
+    return MPPROFILE_MOVE_PAKERROR;
+  }
+
+  // the copy is on disk before the original is touched
+  saveQueueFlush();
+
+  mpProfileMoveFinish(guid, &dst, hash);
+  mpProfileMoveJournal(NULL, NULL, 0);
+
+  sysLogPrintf(LOG_NOTE, "profile move: %x-%x is now %x-%x", guid->deviceserial, guid->fileid,
+               dst.deviceserial, dst.fileid);
+
+  if (out) {
+    *out = dst;
+  }
+
+  return MPPROFILE_MOVE_OK;
+}
+
+/*
+ * A move the last session did not finish. Called every frame from the save
+ * queue; reads the journal once, and once the game pak is up (the pages
+ * mount on demand) either finishes the move or drops it.
+ */
+void mpProfileMoveTick(void) {
+  static s32 state = 0; // 0 unread, 1 waiting for the paks, 2 nothing to do
+  static struct fileguid src;
+  static struct fileguid dst;
+  static u32 hash;
+  struct savebuffer buffer;
+  u32 dsthash;
+
+  if (state == 2) {
+    return;
+  }
+
+  if (state == 0) {
+    FILE *f = fsFileOpenRead(MPPROFILE_MOVE_JOURNAL);
+    u32 a, b, c, d;
+
+    state = 2;
+
+    if (f) {
+      if (fscanf(f, "move %x %x %x %x %x", &a, &b, &c, &d, &hash) == 5) {
+        src.deviceserial = a;
+        src.fileid = b;
+        dst.deviceserial = c;
+        dst.fileid = d;
+        state = 1;
+      }
+      fclose(f);
+    }
+
+    if (state == 2) {
+      return;
+    }
+  }
+
+  if (g_Paks[SAVEDEVICE_GAMEPAK].state != PAKSTATE_READY || saveQueueIsDirty()) {
+    return;
+  }
+
+  state = 2;
+
+  if (mpProfileReadBody(&dst, &buffer, &dsthash) == 0 && dsthash == hash) {
+    sysLogPrintf(LOG_NOTE, "profile move: finishing %x-%x -> %x-%x from the last session",
+                 src.deviceserial, src.fileid, dst.deviceserial, dst.fileid);
+    mpProfileMoveFinish(&src, &dst, hash);
+  } else {
+    // the copy never made it to disk; the original was never touched
+    sysLogPrintf(LOG_NOTE, "profile move: %x-%x -> %x-%x did not get as far as the copy; original kept",
+                 src.deviceserial, src.fileid, dst.deviceserial, dst.fileid);
+  }
+
+  mpProfileMoveJournal(NULL, NULL, 0);
 }
 
 s32 mpProfileGetHeadBody(const struct fileguid *guid, s32 *head, s32 *body) {

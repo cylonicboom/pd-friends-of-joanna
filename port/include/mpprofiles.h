@@ -41,6 +41,22 @@ s32 mpProfileSetHeadBody(const struct fileguid *guid, s32 head, s32 body);
 s32 mpProfileGetOperative(const struct fileguid *guid);
 s32 mpProfileSetOperative(const struct fileguid *guid, s32 index);
 
+// Move an unseated profile to the pak whose PD serial is `dstserial`
+// (pakGetSerial(SAVEDEVICE_GAMEPAK) for the game pak): copy, verify, then
+// remove the original, journalled so a crash is finished at the next boot.
+// Its pd.ini sections go with it. `out` gets its new guid.
+#define MPPROFILE_MOVE_OK        0
+#define MPPROFILE_MOVE_BADARGS  -1
+#define MPPROFILE_MOVE_SEATED   -2 // unseat it first
+#define MPPROFILE_MOVE_PAKERROR -3 // nothing moved
+#define MPPROFILE_MOVE_FULL     -4 // no room on the destination
+#define MPPROFILE_MOVE_READONLY -5 // a --player-ro pak on either side
+#define MPPROFILE_MOVE_UNSAVED  -6 // edits waiting in the save queue
+s32 mpProfileMove(const struct fileguid *guid, s32 dstserial, struct fileguid *out);
+
+// finishes a move a crash interrupted; every frame, from the save queue
+void mpProfileMoveTick(void);
+
 // Seats. A seat holds one profile or its engine default (deviceserial
 // 0xFFFF). Seats only change between missions - in the institute, the title
 // or the menus stage - because the end of a match or mission saves whoever is

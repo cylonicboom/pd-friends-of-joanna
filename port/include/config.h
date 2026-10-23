@@ -91,6 +91,13 @@ void configUnbindKey(const char *key);
 // new key; the old key is forgotten either way. Returns 1 if a value moved.
 s32 configMigrateKey(const char *oldkey, const char *newkey);
 
+// Every key under section `oldsec` - the section itself and the ones below
+// it (MpPlayer.12-3 and MpPlayer.12-3.Game) - renamed in place to the same
+// name under `newsec`, bound or pending; a bound key keeps its variable.
+// Whatever was already under `newsec` is forgotten first. Returns how many
+// keys moved.
+s32 configRenameSection(const char *oldsec, const char *newsec);
+
 // player save stuff
 struct configentry *configFindPlayerEntry(s32 player, const char *key);
 struct configentry *configFindOrAddPlayerEntry(s32 player, const char *key);
