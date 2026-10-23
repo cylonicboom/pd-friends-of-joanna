@@ -39,6 +39,16 @@ s32 mpkNumPages(void);
 // the PD serial of the page at this index, -1 if it has no PD filesystem yet
 s32 mpkPageSerialAt(s32 index);
 
+// whether the channel holds a --player page rather than a pool page
+bool mpkChannelIsExternal(s32 channel);
+
+// The seat's --player / --player-ro (seats 0-3, in command-line order): the
+// device to look on (SAVEDEVICE_CONTROLLERPAKn for a .mpk, SAVEDEVICE_GAMEPAK
+// for a bare query) and the query, a profile name or an index (all digits)
+// into that device's MP player files. false if the seat has none, or its pak
+// could not be mounted.
+bool mpkPlayerArg(s32 seat, s8 *device, const char **query);
+
 // put a page with no PD filesystem on a channel, making a new page file if
 // the pool has none spare; see mpk.c. -1 if it could not.
 s32 mpkMountBlankPage(u8 pinned);

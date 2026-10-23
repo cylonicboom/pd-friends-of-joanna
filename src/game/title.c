@@ -2832,7 +2832,7 @@ static void titleProfileSelectAdvance(void)
 
 static s32 titleTryDefaultProfile(void)
 {
-	if (!g_DefaultProfile[0]) {
+	if (!filemgrHasDefaultProfile(0)) {
 		return 0;
 	}
 

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include "bss.h"
 #include "constants.h"
 #include "data.h"
@@ -11,6 +12,7 @@
 #include "input.h"
 #include "savequeue.h"
 #include "mpk.h"
+#include "game/pak.h"
 
 /*
  * See mpk.h. Layout of a 1-bank (32KB) controller pak, in 32-byte blocks:
@@ -60,12 +62,28 @@ struct mpkpage {
 	s32 serial;          // PD's device serial from its filesystem, -1 if none yet
 	s32 channel;         // -1 when not mounted
 	u32 lastuse;
+	bool external;       // --player: a file outside the pool, pinned to its channel
+	bool readonly;       // --player-ro: changes stay in memory, never written
 };
 
 static struct mpkpage *g_MpkPages = NULL;
 static s32 g_MpkNumPages = 0;
 static s32 g_MpkChannelPage[MAXCONTROLLERS] = { -1, -1, -1, -1 };
 static u32 g_MpkUseClock = 0;
+
+// page-NNNN files in the pool. The next pool file takes this number - not
+// g_MpkNumPages, which also counts --player pages and any pool file that
+// failed to load.
+static s32 g_MpkNumPoolFiles = 0;
+
+// --player / --player-ro, by seat; see mpkPlayerArg
+struct mpkplayerarg {
+	bool valid;
+	s8 device;          // SAVEDEVICE_*
+	char query[64];     // a profile name, or the index of one on that device
+};
+
+static struct mpkplayerarg g_MpkPlayerArgs[4];
 
 /* ---- byte order --------------------------------------------------------- */
 
@@ -270,6 +288,8 @@ static bool mpkLoad(struct mpkpage *page, const char *path)
 	page->serial = -1;
 	page->channel = -1;
 	page->lastuse = 0;
+	page->external = false;
+	page->readonly = false;
 
 	return true;
 }
@@ -321,7 +341,7 @@ static bool mpkCreatePage(s32 index)
  * the inode table, and PD's own file headers inside the note. Every header
  * on a pak carries the pak's device serial, which is how a fileguid names it.
  */
-static s32 mpkPageNote(const u8 *image, u8 *note, s32 notecap)
+static s32 mpkPageNoteChain(const u8 *image, u8 *pages, s32 cap)
 {
 	for (s32 n = 0; n < 16; n++) {
 		const u8 *dir = image + MPK_DIR_OFF + n * 32;
@@ -336,27 +356,49 @@ static s32 mpkPageNote(const u8 *image, u8 *note, s32 notecap)
 			continue;
 		}
 
-		s32 len = 0;
+		s32 count = 0;
 		u16 page = start;
 
-		for (s32 hops = 0; hops < 128 && (page & 0xff) >= 5 && (page & 0xff) < 128 && len + 256 <= notecap; hops++) {
+		for (s32 hops = 0; hops < 128 && (page & 0xff) >= 5 && (page & 0xff) < 128 && count < cap; hops++) {
 			u16 next;
 
-			memcpy(note + len, image + (page & 0xff) * 256, 256);
-			len += 256;
+			pages[count++] = page & 0xff;
 			memcpy(&next, image + MPK_INODE_OFF + (page & 0xff) * 2, 2);
 
 			if (next == 1) {
-				return len;
+				return count;
 			}
 
 			page = next;
 		}
 
-		return len;
+		return count;
 	}
 
 	return 0;
+}
+
+static s32 mpkPageNote(const u8 *image, u8 *note, s32 notecap)
+{
+	u8 pages[128];
+	const s32 count = mpkPageNoteChain(image, pages, notecap / 256 < 128 ? notecap / 256 : 128);
+
+	for (s32 i = 0; i < count; i++) {
+		memcpy(note + i * 256, image + pages[i] * 256, 256);
+	}
+
+	return count * 256;
+}
+
+// the reverse of mpkPageNote: the note's bytes back into the pages they came from
+static void mpkPageNoteStore(u8 *image, const u8 *note, s32 len)
+{
+	u8 pages[128];
+	const s32 count = mpkPageNoteChain(image, pages, len / 256 < 128 ? len / 256 : 128);
+
+	for (s32 i = 0; i < count; i++) {
+		memcpy(image + pages[i] * 256, note + i * 256, 256);
+	}
 }
 
 static void mpkPageScan(struct mpkpage *page)
@@ -389,6 +431,18 @@ static s32 mpkPageSerial(s32 index)
 	}
 
 	return page->serial;
+}
+
+// another page (not `except`) whose PD filesystem has this serial
+static bool mpkSerialTaken(s32 serial, s32 except)
+{
+	for (s32 i = 0; i < g_MpkNumPages; i++) {
+		if (i != except && mpkPageSerial(i) == serial) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 static s32 mpkFindPageBySerial(s32 serial)
@@ -474,7 +528,8 @@ s32 mpkMountBySerial(s32 serial, u8 pinned)
 		u32 oldest = 0xffffffff;
 
 		for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
-			if (!(pinned & (1 << ch)) && g_MpkPages[g_MpkChannelPage[ch]].lastuse < oldest) {
+			if (!(pinned & (1 << ch)) && !g_MpkPages[g_MpkChannelPage[ch]].external
+					&& g_MpkPages[g_MpkChannelPage[ch]].lastuse < oldest) {
 				oldest = g_MpkPages[g_MpkChannelPage[ch]].lastuse;
 				channel = ch;
 			}
@@ -532,7 +587,8 @@ s32 mpkMountBlankPage(u8 pinned)
 		u32 oldest = 0xffffffff;
 
 		for (s32 ch = 0; ch < MAXCONTROLLERS; ch++) {
-			if (!(pinned & (1 << ch)) && g_MpkPages[g_MpkChannelPage[ch]].lastuse < oldest) {
+			if (!(pinned & (1 << ch)) && !g_MpkPages[g_MpkChannelPage[ch]].external
+					&& g_MpkPages[g_MpkChannelPage[ch]].lastuse < oldest) {
 				oldest = g_MpkPages[g_MpkChannelPage[ch]].lastuse;
 				channel = ch;
 			}
@@ -544,7 +600,7 @@ s32 mpkMountBlankPage(u8 pinned)
 	}
 
 	for (s32 i = 0; i < g_MpkNumPages && pageindex < 0; i++) {
-		if (g_MpkPages[i].channel < 0 && mpkPageSerial(i) < 0) {
+		if (g_MpkPages[i].channel < 0 && !g_MpkPages[i].external && mpkPageSerial(i) < 0) {
 			pageindex = i;
 		}
 	}
@@ -552,7 +608,7 @@ s32 mpkMountBlankPage(u8 pinned)
 	if (pageindex < 0) {
 		struct mpkpage *pages;
 
-		if (g_MpkNumPages >= MPK_MAXPAGES || !mpkCreatePage(g_MpkNumPages)) {
+		if (g_MpkNumPoolFiles >= MPK_MAXPAGES || !mpkCreatePage(g_MpkNumPoolFiles)) {
 			return -1;
 		}
 
@@ -564,7 +620,8 @@ s32 mpkMountBlankPage(u8 pinned)
 
 		g_MpkPages = pages;
 		memset(&g_MpkPages[g_MpkNumPages], 0, sizeof(*g_MpkPages));
-		mpkPagePath(g_MpkNumPages, path, sizeof(path));
+		mpkPagePath(g_MpkNumPoolFiles, path, sizeof(path));
+		g_MpkNumPoolFiles++;
 
 		if (!mpkLoad(&g_MpkPages[g_MpkNumPages], path)) {
 			return -1;
@@ -578,6 +635,194 @@ s32 mpkMountBlankPage(u8 pinned)
 	mpkMap(channel, pageindex);
 
 	return channel;
+}
+
+/* ---- pages from the command line ---------------------------------------- */
+
+/*
+ * Give a page's PD filesystem a new device serial. Every PD file header in
+ * the note carries the serial - it is half of every fileguid - so each one is
+ * rewritten and its header checksum redone the way _pakSaveAtGuid does it.
+ * Host order in memory, like the rest of the image.
+ */
+static void mpkPageReserial(struct mpkpage *page, s32 serial)
+{
+	static u8 note[128 * 256];
+	const s32 len = mpkPageNote(page->image, note, sizeof(note));
+	struct pakfileheader header;
+	s32 count = 0;
+
+	for (s32 offset = 0; offset + (s32)sizeof(header) <= len; ) {
+		memcpy(&header, note + offset, sizeof(header));
+
+		if (header.filelen == 0 || header.filetype == PAKFILETYPE_TERMINATOR) {
+			break;
+		}
+
+		header.deviceserial = serial;
+		pakCalculateChecksum((u8 *) (header.bodysum + 2), (u8 *) (&header + 1), header.headersum);
+		memcpy(note + offset, &header, sizeof(header));
+		offset += header.filelen;
+		count++;
+	}
+
+	mpkPageNoteStore(page->image, note, len);
+	page->indexstale = true;
+
+	if (!page->readonly) {
+		page->dirty = true;
+	}
+
+	sysLogPrintf(LOG_NOTE, "mpk: %s now has serial %x (%d file headers%s)", page->path, serial, count,
+			page->readonly ? ", in memory only" : "");
+}
+
+/*
+ * Put a pak file from outside the pool on a channel, for good: it is never
+ * swapped out for a pool page, and it is written back to the same path
+ * unless `readonly`. A serial that another page already has (two copies of
+ * one pak, or a pak copied out of the pool) is replaced on load - written
+ * back too, unless readonly, in which case only this session sees the new
+ * one. The page that was on the channel stays in the pool, unmounted.
+ */
+static s32 mpkMountFile(const char *path, s32 channel, bool readonly)
+{
+	struct mpkpage *pages;
+	struct mpkpage *page;
+	s32 index;
+	s32 serial;
+
+	if (channel < 0 || channel > SAVEDEVICE_CONTROLLERPAK4) {
+		return -1;
+	}
+
+	if (g_MpkChannelPage[channel] >= 0 && g_MpkPages[g_MpkChannelPage[channel]].external) {
+		sysLogPrintf(LOG_ERROR, "mpk: controller pak %d already holds %s", channel + 1, g_MpkPages[g_MpkChannelPage[channel]].path);
+		return -1;
+	}
+
+	pages = realloc(g_MpkPages, (g_MpkNumPages + 1) * sizeof(*g_MpkPages));
+
+	if (!pages) {
+		return -1;
+	}
+
+	g_MpkPages = pages;
+	index = g_MpkNumPages;
+	page = &g_MpkPages[index];
+	memset(page, 0, sizeof(*page));
+
+	if (!mpkLoad(page, path)) {
+		sysLogPrintf(LOG_ERROR, "mpk: could not load %s", path);
+		return -1;
+	}
+
+	g_MpkNumPages++;
+	page->external = true;
+	page->readonly = readonly;
+
+	serial = mpkPageSerial(index);
+
+	if (serial > 0 && (serial == 0xbaa || mpkSerialTaken(serial, index))) {
+		sysLogPrintf(LOG_NOTE, "mpk: %s has serial %x, which another page has", path, serial);
+		mpkPageReserial(page, mpkAllocSerial((u32)serial * 2654435761u ^ (u32)sysGetMicroseconds()));
+	}
+
+	mpkMap(channel, index);
+	sysLogPrintf(LOG_NOTE, "mpk: %s on controller pak %d (--player%s)", path, channel + 1, readonly ? "-ro" : "");
+
+	return channel;
+}
+
+/*
+ * --player <path.mpk>[:<name>|:<index>] and --player-ro, the same but never
+ * written: one per seat, in command-line order, seat n on controller pak n.
+ * A value with no .mpk path (`--player Kara`, `--player :3`) is looked up on
+ * the game pak instead and takes no channel. The query is a profile name, or
+ * an index (all digits) into that pak's MP player files; none means index 0.
+ */
+static void mpkMountPlayerArgs(void)
+{
+	s32 seat = 0;
+
+	for (s32 i = 1; i < sysArgCount() - 1 && seat < (s32)(sizeof(g_MpkPlayerArgs) / sizeof(g_MpkPlayerArgs[0])); i++) {
+		const char *flag = sysArgAt(i);
+		const bool readonly = !strcasecmp(flag, "--player-ro");
+		struct mpkplayerarg *arg;
+		char path[FS_MAXPATH + 1];
+		const char *value;
+		const char *ext;
+		const char *query;
+		s32 pathlen;
+
+		if (!readonly && strcasecmp(flag, "--player")) {
+			continue;
+		}
+
+		value = sysArgAt(++i);
+		arg = &g_MpkPlayerArgs[seat];
+		memset(arg, 0, sizeof(*arg));
+
+		// the last ".mpk" that ends the value or is followed by ':' ends the path
+		ext = NULL;
+
+		for (const char *p = value; *p; p++) {
+			if (!strncasecmp(p, ".mpk", 4) && (p[4] == '\0' || p[4] == ':')) {
+				ext = p;
+			}
+		}
+
+		if (ext) {
+			pathlen = (s32)(ext + 4 - value);
+			query = ext[4] == ':' ? ext + 5 : "";
+
+			// a relative path is the working directory's, not the basedir's
+			if (value[0] != '$' && !fsPathIsAbsolute(value) && !fsPathIsCwdRelative(value)) {
+				snprintf(path, sizeof(path), "./%.*s", pathlen, value);
+			} else {
+				snprintf(path, sizeof(path), "%.*s", pathlen, value);
+			}
+
+			if (mpkMountFile(path, seat, readonly) < 0) {
+				sysLogPrintf(LOG_ERROR, "mpk: --player %s for seat %d skipped", value, seat + 1);
+				seat++;
+				continue;
+			}
+
+			arg->device = SAVEDEVICE_CONTROLLERPAK1 + seat;
+		} else {
+			query = value[0] == ':' ? value + 1 : value;
+			arg->device = SAVEDEVICE_GAMEPAK;
+
+			if (readonly) {
+				sysLogPrintf(LOG_WARNING, "mpk: --player-ro %s: the game pak is not a --player page, so -ro does not hold for it", value);
+			}
+		}
+
+		snprintf(arg->query, sizeof(arg->query), "%s", query[0] ? query : "0");
+		arg->valid = true;
+		sysLogPrintf(LOG_NOTE, "mpk: seat %d wants profile '%s' from %s", seat + 1, arg->query,
+				arg->device == SAVEDEVICE_GAMEPAK ? "the game pak" : path);
+		seat++;
+	}
+}
+
+bool mpkChannelIsExternal(s32 channel)
+{
+	return channel >= 0 && channel < MAXCONTROLLERS && g_MpkChannelPage[channel] >= 0
+		&& g_MpkPages[g_MpkChannelPage[channel]].external;
+}
+
+bool mpkPlayerArg(s32 seat, s8 *device, const char **query)
+{
+	if (seat < 0 || seat >= (s32)(sizeof(g_MpkPlayerArgs) / sizeof(g_MpkPlayerArgs[0])) || !g_MpkPlayerArgs[seat].valid) {
+		return false;
+	}
+
+	*device = g_MpkPlayerArgs[seat].device;
+	*query = g_MpkPlayerArgs[seat].query;
+
+	return true;
 }
 
 /*
@@ -617,12 +862,16 @@ void mpkInit(void)
 		g_MpkChannelPage[ch] = -1;
 	}
 
+	g_MpkNumPoolFiles = numfiles;
+
 	for (s32 ch = 0; ch < MAXCONTROLLERS && ch < g_MpkNumPages; ch++) {
 		mpkMap(ch, ch);
 		sysLogPrintf(LOG_NOTE, "mpk: %s on controller pak %d", g_MpkPages[ch].path, ch + 1);
 	}
 
 	sysLogPrintf(LOG_NOTE, "mpk: %d page%s", g_MpkNumPages, g_MpkNumPages == 1 ? "" : "s");
+
+	mpkMountPlayerArgs();
 }
 
 u8 mpkMountedMask(void)
@@ -643,7 +892,7 @@ void mpkFlush(void)
 	for (s32 i = 0; i < g_MpkNumPages; i++) {
 		struct mpkpage *page = &g_MpkPages[i];
 
-		if (page->dirty) {
+		if (page->dirty && !page->readonly) {
 			page->dirty = false;
 			mpkSave(page);
 		}

@@ -6230,6 +6230,11 @@ s8 pakFindDeviceForNewFile(u32 pakfiletype)
 	s32 channel;
 
 	for (s8 device = SAVEDEVICE_CONTROLLERPAK1; device <= SAVEDEVICE_CONTROLLERPAK4; device++) {
+		// a --player pak is somebody's own; a new file goes in the pool
+		if (mpkChannelIsExternal(device)) {
+			continue;
+		}
+
 		if (mempakIsReady(device) && pakCountVacantFiles(device, pakfiletype) >= 2) {
 			return device;
 		}

@@ -25,6 +25,7 @@
 #ifndef PLATFORM_N64
 #include "soloprogress.h"
 #include "system.h"
+#include "mpk.h"
 #endif
 
 #ifndef PLATFORM_N64
@@ -72,11 +73,19 @@ static void filemgrGetDefaultProfileListName(struct filelistfile *file, u8 filet
 	filemgrTrimProfileName(name);
 }
 
-static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, u8 filetype, s32 playernum)
+/*
+ * `wantdevice` narrows the match to the files on one device (a --player pak or
+ * the game pak), and there an all-digit `configured` is an index into that
+ * device's files of this type, in file list order. -1 matches by name on any
+ * device, which is the DefaultProfile / DefaultReality setting's rule.
+ */
+static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, u8 filetype, s32 playernum, s8 wantdevice)
 {
 	char wanted[64];
 	char name[32];
 	struct fileguid guid;
+	s32 wantindex = -1;
+	s32 index = 0;
 
 	if (!configured[0] || filetype >= ARRAYCOUNT(g_FilemgrDefaultProfileAttempted)
 			|| playernum < 0 || playernum >= MAX_PLAYERS) {
@@ -100,7 +109,30 @@ static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, 
 		return DEFAULT_PROFILE_NOT_LOADED;
 	}
 
+	if (wantdevice >= 0) {
+		wantindex = 0;
+
+		for (const char *c = wanted; *c && wantindex >= 0; c++) {
+			wantindex = (*c >= '0' && *c <= '9' && wantindex < 1000) ? wantindex * 10 + (*c - '0') : -1;
+		}
+	}
+
 	g_FilemgrDefaultProfileAttempted[filetype][playernum]++;
+
+	// a --player page comes up over a few frames like any controller pak
+	if (wantdevice >= SAVEDEVICE_CONTROLLERPAK1 && wantdevice <= SAVEDEVICE_CONTROLLERPAK4
+			&& !mempakIsReady(wantdevice)) {
+		if (g_FilemgrDefaultProfileAttempted[filetype][playernum] < 60) {
+			sysLogPrintf(LOG_NOTE, "Default %s '%s': waiting for controller pak %d (%d)", label,
+					wanted, wantdevice + 1, g_FilemgrDefaultProfileAttempted[filetype][playernum]);
+			return DEFAULT_PROFILE_PENDING;
+		}
+
+		sysLogPrintf(LOG_WARNING, "Default %s '%s': controller pak %d never came up; showing selection menu",
+				label, wanted, wantdevice + 1);
+		g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
+		return DEFAULT_PROFILE_NOT_LOADED;
+	}
 
 	filelistCreate(0, filetype);
 
@@ -120,9 +152,21 @@ static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, 
 
 	for (s32 i = 0; i < g_FileLists[0]->numfiles; ++i) {
 		struct filelistfile *file = &g_FileLists[0]->files[i];
+		bool match;
+
+		if (wantdevice >= 0 && file->deviceserial != pakGetSerial(wantdevice)) {
+			continue;
+		}
+
 		filemgrGetDefaultProfileListName(file, filetype, name, sizeof(name));
 
-		if (!strcasecmp(name, wanted)) {
+		if (wantindex >= 0) {
+			match = index++ == wantindex;
+		} else {
+			match = !strcasecmp(name, wanted);
+		}
+
+		if (match) {
 			guid.fileid = file->fileid;
 			guid.deviceserial = file->deviceserial;
 
@@ -166,14 +210,45 @@ static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, 
 	return DEFAULT_PROFILE_NOT_LOADED;
 }
 
+/*
+ * A seat's --player outranks the DefaultProfile setting. Seat 0's attempt
+ * also tries the other seats' --player each time, so `--player a.mpk
+ * --player b.mpk` seats both from the one place the boot asks for seat 0.
+ */
 s32 filemgrTryLoadDefaultProfile(s32 playernum)
 {
-	return filemgrTryLoadDefaultFile("profile", g_DefaultProfile, FILETYPE_MPPLAYER, playernum);
+	const char *query;
+	s8 device;
+	s32 result;
+
+	if (!mpkPlayerArg(playernum, &device, &query)) {
+		return filemgrTryLoadDefaultFile("profile", g_DefaultProfile, FILETYPE_MPPLAYER, playernum, -1);
+	}
+
+	result = filemgrTryLoadDefaultFile("--player", query, FILETYPE_MPPLAYER, playernum, device);
+
+	if (playernum == 0 && result == DEFAULT_PROFILE_LOADED) {
+		for (s32 seat = 1; seat < MAX_PLAYERS; seat++) {
+			if (mpkPlayerArg(seat, &device, &query)) {
+				filemgrTryLoadDefaultFile("--player", query, FILETYPE_MPPLAYER, seat, device);
+			}
+		}
+	}
+
+	return result;
+}
+
+s32 filemgrHasDefaultProfile(s32 playernum)
+{
+	const char *query;
+	s8 device;
+
+	return g_DefaultProfile[0] || mpkPlayerArg(playernum, &device, &query);
 }
 
 s32 filemgrTryLoadDefaultReality(void)
 {
-	return filemgrTryLoadDefaultFile("reality", g_DefaultReality, FILETYPE_GAME, 0);
+	return filemgrTryLoadDefaultFile("reality", g_DefaultReality, FILETYPE_GAME, 0, -1);
 }
 
 s32 filemgrDefaultProfileLoaded(s32 playernum)
@@ -187,6 +262,11 @@ s32 filemgrDefaultRealityLoaded(void)
 }
 #else
 s32 filemgrTryLoadDefaultProfile(s32 playernum)
+{
+	return false;
+}
+
+s32 filemgrHasDefaultProfile(s32 playernum)
 {
 	return false;
 }

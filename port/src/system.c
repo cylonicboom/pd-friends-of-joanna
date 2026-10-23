@@ -163,6 +163,16 @@ const char *sysArgGetString(const char *arg)
 	return NULL;
 }
 
+s32 sysArgCount(void)
+{
+	return sysArgc;
+}
+
+const char *sysArgAt(s32 index)
+{
+	return (index >= 0 && index < sysArgc) ? sysArgv[index] : NULL;
+}
+
 // the token two after `arg`: `--asset ls <path>` wants the path
 const char *sysArgGetString2(const char *arg)
 {

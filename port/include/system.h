@@ -29,6 +29,10 @@ const char *sysArgGetString(const char *arg);
 const char *sysArgGetString2(const char *arg);
 s32 sysArgGetInt(const char *arg, s32 defval);
 
+// the raw command line, for flags that repeat and whose order matters
+s32 sysArgCount(void);
+const char *sysArgAt(s32 index);
+
 u64 sysGetMicroseconds(void);
 
 void sysFatalError(const char *fmt, ...) __attribute__((noreturn));
