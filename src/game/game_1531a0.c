@@ -2506,6 +2506,23 @@ Gfx *textRender(Gfx *gdl, s32 *x, s32 *y, char *text,
 					font, savedx, savedy, width * var8007fad0, height, arg10);
 			prevchar = *text;
 			text++;
+#ifndef PLATFORM_N64
+		} else if (g_JpnCacheCacheItems == NULL) {
+			// a byte >= 0x80 in a string on a build with no JPN glyph cache: a
+			// garbage name (an MP player file written with one, 2026-10-22)
+			// walked langGetJpnCharPixels into a NULL table. draw a '?' and
+			// skip the pair rather than crash the file manager.
+			static u32 s_warned = 0;
+			if (s_warned++ < 4) {
+				sysLogPrintf(LOG_WARNING, "textRender: byte 0x%02x in \"%.16s\" with no JPN cache - skipped", (u8)*text, text);
+			}
+			u8 fontID = extTexFontID(font);
+			gDPSetTextureInfoEXT(gdl++, G_TEXTYPE_FONT, fontID, '?' - 0x21, MASK_FONT_OUTLINE);
+			gdl = textRenderChar(gdl, x, y, &chars['?' - 0x21], &chars[prevchar - 0x21],
+					font, savedx, savedy, width * var8007fad0, height, arg10);
+			prevchar = '?';
+			text += (text[1] != '\0') ? 2 : 1;
+#endif
 		} else {
 			u16 codepoint = ((*text & 0x7f) << 7) | (text[1] & 0x7f);
 			struct fontchar sp74 = {0, 0, 12, 11};
