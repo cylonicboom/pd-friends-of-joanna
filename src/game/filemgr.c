@@ -238,6 +238,23 @@ s32 filemgrTryLoadDefaultProfile(s32 playernum)
 	return result;
 }
 
+/*
+ * One seat's --player and nothing else - no DefaultProfile fallback, no other
+ * seats. The direct net boot seats only the local player with it: a remote's
+ * seat holds that client's name, and must never hold a profile of ours.
+ */
+s32 filemgrTryLoadPlayerArg(s32 seat)
+{
+	const char *query;
+	s8 device;
+
+	if (!mpkPlayerArg(seat, &device, &query)) {
+		return DEFAULT_PROFILE_NOT_LOADED;
+	}
+
+	return filemgrTryLoadDefaultFile("--player", query, FILETYPE_MPPLAYER, seat, device);
+}
+
 s32 filemgrHasDefaultProfile(s32 playernum)
 {
 	const char *query;
@@ -267,6 +284,11 @@ s32 filemgrTryLoadDefaultProfile(s32 playernum)
 }
 
 s32 filemgrHasDefaultProfile(s32 playernum)
+{
+	return false;
+}
+
+s32 filemgrTryLoadPlayerArg(s32 seat)
 {
 	return false;
 }

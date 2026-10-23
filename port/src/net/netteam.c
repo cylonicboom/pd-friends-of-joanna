@@ -41,6 +41,8 @@
 #include "lib/main.h"
 #include "system.h"
 #include "game/mainmenu.h"
+#include "game/filemgr.h"
+#include "mpk.h"
 #include "net/net.h"
 #include "net/netmsg.h"
 #include "net/netenet.h"
@@ -310,14 +312,38 @@ void netTeamServerTick(void)
  */
 s32 netDedicatedBootTick(void)
 {
+	static s32 initdone = 0;
+
 	if (!pakIsGamepakReady()) {
 		return false;
 	}
 
-	gamefileLoadDefaults(&g_GameFile);
-	strcpy(g_GameFile.name, "PD");
+	if (!initdone) {
+		const char *query;
+		s8 device;
 
-	mpInit(true);
+		gamefileLoadDefaults(&g_GameFile);
+		strcpy(g_GameFile.name, "PD");
+
+		mpInit(true);
+		initdone = 1;
+
+		for (s32 i = 1; i < MAX_PLAYERS; i++) {
+			if (mpkPlayerArg(i, &device, &query)) {
+				sysLogPrintf(LOG_WARNING, "NET: --player for seat %d ignored: under netplay only the local player (the first --player) is seated", i + 1);
+			}
+		}
+	}
+
+	// the local player's own profile (--player), in config slot 0 on host and
+	// client alike - netClientReadConfig(g_NetLocalClient, 0) is what goes on
+	// the wire. Never the other slots: on the host they hold the remotes'
+	// names (netPlayersAllocate, netCoopSeatClient), and a profile there
+	// would be saved under them.
+	if (filemgrTryLoadPlayerArg(0) == 2) {
+		return false; // its pak is still coming up
+	}
+
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		if (g_PlayerConfigsArray[i].base.name[0] == '\0') {
 			sprintf(g_PlayerConfigsArray[i].base.name, "Player %d\n", i + 1);
