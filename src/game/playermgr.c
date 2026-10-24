@@ -84,16 +84,35 @@ void playermgrDisableTeamPlayers(bool clearroles)
 	}
 }
 /**
- *  Resets bond player number to 0
+ *  Points the bond player number at the seat holding PLAYERROLE_BOND
  *  Sets up coop / anti player numbers
  *
- *  Sets bond player in playerroles array to PLAYERROLE_BOND
+ *  fojo: the operative is wherever the BOND role sits - a netplay host can
+ *  give it to any seat. bondplayernum is an index into g_Vars.players[],
+ *  which playermgrAllocatePlayers packs from the seats that have a role, so
+ *  it counts the filled seats before the operative's. No BOND role at all
+ *  keeps the old rule: seat 0 is the operative.
  *  Assumes that the playerroles array has been set up correctly for coop / anti players
  */
 void playermgrResetTeamPlayers(void)
 {
+	s32 bondseat = -1;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.playerroles[i] == PLAYERROLE_BOND) {
+			bondseat = i;
+			break;
+		}
+	}
+	if (bondseat < 0) {
+		bondseat = 0;
+		g_Vars.playerroles[0] = PLAYERROLE_BOND;
+	}
 	g_Vars.bondplayernum = 0;
-	g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
+	for (s32 i = 0; i < bondseat; i++) {
+		if (g_Vars.playerroles[i] != PLAYERROLE_NONE) {
+			g_Vars.bondplayernum++;
+		}
+	}
 	// set the coop / anti player numbers
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		if (g_Vars.coopplayernum < 0 && g_Vars.playerroles[i] == PLAYERROLE_COOP) {

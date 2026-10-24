@@ -253,6 +253,10 @@ void schedStartFrame(OSSched *sc)
 		} else {
 			videoCapFramerate(0);
 		}
+		// the server console: --console lines from the terminal, any mode
+		netConsoleTick();
+		// --dedicated: keep the host's pawn a ghost on every machine
+		netGhostTick();
 	}
 }
 

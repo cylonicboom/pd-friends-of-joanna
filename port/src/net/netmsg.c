@@ -905,6 +905,7 @@ u32 netmsgClcSettingsWrite(struct netbuf *dst)
 	netbufWriteF32(dst, g_NetLocalClient->settings.fovzoommult);
 	netbufWriteStr(dst, g_NetLocalClient->settings.name);
 	netbufWriteU8(dst, (u8)g_NetCoopBodyMode); // F2: this player's co-op body-type choice (proto 49)
+	netbufWriteS16(dst, g_NetLocalClient->settings.teamagentindex); // fojo: carousel pick (proto 90)
 	return dst->error;
 }
 
@@ -917,6 +918,7 @@ u32 netmsgClcSettingsRead(struct netbuf *src, struct netclient *srccl)
 	const f32 fovzoommult = netbufReadF32(src);
 	char *name = netbufReadStr(src);
 	const u8 coopbodytype = netbufReadU8(src); // F2 (proto 49)
+	const s16 teamagentindex = netbufReadS16(src); // fojo (proto 90)
 
 	if (src->error) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_SETTINGS from client %u", srccl->id);
@@ -936,6 +938,9 @@ u32 netmsgClcSettingsRead(struct netbuf *src, struct netclient *srccl)
 	srccl->settings.fovy = fovy;
 	srccl->settings.fovzoommult = fovzoommult;
 	srccl->settings.coopbodytype = (coopbodytype <= COOPBODY_RANDOM) ? coopbodytype : COOPBODY_FEMININE;
+	// out of range is harmless: playerChooseBodyAndHead bounds-checks it and
+	// falls back to the default head
+	srccl->settings.teamagentindex = teamagentindex;
 
 	return src->error;
 }
@@ -1212,6 +1217,7 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 		for (s32 i = 0; i < MAX_PLAYERS; ++i) {
 			netbufWriteU8(dst, g_Vars.playerroles[i]);
 		}
+		netbufWriteU8(dst, g_NetHostGhost); // fojo (proto 90): the host's pawn is a ghost (--dedicated)
 		netbufWriteU8(dst, g_NetNumClients);
 		for (s32 i = 0; i < g_NetMaxClients; ++i) {
 			struct netclient *ncl = &g_NetClients[i];
@@ -1219,6 +1225,7 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 				netbufWriteU8(dst, ncl->id);
 				netbufWriteU8(dst, ncl->playernum);
 				netbufWriteU8(dst, (ncl->is_spectator || ncl->jip_pending_unspectate) ? 1 : 0);
+				netbufWriteS16(dst, ncl->settings.teamagentindex); // fojo (proto 90): carousel pick
 				ncl->state = CLSTATE_GAME;
 			}
 		}
@@ -1355,6 +1362,7 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 			// the per-client block so older fields stay byte-compatible if we
 			// ever need a downgrade path.
 			netbufWriteU8(dst, ncl->is_spectator);
+			netbufWriteS16(dst, ncl->settings.teamagentindex); // fojo: carousel pick (proto 90)
 			memset(ncl->inmove, 0, sizeof(ncl->inmove));
 			memset(ncl->outmove, 0, sizeof(ncl->outmove));
 			ncl->inmove_head = 0;
@@ -1425,12 +1433,17 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 				roles[i] = PLAYERROLE_NONE;
 			}
 		}
+		const u8 hostghost = netbufReadU8(src); // fojo (proto 90)
 		const u8 numplayers = netbufReadU8(src);
 		for (u8 p = 0; p < numplayers; ++p) {
 			const u8 id = netbufReadU8(src);
 			const u8 pn = netbufReadU8(src);
 			const u8 spec = netbufReadU8(src);
+			const s16 teamagentindex = netbufReadS16(src); // fojo (proto 90)
 			struct netclient *ncl = netResolveWireClient(id);
+			if (ncl && ncl != g_NetLocalClient) {
+				ncl->settings.teamagentindex = teamagentindex;
+			}
 			if (!spec && pn >= MAX_PLAYERS) {
 				sysLogPrintf(LOG_WARNING, "NET: SVC_STAGE bad team playernum %u for client %u", pn, id);
 				return 2;
@@ -1451,6 +1464,7 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 			return 2;
 		}
 		g_NetLocalClient->state = CLSTATE_GAME;
+		g_NetHostGhost = hostghost ? 1 : 0;
 		g_MissionConfig.pdmodehealth = pdhealth;
 		g_MissionConfig.pdmodedamage = pddamage;
 		g_MissionConfig.pdmodeaccuracy = pdaccuracy;
@@ -1626,6 +1640,13 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 		ncl->is_spectator = netbufReadU8(src);
 		if (ncl->is_spectator) {
 			ncl->playernum = NET_PLAYERNUM_SPECTATOR;
+		}
+		// fojo (proto 90): every player's carousel pick; our own stays ours
+		{
+			const s16 teamagentindex = netbufReadS16(src);
+			if (ncl != g_NetLocalClient) {
+				ncl->settings.teamagentindex = teamagentindex;
+			}
 		}
 		ncl->state = CLSTATE_GAME;
 		ncl->player = NULL;

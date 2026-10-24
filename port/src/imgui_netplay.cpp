@@ -230,20 +230,34 @@ static void imguiNetplayDrawSeatTable(bool inmission)
 			if (ImGui::IsItemHovered()) {
 				ImGui::SetTooltip("Every seat is taken. This player watches, or waits for one.");
 			}
-		} else if (c->seat == 0) {
-			ImGui::TextDisabled("operative");
 		} else if (host && !inmission) {
-			int role = lb->roles[c->seat];
-			if (role != PLAYERROLE_COOP && role != PLAYERROLE_ANTI) {
-				role = PLAYERROLE_NONE;
-			}
+			// any seat can be the operative; picking it moves it (the old
+			// operative's seat turns co-op). The operative's own seat and the
+			// host's seat offer no "none": the operative is moved, not removed,
+			// and the host is a player until the server seat lands.
+			const int role = lb->roles[c->seat] & 3;
+			const bool isbond = role == PLAYERROLE_BOND;
 			ImGui::PushID(i);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::BeginCombo("##role", kRoleNames[role])) {
-				const int options[] = { PLAYERROLE_COOP, PLAYERROLE_ANTI, PLAYERROLE_NONE };
-				for (int k = 0; k < 3; k++) {
+				const int options[] = { PLAYERROLE_BOND, PLAYERROLE_COOP, PLAYERROLE_ANTI, PLAYERROLE_NONE };
+				for (int k = 0; k < 4; k++) {
+					const bool fixed = isbond && options[k] != PLAYERROLE_BOND;
+					const bool hostnone = c->seat == 0 && options[k] == PLAYERROLE_NONE;
+					if (hostnone) {
+						continue;
+					}
+					if (fixed) {
+						ImGui::BeginDisabled();
+					}
 					if (ImGui::Selectable(kRoleNames[options[k]], role == options[k])) {
 						netTeamSetRole(c->seat, (u8)options[k]);
+					}
+					if (fixed) {
+						ImGui::EndDisabled();
+						if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+							ImGui::SetTooltip("Make another seat the operative to move it off this one.");
+						}
 					}
 				}
 				ImGui::EndCombo();
@@ -361,6 +375,89 @@ static void imguiNetplayDrawLobby(void)
 
 /* ---------------------------------------------------------------- roster --- */
 
+/**
+ * What the engine actually has, seat by seat - not the lobby's picture. The
+ * role column is g_Vars.playerroles[]; "is" is what the bond / coopplayers /
+ * antiplayers pointers say, so a disagreement between the two shows. Idle
+ * seats (a role, no client) and the host's ghost show here too.
+ */
+static void imguiNetplayDrawEngineSeats(void)
+{
+	ImGui::SeparatorText("Engine seats");
+	ImGui::TextDisabled("operative %d, co-op %d, counter-op %d, %d player(s)%s",
+			g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.antiplayernum, PLAYERCOUNT(),
+			g_NetHostGhost ? ", host is a ghost" : "");
+
+	if (!ImGui::BeginTable("##engineseats", 6, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
+		return;
+	}
+	ImGui::TableSetupColumn("seat");
+	ImGui::TableSetupColumn("role");
+	ImGui::TableSetupColumn("is");
+	ImGui::TableSetupColumn("who", ImGuiTableColumnFlags_WidthStretch);
+	ImGui::TableSetupColumn("pick");
+	ImGui::TableSetupColumn("state");
+	ImGui::TableHeadersRow();
+
+	for (s32 i = 0; i < PLAYERCOUNT() && i < MAX_PLAYERS; i++) {
+		struct player *pl = g_Vars.players[i];
+		if (!pl) {
+			continue;
+		}
+
+		const char *is = "-";
+		if (pl == g_Vars.bond) {
+			is = "operative";
+		} else if (g_Vars.coopplayers[i] == pl) {
+			is = "co-op";
+		} else if (g_Vars.antiplayers[i] == pl) {
+			is = "counter-op";
+		}
+
+		const struct netclient *who = NULL;
+		for (s32 c = 0; c < g_NetMaxClients; c++) {
+			if (g_NetClients[c].state >= CLSTATE_LOBBY && g_NetClients[c].player == pl) {
+				who = &g_NetClients[c];
+				break;
+			}
+		}
+
+		ImGui::TableNextRow();
+		ImGui::TableNextColumn();
+		ImGui::Text("%d", i + 1);
+		ImGui::TableNextColumn();
+		ImGui::TextUnformatted(kRoleNames[g_Vars.playerroles[i] & 3]);
+		ImGui::TableNextColumn();
+		if (pl == g_Vars.bond) {
+			ImGui::TextColored(ImVec4(0.95f, 0.8f, 0.35f, 1.0f), "%s", is);
+		} else {
+			ImGui::TextUnformatted(is);
+		}
+		ImGui::TableNextColumn();
+		if (who) {
+			ImGui::Text("%s%s%s", who->settings.name, who == g_NetLocalClient ? " (you)" : "", who->id == 0 ? " (host)" : "");
+		} else {
+			ImGui::TextDisabled("idle - no player");
+		}
+		ImGui::TableNextColumn();
+		ImGui::Text("%d", g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].teamagentindex);
+		ImGui::TableNextColumn();
+		const struct chrdata *chr = pl->prop ? pl->prop->chr : NULL;
+		const bool hidden = chr && (chr->chrflags & CHRCFLAG_HIDDEN);
+		const bool cloaked = chr && (chr->hidden & CHRHFLAG_CLOAKED);
+		if (pl->isdead) {
+			ImGui::TextColored(ImVec4(0.9f, 0.45f, 0.45f, 1.0f), "dead");
+		} else {
+			ImGui::Text("%d%%", (int)(pl->bondhealth * 100.0f + 0.5f));
+		}
+		if (hidden || cloaked || pl->invincible) {
+			ImGui::SameLine();
+			ImGui::TextDisabled("%s%s%s", hidden ? " hidden" : "", cloaked ? " cloaked" : "", pl->invincible ? " invincible" : "");
+		}
+	}
+	ImGui::EndTable();
+}
+
 static void imguiNetplayDrawRoster(void)
 {
 	const bool host = g_NetMode == NETMODE_SERVER;
@@ -383,17 +480,9 @@ static void imguiNetplayDrawRoster(void)
 	ImGui::SeparatorText("Seats");
 	if (g_NetTeamLobby.valid) {
 		imguiNetplayDrawSeatTable(true);
-	} else {
-		// a client that joined mid-way has no lobby picture; show what the
-		// engine has
-		for (s32 i = 0; i < PLAYERCOUNT(); i++) {
-			const struct player *pl = g_Vars.players[i];
-			if (!pl) {
-				continue;
-			}
-			ImGui::Text("%d  %s  %s", i + 1, kRoleNames[g_Vars.playerroles[i] & 3], pl->isdead ? "dead" : "alive");
-		}
 	}
+
+	imguiNetplayDrawEngineSeats();
 }
 
 /* --------------------------------------------------------------- the window --- */

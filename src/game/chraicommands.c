@@ -59,6 +59,9 @@
 #ifndef PLATFORM_N64
 #include "net/net.h"
 #endif
+#ifdef PLATFORM_N64
+#define netGhostUnsetMask(chr, flags) (flags) // no netplay on N64
+#endif
 
 /**
  * @cmd 0000
@@ -3717,14 +3720,14 @@ bool aiChrUnsetChrflag(void)
 			}
 			chr = playerpool[g_Vars.playerorder[i]]->prop->chr;
 			if (chr) {
-				chr->chrflags &= ~flags;
+				chr->chrflags &= ~netGhostUnsetMask(chr, flags);
 			}
 		}
 	} else {
 		chr = chrFindById(g_Vars.chrdata, cmd[2]);
 
 		if (chr) {
-			chr->chrflags &= ~flags;
+			chr->chrflags &= ~netGhostUnsetMask(chr, flags);
 		}
 	}
 

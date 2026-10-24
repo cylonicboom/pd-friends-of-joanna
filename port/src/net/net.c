@@ -126,6 +126,9 @@ static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 	cfg->base.mpbodynum = g_NetLocalProfileBackup.base.mpbodynum;
 	cfg->base.mpheadnum = g_NetLocalProfileBackup.base.mpheadnum;
 	memcpy(cfg->base.name, g_NetLocalProfileBackup.base.name, sizeof(cfg->base.name));
+	// fojo: a team mission picks the character from the seat's carousel pick;
+	// the local pawn sits at its wire seat, not slot 0, so the pick follows it
+	cfg->teamagentindex = g_NetLocalProfileBackup.teamagentindex;
 	sysLogPrintf(LOG_NOTE, "NET: local profile restored: controlmode=%d contpad=%d/%d (backup ctrl=%d pad=%d/%d)",
 			cfg->controlmode, cfg->contpad1, cfg->contpad2,
 			g_NetLocalProfileBackup.controlmode, g_NetLocalProfileBackup.contpad1, g_NetLocalProfileBackup.contpad2);
@@ -889,6 +892,7 @@ static inline void netClientReadConfig(struct netclient *cl, const s32 playernum
 	cl->settings.fovy = g_PlayerExtCfg[playernum].fovy;
 	cl->settings.fovzoommult = g_PlayerExtCfg[playernum].fovzoommult;
 	memcpy(cl->settings.name, g_PlayerConfigsArray[playernum].base.name, sizeof(cl->settings.name));
+	cl->settings.teamagentindex = (s16)g_PlayerConfigsArray[playernum].teamagentindex;
 	// the \n will be readded in the playerconfig
 	char *newline = strrchr(g_NetLocalClient->settings.name, '\n');
 	if (newline) {
@@ -3961,6 +3965,7 @@ void netPlayersAllocate(void)
 			cfg->controlmode = CONTROLMODE_NA;
 			cfg->base.mpbodynum = cl->settings.bodynum;
 			cfg->base.mpheadnum = cl->settings.headnum;
+			cfg->teamagentindex = cl->settings.teamagentindex; // fojo: the seat wears its own player's pick
 			snprintf(cfg->base.name, sizeof(cfg->base.name), "%s\n", cl->settings.name);
 			// take some of the options from our local player and others from the client
 			// Source from the first combatant config (host slot may be unused

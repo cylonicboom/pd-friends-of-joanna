@@ -9,8 +9,10 @@
  * branch).
  *
  * Wire playernum is the dense g_Vars.players[] index; roles[playernum] is the
- * seat's role. The host is playernum 0, so the host is always the operative
- * (playermgrResetTeamPlayers puts PLAYERROLE_BOND in slot 0).
+ * seat's role. The host is playernum 0. Exactly one seat is the operative and
+ * it can be any seat (netTeamNormaliseRoles); playermgrResetTeamPlayers points
+ * bondplayernum at it. The host's seat always has a role - it is a player
+ * until the server seat (PLAYERROLE_SERVER) lands.
  *
  * CLI (host):
  *   --team <solostageindex>     arm a team mission start (0 = Defection)
@@ -91,8 +93,34 @@ static void netTeamParseRoles(const char *roles)
 	while (slot < MAX_PLAYERS) {
 		g_NetTeamRoles[slot++] = PLAYERROLE_NONE;
 	}
-	g_NetTeamRoles[0] = PLAYERROLE_BOND;
+	netTeamNormaliseRoles(g_NetTeamRoles);
 }
+
+/**
+ * Exactly one operative, anywhere: the first 'b' wins and any later one
+ * becomes co-op; with none, seat 0 is the operative. The host's seat (0)
+ * never goes empty - it is a player - so a 'n' there becomes co-op.
+ */
+void netTeamNormaliseRoles(u8 *roles)
+{
+	s32 bond = -1;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (roles[i] != PLAYERROLE_BOND) {
+			continue;
+		}
+		if (bond < 0) {
+			bond = i;
+		} else {
+			roles[i] = PLAYERROLE_COOP;
+		}
+	}
+	if (bond < 0) {
+		roles[0] = PLAYERROLE_BOND;
+	} else if (roles[0] == PLAYERROLE_NONE) {
+		roles[0] = PLAYERROLE_COOP;
+	}
+}
+
 
 void netTeamRolesFromCfg(void)
 {
@@ -136,7 +164,7 @@ void netTeamInitFromArgs(void)
 
 	const char *roles = sysArgGetString("--team-roles");
 	if (roles && roles[0]) {
-		netTeamParseRoles(roles); // slot 0 is the host and the operative, whatever the string said
+		netTeamParseRoles(roles); // one operative, any seat (netTeamNormaliseRoles)
 	}
 
 	g_NetTeamWait = sysArgGetInt("--team-wait", netTeamRoleCount(g_NetTeamRoles) - 1);
@@ -186,7 +214,7 @@ void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles)
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		g_Vars.playerroles[i] = roles[i];
 	}
-	g_Vars.playerroles[0] = PLAYERROLE_BOND;
+	// no operative in what arrived: playermgrResetTeamPlayers falls back to seat 0
 
 	titleSetNextStage(g_MissionConfig.stagenum);
 	playermgrResetTeamPlayers();
@@ -222,10 +250,10 @@ void netTeamDiagTick(void)
 		return;
 	}
 	lastsec = sec;
-	netDiagLogf("team", "stage=0x%02x tickmode=%d cutscene=%d lvframe60=%d players=%d bond=%d coop=%d anti=%d isteam=%d endscreen=%d csanim=%d csframe=%d",
+	netDiagLogf("team", "stage=0x%02x tickmode=%d cutscene=%d lvframe60=%d players=%d bond=%d coop=%d anti=%d isteam=%d endscreen=%d csanim=%d csframe=%d ghost=%d",
 			g_StageNum, g_Vars.tickmode, g_Vars.in_cutscene, g_Vars.lvframe60, PLAYERCOUNT(),
 			g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.antiplayernum, g_MissionConfig.isteam, g_MainIsEndscreen,
-			g_CutsceneAnimNum, g_CutsceneCurAnimFrame60);
+			g_CutsceneAnimNum, g_CutsceneCurAnimFrame60, g_NetHostGhost);
 	for (s32 i = 0; i < g_NetMaxClients; i++) {
 		struct netclient *cl = &g_NetClients[i];
 		if (cl->state) {
@@ -235,7 +263,7 @@ void netTeamDiagTick(void)
 					slot = p;
 				}
 			}
-			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient);
+			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d agent=%d", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient, cl->settings.teamagentindex);
 		}
 	}
 	for (s32 i = 0; i < PLAYERCOUNT(); i++) {
@@ -244,14 +272,15 @@ void netTeamDiagTick(void)
 			continue;
 		}
 		s32 pad = optionsGetContpadNum1(g_Vars.playerstats[i].mpindex);
-		netDiagLogf("seat", "i=%d role=%d remote=%d client=%d pos=(%.1f,%.1f,%.1f) dead=%d lives=%d health=%.2f hidden=%d ucmd=0x%08x go=%.2f/%.2f pad=%d stick=%d/%d mode=%d",
+		netDiagLogf("seat", "i=%d role=%d remote=%d client=%d pos=(%.1f,%.1f,%.1f) dead=%d lives=%d health=%.2f hidden=%d ucmd=0x%08x go=%.2f/%.2f pad=%d stick=%d/%d mode=%d agent=%d",
 				i, g_Vars.playerroles[i], (s32)pl->isremote, pl->client ? (s32)pl->client->id : -1,
 				pl->prop ? pl->prop->pos.x : 0.0f, pl->prop ? pl->prop->pos.y : 0.0f, pl->prop ? pl->prop->pos.z : 0.0f,
 				(s32)pl->isdead, pl->livesremaining, pl->bondhealth,
 				(pl->prop && pl->prop->chr && (pl->prop->chr->chrflags & CHRCFLAG_HIDDEN)) ? 1 : 0, pl->ucmd,
 				pl->speedforwards, pl->speedsideways, pad,
 				pl->isremote ? 0 : joyGetStickX(pad), pl->isremote ? 0 : joyGetStickY(pad),
-				optionsGetControlMode(g_Vars.playerstats[i].mpindex));
+				optionsGetControlMode(g_Vars.playerstats[i].mpindex),
+				g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].teamagentindex);
 	}
 }
 
@@ -344,6 +373,7 @@ s32 netDedicatedBootTick(void)
 		return false; // its pak is still coming up
 	}
 
+
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		if (g_PlayerConfigsArray[i].base.name[0] == '\0') {
 			sprintf(g_PlayerConfigsArray[i].base.name, "Player %d\n", i + 1);
@@ -352,6 +382,17 @@ s32 netDedicatedBootTick(void)
 		// are bound when a seat picks a file in the menus. No menus here, so
 		// bind every seat to its stand-in now - chrDamage derefs handicap.
 		iniRegisterPlayerSave(&g_PlayerConfigsArray[i].fileguid, 1, i);
+	}
+
+	// --team-agent N: the local player's Team Operative carousel pick, for a
+	// headless run with no menus (and the harness, which needs picks that
+	// differ per machine to prove they cross the wire). After the binding
+	// above, which sets an unsaved profile's pick to its slot number.
+	{
+		const s32 agent = sysArgGetInt("--team-agent", -1);
+		if (agent >= 0) {
+			g_PlayerConfigsArray[0].teamagentindex = agent;
+		}
 	}
 
 	if (g_NetJoinLatch) {
@@ -530,17 +571,62 @@ void netTeamSetDifficulty(s32 difficulty)
 
 void netTeamSetRole(s32 seat, u8 role)
 {
-	if (seat <= 0 || seat >= MAX_PLAYERS) {
-		return; // seat 0 is the host and the operative
+	if (seat < 0 || seat >= MAX_PLAYERS || role > PLAYERROLE_BOND) {
+		return;
 	}
-	if (role != PLAYERROLE_COOP && role != PLAYERROLE_ANTI) {
-		role = PLAYERROLE_NONE;
+	if (g_NetTeamRoles[seat] == role) {
+		return;
 	}
-	if (g_NetTeamRoles[seat] != role) {
-		g_NetTeamRoles[seat] = role;
+	// the operative moves, it is never removed: giving a seat BOND makes the
+	// old operative's seat co-op; taking BOND off a seat is refused (give it
+	// to another seat instead). The host's seat (0) never goes empty.
+	if (g_NetTeamRoles[seat] == PLAYERROLE_BOND) {
+		return;
+	}
+	if (seat == 0 && role == PLAYERROLE_NONE) {
+		return;
+	}
+	if (role == PLAYERROLE_BOND) {
+		for (s32 i = 0; i < MAX_PLAYERS; i++) {
+			if (g_NetTeamRoles[i] == PLAYERROLE_BOND) {
+				g_NetTeamRoles[i] = PLAYERROLE_COOP;
+			}
+		}
+	}
+	g_NetTeamRoles[seat] = role;
+	netTeamRolesToCfg();
+	s_lobbyDirty = 1;
+}
+
+/**
+ * Host: take a whole role list at once (the console's roles, --team-roles'
+ * shape). Refuses with why rather than normalising: two operatives, none, or
+ * an empty host seat. Returns 1 when taken.
+ */
+s32 netTeamSetRoles(const u8 *roles, char *why, u32 whylen)
+{
+	s32 bonds = 0;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (roles[i] > PLAYERROLE_BOND) {
+			if (why && whylen) snprintf(why, whylen, "seat %d has no such role", i + 1);
+			return 0;
+		}
+		bonds += roles[i] == PLAYERROLE_BOND;
+	}
+	if (bonds != 1) {
+		if (why && whylen) snprintf(why, whylen, bonds ? "only one operative" : "someone has to be the operative");
+		return 0;
+	}
+	if (roles[0] == PLAYERROLE_NONE) {
+		if (why && whylen) snprintf(why, whylen, "the host's seat needs a role");
+		return 0;
+	}
+	if (memcmp(g_NetTeamRoles, roles, sizeof(g_NetTeamRoles)) != 0) {
+		memcpy(g_NetTeamRoles, roles, sizeof(g_NetTeamRoles));
 		netTeamRolesToCfg();
 		s_lobbyDirty = 1;
 	}
+	return 1;
 }
 
 s32 netTeamCanStart(char *why, u32 whylen)
@@ -566,10 +652,17 @@ s32 netTeamCanStart(char *why, u32 whylen)
 
 	netTeamLobbyBuild();
 	s32 seated = 0;
+	s32 bondseated = 0;
 	for (s32 i = 0; i < g_NetTeamLobby.numclients; i++) {
 		const s32 seat = g_NetTeamLobby.clients[i].seat;
-		if (seat <= 0) {
+		if (seat < 0) {
 			continue;
+		}
+		if (g_NetTeamRoles[seat] == PLAYERROLE_BOND) {
+			bondseated = 1;
+		}
+		if (seat == 0) {
+			continue; // the host
 		}
 		if (g_NetTeamRoles[seat] == PLAYERROLE_NONE) {
 			WHY("%s has no role", g_NetTeamLobby.clients[i].name);
@@ -579,6 +672,10 @@ s32 netTeamCanStart(char *why, u32 whylen)
 	}
 	if (seated == 0) {
 		WHY("nobody has joined yet");
+		return 0;
+	}
+	if (!bondseated) {
+		WHY("nobody sits in the operative's seat");
 		return 0;
 	}
 	WHY("ready");
@@ -596,10 +693,9 @@ s32 netTeamStart(void)
 	// manifest seats exactly the clients in the lobby
 	u8 roles[MAX_PLAYERS];
 	memset(roles, PLAYERROLE_NONE, sizeof(roles));
-	roles[0] = PLAYERROLE_BOND;
 	for (s32 i = 0; i < g_NetTeamLobby.numclients; i++) {
 		const s32 seat = g_NetTeamLobby.clients[i].seat;
-		if (seat > 0 && seat < MAX_PLAYERS) {
+		if (seat >= 0 && seat < MAX_PLAYERS) {
 			roles[seat] = g_NetTeamRoles[seat];
 		}
 	}
@@ -608,6 +704,56 @@ s32 netTeamStart(void)
 	s_teamArmedTick = 0;
 	netTeamEnterStage(idx, g_NetTeamDifficulty, roles);
 	return 1;
+}
+
+/* ------------------------------------------------------------------------
+ * The host ghost (--dedicated). See net.h.
+ * ---------------------------------------------------------------------- */
+
+u8 g_NetHostGhost = 0;
+
+static struct player *netGhostPlayer(void)
+{
+	if (!g_NetMode || !g_NetHostGhost || !g_MissionConfig.isteam || netTeamInHub()) {
+		return NULL;
+	}
+	// the host's netclient is wire id 0 on every machine
+	for (s32 i = 0; i < g_NetMaxClients; i++) {
+		if (g_NetClients[i].state >= CLSTATE_LOBBY && g_NetClients[i].id == 0) {
+			return g_NetClients[i].player;
+		}
+	}
+	return NULL;
+}
+
+/**
+ * The flags an ailist unset_chr_chrflag may clear on chr: all of them, except
+ * HIDDEN on the host's ghost. A client re-runs a setup list's unhide of the
+ * co-op seat every frame (measured: ~once a frame for chr ids 248 and 245 on
+ * a Defection client, once on the host), which would undo the ghost.
+ */
+u32 netGhostUnsetMask(struct chrdata *chr, u32 flags)
+{
+	struct player *pl = netGhostPlayer();
+	if (pl && pl->prop && pl->prop->chr == chr) {
+		return flags & ~CHRCFLAG_HIDDEN;
+	}
+	return flags;
+}
+
+void netGhostTick(void)
+{
+	if (g_NetMode == NETMODE_SERVER) {
+		g_NetHostGhost = g_NetDedicatedLatch ? 1 : 0;
+	}
+	struct player *pl = netGhostPlayer();
+	if (!pl || !pl->prop || !pl->prop->chr) {
+		return;
+	}
+
+	pl->prop->chr->chrflags |= CHRCFLAG_HIDDEN | CHRCFLAG_INVINCIBLE;
+	pl->prop->chr->hidden |= CHRHFLAG_CLOAKED;
+	pl->invincible = 1;
 }
 
 /* ------------------------------------------------------------------------
@@ -655,6 +801,9 @@ void netChatLogClear(void)
 void netChatSend(const char *text)
 {
 	if (!text || !text[0]) {
+		return;
+	}
+	if (netConsoleExec(text, 1)) {
 		return;
 	}
 	netChat(NULL, text);
