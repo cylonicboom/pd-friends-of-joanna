@@ -134,6 +134,13 @@ static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 			g_NetLocalProfileBackup.controlmode, g_NetLocalProfileBackup.contpad1, g_NetLocalProfileBackup.contpad2);
 }
 
+// fojo: back to the hub, which seats the local player in slot 0 - during the
+// mission that slot held a remote's settings (CONTROLMODE_NA, their pick)
+void netRestoreLocalProfileToSlot0(void)
+{
+	netRestoreLocalProfile(&g_PlayerConfigsArray[0]);
+}
+
 // mpReset assigns slot-indexed contpads (slot i reads pad i) — correct for
 // local splitscreen, wrong under netplay where the LOCAL player can sit at any
 // slot: with a spectator host (dedicated server) there is no slot-0 swap, so a
@@ -2333,6 +2340,7 @@ static void netServerEvReceive(struct netclient *cl)
 			case CLC_BOT_CMD: rc = netmsgClcBotCmdRead(&cl->in, cl); break;
 			case CLC_STAGE_READY: rc = netmsgClcStageReadyRead(&cl->in, cl); break;
 			case CLC_DOOR_ACTIVATE: rc = netmsgClcDoorActivateRead(&cl->in, cl); break;
+			case CLC_TEAM_READY: rc = netmsgClcTeamReadyRead(&cl->in, cl); break;
 			default:
 				rc = 1;
 				break;
@@ -2411,6 +2419,7 @@ static void netClientEvReceive(struct netclient *cl)
 			case SVC_STAGE_FLAGS: rc = netmsgSvcStageFlagsRead(&cl->in, cl); break;
 			case SVC_ALARM: rc = netmsgSvcAlarmRead(&cl->in, cl); break;
 			case SVC_TEAM_LOBBY: rc = netmsgSvcTeamLobbyRead(&cl->in, cl); break;
+			case SVC_TEAM_HUB: rc = netmsgSvcTeamHubRead(&cl->in, cl); break;
 			case SVC_CUTSCENE: rc = netmsgSvcCutsceneRead(&cl->in, cl); break;
 			case SVC_COOP_LIVES: rc = netmsgSvcCoopLivesRead(&cl->in, cl); break;
 			case SVC_TIMESCALE: rc = netmsgSvcTimescaleRead(&cl->in, cl); break;

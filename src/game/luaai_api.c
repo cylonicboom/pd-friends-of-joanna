@@ -908,6 +908,17 @@ static int l_pd_player_count(lua_State *L)
 /* pd.stage() -> current stage number (g_Vars.stagenum, e.g. STAGE_CITRAINING
  * for the Carrington Institute main-menu hub). Lets scripts tell the menu/hub
  * apart from real gameplay. */
+/* pd.console(line) -> bool. Runs one server-console line (netconsole.c) as if
+ * typed at the server's terminal: false when it was not a command. Lets a
+ * script - and the netplay harness - press ready, end a mission, etc. */
+s32 netConsoleExec(const char *line, s32 fromchat);
+static int l_pd_console(lua_State *L)
+{
+	const char *line = luaL_checkstring(L, 1);
+	lua_pushboolean(L, netConsoleExec(line, 0) != 0);
+	return 1;
+}
+
 static int l_pd_stage(lua_State *L)
 {
 	lua_pushinteger(L, chraiLuaGetStageNum());
@@ -1301,6 +1312,7 @@ static const luaL_Reg g_LuaApiCoreFuncs[] = {
 	{ "player_pos",       l_pd_player_pos },
 	{ "player_count",     l_pd_player_count },
 	{ "stage",            l_pd_stage },
+	{ "console",          l_pd_console },
 	{ "distance",         l_pd_distance },
 	{ "all_chrs",         l_pd_all_chrs },
 	{ "lvupdate",         l_pd_lvupdate },

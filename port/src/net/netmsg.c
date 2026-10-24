@@ -6267,6 +6267,39 @@ u32 netmsgClcVoteRead(struct netbuf *src, struct netclient *srccl)
 }
 
 /* fojo: the Team Missions lobby (netteam.c). host -> clients in the hub. */
+u32 netmsgSvcTeamHubWrite(struct netbuf *dst)
+{
+	netbufWriteU8(dst, SVC_TEAM_HUB);
+	return dst->error;
+}
+
+u32 netmsgSvcTeamHubRead(struct netbuf *src, struct netclient *srccl)
+{
+	if (g_NetMode == NETMODE_CLIENT) {
+		netTeamReturnToHub();
+	}
+	return src->error;
+}
+
+u32 netmsgClcTeamReadyWrite(struct netbuf *dst, u8 ready)
+{
+	netbufWriteU8(dst, CLC_TEAM_READY);
+	netbufWriteU8(dst, ready ? 1 : 0);
+	return dst->error;
+}
+
+u32 netmsgClcTeamReadyRead(struct netbuf *src, struct netclient *srccl)
+{
+	const u8 ready = netbufReadU8(src);
+	if (src->error) {
+		return src->error;
+	}
+	if (g_NetMode == NETMODE_SERVER) {
+		netTeamClientReady(srccl, ready ? 1 : 0);
+	}
+	return 0;
+}
+
 u32 netmsgSvcTeamLobbyWrite(struct netbuf *dst)
 {
 	const struct netteamlobby *lb = &g_NetTeamLobby;
@@ -6274,6 +6307,7 @@ u32 netmsgSvcTeamLobbyWrite(struct netbuf *dst)
 	netbufWriteU8(dst, SVC_TEAM_LOBBY);
 	netbufWriteS8(dst, lb->stageindex);
 	netbufWriteU8(dst, lb->difficulty);
+	netbufWriteU8(dst, g_NetHostGhost); // fojo (proto 91): the host is not a player (--dedicated)
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		netbufWriteU8(dst, lb->roles[i]);
 	}
@@ -6283,6 +6317,7 @@ u32 netmsgSvcTeamLobbyWrite(struct netbuf *dst)
 		netbufWriteS8(dst, lb->clients[i].seat);
 		netbufWriteU16(dst, lb->clients[i].ping);
 		netbufWriteStr(dst, lb->clients[i].name);
+		netbufWriteU8(dst, lb->clients[i].ready); // fojo (proto 91)
 	}
 	return dst->error;
 }
@@ -6294,6 +6329,7 @@ u32 netmsgSvcTeamLobbyRead(struct netbuf *src, struct netclient *srccl)
 
 	lb.stageindex = netbufReadS8(src);
 	lb.difficulty = netbufReadU8(src);
+	const u8 hostghost = netbufReadU8(src); // fojo (proto 91)
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		lb.roles[i] = netbufReadU8(src);
 	}
@@ -6303,10 +6339,12 @@ u32 netmsgSvcTeamLobbyRead(struct netbuf *src, struct netclient *srccl)
 		const s8 seat = netbufReadS8(src);
 		const u16 ping = netbufReadU16(src);
 		const char *name = netbufReadStr(src);
+		const u8 ready = netbufReadU8(src); // fojo (proto 91)
 		if (i < NET_MAX_CLIENTS) {
 			lb.clients[i].id = id;
 			lb.clients[i].seat = seat;
 			lb.clients[i].ping = ping;
+			lb.clients[i].ready = ready ? 1 : 0;
 			strncpy(lb.clients[i].name, name ? name : "", NET_MAX_NAME - 1);
 			lb.clients[i].name[NET_MAX_NAME - 1] = '\0';
 			lb.numclients++;
@@ -6321,5 +6359,6 @@ u32 netmsgSvcTeamLobbyRead(struct netbuf *src, struct netclient *srccl)
 	}
 	lb.valid = 1;
 	g_NetTeamLobby = lb;
+	g_NetHostGhost = hostghost ? 1 : 0;
 	return 0;
 }

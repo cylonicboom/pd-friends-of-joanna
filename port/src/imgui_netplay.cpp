@@ -195,7 +195,7 @@ static void imguiNetplayDrawSeatTable(bool inmission)
 	const struct netteamlobby *lb = &g_NetTeamLobby;
 	const s32 localid = g_NetLocalClient ? (s32)g_NetLocalClient->id : -1;
 
-	const int cols = inmission ? 5 : 4;
+	const int cols = 5; // seat, name, role, then ready (lobby) or state (mission), ping
 	if (!ImGui::BeginTable("##seats", cols, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
 		return;
 	}
@@ -203,9 +203,7 @@ static void imguiNetplayDrawSeatTable(bool inmission)
 	ImGui::TableSetupColumn("name", ImGuiTableColumnFlags_WidthStretch);
 	ImGui::TableSetupColumn("role", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 	ImGui::TableSetupColumn("ping");
-	if (inmission) {
-		ImGui::TableSetupColumn("state");
-	}
+	ImGui::TableSetupColumn(inmission ? "state" : "ready");
 	ImGui::TableHeadersRow();
 
 	for (s32 i = 0; i < lb->numclients; i++) {
@@ -276,6 +274,18 @@ static void imguiNetplayDrawSeatTable(bool inmission)
 			ImGui::TextDisabled("host");
 		} else {
 			ImGui::Text("%u ms", c->ping);
+		}
+		if (!inmission) {
+			ImGui::TableNextColumn();
+			if (c->seat < 0) {
+				ImGui::TextDisabled("-");
+			} else if (c->id == 0 && g_NetHostGhost) {
+				ImGui::TextDisabled("server");
+			} else if (c->ready) {
+				ImGui::TextColored(ImVec4(0.5f, 0.86f, 0.6f, 1.0f), "ready");
+			} else {
+				ImGui::TextDisabled("not ready");
+			}
 		}
 		if (inmission) {
 			ImGui::TableNextColumn();
@@ -354,11 +364,22 @@ static void imguiNetplayDrawLobby(void)
 		imguiNetplayDrawSeatTable(false);
 	}
 
+	// the ready-up: every seated player readies and the mission starts; a
+	// --dedicated host is not a player and has no button
+	if (!(host && g_NetHostGhost)) {
+		const bool ready = netTeamLocalReady() != 0;
+		if (ImGui::Button(ready ? "Not ready" : "Ready", ImVec2(120.0f, 0.0f))) {
+			netTeamSetReady(!ready);
+		}
+		ImGui::SameLine();
+		ImGui::TextDisabled(ready ? "Waiting for the others." : "The mission starts when everyone is ready.");
+	}
+
 	if (host) {
 		char why[96];
 		const bool can = netTeamCanStart(why, sizeof(why)) != 0;
 		ImGui::BeginDisabled(!can);
-		if (ImGui::Button("Start", ImVec2(120.0f, 0.0f))) {
+		if (ImGui::Button("Start now", ImVec2(120.0f, 0.0f))) {
 			netTeamStart();
 		}
 		ImGui::EndDisabled();
@@ -369,7 +390,7 @@ static void imguiNetplayDrawLobby(void)
 			ImGui::TextDisabled("%s", why);
 		}
 	} else {
-		ImGui::TextDisabled("The host starts the mission.");
+		ImGui::TextDisabled("Or the host starts it.");
 	}
 }
 

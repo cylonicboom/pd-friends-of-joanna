@@ -43,6 +43,7 @@
 #include "lib/main.h"
 #include "system.h"
 #include "game/mainmenu.h"
+#include "game/menu.h"
 #include "game/filemgr.h"
 #include "mpk.h"
 #include "net/net.h"
@@ -172,7 +173,15 @@ void netTeamInitFromArgs(void)
 		g_NetTeamWait = 0;
 	}
 
-	sysLogPrintf(LOG_NOTE, "NET: team mission armed: stage index %d diff %d roles {%d,%d,%d,%d} wait %d",
+	// fojo: only an explicit --team-wait arms the one-shot count start (the
+	// harness); otherwise --team just picks the stage and the hub ready-up
+	// starts it (netTeamReadyTick)
+	if (!sysArgCheck("--team-wait")) {
+		g_NetTeamArmed = 0;
+	}
+
+	sysLogPrintf(LOG_NOTE, "NET: team mission %s: stage index %d diff %d roles {%d,%d,%d,%d} wait %d",
+			g_NetTeamArmed ? "armed" : "picked, starts when everyone is ready",
 			g_NetTeamStageIndex, g_NetTeamDifficulty,
 			g_NetTeamRoles[0], g_NetTeamRoles[1], g_NetTeamRoles[2], g_NetTeamRoles[3], g_NetTeamWait);
 }
@@ -190,6 +199,11 @@ void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles)
 	}
 
 	netCoopResetStageState();
+
+	// fojo: the ready-up is per lobby visit
+	for (s32 i = 0; i < NET_MAX_CLIENTS + 1; i++) {
+		g_NetClients[i].ready = 0;
+	}
 
 	g_MissionConfig.isteam = true;
 	g_MissionConfig.iscoop = false;
@@ -288,9 +302,20 @@ void netTeamDiagTick(void)
  * Host, once per frame from netEndFrame. Waits in the hub for --team-wait
  * remote clients to reach the lobby, then starts the armed team mission.
  */
+static void netTeamPostMissionTick(void);
+static void netTeamReadyTick(void);
+
 void netTeamServerTick(void)
 {
-	if (g_NetMode != NETMODE_SERVER || !g_NetTeamArmed || g_NetTeamStageIndex < 0) {
+	if (g_NetMode != NETMODE_SERVER) {
+		return;
+	}
+	netTeamPostMissionTick();
+	if (!g_NetTeamArmed) {
+		netTeamReadyTick();
+		return;
+	}
+	if (g_NetTeamStageIndex < 0) {
 		return;
 	}
 	if (g_StageNum != STAGE_CITRAINING || g_MainChangeToStageNum >= 0) {
@@ -451,6 +476,7 @@ void netTeamLobbyBuild(void)
 		struct netteamlobbyclient *out = &lb->clients[lb->numclients++];
 		out->id = (u8)cl->id;
 		out->ping = (u16)(cl->peer ? cl->peer->roundTripTime : 0u);
+		out->ready = cl->ready;
 		strncpy(out->name, cl->settings.name, NET_MAX_NAME - 1);
 		out->name[NET_MAX_NAME - 1] = '\0';
 		if (cl->is_spectator || seat >= MAX_PLAYERS) {
@@ -704,6 +730,176 @@ s32 netTeamStart(void)
 	s_teamArmedTick = 0;
 	netTeamEnterStage(idx, g_NetTeamDifficulty, roles);
 	return 1;
+}
+
+/* ------------------------------------------------------------------------
+ * The hub ready-up and the way back (proto 91). See net.h.
+ * ---------------------------------------------------------------------- */
+
+static u32 s_readyStartTick = 0;
+static u32 s_hubAtTick = 0;
+
+void netTeamClientReady(struct netclient *cl, s32 ready)
+{
+	if (!cl || g_NetMode != NETMODE_SERVER || !netTeamInHub()) {
+		return;
+	}
+	ready = ready ? 1 : 0;
+	if (cl->ready == ready) {
+		return;
+	}
+	cl->ready = ready;
+	s_lobbyDirty = 1;
+	netChatPrintf(NULL, "%s is %s", cl->settings.name, ready ? "ready" : "not ready");
+}
+
+void netTeamSetReady(s32 ready)
+{
+	if (!g_NetLocalClient || !netTeamInHub()) {
+		return;
+	}
+	if (g_NetMode == NETMODE_SERVER) {
+		netTeamClientReady(g_NetLocalClient, ready);
+	} else if (g_NetMode == NETMODE_CLIENT) {
+		netbufStartWrite(&g_NetMsgRel);
+		netmsgClcTeamReadyWrite(&g_NetMsgRel, ready ? 1 : 0);
+		netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
+	}
+}
+
+s32 netTeamLocalReady(void)
+{
+	if (!g_NetLocalClient) {
+		return 0;
+	}
+	if (g_NetMode == NETMODE_SERVER) {
+		return g_NetLocalClient->ready;
+	}
+	for (s32 i = 0; i < g_NetTeamLobby.numclients; i++) {
+		if (g_NetTeamLobby.clients[i].id == g_NetLocalClient->id) {
+			return g_NetTeamLobby.clients[i].ready;
+		}
+	}
+	return 0;
+}
+
+/**
+ * Host, every frame in the hub when no count start is armed: once every
+ * seated player is ready (a --dedicated host is not a player), start after a
+ * three second count; anyone unreadying, leaving or joining cancels it.
+ */
+static void netTeamReadyTick(void)
+{
+	char why[96];
+	s32 waiting = 0;
+	s32 readies = 0;
+
+	if (!netTeamInHub() || !netTeamCanStart(why, sizeof(why))) {
+		s_readyStartTick = 0;
+		return;
+	}
+
+	for (s32 i = 0; i < g_NetTeamLobby.numclients; i++) {
+		const struct netteamlobbyclient *lc = &g_NetTeamLobby.clients[i];
+		if (lc->seat < 0 || (lc->id == 0 && g_NetDedicatedLatch)) {
+			continue;
+		}
+		if (lc->ready) {
+			readies++;
+		} else {
+			waiting++;
+		}
+	}
+
+	if (waiting || !readies) {
+		if (s_readyStartTick) {
+			netChatPrintf(NULL, "[server] start cancelled - not everyone is ready");
+			s_readyStartTick = 0;
+		}
+		return;
+	}
+
+	if (s_readyStartTick == 0) {
+		s_readyStartTick = g_NetTick + 180u;
+		netChatPrintf(NULL, "[server] everyone is ready - starting in 3");
+		return;
+	}
+	if (g_NetTick < s_readyStartTick) {
+		return;
+	}
+	s_readyStartTick = 0;
+	netTeamStart();
+}
+
+/**
+ * Host, every frame: a team mission's endscreen came up - ten seconds to
+ * read it, then everyone goes back to the hub (SVC_TEAM_HUB) instead of the
+ * endscreen waiting on a Continue nobody at a dedicated host can press.
+ */
+static void netTeamPostMissionTick(void)
+{
+	if (!g_MissionConfig.isteam || !g_MainIsEndscreen || netTeamInHub() || g_MainChangeToStageNum >= 0) {
+		s_hubAtTick = 0;
+		return;
+	}
+	if (s_hubAtTick == 0) {
+		s_hubAtTick = g_NetTick + 600u;
+		netChatPrintf(NULL, "[server] back to the lobby in 10");
+		return;
+	}
+	if (g_NetTick < s_hubAtTick) {
+		return;
+	}
+	s_hubAtTick = 0;
+	netbufStartWrite(&g_NetMsgRel);
+	netmsgSvcTeamHubWrite(&g_NetMsgRel);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
+	netTeamReturnToHub();
+}
+
+/**
+ * Both ends: leave the stage for the hub the way the endscreen's decline does
+ * (endscreenHandleDeclineMission), with every local menu emptied instead of
+ * its two pops, and the local profile back in slot 0 - the hub seats one
+ * local player there, and during the mission that slot held a remote's
+ * settings.
+ */
+void netTeamReturnToHub(void)
+{
+	const s32 prevmpplayer = g_MpPlayerNum;
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		g_MpPlayerNum = i;
+		for (s32 guard = 0; guard < 16 && g_Menus[i].depth > 0; guard++) {
+			menuPopDialog();
+		}
+	}
+	g_MpPlayerNum = prevmpplayer;
+
+	mpSetPaused(MPPAUSEMODE_UNPAUSED);
+	g_Vars.mplayerisrunning = false;
+	g_MissionConfig.iscoop = false;
+	g_MissionConfig.isanti = false;
+	g_MissionConfig.isteam = false;
+	g_MissionConfig.pdmode = false;
+	g_Vars.normmplayerisrunning = false;
+	g_Vars.lvmpbotlevel = 0;
+
+	for (s32 i = 0; i < NET_MAX_CLIENTS + 1; i++) {
+		g_NetClients[i].ready = 0;
+		if (g_NetClients[i].state >= CLSTATE_LOBBY) {
+			g_NetClients[i].state = CLSTATE_LOBBY;
+		}
+	}
+	s_lobbyDirty = 1;
+	netRestoreLocalProfileToSlot0();
+
+	sysLogPrintf(LOG_CHAT, "NET: back to the lobby");
+	netChatLogPush("back to the lobby");
+
+	titleSetNextStage(STAGE_CITRAINING);
+	setNumPlayers(1);
+	titleSetNextMode(TITLEMODE_SKIP);
+	mainChangeToStage(STAGE_CITRAINING);
 }
 
 /* ------------------------------------------------------------------------

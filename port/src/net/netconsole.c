@@ -8,8 +8,9 @@
  * host's chat window and every client's chat window show the same lines.
  * Offline they are logged and pushed into the local ring only.
  *
- * Host only: a client's '/' line is refused locally. The terminal is the
- * server's own; whoever has it already has a shell on the box.
+ * Host only, except ready / unready, which any player may use: a client's
+ * other '/' lines are refused locally. The terminal is the server's own;
+ * whoever has it already has a shell on the box.
  *
  * This is fojo's set, not kai's netConsoleCommand (net.c), which has no
  * callers here and assumes features that were not ported.
@@ -158,7 +159,7 @@ static const char *netConStateName(u32 state)
 static void netConHelp(void)
 {
 	netConPrintf("status | players | kick <id|name> | say <text>");
-	netConPrintf("stage [n|list] | roles [b,c,a,n] | diff [0-3] | start");
+	netConPrintf("stage [n|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
 	netConPrintf("endmission | lua <code> | quit");
 }
 
@@ -340,11 +341,6 @@ s32 netConsoleExec(const char *line, s32 fromchat)
 		return 1;
 	}
 
-	if (fromchat && g_NetMode == NETMODE_CLIENT) {
-		netChatLogPush("commands are host only");
-		return 1;
-	}
-
 	while (*p && *p != ' ' && *p != '\t' && ci < (s32)sizeof(cmd) - 1) {
 		cmd[ci++] = (char)tolower((unsigned char)*p++);
 	}
@@ -353,6 +349,13 @@ s32 netConsoleExec(const char *line, s32 fromchat)
 		p++;
 	}
 	const char *arg = p;
+
+	// ready / unready are the player's own; everything else is the host's
+	const s32 playercmd = strcmp(cmd, "ready") == 0 || strcmp(cmd, "unready") == 0;
+	if (fromchat && g_NetMode == NETMODE_CLIENT && !playercmd) {
+		netChatLogPush("commands are host only - /ready and /unready are yours");
+		return 1;
+	}
 
 	if (strcmp(cmd, "say") == 0) {
 		if (*arg) {
@@ -387,6 +390,14 @@ s32 netConsoleExec(const char *line, s32 fromchat)
 		netConRoles(arg);
 	} else if (strcmp(cmd, "diff") == 0) {
 		netConDiff(arg);
+	} else if (playercmd) {
+		if (!g_NetMode) {
+			netConPrintf("not in a network game");
+		} else if (!netConInHub()) {
+			netConPrintf("ready is for the lobby");
+		} else {
+			netTeamSetReady(strcmp(cmd, "ready") == 0);
+		}
 	} else if (strcmp(cmd, "start") == 0) {
 		netConStart();
 	} else if (strcmp(cmd, "endmission") == 0) {
