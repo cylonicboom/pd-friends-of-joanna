@@ -1,0 +1,121 @@
+#!/bin/bash
+# deploy: put this tree on the dedicated server, build it there, run it there.
+#
+#   tools/deploy/deploy [verb] [-n|--dry-run]
+#
+#   (none)   push, build, restart
+#   push     rsync the source and basedir/data up (additive, never --delete)
+#   build    configure + build on the server with its own compiler
+#   start    run the server on a tmux pane (its console), under its own Xvfb
+#   stop     SIGTERM (the port shuts down cleanly on TERM), then KILL after 15s
+#   restart  stop + start
+#   status   up or down, what is deployed, the last lines of output
+#   log      follow the server's output
+#   console  attach to the server's terminal (tmux); Ctrl-b d leaves it running
+#   setup    one-time: apt the build + run packages (tmux too), open the port in ufw
+#   ssh      a shell in the remote dir
+#
+# Where it goes comes from the site config: tools/deploy/site.conf, with
+# tools/deploy/site.local.conf (untracked, read first) and DEPLOY_* env vars
+# winning over it. The binary is built on the server, never shipped from here:
+# the Mac builds a macOS binary.
+#
+# Until the headless tier is ported the server renders under Xvfb + llvmpipe,
+# and until PLAYERROLE_SERVER lands the host sits in seat 0 as the operative.
+
+set -euo pipefail
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+ROOT=$(cd "$HERE/../.." && pwd)
+
+# local overrides first, so their := wins over site.conf's; env beats both
+[ -f "$HERE/site.local.conf" ] && . "$HERE/site.local.conf"
+. "$HERE/site.conf"
+
+DRY=no
+VERB=all
+for a in "$@"; do
+  case $a in
+    -n|--dry-run) DRY=yes ;;
+    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "deploy: unknown flag $a" >&2; exit 2 ;;
+    *) VERB=$a ;;
+  esac
+done
+
+TARGET=$DEPLOY_HOST
+[ -n "$DEPLOY_USER" ] && TARGET="$DEPLOY_USER@$DEPLOY_HOST"
+# shellcheck disable=SC2206
+SSH=(ssh $DEPLOY_SSH_OPTS)
+
+run() {
+  if [ "$DRY" = yes ]; then printf '+'; printf ' %q' "$@"; echo; else "$@"; fi
+}
+
+# the remote half lives in remote.sh and is fed to bash over ssh each time,
+# so nothing has to be installed on the server for it
+remote() {
+  local verb=$1; shift
+  local argv
+  argv=$(printf ' %q' "$verb" "$DEPLOY_DIR" "$DEPLOY_PORT" "$DEPLOY_DISPLAY" "$DEPLOY_SERVER_ARGS" "$@")
+  if [ "$DRY" = yes ]; then
+    echo "+ ${SSH[*]} $TARGET bash -s --$argv < $HERE/remote.sh"
+  else
+    "${SSH[@]}" "$TARGET" "bash -s --$argv" < "$HERE/remote.sh"
+  fi
+}
+
+# the same, for a verb that needs the terminal: the script rides as an
+# argument so stdin stays the tty (tmux attach)
+remote_tty() {
+  local verb=$1; shift
+  local argv
+  argv=$(printf ' %q' "$verb" "$DEPLOY_DIR" "$DEPLOY_PORT" "$DEPLOY_DISPLAY" "$DEPLOY_SERVER_ARGS" "$@")
+  if [ "$DRY" = yes ]; then
+    echo "+ ${SSH[*]} -t $TARGET bash -c <remote.sh> _$argv"
+  else
+    "${SSH[@]}" -t "$TARGET" "bash -c $(printf %q "$(cat "$HERE/remote.sh")") _$argv"
+  fi
+}
+
+push() {
+  # The excludes keep run state, build dirs and the other ROMIDs' asset trees
+  # off the wire. Plain --exclude, so the Mac's stock rsync (2.6.9 or
+  # openrsync) is enough.
+  local rsh="${SSH[*]}"
+  run "${SSH[@]}" "$TARGET" "mkdir -p $(printf %q "$DEPLOY_DIR")"
+  run rsync -az --partial -e "$rsh" \
+    --exclude=/.git/ --exclude='/build*/' --exclude=/dist/ \
+    --exclude=/_inbox/ --exclude=/_to_delete/ --exclude=/run/ \
+    --exclude=/tools/nettest/runs/ --exclude=/tools/deploy/site.local.conf \
+    --exclude=/basedir/data/saves-*/ --exclude='/basedir/pd.*' \
+    --exclude=/pd.ini --exclude=/eeprom.bin --exclude=/mpsetups.bin \
+    --exclude=/paks/ --exclude='/saves-*/' --exclude=/fojo-imgui.ini --exclude=/profilemove.txt \
+    --exclude=/src/assets/ntsc-1.0/ --exclude=/src/assets/ntsc-beta/ \
+    --exclude=/src/assets/pal-beta/ --exclude=/src/assets/pal-final/ \
+    --exclude=/src/assets/jpn-final/ \
+    --exclude='*.o' --exclude=.DS_Store \
+    "$ROOT/" "$TARGET:$DEPLOY_DIR/"
+
+  # The server has no .git, so stamp what was pushed: status prints it.
+  local stamp
+  stamp="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  stamp="$stamp $(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo ?)"
+  [ -n "$(git -C "$ROOT" status --porcelain --untracked-files=no 2>/dev/null)" ] && stamp="$stamp dirty"
+  stamp="$stamp pushed $(date -u +%Y-%m-%dT%H:%M:%SZ) from $(hostname -s)"
+  if [ "$DRY" = yes ]; then
+    echo "+ DEPLOYED <- $stamp"
+  else
+    printf '%s\n' "$stamp" | "${SSH[@]}" "$TARGET" "cat > $(printf %q "$DEPLOY_DIR")/DEPLOYED"
+  fi
+}
+
+case $VERB in
+  all)     push; remote build; remote stop; remote start ;;
+  push)    push ;;
+  build|start|stop|status|log|setup) remote "$VERB" ;;
+  console) remote_tty console ;;
+  restart) remote stop; remote start ;;
+  ssh)     run "${SSH[@]}" -t "$TARGET" "cd $(printf %q "$DEPLOY_DIR") && exec \$SHELL -l" ;;
+  *) echo "deploy: unknown verb $VERB (try --help)" >&2; exit 2 ;;
+esac
