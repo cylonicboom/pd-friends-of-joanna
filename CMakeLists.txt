@@ -311,7 +311,9 @@ list(APPEND LIBS "${GL_LIBRARY}")
 # Platform-specific extra libs
 if(NOT EXTRA_LIBRARIES)
   if(WIN32)
-    set(EXTRA_LIBRARIES dbghelp -static-libstdc++)
+    # ws2_32: enet's sockets (port/external/enet.c, ENET_NO_PRAGMA_LINK so no
+    # #pragma comment(lib)); winmm: enet's timer (timeGetTime/timeBeginPeriod)
+    set(EXTRA_LIBRARIES dbghelp ws2_32 winmm -static-libstdc++)
   elseif(NINTENDO_SWITCH)
     set(EXTRA_LIBRARIES stdc++ pthread)
   else()
