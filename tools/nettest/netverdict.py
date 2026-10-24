@@ -180,6 +180,70 @@ def run(rundir):
             check(results, f"{c.name}: own seat role", ls is not None and ls != 0 and (want is None or str(want) == got),
                   f"local seat {ls} role {got} (armed {want})")
 
+    # 4a. every machine dresses each seat in that seat's own player's carousel
+    # pick (teamagentindex, the seat line's agent=): the pick rides the wire
+    # (proto 90) and follows the local pawn to its seat. before, a client's
+    # pawn wore its seat's default and its pick sat on config slot 0 - the
+    # host's seat on that client.
+    def agents_of(p):
+        last = {}
+        for tick, _, f in p.diag.get("seat", []):
+            if "agent" in f:
+                last[int(f.get("i", -1))] = f.get("agent")
+        return [last.get(i) for i in range(max(last.keys()) + 1)] if last else []
+    if host:
+        hag = agents_of(host)
+        for c in clients:
+            cag = agents_of(c)
+            if not hag and not cag:
+                check(results, f"{c.name}: seat picks match host", False, "no seat line carries agent=", skip=True)
+            else:
+                check(results, f"{c.name}: seat picks match host", cag == hag,
+                      f"client {cag} host {hag}")
+            # and the client's own seat wears the client's own pick (its
+            # netcl local=1 agent=, read off its profile at connect)
+            mine = [f.get("agent") for _, _, f in c.diag.get("netcl", []) if f.get("local") == "1" and "agent" in f]
+            ls = c.local_seat()
+            if not mine or ls is None:
+                check(results, f"{c.name}: own seat wears own pick", False, "no local netcl agent= or no local seat", skip=True)
+            else:
+                want = mine[-1]
+                gotc = cag[ls] if ls < len(cag) else None
+                goth = hag[ls] if ls < len(hag) else None
+                check(results, f"{c.name}: own seat wears own pick", gotc == want and goth == want,
+                      f"pick {want}; seat {ls} wears {gotc} here, {goth} on the host")
+
+    # 4c. --dedicated: the host's pawn is a ghost on every machine - hidden
+    # (no render, no collision) and never hurt - for the whole of gameplay.
+    # the host's seat is 0 (it is wire client 0).
+    if host and any(f.get("ghost") == "1" for _, _, f in host.diag.get("team", [])):
+        for p in procs.values():
+            play = {t for t, _, f in p.diag.get("team", []) if f.get("tickmode") == "1" and f.get("cutscene") == "0"
+                    and (expect_stage is None or f.get("stage") == expect_stage)}
+            sb = p.seats_by_tick()
+            samples = [sb[t][0] for t in sorted(play) if t in sb and 0 in sb[t]]
+            if not samples:
+                check(results, f"{p.name}: host seat is a ghost", False, "no gameplay samples of seat 0", skip=True)
+                continue
+            shown = sum(1 for f in samples[2:] if f.get("hidden") != "1")  # the first two seconds may race the intro's unhide
+            hurt = sum(1 for f in samples if f.get("dead") == "1" or float(f.get("health", "1")) < 0.999)
+            check(results, f"{p.name}: host seat is a ghost", shown == 0 and hurt == 0,
+                  f"{len(samples)} gameplay seconds: {shown} not hidden, {hurt} hurt or dead")
+
+    # 4b. the operative is wherever the BOND role (3) sits, on every machine:
+    # team lines' bond= is that seat's players[] index (seats are dense, so
+    # the seat number). the operative used to be seat 0 by rule; it can be any.
+    for p in procs.values():
+        proles = roles_of(p)
+        if "3" not in proles:
+            check(results, f"{p.name}: operative seat", False, f"no seat has the operative role in {proles}")
+            continue
+        want = proles.index("3")
+        bonds = {f.get("bond") for _, _, f in p.diag.get("team", [])
+                 if expect_stage is None or f.get("stage") == expect_stage}
+        check(results, f"{p.name}: operative seat", bonds == {str(want)},
+              f"bond= {sorted(bonds)} in team lines, operative role on seat {want}")
+
     # 5. gameplay reached (cutscene over)
     for p in procs.values():
         play = [f for _, _, f in p.diag.get("team", []) if f.get("tickmode") == "1" and f.get("cutscene") == "0"
@@ -221,7 +285,8 @@ def run(rundir):
             samples = 0
             for t in cut:
                 for i, f in sb.get(t, {}).items():
-                    if i == 0 or "hidden" not in f:
+                    # the operative is the one the intro shows; any seat can be it
+                    if f.get("role") == "3" or "hidden" not in f:
                         continue
                     samples += 1
                     if f.get("hidden") != "1":

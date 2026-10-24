@@ -81,12 +81,21 @@ RUN="$RUNS/$TS-$SCENARIO"
 mkdir -p "$RUN"
 SHA=$(git -C "$REPO" rev-parse --short=9 HEAD 2>/dev/null || echo unknown)
 
-# roles -> json list the verdict reads (b=3 c=1 a=2 n=0, slot 0 is always the operative)
+# roles -> json list the verdict reads (b=3 c=1 a=2 n=0), normalised the way
+# the engine does (netTeamNormaliseRoles): first b wins, a later b is co-op,
+# no b makes seat 0 the operative, and the host's seat 0 is never empty
 ROLES_JSON=$(python3 - "$TEAM_ROLES" <<'PY'
 import sys
 m={'b':3,'o':3,'c':1,'a':2,'n':0}
 r=[m.get(ch,0) for ch in sys.argv[1].replace(',', '') if ch.strip()]
-r=(r+[0,0,0,0])[:4]; r[0]=3
+r=(r+[0,0,0,0])[:4]
+seen=False
+for i,v in enumerate(r):
+    if v==3:
+        if seen: r[i]=1
+        seen=True
+if not seen: r[0]=3
+elif r[0]==0: r[0]=1
 print('['+','.join(map(str,r))+']')
 PY
 )
