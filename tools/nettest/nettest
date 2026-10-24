@@ -57,6 +57,7 @@ HOST_DRIVER=walker      # scripts/<name>.lua used as each process's init.lua
 CLIENT_DRIVER=walker
 EXTRA_HOST_ARGS=""
 EXTRA_CLIENT_ARGS=""
+EXPECT_LOOP=0           # 1: every machine must go mission -> hub -> mission (back-to-the-lobby)
 PORT=27150
 WATCHDOG=25
 . "$SCEN"
@@ -110,7 +111,7 @@ PY
 cat > "$RUN/run.json" <<JSON
 {"scenario":"$SCENARIO","started":$(date +%s),"secs":$RUN_SECS,"sha":"$SHA","clients":$CLIENTS,
  "stageindex":$TEAM_STAGE,"stagenum":"$STAGENUM","roles":$ROLES_JSON,"difficulty":$TEAM_DIFF,
- "host_driver":"$HOST_DRIVER","client_driver":"$CLIENT_DRIVER","xvfb":"$XVFB","bin":"$BIN"}
+ "host_driver":"$HOST_DRIVER","client_driver":"$CLIENT_DRIVER","xvfb":"$XVFB","bin":"$BIN","expect_loop":$EXPECT_LOOP}
 JSON
 
 launch() { # name display secs driver args...

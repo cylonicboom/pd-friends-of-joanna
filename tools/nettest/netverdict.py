@@ -213,12 +213,36 @@ def run(rundir):
                 check(results, f"{c.name}: own seat wears own pick", gotc == want and goth == want,
                       f"pick {want}; seat {ls} wears {gotc} here, {goth} on the host")
 
+    # 4d. back to the lobby (EXPECT_LOOP): every machine goes mission -> hub
+    # -> mission - the endscreen hands everyone back to the hub, the ready-up
+    # starts the mission again.
+    if meta.get("expect_loop"):
+        for p in procs.values():
+            seq = []
+            for _, _, f in p.diag.get("team", []):
+                st = f.get("stage")
+                if st and (not seq or seq[-1] != st):
+                    seq.append(st)
+            hub = "0x26"
+            want = expect_stage
+            ok = False
+            for i, st in enumerate(seq):
+                if st == want and hub in seq[i + 1:]:
+                    j = seq.index(hub, i + 1)
+                    if want in seq[j + 1:]:
+                        ok = True
+                        break
+            check(results, f"{p.name}: mission, lobby, mission", ok, f"stages {' -> '.join(seq)}")
+
     # 4c. --dedicated: the host's pawn is a ghost on every machine - hidden
     # (no render, no collision) and never hurt - for the whole of gameplay.
     # the host's seat is 0 (it is wire client 0).
     if host and any(f.get("ghost") == "1" for _, _, f in host.diag.get("team", [])):
         for p in procs.values():
+            # live gameplay only: the endscreen freezes the stage (the ghost
+            # tick does not run while nothing advances)
             play = {t for t, _, f in p.diag.get("team", []) if f.get("tickmode") == "1" and f.get("cutscene") == "0"
+                    and f.get("endscreen") in (None, "0")
                     and (expect_stage is None or f.get("stage") == expect_stage)}
             sb = p.seats_by_tick()
             samples = [sb[t][0] for t in sorted(play) if t in sb and 0 in sb[t]]
@@ -303,6 +327,10 @@ def run(rundir):
     for p in procs.values():
         ends = [f for _, _, f in p.diag.get("team", []) if f.get("endscreen") not in (None, "0")
                 and (expect_stage is None or f.get("stage") == expect_stage)]
+        if meta.get("expect_loop"):
+            # the loop ends the mission on purpose; it must show an endscreen
+            check(results, f"{p.name}: endscreen shown", bool(ends), f"{len(ends)} endscreen second(s)")
+            continue
         check(results, f"{p.name}: mission didn't end early", not ends,
               f"{len(ends)} second(s) of endscreen" if ends else "no endscreen")
 
