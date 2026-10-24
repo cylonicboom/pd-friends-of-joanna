@@ -10,7 +10,6 @@
 #include "net/net.h"
 #include "net/netbuf.h"
 #include "net/netmsg.h"
-#include "input.h"
 #include "net/netprop.h"
 #include "net/demo.h"
 #include "net/netmaster.h"
@@ -63,6 +62,7 @@ extern u64 g_Rng2Seed; // src/game/rng2_c.c
 // input.h's virtkey enum. Same pattern as audio.c's g_NetDedicatedMode.
 extern void inputPadTest(const char *arg);     // /padtest debug command (input.c)
 extern void inputGyroCommand(const char *arg); // /gyro aim control (input.c)
+extern s32 inputKbmPlayer(void);               // live owning seat, 0 when nobody is seated (input.c)
 
 s32 g_NetMode = NETMODE_NONE;
 
