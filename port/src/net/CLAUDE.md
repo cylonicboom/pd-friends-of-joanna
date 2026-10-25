@@ -232,7 +232,7 @@ Game.Egg                   # vanity-egg auto-enable on boot (written as `Egg=` u
 --netdiag <path>    netplay diagnostic CSV path (alias --diag; = Net.Debug.LogPath;
                     opens at host/join, NOT a boot log — that's --log → pd.log)
 --log-keep <n>      old pd.logs kept beside pd.log (pd.log.1 newest), rotated at
-                    startup. Default 5 on a dedicated server, else 0.
+                    startup. Default 50 on a dedicated server, else 0.
 --log-max-mb <n>    rotate a running pd.log past n MB (0 = startup only).
                     Default 16 on a dedicated server, else 0. A dedicated server
                     (--dedicated / --dedicated-windowed that hosts) logs without

@@ -142,7 +142,7 @@ void sysInit(void)
 	// --log turns it on everywhere else.
 	// A dedicated server (--dedicated / --dedicated-windowed that hosts, not
 	// a --connect / --headless-client that joins) always logs, and rotates:
-	// five old logs kept, a running log rotated past 16 MB. --no-log, and
+	// fifty old logs kept, a running log rotated past 16 MB. --no-log, and
 	// --log-keep N / --log-max-mb N (0 = off), override; outside a server
 	// those two flags turn rotation on for an ordinary --log.
 	const s32 isServer = (sysArgCheck("--dedicated") || sysArgCheck("--dedicated-windowed"))
@@ -152,7 +152,7 @@ void sysInit(void)
 #else
 	const s32 wantLog = !sysArgCheck("--no-log") && (sysArgCheck("--log") || isServer);
 #endif
-	logKeep = sysArgGetInt("--log-keep", isServer ? 5 : 0);
+	logKeep = sysArgGetInt("--log-keep", isServer ? 50 : 0);
 	const s32 maxmb = sysArgGetInt("--log-max-mb", isServer ? 16 : 0);
 	logMaxBytes = maxmb > 0 ? (u64)maxmb * 1024 * 1024 : 0;
 	if (logKeep < 0) {
