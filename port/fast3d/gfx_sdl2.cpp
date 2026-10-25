@@ -289,6 +289,20 @@ static void gfx_sdl_get_dimensions(uint32_t* width, uint32_t* height, int32_t* p
     SDL_GetWindowPosition(wnd, static_cast<int*>(posX), static_cast<int*>(posY));
 }
 
+// A close only asks; pdmain's frame loop leaves at the end of the frame, where
+// the save queue has nothing half-written (sysRequestQuit). Asking again while
+// that request is still pending - the loop is stuck and never reached the end
+// of a frame - quits here, as a close always used to.
+static void gfx_sdl_quit_requested(const char *why) {
+    if (sysQuitRequested() != SYS_QUIT_NONE) {
+        sysLogPrintf(LOG_WARNING, "SDL: %s again before the frame ended; quitting now", why);
+        exit(0);
+    }
+
+    sysLogPrintf(LOG_NOTE, "SDL: %s; quitting at the end of the frame", why);
+    sysRequestQuit(SYS_QUIT_WINDOW);
+}
+
 static void gfx_sdl_handle_events(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -310,11 +324,11 @@ static void gfx_sdl_handle_events(void) {
                            event.window.windowID == SDL_GetWindowID(wnd)) {
                     // We listen specifically for main window close because closing main window
                     // on macOS does not trigger SDL_Quit.
-                    exit(0);
+                    gfx_sdl_quit_requested("main window closed");
                 }
                 break;
             case SDL_QUIT:
-                exit(0);
+                gfx_sdl_quit_requested("SDL_QUIT");
                 break;
         }
     }

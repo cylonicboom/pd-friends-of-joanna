@@ -74,6 +74,27 @@ void sysSleep(const s64 hns);
 // yield CPU if supported (e.g. during a busy loop)
 void sysCpuRelax(void);
 
+/*
+ * Quitting at the end of a frame.
+ *
+ * A close used to exit() wherever it was noticed: mid-frame from the SDL
+ * event poll, or from inside a signal handler, which can land anywhere -
+ * halfway through a pak write into the EEPROM shadow included. The atexit
+ * flush then committed whatever half-state the game was in.
+ *
+ * Now a close only asks. The main loop leaves at the end of the frame, after
+ * the save queue has had its tick, where nothing is half-written.
+ */
+#define SYS_QUIT_NONE   0
+#define SYS_QUIT_WINDOW 1 // SDL_QUIT or the main window's close button
+#define SYS_QUIT_SIGNAL 2 // SIGINT / SIGTERM
+
+// Ask to quit. Safe from a signal handler (it only stores a flag).
+void sysRequestQuit(s32 reason);
+
+// The pending request, SYS_QUIT_NONE if there is none.
+s32 sysQuitRequested(void);
+
 void crashInit(void);
 void crashShutdown(void);
 

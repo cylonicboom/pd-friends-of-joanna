@@ -1277,6 +1277,14 @@ void mainLoop(void) {
       // If anything is waiting to be written, this is where it goes.
       saveQueueTick();
 
+      // A close or a signal asked to quit; this is the end of a frame, so
+      // nothing is half-written. exit() runs main.c's cleanup, which flushes.
+      if (sysQuitRequested() != SYS_QUIT_NONE) {
+        sysLogPrintf(LOG_NOTE, "quit: %s, leaving at the end of the frame",
+                     sysQuitRequested() == SYS_QUIT_SIGNAL ? "signal" : "window closed");
+        exit(0);
+      }
+
       if (g_TickExtraSleep) {
         sysSleep(EXTRA_SLEEP_TIME);
       }

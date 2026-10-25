@@ -147,9 +147,20 @@ static void cleanup(void)
 	// TODO: actually shut down all subsystems
 }
 
+/*
+ * Only ask (sysRequestQuit): the frame loop quits at the end of the frame.
+ * exit() from here ran the atexit flush from wherever the signal landed,
+ * pak writes included. A second signal while the first is still pending
+ * means the loop is stuck; leave without flushing - the files on disk are
+ * the last complete flush, which beats committing a half-written one.
+ */
 static void handleTermSignal(int sig)
 {
-	exit(0);
+	if (sysQuitRequested() != SYS_QUIT_NONE) {
+		_Exit(128 + sig);
+	}
+
+	sysRequestQuit(SYS_QUIT_SIGNAL);
 }
 
 int main(int argc, const char **argv)

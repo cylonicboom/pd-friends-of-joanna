@@ -8,6 +8,7 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <signal.h>
 #include <sys/time.h>
 #include <SDL.h>
 #include <PR/ultratypes.h>
@@ -542,4 +543,18 @@ void sysSleep(const s64 hns)
 void sysCpuRelax(void)
 {
 	DO_YIELD();
+}
+
+static volatile sig_atomic_t g_SysQuitRequested = SYS_QUIT_NONE;
+
+void sysRequestQuit(s32 reason)
+{
+	if (g_SysQuitRequested == SYS_QUIT_NONE) {
+		g_SysQuitRequested = reason;
+	}
+}
+
+s32 sysQuitRequested(void)
+{
+	return g_SysQuitRequested;
 }
