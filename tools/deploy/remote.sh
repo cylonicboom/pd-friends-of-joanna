@@ -55,12 +55,10 @@ start)
     echo
   } > pd.sh
   rm -f pd.pid
-  # pd.log rotates itself (the game does it for a dedicated server); out.txt
-  # is the pane's transcript, so keep the last five of those the same way
-  for i in 4 3 2 1; do
-    if [ -f "out.txt.$i" ]; then mv -f "out.txt.$i" "out.txt.$((i + 1))"; fi
-  done
-  if [ -f out.txt ]; then mv -f out.txt out.txt.1; fi
+  # pd.log rotates itself (the game keeps every one for a dedicated server);
+  # out.txt is the pane's transcript, kept forever the same way, named by the
+  # UTC time it was set aside
+  if [ -s out.txt ]; then mv -n out.txt "out.txt.$(date -u +%Y%m%d-%H%M%SZ)"; fi
   tmux kill-session -t "$SESSION" 2>/dev/null || true
   tmux new-session -d -s "$SESSION" -x 160 -y 48 -c "$RUN" "sleep 0.3; exec bash $RUN/pd.sh"
   # keep a dead pane, so attaching after a crash shows how it died

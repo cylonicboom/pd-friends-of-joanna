@@ -231,8 +231,12 @@ Game.Egg                   # vanity-egg auto-enable on boot (written as `Egg=` u
                     /clcrate); clamped 1..60.
 --netdiag <path>    netplay diagnostic CSV path (alias --diag; = Net.Debug.LogPath;
                     opens at host/join, NOT a boot log — that's --log → pd.log)
---log-keep <n>      old pd.logs kept beside pd.log (pd.log.1 newest), rotated at
-                    startup. Default 50 on a dedicated server, else 0.
+--log-keep <n|all>  old pd.logs kept beside pd.log, rotated at startup. n keeps
+                    pd.log.1 (newest)..pd.log.n; `all` (or -1) deletes none and
+                    names each by the UTC time it was rotated out
+                    (pd.log.20261025-195900Z). Default all on a dedicated
+                    server, else 0. Each new pd.log's first line names the file
+                    the previous one went to.
 --log-max-mb <n>    rotate a running pd.log past n MB (0 = startup only).
                     Default 16 on a dedicated server, else 0. A dedicated server
                     (--dedicated / --dedicated-windowed that hosts) logs without

@@ -61,19 +61,40 @@ static char logPath[2048];
 static s32 sysArgc;
 static const char **sysArgv;
 
-// Log rotation. logKeep is how many old logs sit beside pd.log (pd.log.1 is
-// the newest); logMaxBytes rotates a running log once it passes that size
-// (0 = only at startup). Both are 0 unless asked for, or unless this process
-// is a dedicated server: a server runs for days through lobby loops and
-// restarts, and the log is the only record of what happened on it.
+// Log rotation. logKeep is how many old logs sit beside pd.log: N keeps
+// pd.log.1 (newest) .. pd.log.N, LOG_KEEP_ALL (-1) never deletes one and names
+// each by the UTC time it was rotated out, pd.log.20261025-195900Z, so the log
+// that covers a bug report is the first one named after its time. logMaxBytes
+// rotates a running log once it passes that size (0 = only at startup). Both
+// are 0 unless asked for, or unless this process is a dedicated server: it
+// runs for days through lobby loops and restarts, the log is the only record
+// of what happened on it, and a report can come in long after.
+#define LOG_KEEP_ALL -1
 static s32 logKeep = 0;
 static u64 logMaxBytes = 0;
 static u64 logBytes = 0;
+static char logRotatedTo[sizeof(logPath) + 40]; // where the last rotation put the old log
 
 static void sysLogRotate(void)
 {
-	char src[sizeof(logPath) + 16];
-	char dst[sizeof(logPath) + 16];
+	char src[sizeof(logPath) + 40];
+	char dst[sizeof(logPath) + 40];
+
+	if (logKeep == LOG_KEEP_ALL) {
+		char stamp[32];
+		const time_t now = time(NULL);
+		strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%SZ", gmtime(&now));
+		snprintf(dst, sizeof(dst), "%s.%s", logPath, stamp);
+		// two rotations in one second (a log flood): never land on a kept log
+		FILE *f;
+		for (s32 n = 2; (f = fopen(dst, "rb")) != NULL; ++n) {
+			fclose(f);
+			snprintf(dst, sizeof(dst), "%s.%s-%03d", logPath, stamp, n);
+		}
+		rename(logPath, dst);
+		snprintf(logRotatedTo, sizeof(logRotatedTo), "%s", dst);
+		return;
+	}
 
 	// drop the oldest, shift the rest up one, pd.log becomes pd.log.1.
 	// remove before rename: windows' rename refuses an existing target.
@@ -86,6 +107,7 @@ static void sysLogRotate(void)
 	}
 	snprintf(dst, sizeof(dst), "%s.1", logPath);
 	rename(logPath, dst);
+	snprintf(logRotatedTo, sizeof(logRotatedTo), "%s", dst);
 }
 
 // open logPath for a fresh run: rotate what the last run left there, then
@@ -100,12 +122,16 @@ static s32 sysLogStartAt(void)
 	const long size = ftell(f);
 	fclose(f);
 
-	if (size > 0 && logKeep > 0) {
+	logRotatedTo[0] = '\0';
+	if (size > 0 && logKeep != 0) {
 		sysLogRotate();
 	}
 
 	f = fopen(logPath, "wb");
 	if (f) {
+		if (logRotatedTo[0]) {
+			fprintf(f, "previous run's log: %s\n", logRotatedTo);
+		}
 		fclose(f);
 	}
 	logBytes = 0;
@@ -142,9 +168,9 @@ void sysInit(void)
 	// --log turns it on everywhere else.
 	// A dedicated server (--dedicated / --dedicated-windowed that hosts, not
 	// a --connect / --headless-client that joins) always logs, and rotates:
-	// fifty old logs kept, a running log rotated past 16 MB. --no-log, and
-	// --log-keep N / --log-max-mb N (0 = off), override; outside a server
-	// those two flags turn rotation on for an ordinary --log.
+	// every old log kept (--log-keep all), a running log rotated past 16 MB.
+	// --no-log, and --log-keep N|all / --log-max-mb N (0 = off), override;
+	// outside a server those two flags turn rotation on for an ordinary --log.
 	const s32 isServer = (sysArgCheck("--dedicated") || sysArgCheck("--dedicated-windowed"))
 		&& !sysArgGetString("--connect") && !sysArgGetString("--headless-client");
 #if defined(FOJO_LOG_DEFAULT) && FOJO_LOG_DEFAULT
@@ -152,11 +178,16 @@ void sysInit(void)
 #else
 	const s32 wantLog = !sysArgCheck("--no-log") && (sysArgCheck("--log") || isServer);
 #endif
-	logKeep = sysArgGetInt("--log-keep", isServer ? 50 : 0);
+	const char *argkeep = sysArgGetString("--log-keep");
+	if (argkeep && !strcasecmp(argkeep, "all")) {
+		logKeep = LOG_KEEP_ALL;
+	} else {
+		logKeep = sysArgGetInt("--log-keep", isServer ? LOG_KEEP_ALL : 0);
+	}
 	const s32 maxmb = sysArgGetInt("--log-max-mb", isServer ? 16 : 0);
 	logMaxBytes = maxmb > 0 ? (u64)maxmb * 1024 * 1024 : 0;
 	if (logKeep < 0) {
-		logKeep = 0;
+		logKeep = LOG_KEEP_ALL;
 	}
 	if (logMaxBytes && logKeep == 0) {
 		// a size cap with nowhere to rotate to would just lose the log
@@ -305,7 +336,7 @@ void sysLogPrintf(s32 level, const char *fmt, ...)
 			logBytes = 0;
 			f = fopen(logPath, "wb");
 			if (f) {
-				const int n = fprintf(f, "log rotated, earlier lines are in %s.1\n", logPath);
+				const int n = fprintf(f, "log rotated, earlier lines are in %s\n", logRotatedTo);
 				fclose(f);
 				logBytes = n > 0 ? (u64)n : 0;
 			}
