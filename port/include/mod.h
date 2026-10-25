@@ -81,6 +81,7 @@ s32 modFileIdMod(s32 id);
 #define MOD_FILEID_MOD(id)  modFileIdMod((s32)(id))
 
 extern char g_ModNames[64][64];
+extern char g_ModVersions[64][32];
 extern s32 g_TexModNum;
 extern s32 g_TexCurrentModelFileNum;  // low 16 bits: fileSlot of the model currently being loaded/rendered; 0 when none
 

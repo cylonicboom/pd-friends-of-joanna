@@ -56,6 +56,7 @@
 #define SVC_PAC_STATE    0x5b // Pop-a-Cap: current victim (wire-keyed) + age (on-change + 1s heartbeat)
 #define SVC_CTC_CAPTURE  0x5c // Capture-the-Case: one-shot "case captured/scored" event (capturer wire-key + captured team) — drives the SFX_MP_SCOREPOINT + 3-way HUD on clients, since the scoring branch returns TICKOP_NONE so no SVC_PROP_PICKUP fires
 #define SVC_TEAM_HUB     0x5f // fojo: back to the hub after a team mission (empty) - host -> all (proto 91)
+#define SVC_MODLIST      0x60 // fojo: {u8 verdict, modlist} the server's mods, to one client before SVC_AUTH or before a DISCONNECT_FILES kick (proto 93)
 #define SVC_TEAM_LOBBY   0x5e // fojo: Team Missions lobby (stage, difficulty, roles, seated clients) — host -> hub clients, 1s + on change (netteam.c)
 #define SVC_ALARM        0x5d // co-op: host-authoritative alarm state (alarmIsActive, 1 byte) — on change + 1s heartbeat heal (the g_StageFlags pattern); clients mirror via alarmActivate/alarmDeactivate so the klaxon plays and monitor-script alarmIsActive() conditionals agree with the host (proto 85)
 
@@ -172,6 +173,8 @@ u32 netmsgSvcTeamLobbyWrite(struct netbuf *dst);
 u32 netmsgSvcTeamLobbyRead(struct netbuf *src, struct netclient *srccl);
 u32 netmsgSvcTeamHubWrite(struct netbuf *dst);
 u32 netmsgSvcTeamHubRead(struct netbuf *src, struct netclient *srccl);
+u32 netmsgSvcModListWrite(struct netbuf *dst, u8 verdict);
+u32 netmsgSvcModListRead(struct netbuf *src, struct netclient *srccl);
 u32 netmsgClcTeamReadyWrite(struct netbuf *dst, u8 ready);
 u32 netmsgClcTeamReadyRead(struct netbuf *src, struct netclient *srccl);
 

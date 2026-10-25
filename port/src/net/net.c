@@ -10,6 +10,7 @@
 #include "net/net.h"
 #include "net/netbuf.h"
 #include "net/netmsg.h"
+#include "net/netmods.h"
 #include "net/netprop.h"
 #include "net/demo.h"
 #include "net/netmaster.h"
@@ -2055,6 +2056,21 @@ void netServerKick(struct netclient *cl, const u32 reason)
 	enet_peer_disconnect(cl->peer, reason);
 }
 
+void netServerKickAfterSend(struct netclient *cl, const u32 reason)
+{
+	if (g_NetMode != NETMODE_SERVER) {
+		return;
+	}
+
+	if (!cl || !cl->state || !cl->peer) {
+		return;
+	}
+
+	// Under --net-sim-lag the message may still sit in netLagQueue rather
+	// than in ENet's queue, and then it is not waited for. Debug-only gap.
+	enet_peer_disconnect_later(cl->peer, reason);
+}
+
 s32 netStartClient(const char *addr)
 {
 	if (g_NetMode || !g_NetInit) {
@@ -2080,6 +2096,9 @@ s32 netStartClient(const char *addr)
 
 	// we'll use the whole array to store what we know of other clients
 	netClientResetAll();
+
+	// a new connection: forget the previous server's mod list
+	memset(&g_NetServerMods, 0, sizeof(g_NetServerMods));
 
 	// for now use last client struct
 	g_NetLocalClient = &g_NetClients[NET_MAX_CLIENTS];
@@ -2506,6 +2525,7 @@ static void netClientEvReceive(struct netclient *cl)
 			case SVC_ALARM: rc = netmsgSvcAlarmRead(&cl->in, cl); break;
 			case SVC_TEAM_LOBBY: rc = netmsgSvcTeamLobbyRead(&cl->in, cl); break;
 			case SVC_TEAM_HUB: rc = netmsgSvcTeamHubRead(&cl->in, cl); break;
+			case SVC_MODLIST: rc = netmsgSvcModListRead(&cl->in, cl); break;
 			case SVC_CUTSCENE: rc = netmsgSvcCutsceneRead(&cl->in, cl); break;
 			case SVC_COOP_LIVES: rc = netmsgSvcCoopLivesRead(&cl->in, cl); break;
 			case SVC_TIMESCALE: rc = netmsgSvcTimescaleRead(&cl->in, cl); break;

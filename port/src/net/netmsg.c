@@ -41,6 +41,7 @@
 #include "net/net.h"
 #include "net/netbuf.h"
 #include "net/netmsg.h"
+#include "net/netmods.h"
 extern u64 g_RngSeed;  // src/lib/rng_c.c
 extern u64 g_Rng2Seed; // src/game/rng2_c.c
 extern u32 g_NetCoopLocalStageFlags; // net.c
@@ -489,6 +490,61 @@ const char *netModDirName(void)
 	return base;
 }
 
+static void netmsgModsLogLine(const char *line, void *ctx)
+{
+	sysLogPrintf(LOG_WARNING, "NET: %s", line);
+}
+
+static void netmsgModsChatLine(const char *line, void *ctx)
+{
+	sysLogPrintf(LOG_WARNING, "NET: %s", line);
+	netChatLogPush(line);
+}
+
+u32 netmsgSvcModListWrite(struct netbuf *dst, u8 verdict)
+{
+	netbufWriteU8(dst, SVC_MODLIST);
+	netbufWriteU8(dst, verdict);
+	netModsWrite(dst, netModsLocal());
+	return dst->error;
+}
+
+u32 netmsgSvcModListRead(struct netbuf *src, struct netclient *srccl)
+{
+	const u8 verdict = netbufReadU8(src);
+	static struct netmodlist list;
+	netModsRead(src, &list);
+	if (src->error) {
+		sysLogPrintf(LOG_WARNING, "NET: malformed SVC_MODLIST");
+		return src->error;
+	}
+
+	g_NetServerMods.valid = 1;
+	g_NetServerMods.verdict = verdict;
+	g_NetServerMods.list = list;
+
+	sysLogPrintf(LOG_NOTE, "NET: server has %u mod%s:", list.count, list.count == 1 ? "" : "s");
+	for (u8 i = 0; i < list.count; ++i) {
+		sysLogPrintf(LOG_NOTE, "NET:   %s %s (%08x)", list.mods[i].name,
+				list.mods[i].version[0] ? list.mods[i].version : "(no version)", list.mods[i].hash);
+	}
+
+	// Our own view of the difference, so the lines read "you have / the server has".
+	// A rejection always goes to the chat log; content warnings on an accepted
+	// join do too, since a desync later is what they predict.
+	s32 hashWarns = 0;
+	const s32 diffs = netModsDiff(netModsLocal(), &list, "you", "the server", &hashWarns, netmsgModsChatLine, NULL);
+	if (verdict == NETMODS_REJECTED && diffs == 0) {
+		// Same set, so it was the active mod (--moddir order / boot mod).
+		const char *mine = netModDirName();
+		char line[NET_CHATLOG_LEN];
+		snprintf(line, sizeof(line), "mods: same mods, but the server runs a different active mod than your %s", mine ? mine : "(none)");
+		netmsgModsChatLine(line, NULL);
+	}
+
+	return src->error;
+}
+
 u32 netmsgClcAuthWrite(struct netbuf *dst)
 {
 	const char *modDir = netModDirName();
@@ -502,6 +558,7 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 	netbufWriteStr(dst, modDir);
 	netbufWriteU8(dst, 1); // TODO: number of local players
 	netbufWriteStr(dst, g_NetJoinPassword); // join password ("" if the server is open)
+	netModsWrite(dst, netModsLocal()); // every mounted mod (proto 93)
 
 	return dst->error;
 }
@@ -518,6 +575,8 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	const char *modDir = netbufReadStr(src);
 	const u8 players = netbufReadU8(src);
 	const char *password = netbufReadStr(src);
+	static struct netmodlist theirMods;
+	netModsRead(src, &theirMods);
 
 	if (src->error) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from client %u", srccl->id);
@@ -532,20 +591,6 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 		return src->error;
 	}
 
-	if (modDir[0] == '\0') {
-		modDir = NULL;
-	}
-
-	// Both sides exchange mod-dir BASENAMES (netModDirName) — never the
-	// resolved absolute path, which differs across installs/cwd forms.
-	const char *myModDir = netModDirName();
-	if ((!myModDir != !modDir) || (myModDir && modDir && strcasecmp(modDir, myModDir) != 0)) {
-		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u has the wrong mod (theirs '%s' vs ours '%s'), disconnecting",
-				srccl->id, modDir ? modDir : "(none)", myModDir ? myModDir : "(none)");
-		netServerKick(srccl, DISCONNECT_FILES);
-		return src->error;
-	}
-
 	// Password gate: an open server (empty password) accepts anyone; otherwise
 	// the client's CLC_AUTH password must match exactly. The password itself is
 	// never broadcast — only a "passworded" flag rides in the server query /
@@ -555,6 +600,47 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 		netServerKick(srccl, DISCONNECT_PASSWORD);
 		return src->error;
 	}
+
+	if (modDir[0] == '\0') {
+		modDir = NULL;
+	}
+
+	// The mod handshake (proto 93). Checked after the password so the server's
+	// list only goes to someone allowed in. Both sides exchange folder names -
+	// never the resolved absolute path, which differs across installs/cwd forms.
+	// The active mod (netModDirName) must match as before; on top of that the
+	// whole mounted set must match by {name, version}. A content hash difference
+	// is logged but lets them in. Either way the client gets SVC_MODLIST first.
+	const char *myModDir = netModDirName();
+	const s32 activeDiffers = (!myModDir != !modDir) || (myModDir && modDir && strcasecmp(modDir, myModDir) != 0);
+	if (activeDiffers) {
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u has a different active mod (theirs '%s' vs ours '%s')",
+				srccl->id, modDir ? modDir : "(none)", myModDir ? myModDir : "(none)");
+	}
+
+	char theirLabel[32];
+	snprintf(theirLabel, sizeof(theirLabel), "client %u", srccl->id);
+	s32 hashWarns = 0;
+	const s32 modDiffs = netModsDiff(netModsLocal(), &theirMods, "server", theirLabel, &hashWarns, netmsgModsLogLine, NULL);
+
+	if (activeDiffers || modDiffs) {
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u has different mods (%d difference%s), sending our list and disconnecting",
+				srccl->id, modDiffs, modDiffs == 1 ? "" : "s");
+		netbufStartWrite(&srccl->out);
+		netmsgSvcModListWrite(&srccl->out, NETMODS_REJECTED);
+		netSend(srccl, NULL, true, NETCHAN_CONTROL);
+		netServerKickAfterSend(srccl, DISCONNECT_FILES);
+		return src->error;
+	}
+
+	if (hashWarns) {
+		sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u matches our mods by version, but %d differ%s in content; letting them in",
+				srccl->id, hashWarns, hashWarns == 1 ? "s" : "");
+	}
+
+	netbufStartWrite(&srccl->out);
+	netmsgSvcModListWrite(&srccl->out, NETMODS_ACCEPTED);
+	netSend(srccl, NULL, true, NETCHAN_CONTROL);
 
 	// for now use settings from our own client, remote is supposed to send CLC_SETTINGS after CLC_AUTH
 	srccl->settings = g_NetLocalClient->settings;
