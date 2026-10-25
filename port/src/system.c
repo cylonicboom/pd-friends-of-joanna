@@ -61,21 +61,68 @@ static char logPath[2048];
 static s32 sysArgc;
 static const char **sysArgv;
 
+// Log rotation. logKeep is how many old logs sit beside pd.log (pd.log.1 is
+// the newest); logMaxBytes rotates a running log once it passes that size
+// (0 = only at startup). Both are 0 unless asked for, or unless this process
+// is a dedicated server: a server runs for days through lobby loops and
+// restarts, and the log is the only record of what happened on it.
+static s32 logKeep = 0;
+static u64 logMaxBytes = 0;
+static u64 logBytes = 0;
+
+static void sysLogRotate(void)
+{
+	char src[sizeof(logPath) + 16];
+	char dst[sizeof(logPath) + 16];
+
+	// drop the oldest, shift the rest up one, pd.log becomes pd.log.1.
+	// remove before rename: windows' rename refuses an existing target.
+	snprintf(dst, sizeof(dst), "%s.%d", logPath, logKeep);
+	remove(dst);
+	for (s32 i = logKeep - 1; i >= 1; --i) {
+		snprintf(src, sizeof(src), "%s.%d", logPath, i);
+		snprintf(dst, sizeof(dst), "%s.%d", logPath, i + 1);
+		rename(src, dst);
+	}
+	snprintf(dst, sizeof(dst), "%s.1", logPath);
+	rename(logPath, dst);
+}
+
+// open logPath for a fresh run: rotate what the last run left there, then
+// truncate. Returns 0 if the location isn't writable.
+static s32 sysLogStartAt(void)
+{
+	FILE *f = fopen(logPath, "ab");
+	if (!f) {
+		return 0;
+	}
+	fseek(f, 0, SEEK_END);
+	const long size = ftell(f);
+	fclose(f);
+
+	if (size > 0 && logKeep > 0) {
+		sysLogRotate();
+	}
+
+	f = fopen(logPath, "wb");
+	if (f) {
+		fclose(f);
+	}
+	logBytes = 0;
+	return f != NULL;
+}
+
 static inline void sysLogSetPath(const char *fname)
 {
 	// figure out where the log is and clear it
 	// try working dir first
 	snprintf(logPath, sizeof(logPath), "./%s", fname);
-	FILE *f = fopen(logPath, "wb");
-	if (!f) {
+	if (!sysLogStartAt()) {
 		// try home dir
 		sysGetHomePath(logPath, sizeof(logPath) - 1);
 		strncat(logPath, "/", sizeof(logPath) - 1);
 		strncat(logPath, fname, sizeof(logPath) - 1);
-		f = fopen(logPath, "wb");
-	}
-	if (f) {
-		fclose(f);
+		sysLogStartAt();
 	}
 }
 
@@ -93,11 +140,28 @@ void sysInit(void)
 	// pd.log carrying the version line, the file loads and the crash dump
 	// is what a tester can actually send back. --no-log turns it off there;
 	// --log turns it on everywhere else.
+	// A dedicated server (--dedicated / --dedicated-windowed that hosts, not
+	// a --connect / --headless-client that joins) always logs, and rotates:
+	// five old logs kept, a running log rotated past 16 MB. --no-log, and
+	// --log-keep N / --log-max-mb N (0 = off), override; outside a server
+	// those two flags turn rotation on for an ordinary --log.
+	const s32 isServer = (sysArgCheck("--dedicated") || sysArgCheck("--dedicated-windowed"))
+		&& !sysArgGetString("--connect") && !sysArgGetString("--headless-client");
 #if defined(FOJO_LOG_DEFAULT) && FOJO_LOG_DEFAULT
 	const s32 wantLog = !sysArgCheck("--no-log");
 #else
-	const s32 wantLog = sysArgCheck("--log");
+	const s32 wantLog = !sysArgCheck("--no-log") && (sysArgCheck("--log") || isServer);
 #endif
+	logKeep = sysArgGetInt("--log-keep", isServer ? 5 : 0);
+	const s32 maxmb = sysArgGetInt("--log-max-mb", isServer ? 16 : 0);
+	logMaxBytes = maxmb > 0 ? (u64)maxmb * 1024 * 1024 : 0;
+	if (logKeep < 0) {
+		logKeep = 0;
+	}
+	if (logMaxBytes && logKeep == 0) {
+		// a size cap with nowhere to rotate to would just lose the log
+		logKeep = 1;
+	}
 	if (wantLog) {
 		sysLogSetPath(LOG_FNAME);
 	}
@@ -230,8 +294,21 @@ void sysLogPrintf(s32 level, const char *fmt, ...)
 	if (logPath[0]) {
 		FILE *f = fopen(logPath, "ab");
 		if (f) {
-			fprintf(f, "%s%s\n", prefix[level], logmsg);
+			const int n = fprintf(f, "%s%s\n", prefix[level], logmsg);
 			fclose(f);
+			if (n > 0) {
+				logBytes += (u64)n;
+			}
+		}
+		if (logMaxBytes && logBytes >= logMaxBytes) {
+			sysLogRotate();
+			logBytes = 0;
+			f = fopen(logPath, "wb");
+			if (f) {
+				const int n = fprintf(f, "log rotated, earlier lines are in %s.1\n", logPath);
+				fclose(f);
+				logBytes = n > 0 ? (u64)n : 0;
+			}
 		}
 	}
 
