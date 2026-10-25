@@ -122,16 +122,26 @@ static s32 filemgrTryLoadDefaultFile(const char *label, const char *configured, 
 	// a --player page comes up over a few frames like any controller pak
 	if (wantdevice >= SAVEDEVICE_CONTROLLERPAK1 && wantdevice <= SAVEDEVICE_CONTROLLERPAK4
 			&& !mempakIsReady(wantdevice)) {
-		if (g_FilemgrDefaultProfileAttempted[filetype][playernum] < 60) {
-			sysLogPrintf(LOG_NOTE, "Default %s '%s': waiting for controller pak %d (%d)", label,
-					wanted, wantdevice + 1, g_FilemgrDefaultProfileAttempted[filetype][playernum]);
-			return DEFAULT_PROFILE_PENDING;
-		}
+		// and it is this wait that brings it up. The pak state machine only
+		// probes a pak a menu or the game says it needs; the title's file
+		// select says so, the direct net boot (--host / --connect) never
+		// opens one, and the hub raises the game's need too late - so a
+		// --player page sat unprobed for all 60 tries and the player came up
+		// as "Player 1". Probe it the way a pak menu does.
+		pak0f1169c8(wantdevice, true);
 
-		sysLogPrintf(LOG_WARNING, "Default %s '%s': controller pak %d never came up; showing selection menu",
-				label, wanted, wantdevice + 1);
-		g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
-		return DEFAULT_PROFILE_NOT_LOADED;
+		if (!mempakIsReady(wantdevice)) {
+			if (g_FilemgrDefaultProfileAttempted[filetype][playernum] < 60) {
+				sysLogPrintf(LOG_NOTE, "Default %s '%s': waiting for controller pak %d (%d)", label,
+						wanted, wantdevice + 1, g_FilemgrDefaultProfileAttempted[filetype][playernum]);
+				return DEFAULT_PROFILE_PENDING;
+			}
+
+			sysLogPrintf(LOG_WARNING, "Default %s '%s': controller pak %d never came up; showing selection menu",
+					label, wanted, wantdevice + 1);
+			g_FilemgrDefaultProfileAttempted[filetype][playernum] = -1;
+			return DEFAULT_PROFILE_NOT_LOADED;
+		}
 	}
 
 	filelistCreate(0, filetype);
@@ -255,6 +265,20 @@ s32 filemgrTryLoadPlayerArg(s32 seat)
 	return filemgrTryLoadDefaultFile("--player", query, FILETYPE_MPPLAYER, seat, device);
 }
 
+/*
+ * The seat's file has been reset under it (mpInit), so a default profile
+ * already loaded there is gone: let the next try load it again.
+ */
+void filemgrForgetDefaultProfile(s32 seat)
+{
+	if (seat < 0 || seat >= MAX_PLAYERS) {
+		return;
+	}
+
+	g_FilemgrDefaultProfileLoaded[seat] = false;
+	g_FilemgrDefaultProfileAttempted[FILETYPE_MPPLAYER][seat] = 0;
+}
+
 s32 filemgrHasDefaultProfile(s32 playernum)
 {
 	const char *query;
@@ -291,6 +315,10 @@ s32 filemgrHasDefaultProfile(s32 playernum)
 s32 filemgrTryLoadPlayerArg(s32 seat)
 {
 	return false;
+}
+
+void filemgrForgetDefaultProfile(s32 seat)
+{
 }
 
 s32 filemgrTryLoadDefaultReality(void)

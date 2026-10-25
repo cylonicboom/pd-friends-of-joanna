@@ -382,6 +382,11 @@ s32 netDedicatedBootTick(void)
 		mpInit(true);
 		initdone = 1;
 
+		// mpInit just put every seat back to its defaults - including a
+		// --player the hub's own default-profile try (menutick) may already
+		// have loaded into slot 0 a frame earlier. Load it again below.
+		filemgrForgetDefaultProfile(0);
+
 		for (s32 i = 1; i < MAX_PLAYERS; i++) {
 			if (mpkPlayerArg(i, &device, &query)) {
 				sysLogPrintf(LOG_WARNING, "NET: --player for seat %d ignored: under netplay only the local player (the first --player) is seated", i + 1);

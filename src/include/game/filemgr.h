@@ -52,6 +52,7 @@ bool filemgrConsiderPushingFileSelectDialog(void);
 s32 filemgrTryLoadDefaultProfile(s32 playernum);
 s32 filemgrHasDefaultProfile(s32 playernum);
 s32 filemgrTryLoadPlayerArg(s32 seat);
+void filemgrForgetDefaultProfile(s32 seat);
 s32 filemgrTryLoadDefaultReality(void);
 s32 filemgrDefaultProfileLoaded(s32 playernum);
 s32 filemgrDefaultRealityLoaded(void);
