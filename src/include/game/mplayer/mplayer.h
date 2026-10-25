@@ -5,6 +5,7 @@
 #include "types.h"
 
 s32 iniRegisterPlayerSave(struct fileguid *fileguid, s32 arg0, s32 playernum);
+void mpPlayerBorrowExtendedProfile(s32 seat, s32 from);
 void onUpdateExtendedMpProfileFileOperation(s32 playernum);
 void processAllGuids();
 f32 mpHandicapToDamageScale(u8 value);

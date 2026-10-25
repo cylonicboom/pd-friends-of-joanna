@@ -559,6 +559,42 @@ static inline s32 iniBindProfileProperties(struct fileguid *fileguid, s32 arg0,
   return configindex;
 }
 
+#ifndef PLATFORM_N64
+/*
+ * Netplay keeps the local player's file in config slot 0 - the slot the wire
+ * reads (netClientReadConfig) and saves go from - while the pawn sits at its
+ * wire seat. Point the seat at the extended profile of the file in slot
+ * `from`: handicap, classic sight, and the Display rows (lives, subtitles,
+ * mission time, player and operative name), or the seat reads a stand-in's
+ * and the HUD comes up as nobody's. Not the operative pick, which
+ * netRestoreLocalProfile carries, and which the pick's initfunc would
+ * rewrite.
+ */
+void mpPlayerBorrowExtendedProfile(s32 seat, s32 from) {
+  s32 idx;
+  s32 i;
+
+  if (seat < 0 || seat >= MAX_PLAYERS || from < 0 || from >= MAX_PLAYERS ||
+      seat == from) {
+    return;
+  }
+
+  idx = getExtendedProfileIndexFromFileGuid(&g_PlayerConfigsArray[from].fileguid);
+
+  if (idx < 0) {
+    return;
+  }
+
+  for (i = 0; i < ARRAYCOUNT(g_ExtendedProfileProperties); i++) {
+    if (g_ExtendedProfileProperties[i].initfunc &&
+        g_ExtendedProfileProperties[i].initfunc !=
+            &mpExtendedProfileInitTeamAgentIndex) {
+      g_ExtendedProfileProperties[i].initfunc(idx, seat);
+    }
+  }
+}
+#endif
+
 s32 iniRegisterPlayerSave(struct fileguid *fileguid, s32 arg0, s32 playernum) {
   return iniBindProfileProperties(fileguid, arg0, playernum);
 }

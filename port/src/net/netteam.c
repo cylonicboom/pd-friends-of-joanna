@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "types.h"
+#include "seatprofile.h"
 #include "constants.h"
 #include "data.h"
 #include "bss.h"
@@ -295,6 +296,18 @@ void netTeamDiagTick(void)
 				pl->isremote ? 0 : joyGetStickX(pad), pl->isremote ? 0 : joyGetStickY(pad),
 				optionsGetControlMode(g_Vars.playerstats[i].mpindex),
 				g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].teamagentindex);
+	}
+	// whose file each config slot carries, and which ini section its Game
+	// options and binds go through - what the Fojo Options window shows
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		const struct mpplayerconfig *cfg = &g_PlayerConfigsArray[i];
+		// prof0: this slot reads the extended profile slot 0's file has
+		// (the local player's, under net); away: the local pawn sits here
+		netDiagLogf("file", "i=%d guid=%x-%x cfgidx=%d slug=%s showname=%d prof0=%d away=%d fovy=%.1f",
+				i, cfg->fileguid.deviceserial, cfg->fileguid.fileid, cfg->configindex, seatProfileSlug(i),
+				cfg->showplayername ? (s32)*cfg->showplayername : -1,
+				cfg->showplayername && cfg->showplayername == g_PlayerConfigsArray[0].showplayername,
+				netLocalSeatAway() == i, g_PlayerExtCfg[i].fovy);
 	}
 }
 

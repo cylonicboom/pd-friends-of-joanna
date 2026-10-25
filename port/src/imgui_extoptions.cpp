@@ -42,6 +42,8 @@
 #include "imgui_extoptions.h"
 
 extern "C" char *menuResolveParam2Text(struct menuitem *item);
+extern "C" s32 g_NetMode;
+extern "C" const char *netLocalPlayerName(void);
 extern "C" char *langGet(s32 textid);
 extern "C" s32 g_MenuOptionPlayerOverride;
 extern "C" s32 menuCommitOptionChanges(void);
@@ -477,6 +479,17 @@ static void extDrawBinds(void)
 static void extDrawPlayerPicker(void)
 {
 	ImGui::TextUnformatted("Player");
+
+	// under netplay there is one player on this machine and its file is in
+	// slot 0, wherever its pawn sits - the other slots hold the remotes
+	if (g_NetMode) {
+		g_ExtOptPlayer = 0;
+		ImGui::SameLine();
+		ImGui::TextUnformatted(netLocalPlayerName()[0] ? netLocalPlayerName() : optionsmenuPlayerName(0));
+		const char *slug = seatProfileSlug(0);
+		ImGui::TextDisabled("options saved under [%s]", slug[0] ? slug : "-");
+		return;
+	}
 
 	// named for the profile in the seat, as the Team Missions menus do;
 	// "Player <n>" only when the seat has no file

@@ -110,6 +110,8 @@ static struct mpplayerconfig g_NetLocalProfileBackup;
 // pad N, not the local pad 0.
 static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 {
+	const s32 seat = (s32)(cfg - g_PlayerConfigsArray);
+
 	// Guard a snapshot that was itself taken from a poisoned profile (e.g. a
 	// force-closed session left NA in the array): never seat the local player
 	// with dead controls.
@@ -129,6 +131,10 @@ static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 	// fojo: a team mission picks the character from the seat's carousel pick;
 	// the local pawn sits at its wire seat, not slot 0, so the pick follows it
 	cfg->teamagentindex = g_NetLocalProfileBackup.teamagentindex;
+	// the file itself stays in slot 0 (it is what goes on the wire and what
+	// gets saved); a seat elsewhere borrows its extended profile, and
+	// netLocalSeatWearsSlot0 hands it the Game options every frame
+	mpPlayerBorrowExtendedProfile(seat, 0);
 	sysLogPrintf(LOG_NOTE, "NET: local profile restored: controlmode=%d contpad=%d/%d (backup ctrl=%d pad=%d/%d)",
 			cfg->controlmode, cfg->contpad1, cfg->contpad2,
 			g_NetLocalProfileBackup.controlmode, g_NetLocalProfileBackup.contpad1, g_NetLocalProfileBackup.contpad2);
@@ -139,6 +145,54 @@ static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 void netRestoreLocalProfileToSlot0(void)
 {
 	netRestoreLocalProfile(&g_PlayerConfigsArray[0]);
+}
+
+// The seat the local pawn sits at in a team mission when that is not slot 0,
+// else -1. Slot 0 is where the local player's file lives (see above).
+s32 netLocalSeatAway(void)
+{
+	const struct netclient *cl = g_NetLocalClient;
+
+	if (!g_NetMode || !g_MissionConfig.isteam || !cl || cl->is_spectator || !cl->player) {
+		return -1;
+	}
+
+	if (cl->playernum <= 0 || cl->playernum >= MAX_PLAYERS || g_Vars.players[cl->playernum] != cl->player) {
+		return -1;
+	}
+
+	return cl->playernum;
+}
+
+// The local player's own name, whatever slot 0 holds right now - in a team
+// mission on a client, slot 0 wears whoever sits at seat 0.
+const char *netLocalPlayerName(void)
+{
+	static char name[sizeof(g_NetLocalProfileBackup.base.name) + 1];
+	size_t i;
+
+	for (i = 0; i < sizeof(g_NetLocalProfileBackup.base.name) && g_NetLocalProfileBackup.base.name[i]
+			&& g_NetLocalProfileBackup.base.name[i] != '\n'; i++) {
+		name[i] = g_NetLocalProfileBackup.base.name[i];
+	}
+
+	name[i] = '\0';
+
+	return name;
+}
+
+// Game options (FOV, aim, crosshair, camera, ...) are read through the
+// seat's mpindex (PLAYER_EXTCFG), the binds through the pad (pad 0 for the
+// local player under net), and both are bound to the file in slot 0. A pawn
+// at another seat wears slot 0's Game options; every frame, so a change made
+// in the options window mid-mission lands at once.
+static void netLocalSeatWearsSlot0(void)
+{
+	const s32 seat = netLocalSeatAway();
+
+	if (seat > 0) {
+		g_PlayerExtCfg[seat] = g_PlayerExtCfg[0];
+	}
 }
 
 // mpReset assigns slot-indexed contpads (slot i reads pad i) — correct for
@@ -2557,6 +2611,8 @@ void netStartFrame(void)
 	if (!g_NetMode) {
 		return;
 	}
+
+	netLocalSeatWearsSlot0();
 
 	// R4 fix (docs/netplay-perf-review-2026.md): advance the net clock by the
 	// number of 1/60 sim steps this frame represents (diffframe60 — the same

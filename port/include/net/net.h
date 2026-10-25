@@ -674,6 +674,8 @@ void netTeamClientReady(struct netclient *cl, s32 ready); // host: a player's re
 // the endscreen's decline does.
 void netTeamReturnToHub(void);
 void netRestoreLocalProfileToSlot0(void);      // net.c: the hub seats the local player in slot 0
+s32 netLocalSeatAway(void);                     // the local pawn's team seat when it is not slot 0, else -1
+const char *netLocalPlayerName(void);           // the local player's own name, whatever slot 0 wears
 void netGhostTick(void);
 u32 netGhostUnsetMask(struct chrdata *chr, u32 flags); // ailist unset_chr_chrflag: never unhide the ghost
 s32 netConsoleExec(const char *line, s32 fromchat);
