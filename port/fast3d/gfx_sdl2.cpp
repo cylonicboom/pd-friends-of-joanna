@@ -6,6 +6,7 @@
 #include "platform.h"
 #include "system.h"
 #include "imgui_overlay.h"
+#include "nametrace.h" // NAMETRACE: temporary
 
 #include "gfx_window_manager_api.h"
 #include "gfx_screen_config.h"
@@ -294,6 +295,7 @@ static void gfx_sdl_get_dimensions(uint32_t* width, uint32_t* height, int32_t* p
 // that request is still pending - the loop is stuck and never reached the end
 // of a frame - quits here, as a close always used to.
 static void gfx_sdl_quit_requested(const char *why) {
+    nameTracef("quit request: %s (pending=%d)", why, sysQuitRequested());
     if (sysQuitRequested() != SYS_QUIT_NONE) {
         sysLogPrintf(LOG_WARNING, "SDL: %s again before the frame ended; quitting now", why);
         exit(0);
@@ -309,6 +311,10 @@ static void gfx_sdl_handle_events(void) {
         imguiOverlayProcessEvent(&event);
         switch (event.type) {
             case SDL_KEYDOWN:
+                if (event.key.keysym.mod & (KMOD_CTRL | KMOD_GUI)) {
+                    nameTracef("SDL keydown sym=0x%x scancode=%d mod=0x%x", (unsigned)event.key.keysym.sym,
+                               (int)event.key.keysym.scancode, (unsigned)event.key.keysym.mod);
+                }
                 if (event.key.keysym.sym == SDLK_RETURN && (event.key.keysym.mod & KMOD_ALT)) {
                     // alt-enter received, switch fullscreen state
                     set_fullscreen(!fullscreen_state, true);

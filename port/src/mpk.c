@@ -1,3 +1,4 @@
+#include "nametrace.h" // NAMETRACE: temporary
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -312,6 +313,7 @@ static bool mpkSave(struct mpkpage *slot)
 		return false;
 	}
 
+	nameTracef("mpkSave %s serial=%x", slot->path, slot->serial);
 	return fsFileCommitAtomic(f, slot->path);
 }
 

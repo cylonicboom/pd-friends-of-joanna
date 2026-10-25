@@ -25,6 +25,9 @@
 #include "game/pak.h"
 #include "bss.h"
 #include "savequeue.h"
+#ifndef PLATFORM_N64
+#include "nametrace.h" // NAMETRACE: temporary
+#endif
 #include "lib/args.h"
 #include "lib/vi.h"
 #include "lib/main.h"
@@ -4178,7 +4181,13 @@ void mpplayerfileLoadWad(s32 playernum, struct savebuffer *buffer, s32 arg2) {
   s32 i;
   s32 j;
 
+#ifndef PLATFORM_N64
+  nameTraceBytes("loadwad raw", playernum, buffer->bytes, 0, 0, 0);
+#endif
   savebufferReadString(buffer, g_PlayerConfigsArray[playernum].base.name, 1);
+#ifndef PLATFORM_N64
+  nameTraceSeat("loadwad got", playernum);
+#endif
   g_PlayerConfigsArray[playernum].time = savebufferReadBits(buffer, 28);
 
   if (arg2 != 0) {
@@ -4257,6 +4266,9 @@ void mpplayerfileSaveWad(s32 playernum, struct savebuffer *buffer) {
   s32 j;
   u32 stack;
 
+#ifndef PLATFORM_N64
+  nameTraceSeat("savewad from", playernum);
+#endif
   savebufferWriteString(buffer, g_PlayerConfigsArray[playernum].base.name);
 
   if (g_PlayerConfigsArray[playernum].time > 0x0fffffff) { // over 3106 days
@@ -4592,6 +4604,11 @@ void mpProfileMarkDirty(s32 playernum) {
 
   g_MpProfileDirty[playernum] = 1;
 
+#ifndef PLATFORM_N64
+  nameTracef("markdirty seat=%d caller=%p", playernum, __builtin_return_address(0));
+  nameTraceSeat("markdirty", playernum);
+#endif
+
   // Wake the queue. It decides when; this only says that there is something.
   saveQueueMarkConfig();
 }
@@ -4616,6 +4633,13 @@ void mpProfileFlushDirty(void) {
     g_MpProfileDirty[i] = 0;
 
     guid = &g_PlayerConfigsArray[i].fileguid;
+
+#ifndef PLATFORM_N64
+    nameTraceSeat("flushdirty", i);
+    nameTracef("flushdirty seat=%d device=%d", i,
+               (guid->fileid || guid->deviceserial) && guid->deviceserial != 0xFFFF
+                   ? pakFindBySerial(guid->deviceserial) : -99);
+#endif
 
     if (!guid->fileid && !guid->deviceserial) {
       continue;
@@ -4678,6 +4702,11 @@ s32 mpplayerfileSave(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
     ret = pakSaveAtGuid(device, fileid, PAKFILETYPE_MPPLAYER, buffer.bytes,
                         &newfileid, 0);
 
+#ifndef PLATFORM_N64
+    nameTracef("mpplayerfileSave seat=%d device=%d file=%x-%x ret=%d newfileid=%x",
+               playernum, device, deviceserial, fileid, ret, ret == 0 ? newfileid : -1);
+#endif
+
     if (ret == 0) {
       g_PlayerConfigsArray[playernum].fileguid.fileid = newfileid;
       g_PlayerConfigsArray[playernum].fileguid.deviceserial = deviceserial;
@@ -4707,6 +4736,11 @@ s32 mpplayerfileLoad(s32 playernum, s32 device, s32 fileid, u16 deviceserial) {
     savebufferClear(&buffer);
 
     ret = pakReadBodyAtGuid(device, fileid, buffer.bytes, 0);
+
+#ifndef PLATFORM_N64
+    nameTracef("mpplayerfileLoad seat=%d device=%d file=%x-%x ret=%d",
+               playernum, device, deviceserial, fileid, ret);
+#endif
 
     if (ret == 0) {
       g_PlayerConfigsArray[playernum].fileguid.fileid = fileid;

@@ -1,3 +1,4 @@
+#include "nametrace.h" // NAMETRACE: temporary
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -129,11 +130,17 @@ static void gameInit(void)
 static void cleanup(void)
 {
 	sysLogPrintf(LOG_NOTE, "shutdown");
+	if (!g_NameTraceExiting) {
+		g_NameTraceExiting = 1 + sysQuitRequested();
+	}
+	nameTracef("cleanup: atexit shutdown begins (exit=%d: 1 plain exit, 2 window close, 3 signal)", g_NameTraceExiting);
+	nameTraceDumpSeats("cleanup before netDisconnect");
 	texTraceDump();
 	// netplay: leave the session cleanly (flushes the diag log) and finish the
 	// async UPnP unmap (bounded, only when a mapping exists).
 	netDisconnect();
 	netUpnpShutdown();
+	nameTraceDumpSeats("cleanup before flush");
 	inputSaveBinds();
 	// inputSaveBinds only refreshes the in-memory bind strings the config
 	// table points at, so nothing has marked pd.ini dirty. Shutdown has
@@ -142,6 +149,7 @@ static void cleanup(void)
 	// Commits pd.ini and eeprom.bin together. eeprom needed nothing here
 	// before, because every block write had already hit the disk.
 	saveQueueFlush();
+	nameTraceDumpSeats("cleanup after flush");
 	videoShutdown();
 	crashShutdown();
 	// TODO: actually shut down all subsystems

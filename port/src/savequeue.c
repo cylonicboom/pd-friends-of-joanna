@@ -8,6 +8,7 @@
 #include "savequeue.h"
 #include "mpk.h"
 #include "system.h"
+#include "nametrace.h" // NAMETRACE: temporary
 
 // Defined in port/src/libultra.c, which owns the EEPROM shadow and its path.
 // Writes the shadow out if it has been marked; a no-op otherwise.
@@ -102,6 +103,9 @@ void saveQueueFlush(void)
 	g_SaveQueueConfigDirty = 0;
 	g_SaveQueueFlushCount++;
 
+	nameTracef("saveQueueFlush begin #%u eeprom=%d config=%d pending=%u frames",
+			g_SaveQueueFlushCount, eeprom, config, g_SaveQueueFrame - g_SaveQueueDirtySinceFrame);
+
 	// Profiles first: this is what produces the hashes the ini is about to be
 	// written with, and the pak writes that mark the EEPROM below.
 	mpProfileFlushDirty();
@@ -121,6 +125,8 @@ void saveQueueFlush(void)
 		inputSaveBinds();
 		configSave(CONFIG_PATH);
 	}
+
+	nameTracef("saveQueueFlush end #%u", g_SaveQueueFlushCount);
 }
 
 /*
@@ -152,6 +158,8 @@ static s32 saveQueueFrameWasIdle(void)
 void saveQueueTick(void)
 {
 	g_SaveQueueFrame++;
+
+	nameTraceWatch();
 
 	// a profile move the last session did not finish (cheap once settled)
 	mpProfileMoveTick();

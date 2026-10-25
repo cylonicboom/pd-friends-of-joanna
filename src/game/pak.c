@@ -1,3 +1,6 @@
+#ifndef PLATFORM_N64
+#include "nametrace.h" // NAMETRACE: temporary
+#endif
 #include "versions.h"
 #include <ultra64.h>
 #include "constants.h"
@@ -431,7 +434,27 @@ s32 pakReadBodyAtGuid(s8 device, s32 fileid, u8 *body, s32 arg3)
 
 s32 pakSaveAtGuid(s8 device, s32 fileid, s32 filetype, u8 *body, s32 *outfileid, u8 *olddata)
 {
+#ifndef PLATFORM_N64
+	// NAMETRACE: every MP profile write, whoever asks for it (mpplayerfileSave,
+	// rename/move/create of an unseated profile, the file manager)
+	s32 ret;
+
+	if (filetype == PAKFILETYPE_MPPLAYER) {
+		nameTraceBytes("pakSaveAtGuid in", -1, body, fileid, pakGetSerial(device), device);
+		nameTracef("pakSaveAtGuid caller=%p", __builtin_return_address(0));
+	}
+
+	ret = _pakSaveAtGuid(device, fileid, filetype, body, outfileid, olddata);
+
+	if (filetype == PAKFILETYPE_MPPLAYER) {
+		nameTracef("pakSaveAtGuid out device=%d fileid=%x ret=%d newfileid=%x",
+				device, fileid, ret, ret == 0 && outfileid ? *outfileid : -1);
+	}
+
+	return ret;
+#else
 	return _pakSaveAtGuid(device, fileid, filetype, body, outfileid, olddata);
+#endif
 }
 
 bool pakDeleteFile(s8 device, s32 fileid)

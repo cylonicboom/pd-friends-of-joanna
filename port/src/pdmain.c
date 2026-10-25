@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#include "nametrace.h" // NAMETRACE: temporary
 #include "bss.h"
 #include "constants.h"
 #include "data.h"
@@ -1280,6 +1281,7 @@ void mainLoop(void) {
       // A close or a signal asked to quit; this is the end of a frame, so
       // nothing is half-written. exit() runs main.c's cleanup, which flushes.
       if (sysQuitRequested() != SYS_QUIT_NONE) {
+        nameTracef("quit honoured at end of frame, reason=%d", sysQuitRequested());
         sysLogPrintf(LOG_NOTE, "quit: %s, leaving at the end of the frame",
                      sysQuitRequested() == SYS_QUIT_SIGNAL ? "signal" : "window closed");
         exit(0);
