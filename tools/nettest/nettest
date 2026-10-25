@@ -62,6 +62,10 @@ PORT=27150
 WATCHDOG=25
 . "$SCEN"
 [ -n "$SECS" ] && RUN_SECS=$SECS
+# another session on the same box may hold :90 and the port (the X socket is
+# abstract, so it clashes across pid namespaces even with no lock file)
+D0=${NETTEST_DISPLAY:-90}
+[ -n "$NETTEST_PORT" ] && PORT=$NETTEST_PORT
 
 # ---- binary + basedir --------------------------------------------------------
 if [ -z "$BUILD" ]; then
@@ -143,14 +147,14 @@ launch() { # name display secs driver args...
 echo "nettest: $SCENARIO -> $RUN ($RUN_SECS s, $CLIENTS client(s), xvfb=$XVFB)"
 pkill -x "$(basename "$BIN")" 2>/dev/null; pkill -x pd 2>/dev/null
 # stale displays from a run that was cut short keep our numbers (and may carry an auth cookie)
-for i in $(seq 0 "$CLIENTS"); do pkill -f "Xvfb :$((90 + i)) " 2>/dev/null; done; sleep 1
-rm -f /tmp/.X9[0-9]-lock 2>/dev/null
+for i in $(seq 0 "$CLIENTS"); do pkill -f "Xvfb :$((D0 + i)) " 2>/dev/null; done; sleep 1
+for i in $(seq 0 "$CLIENTS"); do rm -f "/tmp/.X$((D0 + i))-lock" 2>/dev/null; done
 
-launch host 90 "$RUN_SECS" "$HOST_DRIVER" --host --port "$PORT" \
+launch host "$D0" "$RUN_SECS" "$HOST_DRIVER" --host --port "$PORT" \
   --team "$TEAM_STAGE" --team-roles "$TEAM_ROLES" --team-diff "$TEAM_DIFF" --team-wait "$CLIENTS" $EXTRA_HOST_ARGS
 sleep "$CLIENT_DELAY"
 for i in $(seq 1 "$CLIENTS"); do
-  launch "cl$i" $((90 + i)) $((RUN_SECS - CLIENT_DELAY)) "$CLIENT_DRIVER" --connect "127.0.0.1:$PORT" $EXTRA_CLIENT_ARGS
+  launch "cl$i" $((D0 + i)) $((RUN_SECS - CLIENT_DELAY)) "$CLIENT_DRIVER" --connect "127.0.0.1:$PORT" $EXTRA_CLIENT_ARGS
   sleep 2
 done
 
@@ -169,16 +173,16 @@ if [ "$XVFB" = yes ] && command -v import >/dev/null; then
         sleep 2
       done
     }
-    grab "$RUN/host" 90
-    for i in $(seq 1 "$CLIENTS"); do grab "$RUN/cl$i" $((90 + i)); done
+    grab "$RUN/host" "$D0"
+    for i in $(seq 1 "$CLIENTS"); do grab "$RUN/cl$i" $((D0 + i)); done
   ) &
   # and one early, while the intro should be playing on every machine
   (
     sleep "$INTRO_GRAB_AT"
     for i in $(seq 1 "$CLIENTS"); do
-      import -display :$((90 + i)) -window root "$RUN/cl$i/frame-intro.png" 2>> "$RUN/cl$i/import.txt"
+      import -display :$((D0 + i)) -window root "$RUN/cl$i/frame-intro.png" 2>> "$RUN/cl$i/import.txt"
     done
-    import -display :90 -window root "$RUN/host/frame-intro.png" 2>> "$RUN/host/import.txt"
+    import -display ":$D0" -window root "$RUN/host/frame-intro.png" 2>> "$RUN/host/import.txt"
   ) &
 fi
 wait
