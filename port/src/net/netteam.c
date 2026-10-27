@@ -920,8 +920,47 @@ static void netTeamReadyTick(void)
  * read it, then everyone goes back to the hub (SVC_TEAM_HUB) instead of the
  * endscreen waiting on a Continue nobody at a dedicated host can press.
  */
+static u32 s_emptyAtTick = 0;
+
+/**
+ * Host (--dedicated), every frame: a team mission nobody is playing any more.
+ * Late joiners are refused while one runs (no seat to give them), so a
+ * dedicated host left alone in the stage would turn every newcomer away until
+ * it restarted. Two seconds after the last remote leaves, go back to the hub.
+ * A listen host is a player and may carry on alone; this is dedicated only.
+ */
+static s32 netTeamEmptyMissionTick(void)
+{
+	if (!g_NetDedicatedLatch || !g_MissionConfig.isteam || netTeamInHub() || g_MainChangeToStageNum >= 0) {
+		s_emptyAtTick = 0;
+		return 0;
+	}
+	for (s32 i = 0; i < NET_MAX_CLIENTS + 1; i++) {
+		const struct netclient *cl = &g_NetClients[i];
+		if (cl != g_NetLocalClient && cl->state >= CLSTATE_LOBBY) {
+			s_emptyAtTick = 0;
+			return 0;
+		}
+	}
+	if (s_emptyAtTick == 0) {
+		s_emptyAtTick = g_NetTick + 120u;
+		sysLogPrintf(LOG_NOTE, "NET: everyone left the mission, back to the lobby in 2s");
+		return 0;
+	}
+	if (g_NetTick < s_emptyAtTick) {
+		return 0;
+	}
+	s_emptyAtTick = 0;
+	netTeamReturnToHub();
+	return 1;
+}
+
 static void netTeamPostMissionTick(void)
 {
+	if (netTeamEmptyMissionTick()) {
+		s_hubAtTick = 0;
+		return;
+	}
 	if (!g_MissionConfig.isteam || !g_MainIsEndscreen || netTeamInHub() || g_MainChangeToStageNum >= 0) {
 		s_hubAtTick = 0;
 		return;
