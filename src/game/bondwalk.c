@@ -433,6 +433,30 @@ void bwalk0f0c3b38(struct coord *reltarget, struct defaultobj *obj)
 }
 
 /**
+ * netplay team missions: players walk through each other.
+ *
+ * a seat can land on top of another (a stage-start or post-cutscene drop
+ * that found no clear spot, a force-snap, the host's pawn the client never
+ * saw move). vanilla co-op treats every other player as a solid cylinder, and
+ * a cylinder test from inside another cylinder collides in every direction,
+ * so the overlapped player can't walk out - stuck for good.
+ *
+ * only the walker's own movement queries drop CDTYPE_PLAYERS. perim stays on
+ * (bondperimenabled is also what shots and explosions hit), and chrs, doors
+ * and pathblockers still see players as before. split-screen co-op and
+ * combat sim are untouched.
+ */
+static s32 bwalkMoveCdTypes(s32 types)
+{
+#ifndef PLATFORM_N64
+	if (g_NetMode != NETMODE_NONE && NET_COOP_GAME()) {
+		types &= ~CDTYPE_PLAYERS;
+	}
+#endif
+	return types;
+}
+
+/**
  * Attempt to move the current player up vertically by the given amount.
  *
  * Collision checks are done for the new location, and if successful the
@@ -462,7 +486,7 @@ s32 bwalkTryMoveUpwards(f32 amount)
 	newpos.y = g_Vars.currentplayer->prop->pos.y + amount;
 	newpos.z = g_Vars.currentplayer->prop->pos.z;
 
-	types = g_Vars.bondcollisions ? CDTYPE_ALL : CDTYPE_BG;
+	types = bwalkMoveCdTypes(g_Vars.bondcollisions ? CDTYPE_ALL : CDTYPE_BG);
 
 	playerGetBbox(g_Vars.currentplayer->prop, &radius, &ymax, &ymin);
 	func0f065e74(&g_Vars.currentplayer->prop->pos, g_Vars.currentplayer->prop->rooms, &newpos, rooms);
@@ -509,7 +533,7 @@ bool bwalkCanMoveUpwards(f32 amount)
 	newpos.y = g_Vars.currentplayer->prop->pos.y + amount;
 	newpos.z = g_Vars.currentplayer->prop->pos.z;
 
-	types = g_Vars.bondcollisions ? CDTYPE_ALL : CDTYPE_BG;
+	types = bwalkMoveCdTypes(g_Vars.bondcollisions ? CDTYPE_ALL : CDTYPE_BG);
 
 	playerGetBbox(g_Vars.currentplayer->prop, &radius, &ymax, &ymin);
 	func0f065e74(&g_Vars.currentplayer->prop->pos, g_Vars.currentplayer->prop->rooms, &newpos, rooms);
@@ -762,7 +786,7 @@ bool bwalkCalculateNewPosition(struct coord *vel, f32 rotateamount, bool apply, 
 		dstpos.y += vel->y;
 		dstpos.z += vel->z;
 
-		types = g_Vars.bondcollisions ? checktypes : CDTYPE_BG;
+		types = bwalkMoveCdTypes(g_Vars.bondcollisions ? checktypes : CDTYPE_BG);
 
 		playerGetBbox(g_Vars.currentplayer->prop, &radius, &ymax, &ymin);
 		radius += extrawidth;
