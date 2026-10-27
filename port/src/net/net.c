@@ -420,6 +420,7 @@ s32 g_NetHitmarkerEnabled     = 0;
 u32 g_NetHitmarkerExpireTick  = 0;
 
 char g_NetLastJoinAddr[NET_MAX_ADDR + 1] = "127.0.0.1:27100";
+char g_NetLastDisconnect[NET_CHATLOG_LEN];
 
 u32 g_NetTick = 0;
 u32 g_NetNextSyncId = 1;
@@ -1013,7 +1014,7 @@ static inline const char *netGetDisconnectReason(const u32 reason)
 		"You are banned on this server",
 		"Connection timed out",
 		"Server is full",
-		"The game is already in progress",
+		"A mission is in progress - try again once it ends",
 		"Your files differ from the server's",
 		"Incorrect password"
 	};
@@ -2097,8 +2098,9 @@ s32 netStartClient(const char *addr)
 	// we'll use the whole array to store what we know of other clients
 	netClientResetAll();
 
-	// a new connection: forget the previous server's mod list
+	// a new connection: forget the previous server's mod list and farewell
 	memset(&g_NetServerMods, 0, sizeof(g_NetServerMods));
+	g_NetLastDisconnect[0] = '\0';
 
 	// for now use last client struct
 	g_NetLocalClient = &g_NetClients[NET_MAX_CLIENTS];
@@ -2327,6 +2329,8 @@ static void netServerEvDisconnect(struct netclient *cl)
 		enet_peer_reset(cl->peer);
 	}
 
+	netModsClearClient(cl->id);
+
 	if (cl->settings.name[0]) {
 		sysLogPrintf(LOG_NOTE, "NET: client %u (%s) disconnected", cl->id, cl->settings.name);
 		netChatPrintf(NULL, "%s disconnected", cl->settings.name);
@@ -2477,6 +2481,11 @@ static void netClientEvDisconnect(const u32 reason)
 		char line[NET_CHATLOG_LEN];
 		snprintf(line, sizeof(line), "disconnected from server: %s", netGetDisconnectReason(reason));
 		netChatLogPush(line);
+	}
+	{
+		const s32 wasin = g_NetLocalClient && g_NetLocalClient->state >= CLSTATE_LOBBY;
+		snprintf(g_NetLastDisconnect, sizeof(g_NetLastDisconnect), "%s: %s",
+				wasin ? "Disconnected" : "Couldn't join", netGetDisconnectReason(reason));
 	}
 	netDisconnect();
 }

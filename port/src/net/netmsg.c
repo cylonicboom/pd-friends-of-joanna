@@ -638,6 +638,8 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 				srccl->id, hashWarns, hashWarns == 1 ? "s" : "");
 	}
 
+	netModsSetClient(srccl->id, &theirMods); // the host's window shows it
+
 	netbufStartWrite(&srccl->out);
 	netmsgSvcModListWrite(&srccl->out, NETMODS_ACCEPTED);
 	netSend(srccl, NULL, true, NETCHAN_CONTROL);

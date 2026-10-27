@@ -72,4 +72,22 @@ struct netservermods {
 };
 extern struct netservermods g_NetServerMods;
 
+// Server side: each admitted client's CLC_AUTH list, for the host's window.
+// Set when the client is let in (so it matches the server's by {name,
+// version}; only content hashes can differ), cleared on its disconnect.
+// netModsClient returns NULL for an id with no list.
+void netModsSetClient(u32 id, const struct netmodlist *list);
+void netModsClearClient(u32 id);
+const struct netmodlist *netModsClient(u32 id);
+
+// One row per mod name in the union of two lists, for side-by-side display.
+// a/b point at the entry on each side, NULL when that side lacks it.
+struct netmodrow {
+	const struct netmodentry *a;
+	const struct netmodentry *b;
+};
+// Fills rows (a's order first, then b-only names) and returns the count.
+s32 netModsRows(const struct netmodlist *a, const struct netmodlist *b,
+		struct netmodrow *rows, s32 maxrows);
+
 #endif

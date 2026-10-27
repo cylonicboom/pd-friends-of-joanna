@@ -16,8 +16,10 @@
 //  - Start only when every seated client has a role
 //  - the mission's end returns everyone to this lobby, still connected
 //  - direct address joins; no browser, no master
+//  - the window shows the server's mods and yours, side by side
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <math.h>
 #include "bss.h"
 #include "constants.h"
@@ -29,6 +31,7 @@ extern "C" {
 #include "game/lang.h"
 #include "net/net.h"
 #include "net/netmsg.h"
+#include "net/netmods.h"
 }
 // types.h defines bool as s32 for the C side; ImGui wants the real thing
 #undef bool
@@ -133,6 +136,183 @@ static void imguiNetplayDrawChat(void)
 	}
 }
 
+/* ----------------------------------------------------------------- mods --- */
+
+static const ImVec4 kModOk(0.55f, 0.85f, 0.55f, 1.0f);
+static const ImVec4 kModWarn(0.95f, 0.80f, 0.35f, 1.0f);
+static const ImVec4 kModBad(0.95f, 0.45f, 0.40f, 1.0f);
+
+static const char *imguiNetplayModVer(const struct netmodentry *e)
+{
+	return e->version[0] ? e->version : "(no version)";
+}
+
+// One cell against the reference side: the version, coloured by how it
+// compares - green same, yellow same version / different content, red
+// missing or another version. ref NULL = this column is the reference.
+static void imguiNetplayModCell(const struct netmodentry *e, const struct netmodentry *ref, bool isref)
+{
+	if (!e) {
+		ImGui::TextColored(kModBad, "missing");
+		return;
+	}
+	if (isref) {
+		ImGui::TextUnformatted(imguiNetplayModVer(e));
+	} else if (!ref) {
+		ImGui::TextColored(kModBad, "%s", imguiNetplayModVer(e));
+	} else if (strcmp(e->version, ref->version) != 0) {
+		ImGui::TextColored(kModBad, "%s", imguiNetplayModVer(e));
+	} else if (e->hash != ref->hash) {
+		ImGui::TextColored(kModWarn, "%s *", imguiNetplayModVer(e));
+	} else {
+		ImGui::TextColored(kModOk, "%s", imguiNetplayModVer(e));
+	}
+	if (ImGui::IsItemHovered()) {
+		if (ref && !isref && e->hash != ref->hash && strcmp(e->version, ref->version) == 0) {
+			ImGui::SetTooltip("same version, different content (%08x vs %08x)\nmodconfig.txt or filetable.dat differs", e->hash, ref->hash);
+		} else {
+			ImGui::SetTooltip("%08x", e->hash);
+		}
+	}
+}
+
+// Client (or offline, after a join): yours against the server's.
+static void imguiNetplayDrawModsVsServer(void)
+{
+	static struct netmodrow rows[NET_MAX_MODS * 2];
+	const struct netmodlist *mine = netModsLocal();
+	const struct netmodlist *srv = g_NetServerMods.valid ? &g_NetServerMods.list : NULL;
+	const s32 n = netModsRows(srv, mine, rows, (s32)(sizeof(rows) / sizeof(rows[0])));
+
+	if (!srv) {
+		ImGui::TextDisabled("The server's list arrives once the join is accepted.");
+	} else if (g_NetServerMods.verdict == NETMODS_REJECTED) {
+		ImGui::TextColored(kModBad, "The server turned these mods away. Red rows are why.");
+	}
+
+	if (ImGui::BeginTable("##netmods", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Mod", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+		ImGui::TableSetupColumn("Server", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("You", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableHeadersRow();
+		for (s32 i = 0; i < n; i++) {
+			const struct netmodentry *any = rows[i].a ? rows[i].a : rows[i].b;
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(any->name);
+			ImGui::TableNextColumn();
+			if (srv) {
+				imguiNetplayModCell(rows[i].a, NULL, true);
+			} else {
+				ImGui::TextDisabled("?");
+			}
+			ImGui::TableNextColumn();
+			if (srv) {
+				imguiNetplayModCell(rows[i].b, rows[i].a, false);
+			} else {
+				imguiNetplayModCell(rows[i].b, NULL, true);
+			}
+		}
+		ImGui::EndTable();
+	}
+}
+
+// Host: the server's list, one column per admitted client. Every admitted
+// client matched by {name, version}, so the colour that can still show is
+// yellow - same version, different content.
+static void imguiNetplayDrawModsHost(void)
+{
+	enum { MAXCOLS = 6 };
+	const struct netmodlist *mine = netModsLocal();
+	const struct netclient *cols[MAXCOLS];
+	const struct netmodlist *lists[MAXCOLS];
+	s32 ncols = 0;
+	s32 more = 0;
+
+	for (s32 i = 0; i < NET_MAX_CLIENTS + 1; i++) {
+		const struct netclient *cl = &g_NetClients[i];
+		const struct netmodlist *l;
+		if (cl == g_NetLocalClient || cl->state < CLSTATE_LOBBY || !(l = netModsClient(cl->id))) {
+			continue;
+		}
+		if (ncols < MAXCOLS) {
+			cols[ncols] = cl;
+			lists[ncols] = l;
+			ncols++;
+		} else {
+			more++;
+		}
+	}
+
+	if (ImGui::BeginTable("##netmodshost", 2 + ncols, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Mod", ImGuiTableColumnFlags_WidthStretch, 2.0f);
+		ImGui::TableSetupColumn("Server", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		for (s32 c = 0; c < ncols; c++) {
+			ImGui::TableSetupColumn(cols[c]->settings.name[0] ? cols[c]->settings.name : "client", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		}
+		ImGui::TableHeadersRow();
+		for (u8 i = 0; i < mine->count; i++) {
+			const struct netmodentry *m = &mine->mods[i];
+			ImGui::TableNextRow();
+			ImGui::TableNextColumn();
+			ImGui::TextUnformatted(m->name);
+			ImGui::TableNextColumn();
+			imguiNetplayModCell(m, NULL, true);
+			for (s32 c = 0; c < ncols; c++) {
+				const struct netmodentry *t = NULL;
+				for (u8 k = 0; k < lists[c]->count; k++) {
+					if (strcasecmp(lists[c]->mods[k].name, m->name) == 0) {
+						t = &lists[c]->mods[k];
+						break;
+					}
+				}
+				ImGui::TableNextColumn();
+				imguiNetplayModCell(t, m, false);
+			}
+		}
+		ImGui::EndTable();
+	}
+	if (more) {
+		ImGui::TextDisabled("+%d more client%s not shown", more, more == 1 ? "" : "s");
+	}
+	if (!ncols) {
+		ImGui::TextDisabled("No one has joined. A joiner needs the same mods at the same versions.");
+	}
+}
+
+static void imguiNetplayDrawMods(void)
+{
+	char label[48];
+	const s32 count = netModsLocal()->count;
+	const bool rejected = g_NetServerMods.valid && g_NetServerMods.verdict == NETMODS_REJECTED;
+	snprintf(label, sizeof(label), "Mods (%d)###netmodshdr", count);
+	ImGui::SetNextItemOpen(rejected, rejected ? ImGuiCond_Always : ImGuiCond_Once);
+	if (!ImGui::CollapsingHeader(label)) {
+		return;
+	}
+	if (g_NetMode == NETMODE_SERVER) {
+		imguiNetplayDrawModsHost();
+	} else {
+		imguiNetplayDrawModsVsServer();
+	}
+	ImGui::TextDisabled("* same version, different content - hover for the hashes");
+}
+
+// Offline: what the last session said on its way out (a refusal's reason
+// lands in the chat log, and the offline face has no chat of its own).
+static void imguiNetplayDrawLastSession(void)
+{
+	const s32 count = netChatLogCount();
+	if (!count) {
+		return;
+	}
+	ImGui::SeparatorText("Last session");
+	const s32 first = count > 6 ? count - 6 : 0;
+	for (s32 i = first; i < count; i++) {
+		ImGui::TextWrapped("%s", netChatLogGet(i));
+	}
+}
+
 /* ------------------------------------------------------------ not joined --- */
 
 static void imguiNetplayDrawOffline(void)
@@ -140,6 +320,12 @@ static void imguiNetplayDrawOffline(void)
 	if (!imguiNetplayInHub()) {
 		ImGui::TextDisabled("Host or join from the hub (Carrington Institute).");
 		return;
+	}
+
+	if (g_NetLastDisconnect[0]) {
+		ImGui::PushStyleColor(ImGuiCol_Text, kModBad);
+		ImGui::TextWrapped("%s", g_NetLastDisconnect);
+		ImGui::PopStyleColor();
 	}
 
 	if (ImGui::BeginTabBar("##netmode")) {
@@ -160,6 +346,7 @@ static void imguiNetplayDrawOffline(void)
 				strncpy(g_NetServerPassword, s_hostPassword, NET_MAX_PASSWORD - 1);
 				g_NetServerPassword[NET_MAX_PASSWORD - 1] = '\0';
 				netChatLogClear();
+				g_NetLastDisconnect[0] = '\0';
 				if (netStartServer((u16)s_hostPort, g_NetMaxClients) != 0) {
 					netChatLogPush("could not host - is the port in use?");
 				}
@@ -181,10 +368,12 @@ static void imguiNetplayDrawOffline(void)
 					netChatLogPush("could not start the join - bad address?");
 				}
 			}
+			imguiNetplayDrawMods();
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();
 	}
+	imguiNetplayDrawLastSession();
 }
 
 /* ----------------------------------------------------------------- lobby --- */
@@ -392,6 +581,8 @@ static void imguiNetplayDrawLobby(void)
 	} else {
 		ImGui::TextDisabled("Or the host starts it.");
 	}
+
+	imguiNetplayDrawMods();
 }
 
 /* ---------------------------------------------------------------- roster --- */
@@ -504,6 +695,8 @@ static void imguiNetplayDrawRoster(void)
 	}
 
 	imguiNetplayDrawEngineSeats();
+
+	imguiNetplayDrawMods();
 }
 
 /* --------------------------------------------------------------- the window --- */

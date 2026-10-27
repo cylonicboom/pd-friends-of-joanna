@@ -207,3 +207,52 @@ s32 netModsDiff(const struct netmodlist *mine, const struct netmodlist *theirs,
 	}
 	return hard;
 }
+
+static struct netmodlist g_NetClientMods[NET_MAX_CLIENTS + 1];
+static u8 g_NetClientModsValid[NET_MAX_CLIENTS + 1];
+
+void netModsSetClient(u32 id, const struct netmodlist *list)
+{
+	if (id >= NET_MAX_CLIENTS + 1 || !list) {
+		return;
+	}
+	g_NetClientMods[id] = *list;
+	g_NetClientModsValid[id] = 1;
+}
+
+void netModsClearClient(u32 id)
+{
+	if (id >= NET_MAX_CLIENTS + 1) {
+		return;
+	}
+	g_NetClientModsValid[id] = 0;
+	memset(&g_NetClientMods[id], 0, sizeof(g_NetClientMods[id]));
+}
+
+const struct netmodlist *netModsClient(u32 id)
+{
+	if (id >= NET_MAX_CLIENTS + 1 || !g_NetClientModsValid[id]) {
+		return NULL;
+	}
+	return &g_NetClientMods[id];
+}
+
+s32 netModsRows(const struct netmodlist *a, const struct netmodlist *b,
+		struct netmodrow *rows, s32 maxrows)
+{
+	s32 n = 0;
+	for (u8 i = 0; a && i < a->count && n < maxrows; ++i) {
+		rows[n].a = &a->mods[i];
+		rows[n].b = b ? netModsFind(b, a->mods[i].name) : NULL;
+		++n;
+	}
+	for (u8 i = 0; b && i < b->count && n < maxrows; ++i) {
+		if (a && netModsFind(a, b->mods[i].name)) {
+			continue;
+		}
+		rows[n].a = NULL;
+		rows[n].b = &b->mods[i];
+		++n;
+	}
+	return n;
+}

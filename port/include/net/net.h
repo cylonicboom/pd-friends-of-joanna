@@ -838,6 +838,11 @@ extern u32 g_NetServerPort;
 // master heartbeat advertises this so the tracker pairs it with the source IP.
 extern u16 g_NetServerActualPort;
 extern char g_NetLastJoinAddr[NET_MAX_ADDR + 1];
+// Client side: why the server let go of us last ("Couldn't join: ..." when it
+// refused us before the lobby, "Disconnected: ..." after). Empty after a leave
+// of our own, cleared when netStartClient opens the next connection. The
+// window shows it; the reason codes are safe for a player to read.
+extern char g_NetLastDisconnect[NET_CHATLOG_LEN];
 
 extern s32 g_NetDebugDraw;
 
