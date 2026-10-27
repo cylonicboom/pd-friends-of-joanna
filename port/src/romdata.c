@@ -2524,6 +2524,55 @@ static bool romdataValidate(void *data, u32 size)
 // *outUnreadable is set when the declaration resolved to real bytes inside a
 // mounted image that this build cannot decode. That is an engine gap, not a
 // missing file, and the caller treats it differently from a miss.
+// Where a resolved name lives on disk under one mod directory. The self-source
+// lane, the walk and romdataFileIsAvailable() all ask this, and they ask the
+// same function so that the question "is it there" and the act of loading it
+// can never disagree about a path.
+static void romdataModFilePath(char *dst, size_t dstSize, const char *modDir, const char *resolved)
+{
+	if (!strncmp(resolved, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1)) {
+		// already starts with "files/"; don't prepend ROMDATA_FILEDIR
+		snprintf(dst, dstSize, "%s/%s", modDir, resolved);
+	} else if (!strncmp(resolved, "textures/", 9)) {
+		// textures live under files/textures or just textures
+		snprintf(dst, dstSize, "%s/" ROMDATA_FILEDIR "/%s", modDir, resolved);
+		if (fsFileSize(dst) <= 0) {
+			snprintf(dst, dstSize, "%s/%s", modDir, resolved);
+		}
+	} else {
+		snprintf(dst, dstSize, "%s/" ROMDATA_FILEDIR "/%s", modDir, resolved);
+	}
+}
+
+// The walk does not serve mod `dirMod`'s loose file as mod `ownerMod`'s when
+// `dirMod` declared that name as its own; see the note at its use in
+// romdataFileLoad().
+static bool romdataWalkDeclaredBy(s32 dirMod, s32 ownerMod, const char *resolvedName)
+{
+	if (dirMod == ownerMod || ftPoolUsed <= 0) {
+		return false;
+	}
+
+	const char *base = strrchr(resolvedName, '/');
+	base = base ? base + 1 : resolvedName;
+
+	return ftDeclaredByMod(base, (u32)strlen(base) + 1, dirMod);
+}
+
+// A declared alt-ROM extent that can be served: its image is mounted and the
+// extent fits inside it. Says nothing about compression.
+static bool romdataAltSourceFits(const struct romaltsource *as)
+{
+	if (as->romIdx == 0xff || as->romIdx >= g_NumRomSources) {
+		return false;
+	}
+
+	const struct romsource *rs = &g_RomSources[as->romIdx];
+
+	return rs->mounted && (rs->data || rs->ov)
+		&& (u64)as->offset + (u64)as->size <= (u64)rs->size;
+}
+
 static u8 *romdataFileLoadAltSource(s32 modNum, s32 fileNum,
 		const struct romaltsource *as, bool *outUnreadable)
 {
@@ -2535,8 +2584,7 @@ static u8 *romdataFileLoadAltSource(s32 modNum, s32 fileNum,
 
 	// Declared, but the image is not mounted or the extent does not fit inside
 	// it. Nothing is claimed; the caller falls back exactly as before.
-	if (!rs->mounted || (!rs->data && !rs->ov)
-			|| (u64)as->offset + (u64)as->size > (u64)rs->size) {
+	if (!romdataAltSourceFits(as)) {
 		return NULL;
 	}
 
@@ -2638,16 +2686,7 @@ static u8 *romdataFileLoadSelfSource(s32 modNum, s32 fileNum, u32 *outLoadedSize
 	}
 
 	// The same three-way join the walk uses, against the owner's directory only.
-	if (!strncmp(resolved, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1)) {
-		snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[modNum], resolved);
-	} else if (!strncmp(resolved, "textures/", 9)) {
-		snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[modNum], resolved);
-		if (fsFileSize(tmp) <= 0) {
-			snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[modNum], resolved);
-		}
-	} else {
-		snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[modNum], resolved);
-	}
+	romdataModFilePath(tmp, sizeof(tmp), modDirs[modNum], resolved);
 
 	if (fsFileSize(tmp) <= 0) {
 		sysLogPrintf(LOG_WARNING,
@@ -2943,37 +2982,23 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 					// vanilla id, and the declared-source lane above already
 					// served that. Only another mod's loose file is examined
 					// here: a mod's own directory is still its own.
-					if (i != modNum && ftPoolUsed > 0) {
+					if (romdataWalkDeclaredBy(i, modNum, resolvedName)) {
+						static s32 s_declaredSkips = 0;
 						const char *base = strrchr(resolvedName, '/');
 						base = base ? base + 1 : resolvedName;
 
-						if (ftDeclaredByMod(base, (u32)strlen(base) + 1, i)) {
-							static s32 s_declaredSkips = 0;
-
-							if (s_declaredSkips < 16) {
-								++s_declaredSkips;
-								sysLogPrintf(LOG_NOTE,
-										"romdataFileLoad: file %d (%s) is mod %d's; mod %d (%s) ships a %s but declares it as its own, so it is not an override%s",
-										fileNum, resolvedName, modNum, i, modName, base,
-										s_declaredSkips == 16 ? " [further declared-name skips not logged]" : "");
-							}
-
-							continue;
+						if (s_declaredSkips < 16) {
+							++s_declaredSkips;
+							sysLogPrintf(LOG_NOTE,
+									"romdataFileLoad: file %d (%s) is mod %d's; mod %d (%s) ships a %s but declares it as its own, so it is not an override%s",
+									fileNum, resolvedName, modNum, i, modName, base,
+									s_declaredSkips == 16 ? " [further declared-name skips not logged]" : "");
 						}
+
+						continue;
 					}
 
-					// If resolvedName already starts with "files/", don't prepend ROMDATA_FILEDIR
-					if (strncmp(resolvedName, ROMDATA_FILEDIR "/", strlen(ROMDATA_FILEDIR) + 1) == 0) {
-						snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
-					} else if (strncmp(resolvedName, "textures/", 9) == 0) {
-						// Special case for textures: check both files/textures and just textures
-						snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
-						if (fsFileSize(tmp) <= 0) {
-							snprintf(tmp, sizeof(tmp), "%s/%s", modDirs[i], resolvedName);
-						}
-					} else {
-						snprintf(tmp, sizeof(tmp), "%s/" ROMDATA_FILEDIR "/%s", modDirs[i], resolvedName);
-					}
+					romdataModFilePath(tmp, sizeof(tmp), modDirs[i], resolvedName);
 
 					// if (fileNum == FILE_CHEADGREY) {
 					// 	sysLogPrintf(LOG_NOTE, "DEBUG: Checking for FILE_CHEADGREY at '%s'", tmp);
@@ -3114,6 +3139,115 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 	return out;
 }
 
+
+// Would romdataFileLoad() find bytes for this file id?
+//
+// Asked at registration time by anything that is about to put a file id into a
+// table the game trusts - a head or body in the character roster - so that a
+// file a mod's table DECLARES but whose bytes are not installed is skipped the
+// way an entry whose `requiresrom` is not mounted is skipped. Registered
+// anyway, the id resolves to NULL the first time something loads it, and the
+// model loader does not survive that.
+//
+// Every lane romdataFileLoad() tries, in the same order and with the same
+// paths, asked "is something there" rather than "give me it": nothing is
+// opened, allocated or cached, and the slot is left SRC_UNLOADED for the real
+// load. Presence only - a file that is there but corrupt still answers true
+// and still degrades the way it always has.
+s32 romdataFileIsAvailable(s32 fileNum)
+{
+	s32 modNum = g_ModNum;
+	const s32 fileOwner = MOD_FILEID_MOD(fileNum);
+	if (fileOwner >= 0) {
+		modNum = fileOwner;
+		fileNum = MOD_FILEID_RAW(fileNum);
+	}
+
+	if (fileNum < 1 || fileNum >= ROMDATA_MAX_FILES
+			|| modNum < 0 || modNum >= (s32)g_NumModDirs) {
+		return false;
+	}
+
+	const struct romfile *slot = &fileSlots[modNum][fileNum];
+
+	// Already resolved, one way or the other.
+	if (slot->source != SRC_UNLOADED) {
+		return slot->data != NULL;
+	}
+
+	const char *ownerModName = NULL;
+	if (modDirs[modNum][0]) {
+		ownerModName = strrchr(modDirs[modNum], '/');
+		ownerModName = ownerModName ? ownerModName + 1 : modDirs[modNum];
+	}
+
+	char resolved[FS_MAXPATH];
+	char tmp[FS_MAXPATH];
+	const s32 modSlot = modNum < MOD_TEX_MAP_MAX_MODS ? modNum : 0;
+	const struct romaltsource *as = &g_FileAltSource[modSlot][fileNum];
+
+	// 1. declared SELF source, in the owner's own directory
+	if (modNum < MOD_TEX_MAP_MAX_MODS && as->romIdx == ROMSOURCE_SELF && ownerModName) {
+		romdataResolvePath(resolved, slot->name, sizeof(resolved), ownerModName, ownerModName, false);
+		if (resolved[0]) {
+			romdataModFilePath(tmp, sizeof(tmp), modDirs[modNum], resolved);
+			if (fsFileSize(tmp) > 0) {
+				return true;
+			}
+		}
+	}
+
+	// 2. declared alt-ROM source. A compressed extent is unreadable, and an
+	// unreadable declaration goes straight to the ROM, skipping the loose files.
+	bool altUnreadable = false;
+	if (romdataAltSourceFits(as)) {
+		if (as->compression == 0) {
+			return true;
+		}
+		altUnreadable = true;
+	}
+
+	if (!altUnreadable) {
+		// 3. the walk, highest mod first
+		for (s32 i = g_NumModDirs - 1; i >= 0; --i) {
+			if (!modDirs[i][0]) {
+				continue;
+			}
+
+			const char *modName = strrchr(modDirs[i], '/');
+			modName = modName ? modName + 1 : modDirs[i];
+
+			romdataResolvePath(resolved, slot->name, sizeof(resolved), modName, ownerModName, false);
+			if (!resolved[0] || romdataWalkDeclaredBy(i, modNum, resolved)) {
+				continue;
+			}
+
+			romdataModFilePath(tmp, sizeof(tmp), modDirs[i], resolved);
+			if (fsFileSize(tmp) > 0) {
+				return true;
+			}
+		}
+
+		// 4. the base dir
+		romdataResolvePath(resolved, slot->name, sizeof(resolved), NULL, ownerModName, false);
+		if (resolved[0]) {
+			snprintf(tmp, sizeof(tmp), "$B/" ROMDATA_FILEDIR "/%s", resolved);
+			if (fsFileSize(tmp) > 0) {
+				return true;
+			}
+		}
+
+		// 5. row 0 as a global alt-source table
+		if (as->romIdx == 0xff && romdataAltSourceFits(&g_FileAltSource[0][fileNum])
+				&& g_FileAltSource[0][fileNum].compression == 0) {
+			return true;
+		}
+	}
+
+	// 6. the ROM. A mod row inherits the ROM's extent for every id the ROM
+	// has; an id past the end of it - every file a mod adds - has none.
+	return slot->data != NULL;
+}
 
 void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *outSize)
 {

@@ -42,6 +42,7 @@ s32 romdataModelRomFileGetNumForName(const char *name);
 s32 romdataLoadModelRom(const char *path); // path = ROM file or dir to scan; 1 = loaded
 
 u8 *romdataFileLoad(s32 fileNum, u32 *outSize);
+s32 romdataFileIsAvailable(s32 fileNum); // would romdataFileLoad find bytes? loads nothing
 void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *outSize);
 void romdataFileFree(s32 fileNum);
 void romdataResetActiveMod(void); // drop every loaded file slot for the active mod

@@ -1531,6 +1531,25 @@ const char *modBodyLabel(s32 slot)
 	return g_MpBodyLabels[slot];
 }
 
+// A head or body whose model is named in its mod's file table but is not
+// installed - a trimmed or partial copy of a pack - is skipped exactly like one
+// whose `requiresrom` is not mounted: it never reaches g_HeadsAndBodies or the
+// MP roster, so nothing can pick it and load NULL. The name resolving is not
+// enough; romdataFileIsAvailable asks whether the bytes are actually there.
+static bool modConfigHeadOrBodyFilePresent(s32 fileId, const char *key, const char *name)
+{
+	if (romdataFileIsAvailable(fileId)) {
+		return true;
+	}
+
+	const s32 owner = MOD_FILEID_MOD(fileId);
+	const char *fileName = owner >= 0 ? romdataFileGetSlotName(owner, MOD_FILEID_RAW(fileId)) : romdataFileGetName(fileId);
+
+	sysLogPrintf(LOG_WARNING, "modconfig: HeadsAndBodies '%s': %s '%s' (mod %d) is declared but not installed, skipping entry",
+	             name && name[0] ? name : "?", key, fileName ? fileName : "?", owner);
+	return false;
+}
+
 // Returns updated p. Sets *skipEntry=1 if the entry should be discarded
 // (e.g. file not found). On hard parse failure (a malformed value for a key
 // we know), returns NULL with *skipEntry left as 0. An unknown key is not a
@@ -1608,6 +1627,10 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 				return NULL;
 			}
 			item->filenum = MOD_FILEID_MAKE(modNum, tmp);
+			if (!modConfigHeadOrBodyFilePresent(item->filenum, "filenum", nameOut)) {
+				if (skipEntry) *skipEntry = 1;
+				return NULL;
+			}
 		} else if (!strcmp(token, "scale")) {
 			p = modConfigParseFloatValue(p, token, &tmpf);
 			if (!p) return NULL;
@@ -1625,6 +1648,10 @@ static char *modConfigParseHeadOrBodyEntry(char *p, char *token, struct headorbo
 				return NULL;
 			}
 			item->handfilenum = MOD_FILEID_MAKE(modNum, tmp);
+			if (!modConfigHeadOrBodyFilePresent(item->handfilenum, "handfilenum", nameOut)) {
+				if (skipEntry) *skipEntry = 1;
+				return NULL;
+			}
 			if (slotInfo) {
 				strncpy(slotInfo->handName, strUnquote(token), 63);
 				slotInfo->handName[63] = '\0';
@@ -2154,7 +2181,7 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 
 	if (skipEntry) {
 		// Soft failure: skip to end of block and continue parsing the modconfig.
-		sysLogPrintf(LOG_WARNING, "modconfig: skipping HeadsAndBodies '%s' (mod %d) due to unresolved file reference",
+		sysLogPrintf(LOG_WARNING, "modconfig: skipping HeadsAndBodies '%s' (mod %d): a file it needs is unresolved, not installed, or on an unmounted ROM",
 		             name[0] ? name : "?", modNum);
 		return modConfigSkipBlock(blockStart, token);
 	}
