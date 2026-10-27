@@ -201,6 +201,10 @@ void netTeamEnterStage(s32 stageindex, s32 difficulty, const u8 *roles)
 
 	netCoopResetStageState();
 
+	// still in the hub, slot 0 still ours: the profile restored after the
+	// mission (and saved) is the one in it now, not the one we joined with
+	netSnapshotLocalProfile();
+
 	// fojo: the ready-up is per lobby visit
 	for (s32 i = 0; i < NET_MAX_CLIENTS + 1; i++) {
 		g_NetClients[i].ready = 0;

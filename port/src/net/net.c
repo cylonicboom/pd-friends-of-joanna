@@ -131,6 +131,13 @@ static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 	// fojo: a team mission picks the character from the seat's carousel pick;
 	// the local pawn sits at its wire seat, not slot 0, so the pick follows it
 	cfg->teamagentindex = g_NetLocalProfileBackup.teamagentindex;
+	// slot 0 is where the file lives: give it its save back (a remote in that
+	// seat wore a stand-in, see netPlayersAllocate). Never another seat - two
+	// slots on one file both get saved into it.
+	if (seat == 0) {
+		cfg->fileguid = g_NetLocalProfileBackup.fileguid;
+		cfg->configindex = g_NetLocalProfileBackup.configindex;
+	}
 	// the file itself stays in slot 0 (it is what goes on the wire and what
 	// gets saved); a seat elsewhere borrows its extended profile, and
 	// netLocalSeatWearsSlot0 hands it the Game options every frame
@@ -145,6 +152,21 @@ static void netRestoreLocalProfile(struct mpplayerconfig *cfg)
 void netRestoreLocalProfileToSlot0(void)
 {
 	netRestoreLocalProfile(&g_PlayerConfigsArray[0]);
+}
+
+// Take the snapshot again from slot 0 while it is still the local player's
+// (the hub, on the way into a team mission), so a profile loaded or changed
+// in the hub after joining is the one restored - and saved - later.
+void netSnapshotLocalProfile(void)
+{
+	const struct mpplayerconfig *cfg = &g_PlayerConfigsArray[0];
+
+	// a remote's stamp still on it (no restore since): keep the old snapshot
+	if (cfg->controlmode == CONTROLMODE_NA) {
+		return;
+	}
+
+	g_NetLocalProfileBackup = *cfg;
 }
 
 // The seat the local pawn sits at in a team mission when that is not slot 0,
@@ -2189,6 +2211,10 @@ s32 netDisconnect(void)
 		setNumPlayers(1);
 		titleSetNextMode(TITLEMODE_SKIP);
 		mainChangeToStage(STAGE_CITRAINING);
+		// the mission's slot 0 may have been a remote's (wearing a stand-in,
+		// so the stage end above saved nothing over our file); back offline
+		// it is the local player's, file and all
+		netRestoreLocalProfileToSlot0();
 	}
 
 	return 0;
@@ -4027,6 +4053,14 @@ void netPlayersAllocate(void)
 			// g_NetLocalProfileBackup at session start and restored by the
 			// local-bind branch below whenever we get seated on a slot)
 			struct mpplayerconfig *cfg = &g_PlayerConfigsArray[cl->playernum];
+			// A remote never wears a save of ours. On a client the remote in
+			// seat 0 sits in the slot the local player's file lives in, and a
+			// team mission's end (filemgrSaveMpPlayers) or a disconnect saves
+			// every slot with a real file: the remote's name, control mode and
+			// options went into our pak. The seat's stand-in is skipped there;
+			// netRestoreLocalProfile gives slot 0 its file back.
+			cfg->fileguid.deviceserial = 0xffff;
+			cfg->fileguid.fileid = 0xff00 | cl->playernum;
 			cfg->controlmode = CONTROLMODE_NA;
 			cfg->base.mpbodynum = cl->settings.bodynum;
 			cfg->base.mpheadnum = cl->settings.headnum;
