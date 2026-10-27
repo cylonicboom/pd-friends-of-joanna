@@ -2785,6 +2785,39 @@ u32 netmsgSvcPropMoveWrite(struct netbuf *dst, struct prop *prop, struct coord *
 			netbufWriteS16(dst, chr->model->anim->animnum);
 			netbufWriteS16(dst, chr->model->anim->framea);
 			netbufWriteBoundedQ(dst, chr->model->anim->speed, NET_SPEEDQ_RANGE); // quantized — proto 62
+			// ANIM TAIL (proto 92): looping + loop-back frame, and the end
+			// frame. The host's chrTick* / playerChooseThirdPersonAnimation set
+			// these right after modelSetAnimation (which clears them); the
+			// client never runs those for a replicated chr, so without the tail
+			// every walk cycle played once and froze on its last frame.
+			{
+				const struct anim *wa = chr->model->anim;
+				u8 af = 0;
+				if (wa->looping) {
+					af |= NETANIM_LOOPING;
+				}
+				if (wa->endframe >= 0) {
+					af |= NETANIM_ENDFRAME;
+				}
+				// Off the host's own screen the host either ticks the chr a
+				// batch at a time (backgrounded) or, standing, doesn't advance
+				// its anim at all - neither is a frame worth chasing.
+				if (chr->prop && (chr->prop->backgrounded
+						|| !(chr->prop->flags & PROPFLAG_ONANYSCREENPREVTICK))) {
+					af |= NETANIM_COARSE;
+				}
+				netbufWriteU8(dst, af);
+				if (af & NETANIM_LOOPING) {
+					const f32 lf = wa->loopframe;
+					netbufWriteS16(dst, (s16)(lf > 32000.f ? 32000 : (lf < 0.f ? 0 : (s32)(lf + 0.5f))));
+					const f32 lm = wa->loopmerge;
+					netbufWriteU8(dst, (u8)(lm > 255.f ? 255 : (lm < 0.f ? 0 : (s32)(lm + 0.5f))));
+				}
+				if (af & NETANIM_ENDFRAME) {
+					const f32 ef = wa->endframe;
+					netbufWriteS16(dst, (s16)(ef > 32000.f ? 32000 : (s32)(ef + 0.5f)));
+				}
+			}
 			// FLIP was tried here and reverted: the goal was to fix sims
 			// appearing left-handed when the server played a flipped variant
 			// (e.g. left-strafe), but syncing the bit broke Skedar and other
@@ -2805,6 +2838,7 @@ u32 netmsgSvcPropMoveWrite(struct netbuf *dst, struct prop *prop, struct coord *
 			netbufWriteS16(dst, 0);
 			netbufWriteS16(dst, 0);
 			netbufWriteBoundedQ(dst, 1.0f, NET_SPEEDQ_RANGE); // quantized — proto 62
+			netbufWriteU8(dst, 0); // anim tail: no flags, nothing follows (proto 92)
 		}
 		// HELD WEAPONS: per-hand weaponnum (or -1 if unarmed). The client doesn't
 		// run bot AI (which controls weapon swaps via chrGiveWeapon when
@@ -3165,6 +3199,19 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 		const s16 animnum = netbufReadS16(src);
 		const s16 animframe = netbufReadS16(src);
 		const f32 animspeed = netbufReadBoundedQ(src, NET_SPEEDQ_RANGE); // quantized — proto 62
+		// Anim tail (proto 92) - see the write side. Read unconditionally so the
+		// stream stays aligned whether or not the apply below runs.
+		const u8 animflags = netbufReadU8(src);
+		s16 animloopframe = 0;
+		u8 animloopmerge = 0;
+		s16 animendframe = -1;
+		if (animflags & NETANIM_LOOPING) {
+			animloopframe = netbufReadS16(src);
+			animloopmerge = netbufReadU8(src);
+		}
+		if (animflags & NETANIM_ENDFRAME) {
+			animendframe = netbufReadS16(src);
+		}
 		// flip byte was removed — see Write side. The client keeps whatever
 		// flip the local chrTick happened to set; better than the maps
 		// breaking when we tried to sync it.
@@ -3274,6 +3321,10 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 				pose.animnum = animnum;
 				pose.framea = animframe;
 				pose.speed = animspeed;
+				pose.loopframe = (f32)animloopframe;
+				pose.endframe = animendframe;
+				pose.animflags = animflags;
+				pose.loopmerge = animloopmerge;
 				// Record the wire rooms verbatim so netChrInterpolate can re-register
 				// prop->rooms time-aligned with the interpolated pos (see the
 				// room-registration note above).
@@ -3376,6 +3427,7 @@ u32 netmsgSvcPropMoveRead(struct netbuf *src, struct netclient *srccl)
 				} else {
 					chr->model->anim->speed = animspeed;
 				}
+				netChrApplyAnimTail(chr->model, animflags, (f32)animloopframe, animloopmerge, animendframe);
 			}
 
 			// AIM PROPERTIES: drive upper-body joint rotations in chrHandleJointPositioned:

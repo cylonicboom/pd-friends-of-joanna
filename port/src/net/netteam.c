@@ -39,6 +39,7 @@
 #include "game/lv.h"
 #include "game/options.h"
 #include "lib/joy.h"
+#include "lib/anim.h"
 #include "game/playermgr.h"
 #include "game/mplayer/mplayer.h"
 #include "lib/main.h"
@@ -300,6 +301,35 @@ void netTeamDiagTick(void)
 				pl->isremote ? 0 : joyGetStickX(pad), pl->isremote ? 0 : joyGetStickY(pad),
 				optionsGetControlMode(g_Vars.playerstats[i].mpindex),
 				g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].teamagentindex);
+	}
+	// replicated chr anims (the bug where the guards forget how to walk):
+	// what each synced NPC is playing, so the verdict can pair host and
+	// client by syncid - looping agreement, and a client cycle parked on
+	// its last frame while the host's still loops. Capped per second.
+	if (g_Vars.tickmode == TICKMODE_NORMAL && g_ChrSlots) {
+		s32 logged = 0;
+		for (s32 i = 0; i < g_NumChrSlots && logged < 32; i++) {
+			struct chrdata *chr = &g_ChrSlots[i];
+			if (chr->chrnum < 0 || !chr->prop || chr->prop->type != PROPTYPE_CHR || !chr->prop->syncid
+					|| !chr->model || !chr->model->anim || chr->model->anim->animnum <= 0) {
+				continue;
+			}
+			const struct anim *anim = chr->model->anim;
+			netDiagLogf("canim", "sid=%u anim=%d frame=%.1f speed=%.2f loop=%d lf=%.0f end=%.0f n=%d act=%d err=%.1f",
+					chr->prop->syncid, anim->animnum, anim->frame, anim->speed, anim->looping ? 1 : 0,
+					anim->loopframe, anim->endframe, animGetNumFrames(anim->animnum), chr->actiontype,
+					g_NetMode == NETMODE_CLIENT ? netChrAnimLastErr(chr) : 0.0f);
+			logged++;
+		}
+	}
+	// the client's soft frame correction over the last second: how many
+	// same-anim frames it judged, nudged, re-seeded, and the mean error
+	if (g_NetMode == NETMODE_CLIENT) {
+		netDiagLogf("canimfix", "on=%d samples=%u nudges=%u snaps=%u restarts=%u meanerr=%.2f",
+				g_NetAnimCorrect, g_NetAnimStatSamples, g_NetAnimStatNudges, g_NetAnimStatSnaps, g_NetAnimStatRestarts,
+				g_NetAnimStatSamples ? g_NetAnimStatErrSum / (f32)g_NetAnimStatSamples : 0.0f);
+		g_NetAnimStatSamples = g_NetAnimStatNudges = g_NetAnimStatSnaps = g_NetAnimStatRestarts = 0;
+		g_NetAnimStatErrSum = 0;
 	}
 	// whose file each config slot carries, and which ini section its Game
 	// options and binds go through - what the Fojo Options window shows

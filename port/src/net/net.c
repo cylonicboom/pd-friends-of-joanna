@@ -1192,6 +1192,12 @@ void netInit(void)
 		g_NetMaxClients = argmaxclients;
 	}
 
+	// --net-animtail 0 / --net-animcorrect 0: the pre-92 client anim
+	// behaviour (no looping / end frame from the wire; free-running frame),
+	// so nettest can show its chr-anim checks failing on the old code.
+	g_NetAnimTail = sysArgGetInt("--net-animtail", 1) ? 1 : 0;
+	g_NetAnimCorrect = sysArgGetInt("--net-animcorrect", 1) ? 1 : 0;
+
 	const s32 argport = sysArgGetInt("--port", -1);
 	if (argport > 0 && argport < 0x10000) {
 		g_NetServerPort = argport;
@@ -4540,6 +4546,10 @@ void netChrRecordSnapshot(struct chrdata *chr, const struct netchrpose *pose)
 	chr->netsnaps[h].animnum        = pose->animnum;
 	chr->netsnaps[h].framea         = pose->framea;
 	chr->netsnaps[h].speed          = pose->speed;
+	chr->netsnaps[h].loopframe      = pose->loopframe;
+	chr->netsnaps[h].endframe       = pose->endframe;
+	chr->netsnaps[h].animflags      = pose->animflags;
+	chr->netsnaps[h].loopmerge      = pose->loopmerge;
 	for (s32 ri = 0; ri < 8; ++ri) {
 		chr->netsnaps[h].rooms[ri] = pose->rooms[ri];
 	}
@@ -4597,6 +4607,74 @@ static s32 netChrRelevantTo(const struct chrdata *chr, const struct netclient *c
 	const f32 dy = xp->pos.y - cp->pos.y;
 	const f32 dz = xp->pos.z - cp->pos.z;
 	return (dx * dx + dy * dy + dz * dz) <= (g_NetRelevancyDist * g_NetRelevancyDist);
+}
+
+void netChrApplyAnimTail(struct model *model, u8 animflags, f32 loopframe, u8 loopmerge, s16 endframe)
+{
+	struct anim *anim = model ? model->anim : NULL;
+	if (!g_NetAnimTail || !anim || !anim->animnum) {
+		return;
+	}
+	if (animflags & NETANIM_LOOPING) {
+		if (!anim->looping || anim->loopframe != loopframe || anim->loopmerge != (f32)loopmerge) {
+			modelSetAnimLooping(model, loopframe, (f32)loopmerge);
+		}
+	} else {
+		anim->looping = false;
+	}
+	// modelSetAnimEndFrame maps "at or past the last frame" to -1 itself.
+	modelSetAnimEndFrame(model, (animflags & NETANIM_ENDFRAME) ? (f32)endframe : -1.f);
+}
+
+// Soft frame correction for a replicated chr's anim (netChrInterpolate). The
+// client plays the anim itself; these decide how hard it is pulled toward the
+// host's frame for the instant being rendered. Under NET_ANIM_DEADBAND frames
+// it is left alone; up to NET_ANIM_SNAP_FRAMES the playback speed is nudged
+// (frames per 60Hz tick, so 0.1 closes a 4-frame gap in about 10 ticks without
+// a visible change of pace); past that, or when the host restarted the same
+// anim, it re-seeds at the host's frame with the base game's 16-tick blend.
+#define NET_ANIM_DEADBAND    0.5f
+#define NET_ANIM_SNAP_FRAMES 8.0f
+#define NET_ANIM_NUDGE_GAIN  0.1f
+#define NET_ANIM_NUDGE_MAX   0.5f
+
+s32 g_NetAnimCorrect = 1; // /animcorrect toggle; 0 = free-run the frame (pre-92 behaviour)
+s32 g_NetAnimTail = 1;    // --net-animtail 0: ignore the wire's loop / end frame (pre-92 behaviour, for nettest A/B)
+// What the correction did since the diag last read it (netTeamDiagTick resets).
+u32 g_NetAnimStatSamples = 0; // same-anim frames it judged
+u32 g_NetAnimStatNudges = 0;  // ...of which it nudged the speed
+u32 g_NetAnimStatSnaps = 0;   // ...of which it re-seeded at the host's frame (drift)
+u32 g_NetAnimStatRestarts = 0; // ...of which it restarted because the host restarted the anim
+f32 g_NetAnimStatErrSum = 0;  // sum of |frame error| over the samples
+
+// The last signed frame error the correction saw per chr slot (diag only;
+// 0 when it hasn't judged that chr). Out of line so chrdata stays as it is.
+#define NET_ANIM_ERR_SLOTS 256
+static f32 s_NetAnimLastErr[NET_ANIM_ERR_SLOTS];
+
+f32 netChrAnimLastErr(const struct chrdata *chr)
+{
+	const s32 i = g_ChrSlots ? (s32)(chr - g_ChrSlots) : -1;
+	return (i >= 0 && i < NET_ANIM_ERR_SLOTS) ? s_NetAnimLastErr[i] : 0.0f;
+}
+
+// The loop the host's anim cycles over, from a snapshot's tail. Returns false
+// when the anim isn't looping (or the loop is too short to unwrap safely).
+static bool netChrAnimLoopSpan(const struct chrnetsnap *snap, f32 *loopstart, f32 *loopend)
+{
+	if (!(snap->animflags & NETANIM_LOOPING) || snap->speed < 0) {
+		return false;
+	}
+	f32 end = (f32)(animGetNumFrames(snap->animnum) - 1);
+	if ((snap->animflags & NETANIM_ENDFRAME) && snap->endframe >= 0 && snap->endframe < end) {
+		end = snap->endframe;
+	}
+	if (end - snap->loopframe < 2.f) {
+		return false;
+	}
+	*loopstart = snap->loopframe;
+	*loopend = end;
+	return true;
 }
 
 void netChrInterpolate(struct chrdata *chr)
@@ -4790,14 +4868,18 @@ void netChrInterpolate(struct chrdata *chr)
 	// the fallback (when /chrinterp is off, or before any snapshot exists — this
 	// whole function early-returns in those cases).
 	if (out.animnum > 0 && animHasFrames(out.animnum) && chr->model && chr->model->anim) {
+		struct anim *anim = chr->model->anim;
+		// The snapshot whose discrete anim state is in effect at the rendered
+		// instant - the same one out.animnum/framea came from above.
+		const struct chrnetsnap *animsnap = &chr->netsnaps[(inewer >= 0 && iolder >= 0) ? iolder : head];
 		// Lock right-handed: the flip bit is deliberately not synced (it broke
 		// Skedar maps — see netmsgSvcPropMoveWrite's FLIP comment).
-		chr->model->anim->flip = 0;
+		anim->flip = 0;
 		// Adopt the new anim when hysteresis confirms it, OR unconditionally for a
 		// freshly-spawned sim that has no anim yet (animnum 0) so it can't get stuck
 		// pose-less waiting for two agreeing snapshots.
-		if (chr->model->anim->animnum != out.animnum
-				&& (animstable || chr->model->anim->animnum == 0)) {
+		if (anim->animnum != out.animnum
+				&& (animstable || anim->animnum == 0)) {
 			// animnum change (confirmed by hysteresis): seed the new anim near the
 			// server's frame at this instant and cross-fade the changeover. Merge time
 			// 16 matches the host's chr transitions, including bot locomotion
@@ -4805,12 +4887,112 @@ void netChrInterpolate(struct chrdata *chr)
 			// fade in/out like the base game instead of popping (0.0625 was ~256x too
 			// short — effectively instant).
 			modelSetAnimation(chr->model, out.animnum, 0, (f32)out.framea, out.speed, 16.0f);
+			// ...and give it the host's looping / end frame, which
+			// modelSetAnimation just cleared (proto 92).
+			netChrApplyAnimTail(chr->model, animsnap->animflags, animsnap->loopframe, animsnap->loopmerge, animsnap->endframe);
+		} else if (anim->animnum != out.animnum) {
+			// A not-yet-confirmed switch we're holding through a stand<->walk
+			// toggle: keep the current anim's cadence; its tail and frame belong
+			// to a different anim, so neither applies.
+			anim->speed = out.speed;
 		} else {
-			// Same anim, OR a not-yet-confirmed switch we're holding through a
-			// stand<->walk toggle: just track the playback speed and let the frame
-			// free-run. Re-seeding framea here would snap the cycle backward
-			// whenever the server's frame index trailed ours.
-			chr->model->anim->speed = out.speed;
+			// Same anim: the client plays it, the host corrects it. Keep the
+			// tail in step (it can change without an anim change, e.g. an end
+			// frame set a tick after the anim started).
+			netChrApplyAnimTail(chr->model, animsnap->animflags, animsnap->loopframe, animsnap->loopmerge, animsnap->endframe);
+			f32 speed = out.speed;
+
+			// Where the host's frame was at the rendered instant: lerp the two
+			// bracketing snapshots' frames (unwrapping a loop that went round
+			// between them). Only when both brackets are on this anim -
+			// otherwise there is no trustworthy target and the client
+			// free-runs at the host's speed.
+			if (inewer >= 0 && iolder >= 0
+					&& chr->netsnaps[inewer].animnum == out.animnum
+					&& chr->netsnaps[iolder].animnum == out.animnum) {
+				const struct chrnetsnap *so = &chr->netsnaps[iolder];
+				const struct chrnetsnap *sn = &chr->netsnaps[inewer];
+				const u32 span = sn->tick - so->tick;
+				const f32 t = (span > 0) ? (f32)(desired - so->tick) / (f32)span : 1.f;
+				f32 loopstart, loopend;
+				const bool looped = netChrAnimLoopSpan(so, &loopstart, &loopend);
+				const f32 looplen = looped ? loopend - loopstart : 0.f;
+				const f32 fo = (f32)so->framea;
+				f32 fn = (f32)sn->framea;
+				bool restarted = false;
+				if (fn < fo && so->speed >= 0) {
+					if (looped) {
+						fn += looplen;     // went round the loop between the snapshots
+					} else {
+						restarted = true;  // host re-seeded the same anim (an idle again, a second flinch)
+					}
+				}
+				f32 target = restarted ? fn : fo + (fn - fo) * t;
+				if (looped && target > loopend) {
+					target -= looplen;
+				}
+				// A one-shot the client's copy has played to its end while the
+				// host's is well short of it: the host restarted it and the
+				// bracket that showed the restart went by (mid-merge, or between
+				// two anim changes). The client can't be legitimately ahead of
+				// an anim's end, so restart it at the host's frame.
+				const f32 stop = (anim->endframe >= 0) ? anim->endframe : (f32)(animGetNumFrames(out.animnum) - 1);
+				const bool missedrestart = !anim->looping && anim->speed >= 0 && anim->frame >= stop - 1.f
+						&& target + NET_ANIM_SNAP_FRAMES < anim->frame;
+				// Coarse: the chr is off the host's own screen, where the host
+				// ticks it a batch at a time (a staircase of frames - chasing
+				// the steps made the client's copy lurch) or, standing, parks
+				// it. Those free-run at the host's speed and only follow
+				// restarts and anim changes.
+				const bool coarse = ((sn->animflags | so->animflags) & NETANIM_COARSE) != 0;
+
+				if (g_NetAnimTail && (restarted || missedrestart)) {
+					// Restarts are part of playing the host's anim, not of the
+					// correction - they follow --net-animtail, not /animcorrect.
+					g_NetAnimStatRestarts++;
+					modelSetAnimation(chr->model, out.animnum, 0, target, out.speed, 16.0f);
+					netChrApplyAnimTail(chr->model, so->animflags, so->loopframe, so->loopmerge, so->endframe);
+				} else if (g_NetAnimCorrect && !coarse && !modelIsAnimMerging(chr->model)) {
+					// SOFT FRAME CORRECTION toward the target above.
+					f32 err = target - anim->frame;
+					if (looped && anim->looping) {
+						// Shortest way round the loop.
+						while (err >  looplen * 0.5f) err -= looplen;
+						while (err < -looplen * 0.5f) err += looplen;
+					}
+					g_NetAnimStatSamples++;
+					g_NetAnimStatErrSum += (err < 0) ? -err : err;
+					{
+						const s32 slot = g_ChrSlots ? (s32)(chr - g_ChrSlots) : -1;
+						if (slot >= 0 && slot < NET_ANIM_ERR_SLOTS) {
+							s_NetAnimLastErr[slot] = err;
+						}
+					}
+					// The host has this anim parked (same frame in both
+					// snapshots): a nudge can stop the client's copy but not walk
+					// it back, so a copy that ran past the host's frame stayed off
+					// it for good. Blend to the parked frame instead - it isn't
+					// moving, so the 16-tick merge is a settle, not a pop.
+					const bool parked = sn->framea == so->framea;
+					if (err > NET_ANIM_SNAP_FRAMES || err < -NET_ANIM_SNAP_FRAMES
+							|| (parked && (err > 2.f * NET_ANIM_DEADBAND || err < -2.f * NET_ANIM_DEADBAND))) {
+						g_NetAnimStatSnaps++;
+						modelSetAnimation(chr->model, out.animnum, 0, target, out.speed, 16.0f);
+						netChrApplyAnimTail(chr->model, so->animflags, so->loopframe, so->loopmerge, so->endframe);
+					} else if (err > NET_ANIM_DEADBAND || err < -NET_ANIM_DEADBAND) {
+						g_NetAnimStatNudges++;
+						f32 nudge = err * NET_ANIM_NUDGE_GAIN;
+						if (nudge >  NET_ANIM_NUDGE_MAX) nudge =  NET_ANIM_NUDGE_MAX;
+						if (nudge < -NET_ANIM_NUDGE_MAX) nudge = -NET_ANIM_NUDGE_MAX;
+						speed += nudge;
+						// A nudge may stop the cycle (the host has it parked) but
+						// never run it the other way.
+						if (out.speed >= 0 && speed < 0) speed = 0;
+						if (out.speed < 0 && speed > 0) speed = 0;
+					}
+				}
+			}
+			chr->model->anim->speed = speed;
 		}
 	}
 }
@@ -6258,6 +6440,18 @@ s32 netConsoleCommand(const char *line)
 		}
 		sysLogPrintf(LOG_CHAT, "NET: chr pose interpolation = %s%s", g_NetChrInterp ? "ON" : "OFF",
 				(*arg && strcmp(arg, "on") && strcmp(arg, "off")) ? " (usage: /chrinterp on|off)" : "");
+	} else if (strcmp(cmd, "animcorrect") == 0) {
+		// /animcorrect on|off — client-side soft frame correction of replicated
+		// chr anims toward the host's frame (netChrInterpolate). off lets the
+		// client free-run the frame, as before proto 92, for A/B comparison.
+		// The looping / end-frame tail applies either way.
+		if (strcmp(arg, "on") == 0) {
+			g_NetAnimCorrect = 1;
+		} else if (strcmp(arg, "off") == 0) {
+			g_NetAnimCorrect = 0;
+		}
+		sysLogPrintf(LOG_CHAT, "NET: chr anim frame correction = %s%s", g_NetAnimCorrect ? "ON" : "OFF",
+				(*arg && strcmp(arg, "on") && strcmp(arg, "off")) ? " (usage: /animcorrect on|off)" : "");
 	} else if (strcmp(cmd, "coopchr") == 0) {
 		// /coopchr on|off — runtime co-op chr lifecycle replication (SVC_CHR_SPAWN
 		// for reinforcement/clone spawns + SVC_PROP_FREE for reaped corpses). Off

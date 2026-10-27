@@ -1217,12 +1217,16 @@ struct chrnetsnap {
 	s16 animnum;         // leg/body animation at this instant (0 = none)
 	s16 framea;          // anim frame index at this instant
 	f32 speed;           // anim playback speed at this instant
+	f32 loopframe;       // host's loop-back frame (animflags & NETANIM_LOOPING)
+	s16 endframe;        // host's end frame, -1 = plays to the last frame
+	u8 animflags;        // NETANIM_* - is the host's anim looping / end-clamped
+	u8 loopmerge;        // host's loop-back blend time
 	RoomNum rooms[8];    // wire room membership at this instant
 };
 #ifdef __cplusplus
-static_assert(sizeof(struct chrnetsnap) == 64, "chrnetsnap layout changed - audit netChrRecordSnapshot/netChrInterpolate and the ring alloc in net.c");
+static_assert(sizeof(struct chrnetsnap) == 72, "chrnetsnap layout changed - audit netChrRecordSnapshot/netChrInterpolate and the ring alloc in net.c");
 #else
-_Static_assert(sizeof(struct chrnetsnap) == 64, "chrnetsnap layout changed - audit netChrRecordSnapshot/netChrInterpolate and the ring alloc in net.c");
+_Static_assert(sizeof(struct chrnetsnap) == 72, "chrnetsnap layout changed - audit netChrRecordSnapshot/netChrInterpolate and the ring alloc in net.c");
 #endif
 #endif
 

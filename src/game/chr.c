@@ -2972,6 +2972,23 @@ s32 chrTick(struct prop *prop)
 				chr0f0220ec(chr, lvupdate240, false);
 			}
 		}
+#ifndef PLATFORM_N64
+	} else if (g_NetMode == NETMODE_CLIENT && g_NetAnimTail && chr->actiontype == ACT_STAND
+			&& prop->type == PROPTYPE_CHR && prop->syncid && (chr->aibot || NET_COOP_GAME())) {
+		// netplay client: a replicated chr is held at ACT_STAND whatever the
+		// host has it doing, and the stand branch below only advances the anim
+		// while the chr is on THIS screen (a single-player saving). On the host
+		// it's patrolling or playing an ACT_ANIM idle, which advance every full
+		// tick, so the client's copy sat frozen mid-anim whenever it had been
+		// off the client's screen. Advance it every full tick, like the host's
+		// own branches. (--net-animtail 0 restores the old freeze for nettest.)
+		model->anim->average = false;
+		needsupdate = func0f08e8ac(prop, &prop->pos, modelGetEffectiveScale(model), true);
+
+		if (fulltick) {
+			chr0f0220ec(chr, lvupdate240, true);
+		}
+#endif
 	} else if (chr->actiontype == ACT_STAND) {
 		model->anim->average = false;
 
