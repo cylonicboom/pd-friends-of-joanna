@@ -24,6 +24,10 @@ DRIFT_MAX = 180      # ticks, worst tick-clock drift a process may report
 MOVE_MIN = 40.0      # world units, how far a driven pawn must travel in xz during gameplay
 CUT_PAIR_TOL = 40    # ticks, a cutscene edge may land this far apart on the two sides (one frame
                      # of wire lag against once-a-second sampling)
+ANIM_LOOP_MISS = 0.05  # fraction of paired chr-anim samples whose looping flag may disagree with the host's
+ANIM_FROZEN_MAX = 0.02 # fraction of paired samples where the client's copy sat 3+ s on one frame while the host's moved
+ANIM_SNAP_MAX = 0.05   # re-seeds per judged frame the client's anim correction may need (more is a snap storm)
+ANIM_ERR_MAX = 3.0     # frames, mean |error| the client's anim correction may see
 WARN_ALLOW = (       # net warnings that do not fail a run
     "tick clock drift",
     "SVC_PROP_MOVE: obj body for syncid 1 unapplied",   # the hub's first move before ids exist
@@ -452,6 +456,65 @@ def run(rundir):
             worsth = max((pct(v, 0.9) for v in dhp.values()), default=0.0)
             check(results, f"{c.name}: health agrees with host", worsth <= HEALTH_TOL,
                   ", ".join(f"seat{i} p90 {pct(v,0.9):.2f}" for i, v in sorted(dhp.items())))
+
+    # 7b. replicated chr anims (the bug where the guards forget how to walk).
+    # pair host and client canim samples by tick and syncid while both play
+    # the same anim: the client must loop where the host loops, and must not
+    # park a cycle on its last frame. the client's own correction stats
+    # (canimfix) say whether it had to fight to stay in step.
+    if host:
+        hanim = {}
+        for t, _, f in host.diag.get("canim", []):
+            hanim.setdefault(t, {})[f.get("sid")] = f
+        hat = sorted(hanim)
+        for c in clients:
+            pairs = miss = frozen = 0
+            # frozen: a client copy whose frame hasn't moved for three straight
+            # seconds while the host's copy of the same anim kept moving. the
+            # pre-92 client sat mid-anim (held at ACT_STAND, it only advanced
+            # while on its own screen) and never looped or restarted a cycle.
+            stuck = {}
+            for t, _, f in c.diag.get("canim", []):
+                best = None
+                for ht in hat:
+                    if abs(ht - t) <= TICK_PAIR_TOL and (best is None or abs(ht - t) < abs(best - t)):
+                        best = ht
+                sid = f.get("sid")
+                if best is None:
+                    continue
+                hf = hanim[best].get(sid)
+                if not hf or hf.get("anim") != f.get("anim"):
+                    stuck.pop(sid, None)
+                    continue
+                pairs += 1
+                if hf.get("loop") != f.get("loop"):
+                    miss += 1
+                key = (f.get("anim"), f.get("frame"))
+                run = stuck.get(sid)
+                if run and run["key"] == key:
+                    run["secs"] += 1
+                    run["hframes"].add(hf.get("frame"))
+                else:
+                    run = stuck[sid] = {"key": key, "secs": 1, "hframes": {hf.get("frame")}}
+                if run["secs"] >= 3 and len(run["hframes"]) > 1:
+                    frozen += 1
+            sk = pairs == 0
+            check(results, f"{c.name}: chr anims loop like the host's", not sk and miss <= ANIM_LOOP_MISS * pairs,
+                  f"{miss} of {pairs} paired chr-anim samples disagree on looping", skip=sk)
+            check(results, f"{c.name}: chr anim cycles not frozen", not sk and frozen <= ANIM_FROZEN_MAX * pairs,
+                  f"{frozen} of {pairs} paired samples frozen 3+ s on one frame while the host's copy moves", skip=sk)
+            fx = c.diag.get("canimfix", [])
+            samples = sum(int(fnum(f.get("samples"), 0)) for _, _, f in fx)
+            snaps = sum(int(fnum(f.get("snaps"), 0)) for _, _, f in fx)
+            restarts = sum(int(fnum(f.get("restarts"), 0)) for _, _, f in fx)
+            errw = sum(fnum(f.get("meanerr"), 0) * fnum(f.get("samples"), 0) for _, _, f in fx)
+            on = any(f.get("on") == "1" for _, _, f in fx)
+            sk = not on or samples == 0
+            meanerr = errw / samples if samples else 0.0
+            check(results, f"{c.name}: chr anim correction steady",
+                  not sk and snaps <= ANIM_SNAP_MAX * samples and meanerr <= ANIM_ERR_MAX,
+                  f"{samples} judged frames, {snaps} drift re-seeds, {restarts} host restarts followed, mean error {meanerr:.2f} frames" if not sk
+                  else ("correction off" if fx and not on else "no canimfix samples"), skip=sk)
 
     # 8. stability: crashes, stalls, guards, net warnings
     for p in procs.values():
