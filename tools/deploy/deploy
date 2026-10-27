@@ -11,6 +11,12 @@
 #   restart  stop + start
 #   status   up or down, what is deployed, the last lines of output
 #   log      follow the server's output
+#   logs [match]  copy the server's logs here: pd.log, out.txt, their kept
+#            rotations and the DEPLOYED stamp. Incremental and additive, so a
+#            re-run only fetches what changed. A match (e.g. 20261027) keeps
+#            only the rotations whose UTC stamp contains it; the live logs
+#            always come. Lands in $DEPLOY_LOGS_DIR (default
+#            _inbox/server-logs/<host>/).
 #   console  attach to the server's terminal (tmux); Ctrl-b d leaves it running
 #   setup    one-time: apt the build + run packages (tmux too), open the port in ufw
 #   ssh      a shell in the remote dir
@@ -33,15 +39,17 @@ ROOT=$(cd "$HERE/../.." && pwd)
 . "$HERE/site.conf"
 
 DRY=no
-VERB=all
+VERB=
+ARGS=()
 for a in "$@"; do
   case $a in
     -n|--dry-run) DRY=yes ;;
-    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "deploy: unknown flag $a" >&2; exit 2 ;;
-    *) VERB=$a ;;
+    *) if [ -z "$VERB" ]; then VERB=$a; else ARGS+=("$a"); fi ;;
   esac
 done
+VERB=${VERB:-all}
 
 TARGET=$DEPLOY_HOST
 [ -n "$DEPLOY_USER" ] && TARGET="$DEPLOY_USER@$DEPLOY_HOST"
@@ -110,11 +118,33 @@ push() {
   fi
 }
 
+# The server keeps every log (it never deletes one), so this only ever adds:
+# no --delete, and files already here are skipped unless they grew.
+logs() {
+  local match=${1:-}
+  local dest=${DEPLOY_LOGS_DIR:-_inbox/server-logs/$DEPLOY_HOST}
+  case $dest in /*) ;; *) dest="$ROOT/$dest" ;; esac
+  local rsh="${SSH[*]}"
+  local inc=(--include=pd.log --include=out.txt --include=xvfb.txt --include=pd.sh)
+  if [ -n "$match" ]; then
+    inc+=(--include="pd.log.*$match*" --include="out.txt.*$match*")
+  else
+    inc+=(--include='pd.log.*' --include='out.txt.*')
+  fi
+  run mkdir -p "$dest"
+  run rsync -az -e "$rsh" "${inc[@]}" --exclude='*' \
+    "$TARGET:$DEPLOY_DIR/run/" "$dest/"
+  run rsync -az -e "$rsh" "$TARGET:$DEPLOY_DIR/DEPLOYED" "$dest/" || true
+  [ "$DRY" = yes ] || ls -lt "$dest" | head -n 12
+  echo "server logs in $dest"
+}
+
 case $VERB in
   all)     push; remote build; remote stop; remote start ;;
   push)    push ;;
   build|start|stop|status|log|setup) remote "$VERB" ;;
   console) remote_tty console ;;
+  logs)    logs "${ARGS[@]+"${ARGS[@]}"}" ;;
   restart) remote stop; remote start ;;
   ssh)     run "${SSH[@]}" -t "$TARGET" "cd $(printf %q "$DEPLOY_DIR") && exec \$SHELL -l" ;;
   *) echo "deploy: unknown verb $VERB (try --help)" >&2; exit 2 ;;
