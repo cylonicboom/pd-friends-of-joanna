@@ -662,6 +662,8 @@ s32 netTeamStart(void);                        // host: enter the stage now
 // chr anims - runs in step with the host's scene instead of racing ahead.
 s32 netCutsceneStarted(s16 animnum);   // the wire started this anim at some point this stage
 s32 netCutsceneEnded(s16 animnum);     // ...and has since ended it (or started another)
+void netCutsceneScriptStarted(s16 animnum); // a client script's 0111 got past this anim
+s16 netCutsceneScriptAnim(void);       // ...the last such anim, -1 if none this stage
 void netCutsceneHistoryReset(void);    // stage entry
 void netCutsceneHistoryNote(s32 active, s16 animnum);
 

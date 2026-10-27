@@ -5197,6 +5197,7 @@ bool aiSetCameraAnimation(void)
 		if (!netCutsceneStarted(anim_id)) {
 			return true;
 		}
+		netCutsceneScriptStarted(anim_id);
 		g_Vars.aioffset += 4;
 		return false;
 	}
@@ -5228,8 +5229,15 @@ bool aiIfInCutscene(void)
 	// intro list then un-hid the seats seconds before the host's did. the
 	// wire's word instead: the scene runs until the host ends it or starts
 	// the next one.
+	// and the scene asked about is the one this script started, not the one
+	// the wire is on now: after the host cuts to shot 2, "is shot 2 running"
+	// held the shot-1 list through all of shot 2.
 	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME() && g_Vars.tickmode == TICKMODE_CUTSCENE) {
-		incutscene = netCutsceneStarted(g_CutsceneAnimNum) && !netCutsceneEnded(g_CutsceneAnimNum);
+		s16 anim = netCutsceneScriptAnim();
+		if (anim < 0) {
+			anim = g_CutsceneAnimNum;
+		}
+		incutscene = netCutsceneStarted(anim) && !netCutsceneEnded(anim);
 	}
 #endif
 

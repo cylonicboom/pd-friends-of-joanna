@@ -1067,9 +1067,27 @@ static s16 s_csAnim[NET_CUTSCENE_HISTORY];
 static u8 s_csEnded[NET_CUTSCENE_HISTORY];
 static s32 s_csCount = 0;
 
+// the scene the client's own scripts last started (their 0111). the wire
+// re-points g_CutsceneAnimNum the moment the host cuts to the next shot, but
+// a list still on the previous shot has to ask about ITS shot, or it waits
+// out the next one too and every shot's choreography (the defection
+// jumpship) plays one camera cut late.
+static s16 s_csScriptAnim = -1;
+
 void netCutsceneHistoryReset(void)
 {
 	s_csCount = 0;
+	s_csScriptAnim = -1;
+}
+
+void netCutsceneScriptStarted(s16 animnum)
+{
+	s_csScriptAnim = animnum;
+}
+
+s16 netCutsceneScriptAnim(void)
+{
+	return s_csScriptAnim;
 }
 
 void netCutsceneHistoryNote(s32 active, s16 animnum)
