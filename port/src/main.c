@@ -28,6 +28,7 @@
 #include "lib/snd.h"
 #include "lib/sndcue.h"
 #include "system.h"
+#include "savedump.h"
 #include "utils.h"
 #include "game/mplayer/setup.h"
 #include "ext_tex.h"
@@ -174,6 +175,11 @@ static void handleTermSignal(int sig)
 int main(int argc, const char **argv)
 {
 	sysInitArgs(argc, argv);
+
+	// reads a save file off disk and exits before anything is initialised
+	if (sysArgCheck("--save-dump")) {
+		saveDumpFromArgs();
+	}
 
 	// the asset command line owns stdout; see assetCliFromArgs in pdmain.c
 	if (sysArgCheck("--asset") || sysArgCheck("--asset-probe")) {
