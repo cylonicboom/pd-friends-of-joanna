@@ -58,6 +58,9 @@ CLIENT_DRIVER=walker
 EXTRA_HOST_ARGS=""
 EXTRA_CLIENT_ARGS=""
 EXPECT_LOOP=0           # 1: every machine must go mission -> hub -> mission (back-to-the-lobby)
+CLIENT1_SECS=""         # cl1's lifetime, if shorter than the run (it leaves mid-mission)
+LATE_CLIENT_AT=""       # seconds after the host launch to start one more client, "late"
+EXPECT_REJOIN=0         # 1: the late client must get in after cl1 left (host-left-alone)
 PORT=27150
 WATCHDOG=25
 . "$SCEN"
@@ -115,7 +118,7 @@ PY
 cat > "$RUN/run.json" <<JSON
 {"scenario":"$SCENARIO","started":$(date +%s),"secs":$RUN_SECS,"sha":"$SHA","clients":$CLIENTS,
  "stageindex":$TEAM_STAGE,"stagenum":"$STAGENUM","roles":$ROLES_JSON,"difficulty":$TEAM_DIFF,
- "host_driver":"$HOST_DRIVER","client_driver":"$CLIENT_DRIVER","xvfb":"$XVFB","bin":"$BIN","expect_loop":$EXPECT_LOOP}
+ "host_driver":"$HOST_DRIVER","client_driver":"$CLIENT_DRIVER","xvfb":"$XVFB","bin":"$BIN","expect_loop":$EXPECT_LOOP,"expect_rejoin":$EXPECT_REJOIN}
 JSON
 
 launch() { # name display secs driver args...
@@ -154,9 +157,20 @@ launch host "$D0" "$RUN_SECS" "$HOST_DRIVER" --host --port "$PORT" \
   --team "$TEAM_STAGE" --team-roles "$TEAM_ROLES" --team-diff "$TEAM_DIFF" --team-wait "$CLIENTS" $EXTRA_HOST_ARGS
 sleep "$CLIENT_DELAY"
 for i in $(seq 1 "$CLIENTS"); do
-  launch "cl$i" $((D0 + i)) $((RUN_SECS - CLIENT_DELAY)) "$CLIENT_DRIVER" --connect "127.0.0.1:$PORT" $EXTRA_CLIENT_ARGS
+  secs=$((RUN_SECS - CLIENT_DELAY))
+  [ "$i" = 1 ] && [ -n "$CLIENT1_SECS" ] && secs=$CLIENT1_SECS
+  launch "cl$i" $((D0 + i)) "$secs" "$CLIENT_DRIVER" --connect "127.0.0.1:$PORT" $EXTRA_CLIENT_ARGS
   sleep 2
 done
+if [ -n "$LATE_CLIENT_AT" ]; then
+  # one more client, after the others: a background so the frame grabs below still run
+  (
+    late=$((CLIENTS + 1))
+    sleep $((LATE_CLIENT_AT - CLIENT_DELAY - 2 * CLIENTS))
+    launch "cl$late" $((D0 + late)) $((RUN_SECS - LATE_CLIENT_AT)) "$CLIENT_DRIVER" --connect "127.0.0.1:$PORT" $EXTRA_CLIENT_ARGS
+    wait
+  ) &
+fi
 
 # a picture of every display late in the run: the diag can't tell a black
 # screen from a drawn one (the sim runs either way). ImageMagick's import,

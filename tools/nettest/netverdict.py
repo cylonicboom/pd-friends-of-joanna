@@ -327,6 +327,33 @@ def run(rundir):
                       f"{shown} of {samples} cutscene seat-seconds visible")
 
     # 5a''. the mission didn't end on its own: no endscreen on any machine
+    # host-left-alone: cl1 leaves mid-mission, a dedicated host must go back to
+    # the hub on its own, and the late client must get in (not "rejected: team
+    # mission in progress") and reach a mission.
+    if meta.get("expect_rejoin"):
+        def log_of(name):
+            for fn in ("pd.log", "out.txt"):
+                try:
+                    return open(os.path.join(rundir, name, fn), errors="replace").read()
+                except OSError:
+                    pass
+            return ""
+        hostlog = log_of("host")
+        late = sorted((n for n in procs if n.startswith("cl")), key=lambda n: int(n[2:] or 0))[-1]
+        latelog = log_of(late)
+        check(results, "host: back to the lobby when everyone left", "everyone left the mission" in hostlog
+              and "back to the lobby" in hostlog, "saw the empty-mission return" if "everyone left the mission" in hostlog else "never noticed it was alone")
+        rej = hostlog.count("rejected: team mission in progress")
+        check(results, "host: nobody refused as late", rej == 0, f"{rej} refusal(s)")
+        stages = []
+        for _, _, f in procs[late].diag.get("team", []):
+            st = f.get("stage")
+            if st and (not stages or stages[-1] != st):
+                stages.append(st)
+        check(results, f"{late}: joined after cl1 left", "CLSTATE" not in latelog and "Couldn't join" not in latelog
+              and "disconnected from server" not in latelog and bool(stages), f"stages {' -> '.join(stages) or '(no diag)'}")
+        check(results, f"{late}: reached a mission", any(s != "0x26" for s in stages), f"stages {' -> '.join(stages) or '(none)'}")
+
     # during a walk run (an instafail - a critical chr dead - shows here).
     for p in procs.values():
         ends = [f for _, _, f in p.diag.get("team", []) if f.get("endscreen") not in (None, "0")
