@@ -302,6 +302,25 @@ void netTeamDiagTick(void)
 				optionsGetControlMode(g_Vars.playerstats[i].mpindex),
 				g_PlayerConfigsArray[g_Vars.playerstats[i].mpindex].teamagentindex);
 	}
+	// the chr roster once per stage, the second gameplay starts: chrnum,
+	// syncid, hidden, pos - so a chr one end never spawned is a diff away
+	{
+		static s32 rosterstage = -1;
+		if (g_Vars.tickmode == TICKMODE_NORMAL && rosterstage != g_StageNum && g_ChrSlots) {
+			rosterstage = g_StageNum;
+			for (s32 i = 0; i < g_NumChrSlots; i++) {
+				struct chrdata *chr = &g_ChrSlots[i];
+				if (chr->chrnum < 0) {
+					continue;
+				}
+				netDiagLogf("chr", "chrnum=0x%x sid=%u prop=%d hidden=%d pos=(%.0f,%.0f,%.0f)",
+						chr->chrnum, chr->prop ? chr->prop->syncid : 0, chr->prop != NULL,
+						(chr->chrflags & CHRCFLAG_HIDDEN) ? 1 : 0,
+						chr->prop ? chr->prop->pos.x : 0.0f, chr->prop ? chr->prop->pos.y : 0.0f,
+						chr->prop ? chr->prop->pos.z : 0.0f);
+			}
+		}
+	}
 	// replicated chr anims (the bug where the guards forget how to walk):
 	// what each synced NPC is playing, so the verdict can pair host and
 	// client by syncid - looping agreement, and a client cycle parked on
@@ -330,6 +349,19 @@ void netTeamDiagTick(void)
 				g_NetAnimStatSamples ? g_NetAnimStatErrSum / (f32)g_NetAnimStatSamples : 0.0f);
 		g_NetAnimStatSamples = g_NetAnimStatNudges = g_NetAnimStatSnaps = g_NetAnimStatRestarts = 0;
 		g_NetAnimStatErrSum = 0;
+	}
+	// objs a script is animating (the cutscene choreography: the jumpship,
+	// the sky traffic) - whether each end has them, where, and enabled
+	for (s32 i = 0; g_Vars.props && i < g_Vars.maxprops; i++) {
+		struct prop *prop = &g_Vars.props[i];
+		struct defaultobj *obj = prop->obj;
+		if (prop->type != PROPTYPE_OBJ || !obj || !obj->model || !obj->model->anim) {
+			continue;
+		}
+		netDiagLogf("aobj", "idx=%d sid=%u model=%d pos=(%.0f,%.0f,%.0f) room=%d pflags=0x%02x active=%d hidden=0x%08x f3=0x%08x anim=%d frame=%.1f",
+				i, prop->syncid, obj->modelnum, prop->pos.x, prop->pos.y, prop->pos.z, prop->rooms[0],
+				prop->flags, prop->active, obj->hidden, obj->flags3,
+				obj->model->anim->animnum, obj->model->anim->frame);
 	}
 	// whose file each config slot carries, and which ini section its Game
 	// options and binds go through - what the Fojo Options window shows
