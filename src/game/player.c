@@ -2576,6 +2576,17 @@ void playerTickCutscene(bool arg0)
 	if (arg0 && inputKeyJustPressed(VK_ESCAPE)) {
 		buttons |= START_BUTTON;
 	}
+
+	// netplay: a client's button press doesn't skip a cutscene in a net coop
+	// game. the scene belongs to the wire - a client that set the skip flag
+	// sent its own copy of the intro list down 0174's skip branch (cutscene
+	// props removed, seats un-hidden) while SVC_CUTSCENE kept the scene
+	// playing. the host's press still skips, and its script ending the scene
+	// ends it for everyone - that's the seam a "players may skip" server
+	// setting uses: allowed request in, host fakes the press here.
+	if (g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()) {
+		buttons = 0;
+	}
 #endif
 
 #if VERSION >= VERSION_NTSC_1_0
