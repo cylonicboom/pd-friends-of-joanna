@@ -718,10 +718,18 @@ struct netconorigin {
 	struct netclient *cl;                      // NETCON_CLIENT: who; replies go to them alone
 	void (*reply)(void *ctx, const char *line); // NETCON_API: where each reply line goes
 	void *ctx;
+	s32 ok;                                    // out: 1 ran, 0 refused or unknown
 };
-s32 netConsoleExecFrom(const char *line, const struct netconorigin *from);
+s32 netConsoleExecFrom(const char *line, struct netconorigin *from);
 s32 netConAllowed(const struct netconorigin *from, const char *verb);
 extern char g_NetConApiAllow[128]; // Api.Allow in pd.ini
+
+// the intercom (netapi.c): local-only UDP command port, off unless
+// --api-port / Net.Api.Port. Console grammar in, JSON out; see the file.
+extern u32 g_NetApiPort;
+void netApiTick(void);
+s32 netApiIsOn(void);
+void netApiEvent(const char *event, const char *fields); // fields: JSON members without braces, or NULL
 
 // Dedicated-server mode. 0 = listen server (host plays), 1 = headless dedicated
 // (no SDL window, no audio device, server-only tick), 2 = windowed dedicated

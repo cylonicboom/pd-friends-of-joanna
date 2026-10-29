@@ -438,7 +438,7 @@ static void netConStart(void)
  */
 s32 netConsoleExec(const char *line, s32 fromchat)
 {
-	struct netconorigin from = { NETCON_ROOT, fromchat, NULL, NULL, NULL };
+	struct netconorigin from = { NETCON_ROOT, fromchat, NULL, NULL, NULL, 1 };
 	return netConsoleExecFrom(line, &from);
 }
 
@@ -446,9 +446,10 @@ s32 netConsoleExec(const char *line, s32 fromchat)
  * Run one console line from an origin. The slash is required when the line
  * came from a chat box (from->fromchat), optional otherwise. Rights are
  * netConAllowed()'s; replies follow the origin (netConPrintf). Returns 1 when
- * the line was taken as a command, whether or not it was allowed.
+ * the line was taken as a command, whether or not it was allowed; from->ok
+ * says whether it ran (0: refused or unknown).
  */
-s32 netConsoleExecFrom(const char *line, const struct netconorigin *from)
+s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 {
 	char cmd[32];
 	s32 ci = 0;
@@ -486,9 +487,15 @@ s32 netConsoleExecFrom(const char *line, const struct netconorigin *from)
 	}
 
 	s_conFrom = from;
+	from->ok = 1;
 
 	if (!netConAllowed(from, cmd)) {
-		netConPrintf("%s: not yours to run", cmd);
+		from->ok = 0;
+		if (netConFindVerb(cmd)) {
+			netConPrintf("%s: not yours to run", cmd);
+		} else {
+			netConPrintf("unknown command %s (help lists them)", cmd);
+		}
 		s_conFrom = prevfrom;
 		return r;
 	}
@@ -501,8 +508,11 @@ s32 netConsoleExecFrom(const char *line, const struct netconorigin *from)
 		return r;
 	}
 
-	// echo, so everyone reading the chat sees what was done
-	netConPrintf("> %s%s%s", cmd, *arg ? " " : "", arg);
+	// echo, so everyone reading the chat sees what was done; the intercom
+	// knows what it sent
+	if (!from || from->kind != NETCON_API) {
+		netConPrintf("> %s%s%s", cmd, *arg ? " " : "", arg);
+	}
 
 	if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0) {
 		netConHelp();
@@ -552,6 +562,7 @@ s32 netConsoleExecFrom(const char *line, const struct netconorigin *from)
 		netConPrintf("shutting down");
 		exit(0); // what SIGTERM does (main.c handleTermSignal)
 	} else {
+		from->ok = 0;
 		netConPrintf("unknown command %s (help lists them)", cmd);
 	}
 

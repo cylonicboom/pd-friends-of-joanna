@@ -255,6 +255,8 @@ void schedStartFrame(OSSched *sc)
 		}
 		// the server console: --console lines from the terminal, any mode
 		netConsoleTick();
+		// the intercom: --api-port datagrams, any mode
+		netApiTick();
 		// --dedicated: keep the host's pawn a ghost on every machine
 		netGhostTick();
 	}
