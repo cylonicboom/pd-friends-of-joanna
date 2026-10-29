@@ -44,3 +44,4 @@ exported
 
 mod_**.json.bak*
 mod_gex_characters/textures
+.fojo-entrypoint.sh
