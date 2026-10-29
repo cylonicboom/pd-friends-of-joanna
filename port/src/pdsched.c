@@ -257,6 +257,8 @@ void schedStartFrame(OSSched *sc)
 		netConsoleTick();
 		// the intercom: --api-port datagrams, any mode
 		netApiTick();
+		// Net.Verify=required: held joins past the timeout are denied
+		netVerifyTick();
 		// --dedicated: keep the host's pawn a ghost on every machine
 		netGhostTick();
 	}

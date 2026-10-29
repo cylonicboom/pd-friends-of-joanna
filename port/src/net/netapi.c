@@ -185,7 +185,7 @@ static void netApiSendTo(const ENetAddress *to, const char *text, s32 len)
 }
 
 // append `s` to `out` as the inside of a JSON string; returns the new length
-static s32 netApiJsonEscape(char *out, s32 outlen, s32 at, const char *s)
+s32 netApiJsonEscape(char *out, s32 outlen, s32 at, const char *s)
 {
 	for (; *s && at < outlen - 7; s++) {
 		const unsigned char c = (unsigned char)*s;

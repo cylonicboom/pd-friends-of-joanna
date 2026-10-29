@@ -559,6 +559,8 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 	netbufWriteU8(dst, 1); // TODO: number of local players
 	netbufWriteStr(dst, g_NetJoinPassword); // join password ("" if the server is open)
 	netModsWrite(dst, netModsLocal()); // every mounted mod (proto 93)
+	netbufWriteStr(dst, g_NetJoinTicket); // the sign-in ticket, bytes pd never reads (proto 94)
+	netbufWriteStr(dst, ""); // the pak uuid, empty until c-pak-uuid (proto 94)
 
 	return dst->error;
 }
@@ -577,6 +579,8 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	const char *password = netbufReadStr(src);
 	static struct netmodlist theirMods;
 	netModsRead(src, &theirMods);
+	const char *ticket = netbufReadStr(src); // proto 94
+	const char *uuid = netbufReadStr(src);
 
 	if (src->error) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from client %u", srccl->id);
@@ -650,6 +654,29 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	// Audit M2: strncpy appends no NUL when src fills the buffer — terminate
 	// explicitly (the bot-config copies already do).
 	srccl->settings.name[sizeof(srccl->settings.name) - 1] = '\0';
+
+	// the two names (proto 94): the uuid as claimed, account only ever from a verdict
+	strncpy(srccl->uuid, uuid, sizeof(srccl->uuid) - 1);
+	srccl->uuid[sizeof(srccl->uuid) - 1] = '\0';
+	srccl->account[0] = '\0';
+	srccl->uuidowned = 0;
+
+	// Net.Verify=required: park here until the sidecar's verdict (netverify.c)
+	if (netVerifyHold(srccl, ticket)) {
+		return 0;
+	}
+
+	netServerAdmit(srccl);
+	return 0;
+}
+
+/**
+ * The tail of CLC_AUTH, once the client may come in: seat it in the lobby,
+ * answer SVC_AUTH, tell the room. Called straight from netmsgClcAuthRead
+ * under Net.Verify=off and from an accepting verdict otherwise.
+ */
+void netServerAdmit(struct netclient *srccl)
+{
 	srccl->state = CLSTATE_LOBBY;
 
 	sysLogPrintf(LOG_NOTE, "NET: CLC_AUTH from client %u (%s), responding", srccl->id, srccl->settings.name);
@@ -660,7 +687,7 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 
 	sysLogPrintf(LOG_NOTE, "NET: %s (%u) joined", srccl->settings.name, srccl->id);
 
-	netChatPrintf(NULL, "%s joined", name);
+	netChatPrintf(NULL, "%s joined", srccl->settings.name);
 
 	// Join-in-progress: if this client connected while the host was already
 	// in CLSTATE_GAME, netServerEvConnect tagged them with
@@ -680,6 +707,26 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 		sysLogPrintf(LOG_NOTE, "NET: shipped JIP SVC_STAGE_START to client %u", srccl->id);
 	}
 
+}
+
+u32 netmsgSvcDeniedWrite(struct netbuf *dst, const char *reason)
+{
+	netbufWriteU8(dst, SVC_DENIED);
+	netbufWriteStr(dst, reason ? reason : "");
+	return dst->error;
+}
+
+char g_NetDenyReason[NET_CHATLOG_LEN];
+
+u32 netmsgSvcDeniedRead(struct netbuf *src, struct netclient *srccl)
+{
+	(void)srccl;
+	const char *reason = netbufReadStr(src);
+	if (src->error) {
+		return src->error;
+	}
+	snprintf(g_NetDenyReason, sizeof(g_NetDenyReason), "%s", reason);
+	sysLogPrintf(LOG_CHAT, "NET: the server declined the join: %s", reason);
 	return 0;
 }
 

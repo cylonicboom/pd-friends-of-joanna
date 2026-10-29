@@ -1016,7 +1016,8 @@ static inline const char *netGetDisconnectReason(const u32 reason)
 		"Server is full",
 		"A mission is in progress - try again once it ends",
 		"Your files differ from the server's",
-		"Incorrect password"
+		"Incorrect password",
+		"The server would not verify your sign-in"
 	};
 	if (reason < (u32)ARRAYCOUNT(msgs)) {
 		return msgs[reason];
@@ -1268,6 +1269,15 @@ void netInit(void)
 	// (Net.UPnP.Enabled for the session).
 	if (sysArgCheck("--no-upnp")) {
 		g_NetUpnpEnabled = 0;
+	}
+
+	// --ticket <file>: the helper's ticket.json (or a bare ticket string), sent
+	// on CLC_AUTH for the server's sidecar to judge (netverify.c)
+	netVerifyLoadTicket(sysArgGetString("--ticket"));
+	// --verify [required|off]: a server's Net.Verify for this run
+	if (sysArgCheck("--verify")) {
+		const char *v = sysArgGetString("--verify");
+		snprintf(g_NetVerifyCfg, sizeof(g_NetVerifyCfg), "%s", (v && *v && *v != '-') ? v : "required");
 	}
 
 	const char *argpassword = sysArgGetString("--password");
@@ -2484,8 +2494,11 @@ static void netClientEvDisconnect(const u32 reason)
 	}
 	{
 		const s32 wasin = g_NetLocalClient && g_NetLocalClient->state >= CLSTATE_LOBBY;
-		snprintf(g_NetLastDisconnect, sizeof(g_NetLastDisconnect), "%s: %s",
-				wasin ? "Disconnected" : "Couldn't join", netGetDisconnectReason(reason));
+		// SVC_DENIED (verify) said why in words; show them with the category
+		snprintf(g_NetLastDisconnect, sizeof(g_NetLastDisconnect), "%s: %s%s%s",
+				wasin ? "Disconnected" : "Couldn't join", netGetDisconnectReason(reason),
+				g_NetDenyReason[0] ? " - " : "", g_NetDenyReason);
+		g_NetDenyReason[0] = '\0';
 	}
 	netDisconnect();
 }
@@ -2535,6 +2548,7 @@ static void netClientEvReceive(struct netclient *cl)
 			case SVC_TEAM_LOBBY: rc = netmsgSvcTeamLobbyRead(&cl->in, cl); break;
 			case SVC_TEAM_HUB: rc = netmsgSvcTeamHubRead(&cl->in, cl); break;
 			case SVC_MODLIST: rc = netmsgSvcModListRead(&cl->in, cl); break;
+			case SVC_DENIED: rc = netmsgSvcDeniedRead(&cl->in, cl); break;
 			case SVC_CUTSCENE: rc = netmsgSvcCutsceneRead(&cl->in, cl); break;
 			case SVC_COOP_LIVES: rc = netmsgSvcCoopLivesRead(&cl->in, cl); break;
 			case SVC_TIMESCALE: rc = netmsgSvcTimescaleRead(&cl->in, cl); break;

@@ -82,6 +82,7 @@ static const struct netconverb s_conVerbs[] = {
 	{ "ready",      CONV_PLAYER },
 	{ "unready",    CONV_PLAYER },
 	{ "start",      0 },
+	{ "verdict",    0 },
 	{ "endmission", CONV_FLOOR },
 	{ "lua",        CONV_FLOOR },
 	{ "quit",       CONV_FLOOR },
@@ -273,7 +274,7 @@ static void netConHelp(void)
 {
 	netConPrintf("status | players | kick <id|name> | say <text>");
 	netConPrintf("stage [n|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
-	netConPrintf("endmission | lua <code> | quit");
+	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
 }
 
 static void netConStatus(void)
@@ -548,6 +549,16 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 		}
 	} else if (strcmp(cmd, "start") == 0) {
 		netConStart();
+	} else if (strcmp(cmd, "verdict") == 0) {
+		char why[160];
+		if (!netConIsHost()) {
+			s_conFrom = prevfrom;
+			return r;
+		}
+		if (!netVerifyVerdict(arg, why, sizeof(why))) {
+			from->ok = 0;
+		}
+		netConPrintf("%s", why);
 	} else if (strcmp(cmd, "endmission") == 0) {
 		if (netConInHub()) {
 			netConPrintf("not in a mission");
