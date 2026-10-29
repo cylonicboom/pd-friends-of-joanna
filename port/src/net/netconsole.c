@@ -81,6 +81,7 @@ static const struct netconverb s_conVerbs[] = {
 	{ "diff",       0 },
 	{ "ready",      CONV_PLAYER },
 	{ "unready",    CONV_PLAYER },
+	{ "captain",    CONV_PLAYER }, // v1: only `captain key [new]`, the player's own; the operator verbs come with c-net-captain
 	{ "start",      0 },
 	{ "verdict",    0 },
 	{ "endmission", CONV_FLOOR },
@@ -275,6 +276,51 @@ static void netConHelp(void)
 	netConPrintf("status | players | kick <id|name> | say <text>");
 	netConPrintf("stage [n|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
 	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
+	netConPrintf("captain key [new]");
+}
+
+// `captain key [new]`: show or rotate this machine's captain key. The rest of
+// the captain verbs (appoint, veto, standing ...) land with c-net-captain.
+static void netConCaptain(const char *arg)
+{
+	char sub[16], rest[32];
+	s32 n = 0;
+
+	while (*arg && *arg != ' ' && n < (s32)sizeof(sub) - 1) {
+		sub[n++] = (char)tolower((unsigned char)*arg++);
+	}
+	sub[n] = '\0';
+	while (*arg == ' ') {
+		arg++;
+	}
+	snprintf(rest, sizeof(rest), "%s", arg);
+
+	if (strcmp(sub, "key") != 0) {
+		netConPrintf("captain: only `captain key [new]` for now");
+		return;
+	}
+	if (strcmp(rest, "new") == 0) {
+		if (!netCaptainKeyNew()) {
+			netConPrintf("captain key: could not mint one (no random source)");
+			return;
+		}
+		netConPrintf("captain key rotated - rejoin for it to count");
+	} else if (*rest) {
+		netConPrintf("captain key: `captain key` shows it, `captain key new` rotates it");
+		return;
+	}
+	netCaptainKeyLoad();
+	{
+		u8 pk[32], sig[64];
+		u8 zero[32] = { 0 };
+		char b64[45];
+		if (netCaptainKeySign(zero, zero, pk, sig)) {
+			netPkBase64(pk, b64);
+			netConPrintf("captain key pk:%s", b64);
+		} else {
+			netConPrintf("captain key: none");
+		}
+	}
 }
 
 static void netConStatus(void)
@@ -539,6 +585,8 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 		netConRoles(arg);
 	} else if (strcmp(cmd, "diff") == 0) {
 		netConDiff(arg);
+	} else if (strcmp(cmd, "captain") == 0) {
+		netConCaptain(arg);
 	} else if (playercmd) {
 		if (!g_NetMode) {
 			netConPrintf("not in a network game");

@@ -2326,6 +2326,19 @@ static void netServerEvConnect(ENetPeer *peer, const u32 data)
 	// Count only now that the peer owns a real client slot; netServerEvDisconnect
 	// (the only path that runs for an attached client) decrements the match.
 	++g_NetNumClients;
+
+	// proto 95: challenge them. CLC_AUTH answers it, signed by the captain key
+	// if the pak has one (netcaptainkey.c).
+	netServerIdEnsure();
+	if (!netRandomBytes(cl->nonce, sizeof(cl->nonce))) {
+		const u32 t = enet_time_get();
+		memset(cl->nonce, 0, sizeof(cl->nonce));
+		memcpy(cl->nonce, &t, sizeof(t));
+		cl->nonce[4] = (u8)cl->id;
+	}
+	netbufStartWrite(&cl->out);
+	netmsgSvcChallengeWrite(&cl->out, cl);
+	netSend(cl, NULL, true, NETCHAN_CONTROL);
 }
 
 static void netServerEvDisconnect(struct netclient *cl)
@@ -2473,15 +2486,13 @@ static void netServerEvReceive(struct netclient *cl)
 
 static void netClientEvConnect(const u32 data)
 {
-	sysLogPrintf(LOG_NOTE, "NET: connected to server, sending CLC_AUTH");
+	// proto 95: CLC_AUTH waits for the server's SVC_CHALLENGE (netmsg.c), so
+	// the captain key has a nonce to sign. A server at this protocol always
+	// sends one right after the connect.
+	sysLogPrintf(LOG_NOTE, "NET: connected to server, waiting for the challenge");
 
 	g_NetLocalClient->state = CLSTATE_AUTH;
-
-	// send auth request
-	netbufStartWrite(&g_NetMsgRel);
-	netmsgClcAuthWrite(&g_NetMsgRel);
-	netmsgClcSettingsWrite(&g_NetMsgRel);
-	netSend(g_NetLocalClient, &g_NetMsgRel, true, NETCHAN_CONTROL);
+	g_NetHaveChallenge = 0;
 }
 
 static void netClientEvDisconnect(const u32 reason)
@@ -2549,6 +2560,7 @@ static void netClientEvReceive(struct netclient *cl)
 			case SVC_TEAM_HUB: rc = netmsgSvcTeamHubRead(&cl->in, cl); break;
 			case SVC_MODLIST: rc = netmsgSvcModListRead(&cl->in, cl); break;
 			case SVC_DENIED: rc = netmsgSvcDeniedRead(&cl->in, cl); break;
+			case SVC_CHALLENGE: rc = netmsgSvcChallengeRead(&cl->in, cl); break;
 			case SVC_CUTSCENE: rc = netmsgSvcCutsceneRead(&cl->in, cl); break;
 			case SVC_COOP_LIVES: rc = netmsgSvcCoopLivesRead(&cl->in, cl); break;
 			case SVC_TIMESCALE: rc = netmsgSvcTimescaleRead(&cl->in, cl); break;

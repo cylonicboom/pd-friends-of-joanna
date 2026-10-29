@@ -76,7 +76,7 @@ static void netApiLoopback(ENetAddress *addr, u16 port)
 	addr->port = port;
 }
 
-static s32 netApiRandom(u8 *out, s32 n)
+s32 netRandomBytes(u8 *out, s32 n)
 {
 #ifdef _WIN32
 	for (s32 i = 0; i < n; i += sizeof(unsigned int)) {
@@ -143,7 +143,7 @@ static void netApiOpen(void)
 	ENetAddress addr;
 	u8 raw[NETAPI_TOKEN_BYTES];
 
-	if (!netApiRandom(raw, sizeof(raw))) {
+	if (!netRandomBytes(raw, sizeof(raw))) {
 		sysLogPrintf(LOG_ERROR, "NET: api: no random source for the token; intercom stays off");
 		return;
 	}

@@ -283,7 +283,9 @@ void netTeamDiagTick(void)
 					slot = p;
 				}
 			}
-			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d agent=%d held=%d joinid=%u account=%s uuid=%s owned=%d", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient, cl->settings.teamagentindex, cl->verifyheld, cl->joinid, cl->account[0] ? cl->account : "-", cl->uuid[0] ? cl->uuid : "-", cl->uuidowned);
+			char shortpk[12];
+			netPkShort(cl->haspk ? cl->pk : NULL, shortpk);
+			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d agent=%d held=%d joinid=%u account=%s uuid=%s owned=%d pk=%s", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient, cl->settings.teamagentindex, cl->verifyheld, cl->joinid, cl->account[0] ? cl->account : "-", cl->uuid[0] ? cl->uuid : "-", cl->uuidowned, shortpk);
 		}
 	}
 	for (s32 i = 0; i < PLAYERCOUNT(); i++) {

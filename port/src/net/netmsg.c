@@ -562,6 +562,18 @@ u32 netmsgClcAuthWrite(struct netbuf *dst)
 	netbufWriteStr(dst, g_NetJoinTicket); // the sign-in ticket, bytes pd never reads (proto 94)
 	netbufWriteStr(dst, ""); // the pak uuid, empty until c-pak-uuid (proto 94)
 
+	// the captain key (proto 95): prove possession of the pak's key against
+	// the server's challenge, or say we have none
+	{
+		u8 pk[32], sig[64];
+		const s32 haskey = g_NetHaveChallenge && netCaptainKeySign(g_NetChallengeNonce, g_NetChallengeServerId, pk, sig);
+		netbufWriteU8(dst, haskey ? 1 : 0);
+		if (haskey) {
+			netbufWriteData(dst, pk, sizeof(pk));
+			netbufWriteData(dst, sig, sizeof(sig));
+		}
+	}
+
 	return dst->error;
 }
 
@@ -581,11 +593,31 @@ u32 netmsgClcAuthRead(struct netbuf *src, struct netclient *srccl)
 	netModsRead(src, &theirMods);
 	const char *ticket = netbufReadStr(src); // proto 94
 	const char *uuid = netbufReadStr(src);
+	const u8 haskey = netbufReadU8(src); // proto 95: the captain key tail
+	u8 pk[32], sig[64];
+	if (haskey) {
+		netbufReadData(src, pk, sizeof(pk));
+		netbufReadData(src, sig, sizeof(sig));
+	}
 
 	if (src->error) {
 		sysLogPrintf(LOG_WARNING, "NET: malformed CLC_AUTH from client %u", srccl->id);
 		netServerKick(srccl, DISCONNECT_KICKED);
 		return 1;
+	}
+
+	// The captain key: pk is kept only when the signature over our challenge
+	// verifies, so a set haspk is proof of possession. A bad signature is not
+	// a kick - the client is crew, as if it had brought no key.
+	srccl->haspk = 0;
+	memset(srccl->pk, 0, sizeof(srccl->pk));
+	if (haskey) {
+		if (netCaptainKeyVerify(srccl->nonce, pk, sig)) {
+			memcpy(srccl->pk, pk, sizeof(pk));
+			srccl->haspk = 1;
+		} else {
+			sysLogPrintf(LOG_WARNING, "NET: CLC_AUTH: client %u presented a captain key whose signature does not verify; treating as none", srccl->id);
+		}
 	}
 
 	if (strcasecmp(romName, g_RomName) != 0) {
@@ -685,7 +717,11 @@ void netServerAdmit(struct netclient *srccl)
 	netmsgSvcAuthWrite(&srccl->out, srccl);
 	netSend(srccl, NULL, true, NETCHAN_CONTROL);
 
-	sysLogPrintf(LOG_NOTE, "NET: %s (%u) joined", srccl->settings.name, srccl->id);
+	{
+		char shortpk[12];
+		netPkShort(srccl->haspk ? srccl->pk : NULL, shortpk);
+		sysLogPrintf(LOG_NOTE, "NET: %s (%u) joined pk=%s", srccl->settings.name, srccl->id, shortpk);
+	}
 
 	netChatPrintf(NULL, "%s joined", srccl->settings.name);
 
@@ -727,6 +763,41 @@ u32 netmsgSvcDeniedRead(struct netbuf *src, struct netclient *srccl)
 	}
 	snprintf(g_NetDenyReason, sizeof(g_NetDenyReason), "%s", reason);
 	sysLogPrintf(LOG_CHAT, "NET: the server declined the join: %s", reason);
+	return 0;
+}
+
+// proto 95: the server's challenge, sent to a fresh peer at connect. The
+// client answers it with CLC_AUTH (+ CLC_SETTINGS), which used to go out on
+// the connect event; now it waits for this so the captain key has something
+// to sign.
+u32 netmsgSvcChallengeWrite(struct netbuf *dst, const struct netclient *cl)
+{
+	netbufWriteU8(dst, SVC_CHALLENGE);
+	netbufWriteData(dst, cl->nonce, sizeof(cl->nonce));
+	netbufWriteData(dst, g_NetServerId, sizeof(g_NetServerId));
+	return dst->error;
+}
+
+u32 netmsgSvcChallengeRead(struct netbuf *src, struct netclient *srccl)
+{
+	(void)srccl;
+	netbufReadData(src, g_NetChallengeNonce, sizeof(g_NetChallengeNonce));
+	netbufReadData(src, g_NetChallengeServerId, sizeof(g_NetChallengeServerId));
+	if (src->error) {
+		return src->error;
+	}
+	g_NetHaveChallenge = 1;
+
+	if (g_NetLocalClient->state != CLSTATE_AUTH) {
+		sysLogPrintf(LOG_WARNING, "NET: SVC_CHALLENGE while not in CLSTATE_AUTH, ignoring");
+		return 0;
+	}
+
+	sysLogPrintf(LOG_NOTE, "NET: challenged by the server, sending CLC_AUTH");
+	netbufStartWrite(&g_NetMsgRel);
+	netmsgClcAuthWrite(&g_NetMsgRel);
+	netmsgClcSettingsWrite(&g_NetMsgRel);
+	netSend(g_NetLocalClient, &g_NetMsgRel, true, NETCHAN_CONTROL);
 	return 0;
 }
 
