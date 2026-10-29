@@ -707,6 +707,22 @@ void netGhostTick(void);
 u32 netGhostUnsetMask(struct chrdata *chr, u32 flags); // ailist unset_chr_chrflag: never unhide the ghost
 s32 netConsoleExec(const char *line, s32 fromchat);
 
+// fojo console origins (netconsole.c). Who is running a line decides what it
+// may run (netConAllowed) and where the replies go (netConPrintf).
+#define NETCON_ROOT   0 // the terminal, or the host's own chat line: anything
+#define NETCON_CLIENT 1 // a remote player's line: player verbs only, for now
+#define NETCON_API    2 // the intercom: what Api.Allow lists
+struct netconorigin {
+	s32 kind;
+	s32 fromchat;                              // the line came from a chat box: the '/' is required
+	struct netclient *cl;                      // NETCON_CLIENT: who; replies go to them alone
+	void (*reply)(void *ctx, const char *line); // NETCON_API: where each reply line goes
+	void *ctx;
+};
+s32 netConsoleExecFrom(const char *line, const struct netconorigin *from);
+s32 netConAllowed(const struct netconorigin *from, const char *verb);
+extern char g_NetConApiAllow[128]; // Api.Allow in pd.ini
+
 // Dedicated-server mode. 0 = listen server (host plays), 1 = headless dedicated
 // (no SDL window, no audio device, server-only tick), 2 = windowed dedicated
 // (window open showing a status overlay, no local combatant). Set from the

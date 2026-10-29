@@ -8,9 +8,15 @@
  * host's chat window and every client's chat window show the same lines.
  * Offline they are logged and pushed into the local ring only.
  *
- * Host only, except ready / unready, which any player may use: a client's
- * other '/' lines are refused locally. The terminal is the server's own;
- * whoever has it already has a shell on the box.
+ * Every line arrives with an ORIGIN (struct netconorigin): the terminal and
+ * the host's own chat line are root and may run anything; a remote player's
+ * line (CLC_CONSOLE, not yet ported) may run only the player verbs; the
+ * intercom (c-net-api-port) may run only what `Api.Allow` lists, and a few
+ * verbs are a hard floor no allow-list opens (lua, quit). netConAllowed()
+ * is the one place that rule lives. Replies follow the origin: broadcast as
+ * chat for root, to that one client for a client, to the origin's reply
+ * callback for the intercom. The terminal is the server's own; whoever has
+ * it already has a shell on the box.
  *
  * This is fojo's set, not kai's netConsoleCommand (net.c), which has no
  * callers here and assumes features that were not ported.
@@ -34,6 +40,7 @@
 #include "game/luaai.h"
 #include "lib/main.h"
 #include "system.h"
+#include "config.h"
 #include "net/net.h"
 
 #define NETCON_LINE 256
@@ -45,6 +52,102 @@ static s32 s_conOn = 0;
 static char s_conBuf[NETCON_LINE];
 static s32 s_conLen = 0;
 
+// the origin of the line being run right now; NULL outside netConsoleExecFrom
+static const struct netconorigin *s_conFrom = NULL;
+
+// Api.Allow: the verbs the intercom origin may run, comma separated. The
+// default names verbs that do not exist yet (the verdict and standing-list
+// slices); until they land the intercom can run nothing but what is listed.
+char g_NetConApiAllow[128] = "verdict,standing";
+
+// the verb table: name, who may run it, help text. CONV_PLAYER verbs are any
+// origin's; CONV_FLOOR verbs are root's whatever an allow-list says; the
+// rest are root's, or an origin's when its allow-list names them.
+#define CONV_PLAYER 0x1
+#define CONV_FLOOR  0x2
+struct netconverb {
+	const char *name;
+	u32 flags;
+};
+static const struct netconverb s_conVerbs[] = {
+	{ "help",       CONV_PLAYER },
+	{ "?",          CONV_PLAYER },
+	{ "status",     0 },
+	{ "players",    0 },
+	{ "kick",       0 },
+	{ "say",        0 },
+	{ "stage",      0 },
+	{ "roles",      0 },
+	{ "diff",       0 },
+	{ "ready",      CONV_PLAYER },
+	{ "unready",    CONV_PLAYER },
+	{ "start",      0 },
+	{ "endmission", CONV_FLOOR },
+	{ "lua",        CONV_FLOOR },
+	{ "quit",       CONV_FLOOR },
+};
+
+static const struct netconverb *netConFindVerb(const char *cmd)
+{
+	for (u32 i = 0; i < ARRAYCOUNT(s_conVerbs); i++) {
+		if (strcmp(s_conVerbs[i].name, cmd) == 0) {
+			return &s_conVerbs[i];
+		}
+	}
+	return NULL;
+}
+
+// is `verb` in the comma-separated allow-list `list`? exact, case-insensitive
+static s32 netConListHas(const char *list, const char *verb)
+{
+	const size_t n = strlen(verb);
+	const char *p = list;
+
+	while (*p) {
+		while (*p == ',' || *p == ' ') {
+			p++;
+		}
+		const char *e = p;
+		while (*e && *e != ',' && *e != ' ') {
+			e++;
+		}
+		if ((size_t)(e - p) == n && strncasecmp(p, verb, n) == 0) {
+			return 1;
+		}
+		p = e;
+	}
+	return 0;
+}
+
+/**
+ * May this origin run this verb? Root may run anything. The floor verbs are
+ * root's only. Player verbs are anyone's. Beyond that, a client may run
+ * nothing (Captain.Allow is the captain slice's to add) and the intercom
+ * may run what Api.Allow lists. An unknown verb is nobody's but root's, so
+ * the unknown-command reply still comes from the root path.
+ */
+s32 netConAllowed(const struct netconorigin *from, const char *verb)
+{
+	const struct netconverb *v = netConFindVerb(verb);
+
+	if (!from || from->kind == NETCON_ROOT) {
+		return 1;
+	}
+	if (!v || (v->flags & CONV_FLOOR)) {
+		return 0;
+	}
+	if (v->flags & CONV_PLAYER) {
+		return 1;
+	}
+	switch (from->kind) {
+	case NETCON_API:
+		return netConListHas(g_NetConApiAllow, verb);
+	case NETCON_CLIENT:
+	default:
+		return 0;
+	}
+}
+
 static void netConPrintf(const char *fmt, ...)
 {
 	char tmp[400];
@@ -54,8 +157,18 @@ static void netConPrintf(const char *fmt, ...)
 	vsnprintf(tmp, sizeof(tmp), fmt, ap);
 	va_end(ap);
 
+	// the intercom gets its replies back on its own channel, never as chat
+	if (s_conFrom && s_conFrom->kind == NETCON_API) {
+		if (s_conFrom->reply) {
+			s_conFrom->reply(s_conFrom->ctx, tmp);
+		}
+		return;
+	}
+
 	if (g_NetMode == NETMODE_SERVER && g_NetLocalClient && g_NetLocalClient->state >= CLSTATE_LOBBY) {
-		netChatPrintf(NULL, "[server] %s", tmp);
+		// a remote player's line is answered to that player alone
+		struct netclient *dst = (s_conFrom && s_conFrom->kind == NETCON_CLIENT) ? s_conFrom->cl : NULL;
+		netChatPrintf(dst, "[server] %s", tmp);
 	} else {
 		char line[420];
 		snprintf(line, sizeof(line), "[server] %s", tmp);
@@ -319,15 +432,30 @@ static void netConStart(void)
 }
 
 /**
- * Run one console line. fromchat: it came from the chat line, so it needs
- * the leading '/' and runs only on the host. From the terminal the slash
- * is optional. Returns 1 when the line was taken as a command.
+ * Run one console line as root. fromchat: it came from the local chat line,
+ * so it needs the leading '/' and runs only on the host. From the terminal
+ * the slash is optional. Returns 1 when the line was taken as a command.
  */
 s32 netConsoleExec(const char *line, s32 fromchat)
+{
+	struct netconorigin from = { NETCON_ROOT, fromchat, NULL, NULL, NULL };
+	return netConsoleExecFrom(line, &from);
+}
+
+/**
+ * Run one console line from an origin. The slash is required when the line
+ * came from a chat box (from->fromchat), optional otherwise. Rights are
+ * netConAllowed()'s; replies follow the origin (netConPrintf). Returns 1 when
+ * the line was taken as a command, whether or not it was allowed.
+ */
+s32 netConsoleExecFrom(const char *line, const struct netconorigin *from)
 {
 	char cmd[32];
 	s32 ci = 0;
 	const char *p = line;
+	const s32 fromchat = from && from->fromchat;
+	const struct netconorigin *prevfrom = s_conFrom;
+	const s32 r = 1;
 
 	while (*p == ' ' || *p == '\t') {
 		p++;
@@ -357,11 +485,20 @@ s32 netConsoleExec(const char *line, s32 fromchat)
 		return 1;
 	}
 
+	s_conFrom = from;
+
+	if (!netConAllowed(from, cmd)) {
+		netConPrintf("%s: not yours to run", cmd);
+		s_conFrom = prevfrom;
+		return r;
+	}
+
 	if (strcmp(cmd, "say") == 0) {
 		if (*arg) {
 			netConPrintf("%s", arg);
 		}
-		return 1;
+		s_conFrom = prevfrom;
+		return r;
 	}
 
 	// echo, so everyone reading the chat sees what was done
@@ -375,7 +512,8 @@ s32 netConsoleExec(const char *line, s32 fromchat)
 		netConPlayers();
 	} else if (strcmp(cmd, "kick") == 0) {
 		if (!netConIsHost()) {
-			return 1;
+			s_conFrom = prevfrom;
+			return r;
 		}
 		struct netclient *cl = *arg ? netConFindClient(arg) : NULL;
 		if (!cl) {
@@ -417,7 +555,13 @@ s32 netConsoleExec(const char *line, s32 fromchat)
 		netConPrintf("unknown command %s (help lists them)", cmd);
 	}
 
-	return 1;
+	s_conFrom = prevfrom;
+	return r;
+}
+
+PD_CONSTRUCTOR static void netConsoleConfigInit(void)
+{
+	configRegisterString("Api.Allow", g_NetConApiAllow, sizeof(g_NetConApiAllow) - 1);
 }
 
 /**
