@@ -874,8 +874,8 @@ u32 netmsgClcAdminSetupWrite(struct netbuf *dst)
 	netbufWriteU8(dst, NET_MAX_BOTS);
 	for (s32 i = 0; i < NET_MAX_BOTS; ++i) {
 		const struct mpbotconfig *bot = &g_BotConfigsArray[i];
-		netbufWriteU8(dst, bot->base.mpheadnum);
-		netbufWriteU8(dst, bot->base.mpbodynum);
+		netbufWriteHeadSlot(dst, bot->base.mpheadnum); // proto 95: by name for mod rows
+		netbufWriteBodySlot(dst, bot->base.mpbodynum);
 		netbufWriteU8(dst, bot->base.team);
 		netbufWriteU8(dst, bot->type);
 		netbufWriteU8(dst, bot->difficulty);
@@ -925,8 +925,8 @@ u32 netmsgClcAdminSetupRead(struct netbuf *src, struct netclient *srccl)
 		return 1;
 	}
 	for (u8 i = 0; i < numbots; ++i) {
-		tmpbots[i].head = netbufReadU8(src);
-		tmpbots[i].body = netbufReadU8(src);
+		tmpbots[i].head = netbufReadHeadSlot(src); // proto 95
+		tmpbots[i].body = netbufReadBodySlot(src);
 		tmpbots[i].team = netbufReadU8(src);
 		tmpbots[i].type = netbufReadU8(src);
 		tmpbots[i].diff = netbufReadU8(src);
@@ -1105,8 +1105,8 @@ u32 netmsgClcSettingsWrite(struct netbuf *dst)
 {
 	netbufWriteU8(dst, CLC_SETTINGS);
 	netbufWriteU16(dst, g_NetLocalClient->settings.options);
-	netbufWriteU8(dst, g_NetLocalClient->settings.bodynum);
-	netbufWriteU8(dst, g_NetLocalClient->settings.headnum);
+	netbufWriteBodySlot(dst, g_NetLocalClient->settings.bodynum); // proto 95: by name for mod rows
+	netbufWriteHeadSlot(dst, g_NetLocalClient->settings.headnum);
 	netbufWriteF32(dst, g_NetLocalClient->settings.fovy);
 	netbufWriteF32(dst, g_NetLocalClient->settings.fovzoommult);
 	netbufWriteStr(dst, g_NetLocalClient->settings.name);
@@ -1118,8 +1118,8 @@ u32 netmsgClcSettingsWrite(struct netbuf *dst)
 u32 netmsgClcSettingsRead(struct netbuf *src, struct netclient *srccl)
 {
 	const u16 options = netbufReadU16(src);
-	const u8 bodynum = netbufReadU8(src);
-	const u8 headnum = netbufReadU8(src);
+	const u8 bodynum = netbufReadBodySlot(src); // proto 95
+	const u8 headnum = netbufReadHeadSlot(src);
 	const f32 fovy = netbufReadF32(src);
 	const f32 fovzoommult = netbufReadF32(src);
 	char *name = netbufReadStr(src);
@@ -1559,8 +1559,8 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 			netbufWriteU8(dst, ncl->playernum);
 			netbufWriteU8(dst, ncl->settings.team);
 			netbufWriteU16(dst, ncl->settings.options);
-			netbufWriteU8(dst, ncl->settings.bodynum);
-			netbufWriteU8(dst, ncl->settings.headnum);
+			netbufWriteBodySlot(dst, ncl->settings.bodynum); // proto 95: by name for mod rows
+			netbufWriteHeadSlot(dst, ncl->settings.headnum);
 			netbufWriteF32(dst, ncl->settings.fovy);
 			netbufWriteF32(dst, ncl->settings.fovzoommult);
 			netbufWriteStr(dst, ncl->settings.name);
@@ -1586,8 +1586,8 @@ u32 netmsgSvcStageStartWrite(struct netbuf *dst)
 	netbufWriteU8(dst, NET_MAX_BOTS);
 	for (s32 i = 0; i < NET_MAX_BOTS; ++i) {
 		const struct mpbotconfig *bot = &g_BotConfigsArray[i];
-		netbufWriteU8(dst, bot->base.mpheadnum);
-		netbufWriteU8(dst, bot->base.mpbodynum);
+		netbufWriteHeadSlot(dst, bot->base.mpheadnum); // proto 95: by name for mod rows
+		netbufWriteBodySlot(dst, bot->base.mpbodynum);
 		netbufWriteU8(dst, bot->base.team);
 		netbufWriteU8(dst, bot->type);
 		netbufWriteU8(dst, bot->difficulty);
@@ -1818,8 +1818,8 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 		if (ncl != g_NetLocalClient) {
 			ncl->id = id;
 			ncl->settings.options = netbufReadU16(src);
-			ncl->settings.bodynum = netbufReadU8(src);
-			ncl->settings.headnum = netbufReadU8(src);
+			ncl->settings.bodynum = netbufReadBodySlot(src); // proto 95
+			ncl->settings.headnum = netbufReadHeadSlot(src);
 			ncl->settings.fovy = netbufReadF32(src);
 			ncl->settings.fovzoommult = netbufReadF32(src);
 			char *name = netbufReadStr(src);
@@ -1915,8 +1915,8 @@ u32 netmsgSvcStageStartRead(struct netbuf *src, struct netclient *srccl)
 	}
 	for (s32 i = 0; i < numbots; ++i) {
 		struct mpbotconfig *bot = &g_BotConfigsArray[i];
-		bot->base.mpheadnum = netbufReadU8(src);
-		bot->base.mpbodynum = netbufReadU8(src);
+		bot->base.mpheadnum = netbufReadHeadSlot(src); // proto 95
+		bot->base.mpbodynum = netbufReadBodySlot(src);
 		bot->base.team = netbufReadU8(src);
 		bot->type = netbufReadU8(src);
 		bot->difficulty = netmsgSanitizeBotDifficulty(netbufReadU8(src));

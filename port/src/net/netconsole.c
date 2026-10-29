@@ -37,6 +37,7 @@
 #include "data.h"
 #include "bss.h"
 #include "game/lang.h"
+#include "game/stagetable.h"
 #include "game/luaai.h"
 #include "lib/main.h"
 #include "system.h"
@@ -274,7 +275,7 @@ static const char *netConStateName(u32 state)
 static void netConHelp(void)
 {
 	netConPrintf("status | players | kick <id|name> | say <text>");
-	netConPrintf("stage [n|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
+	netConPrintf("stage [n|name|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
 	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
 	netConPrintf("captain key [new]");
 }
@@ -371,6 +372,58 @@ static void netConPlayers(void)
 	}
 }
 
+// case-insensitive "needle anywhere in hay"
+static s32 netConStrCaseHas(const char *hay, const char *needle)
+{
+	const size_t n = strlen(needle);
+	for (; *hay; hay++) {
+		if (strncasecmp(hay, needle, n) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/**
+ * A stage argument is a solo stage index ("0"), a STAGE_* row name
+ * ("STAGE_EXTRACTION", case-insensitive), or any part of the display name
+ * ("defection", "dataDyne"). Names, not numbers, are the identity of anything
+ * mods fill in (her 2026-10-29 requirement); the solo list is vanilla-fixed
+ * today, so this is the console learning the habit before it matters.
+ * Returns the solo stage index or -1.
+ */
+static s32 netConStageLookup(const char *arg)
+{
+	char name[96];
+	s32 alldigits = *arg != '\0';
+
+	for (const char *p = arg; *p; p++) {
+		if (!isdigit((unsigned char)*p)) {
+			alldigits = 0;
+		}
+	}
+	if (alldigits) {
+		return atoi(arg);
+	}
+
+	const s32 row = stageGetIndexByName(arg);
+	if (row >= 0) {
+		for (s32 i = 0; i < NUM_SOLOSTAGES; i++) {
+			if (g_SoloStages[i].stagenum == g_Stages[row].id) {
+				return i;
+			}
+		}
+	}
+
+	for (s32 i = 0; i < NUM_SOLOSTAGES; i++) {
+		netConStageName(i, name, sizeof(name));
+		if (netConStrCaseHas(name, arg)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 static void netConStage(const char *arg)
 {
 	char name[96];
@@ -389,7 +442,11 @@ static void netConStage(const char *arg)
 		if (!netConIsHost()) {
 			return;
 		}
-		const s32 idx = atoi(arg);
+		const s32 idx = netConStageLookup(arg);
+		if (idx < 0) {
+			netConPrintf("stage: no stage called '%s' (stage list)", arg);
+			return;
+		}
 		if (!netTeamSetStage(idx)) {
 			netConPrintf("stage %d is locked or out of range (stage list)", idx);
 			return;

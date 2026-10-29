@@ -181,6 +181,13 @@ u32 netmsgSvcDeniedWrite(struct netbuf *dst, const char *reason);
 u32 netmsgSvcDeniedRead(struct netbuf *src, struct netclient *srccl);
 u32 netmsgSvcChallengeWrite(struct netbuf *dst, const struct netclient *cl);
 u32 netmsgSvcChallengeRead(struct netbuf *src, struct netclient *srccl);
+
+// netslot.c (proto 95): a head/body slot on the wire is {u8 num, str name} -
+// the number for a vanilla row, 0xFF + the mod slot's own name for a mod row
+void netbufWriteHeadSlot(struct netbuf *dst, u8 num);
+void netbufWriteBodySlot(struct netbuf *dst, u8 num);
+u8 netbufReadHeadSlot(struct netbuf *src);
+u8 netbufReadBodySlot(struct netbuf *src);
 u32 netmsgClcTeamReadyWrite(struct netbuf *dst, u8 ready);
 u32 netmsgClcTeamReadyRead(struct netbuf *src, struct netclient *srccl);
 
