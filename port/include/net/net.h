@@ -755,6 +755,18 @@ void netVerifyLoadTicket(const char *path);
 s32 netVerifyHold(struct netclient *cl, const char *ticket); // 1 = held, do not admit
 s32 netVerifyVerdict(const char *line, char *out, s32 outlen);
 void netVerifyTick(void);
+
+// the standing list (netcaptain.c): Captain.Standing (ini) ∪ Captain.StandingFile
+// (sidecar-owned), principals `pk:<b64>` / `account:<opaque>`; `uuid:` refused.
+extern char g_NetCaptainStanding[1024];
+extern char g_NetCaptainStandingFile[256];
+s32 netCaptainIsStanding(const struct netclient *cl);              // the predicate the captain system keys on
+s32 netCaptainPrincipalFor(const struct netclient *cl, char *out, s32 outlen); // account: > pk: > "" (returns 0)
+s32 netCaptainStandingReload(void);                                 // both sources; returns the count
+void netCaptainStandingTick(void);                                  // mtime watch on the file, once a second
+s32 netCaptainStandingAdd(const char *principal);                   // ini list: 1 added, 0 present, -1 refused
+s32 netCaptainStandingRm(const char *principal);                    // ini list: 1 removed, 0 absent, -1 refused
+s32 netCaptainStandingEntry(s32 i, char *out, s32 outlen, s32 *fromfile);
 void netServerAdmit(struct netclient *cl); // netmsg.c: the tail of CLC_AUTH - seat in the lobby, SVC_AUTH, "joined"
 extern char g_NetDenyReason[NET_CHATLOG_LEN]; // client: what SVC_DENIED said, shown with the disconnect
 

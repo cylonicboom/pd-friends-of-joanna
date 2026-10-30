@@ -259,6 +259,8 @@ void schedStartFrame(OSSched *sc)
 		netApiTick();
 		// Net.Verify=required: held joins past the timeout are denied
 		netVerifyTick();
+		// the standing list: re-read Captain.StandingFile when the sidecar rewrote it
+		netCaptainStandingTick();
 		// --dedicated: keep the host's pawn a ghost on every machine
 		netGhostTick();
 	}

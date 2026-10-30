@@ -285,7 +285,7 @@ void netTeamDiagTick(void)
 			}
 			char shortpk[12];
 			netPkShort(cl->haspk ? cl->pk : NULL, shortpk);
-			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d agent=%d held=%d joinid=%u account=%s uuid=%s owned=%d pk=%s head=%d body=%d", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient, cl->settings.teamagentindex, cl->verifyheld, cl->joinid, cl->account[0] ? cl->account : "-", cl->uuid[0] ? cl->uuid : "-", cl->uuidowned, shortpk, cl->settings.headnum, cl->settings.bodynum);
+			netDiagLogf("netcl", "id=%d state=%d playernum=%d boundslot=%d local=%d agent=%d held=%d joinid=%u account=%s uuid=%s owned=%d pk=%s standing=%d head=%d body=%d", cl->id, cl->state, cl->playernum, slot, cl == g_NetLocalClient, cl->settings.teamagentindex, cl->verifyheld, cl->joinid, cl->account[0] ? cl->account : "-", cl->uuid[0] ? cl->uuid : "-", cl->uuidowned, shortpk, g_NetMode == NETMODE_SERVER ? netCaptainIsStanding(cl) : 0, cl->settings.headnum, cl->settings.bodynum);
 		}
 	}
 	for (s32 i = 0; i < PLAYERCOUNT(); i++) {

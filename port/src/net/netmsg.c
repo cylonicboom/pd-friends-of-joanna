@@ -723,6 +723,14 @@ void netServerAdmit(struct netclient *srccl)
 		sysLogPrintf(LOG_NOTE, "NET: %s (%u) joined pk=%s", srccl->settings.name, srccl->id, shortpk);
 	}
 
+	// the diary line the sidecar reads: a standing captain walked in. Grants
+	// nothing yet (c-net-captain); this is the standing list made visible.
+	if (netCaptainIsStanding(srccl)) {
+		char principal[NET_ACCOUNT_LEN + 16];
+		netCaptainPrincipalFor(srccl, principal, sizeof(principal));
+		sysLogPrintf(LOG_NOTE, "CAPTAIN standing %s id=%u %s", srccl->settings.name, srccl->id, principal);
+	}
+
 	netChatPrintf(NULL, "%s joined", srccl->settings.name);
 
 	// Join-in-progress: if this client connected while the host was already

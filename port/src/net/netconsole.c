@@ -54,7 +54,7 @@ static char s_conBuf[NETCON_LINE];
 static s32 s_conLen = 0;
 
 // the origin of the line being run right now; NULL outside netConsoleExecFrom
-static const struct netconorigin *s_conFrom = NULL;
+static struct netconorigin *s_conFrom = NULL;
 
 // Api.Allow: the verbs the intercom origin may run, comma separated. The
 // default names verbs that do not exist yet (the verdict and standing-list
@@ -82,7 +82,8 @@ static const struct netconverb s_conVerbs[] = {
 	{ "diff",       0 },
 	{ "ready",      CONV_PLAYER },
 	{ "unready",    CONV_PLAYER },
-	{ "captain",    CONV_PLAYER }, // v1: only `captain key [new]`, the player's own; the operator verbs come with c-net-captain
+	{ "captain",    CONV_PLAYER }, // `captain key [new]` is the player's own; `captain standing ...` re-checks as `standing`
+	{ "standing",   0 },           // list | reload | add <who> | rm <who>; Api.Allow's default opens it for the sidecar
 	{ "start",      0 },
 	{ "verdict",    0 },
 	{ "endmission", CONV_FLOOR },
@@ -277,7 +278,76 @@ static void netConHelp(void)
 	netConPrintf("status | players | kick <id|name> | say <text>");
 	netConPrintf("stage [n|name|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
 	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
-	netConPrintf("captain key [new]");
+	netConPrintf("captain key [new] | standing [list|reload|add <id|name|principal>|rm <principal>]");
+}
+
+// `standing list|reload|add|rm` - the two-source standing list (netcaptain.c).
+// `captain standing ...` is the same verb; netConCaptain re-checks the rights
+// as `standing` before handing over, so the player-level `captain` does not
+// smuggle it in.
+static void netConStanding(const char *arg)
+{
+	char sub[16], rest[NET_ACCOUNT_LEN + 16];
+	s32 n = 0;
+
+	while (*arg && *arg != ' ' && n < (s32)sizeof(sub) - 1) {
+		sub[n++] = (char)tolower((unsigned char)*arg++);
+	}
+	sub[n] = '\0';
+	while (*arg == ' ') {
+		arg++;
+	}
+	snprintf(rest, sizeof(rest), "%s", arg);
+
+	if (!*sub || strcmp(sub, "list") == 0) {
+		char e[NET_ACCOUNT_LEN + 16];
+		s32 fromfile, i = 0;
+		while (netCaptainStandingEntry(i, e, sizeof(e), &fromfile)) {
+			netConPrintf("%s%s", e, fromfile ? "  (file)" : "");
+			i++;
+		}
+		netConPrintf("%d standing captain%s", i, i == 1 ? "" : "s");
+		return;
+	}
+	if (strcmp(sub, "reload") == 0) {
+		const s32 c = netCaptainStandingReload();
+		netConPrintf("reloaded %d", c);
+		return;
+	}
+	if (strcmp(sub, "add") == 0 || strcmp(sub, "rm") == 0) {
+		if (!netConIsHost()) {
+			return;
+		}
+		if (!*rest) {
+			netConPrintf("standing %s: who? a player (id or name) or a principal (pk:... / account:...)", sub);
+			return;
+		}
+		char principal[NET_ACCOUNT_LEN + 16];
+		if (strncmp(rest, "pk:", 3) == 0 || strncmp(rest, "account:", 8) == 0 || strncmp(rest, "uuid:", 5) == 0) {
+			snprintf(principal, sizeof(principal), "%s", rest);
+		} else {
+			struct netclient *cl = netConFindClient(rest);
+			if (!cl) {
+				netConPrintf("standing %s: no player %s (players lists them)", sub, rest);
+				return;
+			}
+			if (!netCaptainPrincipalFor(cl, principal, sizeof(principal))) {
+				netConPrintf("standing %s: %s has no key and no account - they run `captain key new` and rejoin", sub, cl->settings.name);
+				return;
+			}
+		}
+		const s32 r = strcmp(sub, "add") == 0 ? netCaptainStandingAdd(principal) : netCaptainStandingRm(principal);
+		if (r < 0 && s_conFrom) {
+			s_conFrom->ok = 0; // the intercom's reply says refused
+		}
+		if (strcmp(sub, "add") == 0) {
+			netConPrintf(r > 0 ? "standing: added %s" : r == 0 ? "standing: %s is already listed" : "standing: refused %s (the log says why)", principal);
+		} else {
+			netConPrintf(r > 0 ? "standing: removed %s" : r == 0 ? "standing: %s is not in the ini list (a file entry goes by the file)" : "standing: refused %s (the log says why)", principal);
+		}
+		return;
+	}
+	netConPrintf("standing: list | reload | add <id|name|principal> | rm <principal>");
 }
 
 // `captain key [new]`: show or rotate this machine's captain key. The rest of
@@ -296,8 +366,20 @@ static void netConCaptain(const char *arg)
 	}
 	snprintf(rest, sizeof(rest), "%s", arg);
 
+	if (strcmp(sub, "standing") == 0) {
+		// the sidecar's nudge is spelled `captain standing reload`; same rights as `standing`
+		if (!netConAllowed(s_conFrom, "standing")) {
+			if (s_conFrom) {
+				s_conFrom->ok = 0;
+			}
+			netConPrintf("standing: not yours to run");
+			return;
+		}
+		netConStanding(arg);
+		return;
+	}
 	if (strcmp(sub, "key") != 0) {
-		netConPrintf("captain: only `captain key [new]` for now");
+		netConPrintf("captain: `captain key [new]` or `captain standing ...`");
 		return;
 	}
 	if (strcmp(rest, "new") == 0) {
@@ -361,9 +443,10 @@ static void netConPlayers(void)
 				ping = g_NetTeamLobby.clients[j].ping;
 			}
 		}
-		netConPrintf("#%u %s - %s, seat %d, %ums%s", cl->id, cl->settings.name,
+		netConPrintf("#%u %s - %s, seat %d, %ums%s%s", cl->id, cl->settings.name,
 				netConStateName(cl->state), cl->playernum, ping,
-				cl == g_NetLocalClient ? " (host)" : "");
+				cl == g_NetLocalClient ? " (host)" : "",
+				g_NetMode == NETMODE_SERVER && cl != g_NetLocalClient && netCaptainIsStanding(cl) ? " [standing captain]" : "");
 		any = 1;
 	}
 
@@ -559,7 +642,7 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 	s32 ci = 0;
 	const char *p = line;
 	const s32 fromchat = from && from->fromchat;
-	const struct netconorigin *prevfrom = s_conFrom;
+	struct netconorigin *prevfrom = s_conFrom;
 	const s32 r = 1;
 
 	while (*p == ' ' || *p == '\t') {
@@ -644,6 +727,8 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 		netConDiff(arg);
 	} else if (strcmp(cmd, "captain") == 0) {
 		netConCaptain(arg);
+	} else if (strcmp(cmd, "standing") == 0) {
+		netConStanding(arg);
 	} else if (playercmd) {
 		if (!g_NetMode) {
 			netConPrintf("not in a network game");
