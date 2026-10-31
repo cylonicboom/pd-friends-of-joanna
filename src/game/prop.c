@@ -47,6 +47,7 @@
 #include "net/netmsg.h"
 #include "net/netprop.h"
 #include "system.h"
+#include "prof.h"
 #include <string.h>
 #endif
 #ifndef PLATFORM_N64
@@ -2756,6 +2757,10 @@ void propsTickPlayer(bool islastplayer)
 			}
 
 			prop->backgroundedframes = 0;
+
+#ifndef PLATFORM_N64
+			PROF_COUNT(PROF_Z_PROPSTICK, 1); // a foreground prop ticked this frame
+#endif
 
 			// Tick the prop
 			if (prop->type == PROPTYPE_CHR) {

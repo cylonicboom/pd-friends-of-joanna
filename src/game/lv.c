@@ -104,6 +104,11 @@
 #include "system.h"
 #include "det.h"
 #include "net/net.h"
+#include "prof.h"
+#else
+#define PROF_BEGIN(z)
+#define PROF_END()
+#define PROF_COUNT(z, n)
 #endif
 
 struct sndstate *g_MiscSfxAudioHandles[3];
@@ -1473,13 +1478,28 @@ Gfx *lvRender(Gfx *gdl)
 
 				gdl = viRenderViewportEdges(gdl);
 				gdl = skyRender(gdl);
+				PROF_BEGIN(PROF_Z_BGTICK);
 				bgTick();
+				PROF_END();
+				PROF_BEGIN(PROF_Z_LIGHTSTICK);
 				lightsTick();
+				PROF_END();
+				PROF_BEGIN(PROF_Z_PROPSTICK);
 				propsTickPlayer(islastplayer);
+				PROF_END();
+				PROF_BEGIN(PROF_Z_SCENARIOTICK);
 				scenarioTickChr(NULL);
+				PROF_END();
+				PROF_BEGIN(PROF_Z_PROPSSORT);
 				propsSort();
+				PROF_COUNT(PROF_Z_PROPSSORT, g_Vars.numonscreenprops);
+				PROF_END();
+				PROF_BEGIN(PROF_Z_AUTOAIM);
 				autoaimTick();
+				PROF_END();
+				PROF_BEGIN(PROF_Z_HANDSATTACK);
 				handsTickAttack();
+				PROF_END();
 
 #ifndef PLATFORM_N64
 				// glares calculated earlier on PC, before prop matrices turn into garbage
@@ -1487,6 +1507,7 @@ Gfx *lvRender(Gfx *gdl)
 #endif
 
 				// Calculate lookingatprop
+				PROF_BEGIN(PROF_Z_LOOKINGAT);
 				if (PLAYERCOUNT() == 1
 						|| g_Vars.currentcoopplayernum >= 0
 						|| g_Vars.currentantiplayernum >= 0
@@ -1585,7 +1606,10 @@ Gfx *lvRender(Gfx *gdl)
 					}
 				}
 
+				PROF_END();
+
 				// Handle opening doors and reloading
+				PROF_BEGIN(PROF_Z_INTERACT);
 				if (g_Vars.currentplayer->bondactivateorreload & JO_ACTION_ACTIVATE) {
 					if (!currentPlayerInteract(false)) {
 #ifndef PLATFORM_N64
@@ -1613,15 +1637,20 @@ Gfx *lvRender(Gfx *gdl)
 				}
 
 				propsTestForPickup();
+				PROF_END();
 
+				PROF_BEGIN(PROF_Z_BGRENDER);
 				gdl = bgRender(gdl);
+				PROF_END();
 #ifndef PLATFORM_N64
 				// editor: the collision tiles as geometry (tilesrender.c),
 				// z-tested against whatever bg there is
 				gdl = tilesRender(gdl);
 #endif
 				chr0f028498(var80075d68 == 15 || g_AnimHostEnabled);
+				PROF_BEGIN(PROF_Z_BEAMS);
 				gdl = propsRenderBeams(gdl);
+				PROF_END();
 				gdl = shardsRender(gdl);
 				gdl = sparksRender(gdl);
 				gdl = weatherRender(gdl);
@@ -1630,7 +1659,9 @@ Gfx *lvRender(Gfx *gdl)
 					gdl = nbombsRender(gdl);
 				}
 
+				PROF_BEGIN(PROF_Z_HUD);
 				gdl = playerRenderHud(gdl);
+				PROF_END();
 
 #ifdef DEBUG
 				gdl = lvRenderManPosIfEnabled(gdl);
@@ -1994,7 +2025,11 @@ Gfx *lvRender(Gfx *gdl)
 #ifndef PLATFORM_N64
 			// netplay: this iteration ticked a pawn that is not ours - drop
 			// everything it drew.
+			// how much display list this seat built, and how much of it is
+			// thrown away: the wasted-work number for a server that renders
+			PROF_COUNT(PROF_Z_GDL_EMITTED, gdl - savedgdl);
 			if (viewdiscarded) {
+				PROF_COUNT(PROF_Z_GDL_DISCARDED, gdl - savedgdl);
 				gdl = savedgdl;
 			}
 #endif
