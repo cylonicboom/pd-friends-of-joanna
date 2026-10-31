@@ -37,6 +37,17 @@ The file is Fuchsia Trace Format (.fxt). Two readers:
 `--netdiag` also carries a `prof` line once a second per seat column
 (`zone=self_us/incl_us/calls/count`), so nettest runs get it for free.
 
+## Events
+
+The engine emits instant events of its own (`PROF_EVENT(kind, id, value)`),
+each tagged with the net tick and lvframe60 so two machines' traces line up:
+`chr.death` (chrnum, killer), `player.die`, `player.respawn`, `tickmode`
+(new, old; 6 = cutscene), `cutscene.start` (ailist), `cutscene.shot` (animnum, every camera cut), `music.queue` /
+`music.done` (event id; done carries the attempts it took), `hud.label`
+(mpchrnum, alpha - every player-name label drawn). `profread.py --events`
+lists them; `--events NAME` or `all` prints the lines. Add a kind to `enum
+profevent` and its name in `prof.c`, then `PROF_EVENT` at the site.
+
 ## Fault tolerance
 
 Records are fixed-size and self-delimiting; the buffer is flushed once a

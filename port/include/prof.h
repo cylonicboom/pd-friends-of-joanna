@@ -73,6 +73,22 @@ enum profzone {
 	PROF_ZONE_COUNT
 };
 
+// instant events the engine emits itself (PROF_EVENT): what happened and
+// when, on the frame it happened, tagged with the net tick so two machines'
+// traces line up. id and value mean what the site says they mean.
+enum profevent {
+	PROF_E_CHR_DEATH,       // chrBeginDeath: id = chrnum, value = aplayernum
+	PROF_E_PLAYER_DIE,      // playerDie: id = currentplayernum, value = force
+	PROF_E_PLAYER_RESPAWN,  // playerStartNewLife: id = currentplayernum
+	PROF_E_TICKMODE,        // playerSetTickMode: id = new mode, value = old (cutscene = 6)
+	PROF_E_CUTSCENE_START,  // cutsceneStart: id = ailistid (an ailist-driven cutscene)
+	PROF_E_CUTSCENE_SHOT,   // playerStartCutscene: id = animnum, value = the anim before (every camera cut, intros too)
+	PROF_E_MUSIC_QUEUE,     // musicQueue*Event: id = event id, value = eventtype<<24 | tracktype<<16 | tracknum
+	PROF_E_MUSIC_DONE,      // musicTickEvents, event left the queue: id = event id, value = attempts
+	PROF_E_HUD_LABEL,       // hudmsg player-name label drawn: id = mpchrnum, value = alpha
+	PROF_EVENT_COUNT
+};
+
 struct profcell {
 	u64 incl;   // ticks, inclusive of children
 	u64 self;   // ticks, children subtracted
@@ -92,6 +108,7 @@ void profZoneEnd(void);
 void profZoneCount(s32 zone, u32 n);
 void profNetMsg(s32 in, u32 msgid, u32 bytes);  // per-message-class byte counters (in: 1 = received)
 void profMark(const char *text);                // an instant event on the frame track: /mark from the console
+void profEvent(s32 ev, u32 id, u32 value);      // an engine-emitted instant event (see enum profevent)
 void profNetSessionBegin(const char *role);     // Prof.OnNet: open a dated dump when a net session starts
 void profNetSessionEnd(void);                   // ... and close it at disconnect
 
@@ -105,6 +122,7 @@ const char *profDumpPath(void);               // NULL when not dumping
 #define PROF_END()       do { if (g_ProfOn) profZoneEnd(); } while (0)
 #define PROF_COUNT(z, n) do { if (g_ProfOn) profZoneCount((z), (u32)(n)); } while (0)
 #define PROF_NETMSG(in, id, bytes) do { if (g_ProfOn) profNetMsg((in), (id), (bytes)); } while (0)
+#define PROF_EVENT(e, id, value) do { if (g_ProfOn) profEvent((e), (u32)(id), (u32)(value)); } while (0)
 
 #ifdef __cplusplus
 }

@@ -76,6 +76,11 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
+#include "prof.h"
+#else
+#define PROF_EVENT(e, id, value)
+#endif
+#ifndef PLATFORM_N64
 #include "video.h"
 #include "net/net.h"
 #include "net/netmsg.h"
@@ -524,6 +529,8 @@ f32 playerChooseGeneralSpawnLocation(f32 chrradius, struct coord *pos, RoomNum *
 void playerStartNewLife(void)
 {
 	struct coord pos = {0, 0, 0};
+
+	PROF_EVENT(PROF_E_PLAYER_RESPAWN, g_Vars.currentplayernum, 0);
 #ifdef AVOID_UB
 	// See playerReset - scenarioChooseSpawnLocation leaves this untouched when the
 	// stage has no spawn pads, and it is read afterwards regardless.
@@ -2060,6 +2067,7 @@ s32 g_CoopGameplayStarted = 0;
 
 void playerSetTickMode(s32 tickmode)
 {
+	PROF_EVENT(PROF_E_TICKMODE, tickmode, g_Vars.tickmode);
 	g_Vars.tickmode = tickmode;
 	g_Vars.in_cutscene = false;
 #ifndef PLATFORM_N64
@@ -2393,6 +2401,7 @@ void playerStartCutscene(s16 animnum)
 			playersTickAllChrBodies();
 		}
 
+		PROF_EVENT(PROF_E_CUTSCENE_SHOT, animnum, g_CutsceneAnimNum);
 		g_CutsceneAnimNum = animnum;
 
 		if (g_Vars.currentplayer->haschrbody) {
@@ -7219,6 +7228,8 @@ void playerDie(bool force)
 {
 	struct chrdata *chr = g_Vars.currentplayer->prop->chr;
 	s32 shooter;
+
+	PROF_EVENT(PROF_E_PLAYER_DIE, g_Vars.currentplayernum, force);
 
 #ifndef PLATFORM_N64
 	if (g_NetMode == NETMODE_CLIENT) {

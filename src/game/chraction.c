@@ -60,6 +60,11 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
+#include "prof.h"
+#else
+#define PROF_EVENT(e, id, value)
+#endif
+#ifndef PLATFORM_N64
 #include "net/net.h"
 #include "net/netmsg.h"
 #include "net/netprop.h"
@@ -3018,6 +3023,8 @@ void chrBeginDeath(struct chrdata *chr, struct coord *dir, f32 relangle, s32 hit
 	s32 animnum;
 	u32 stack1;
 	struct prop *prop = chr->prop;
+
+	PROF_EVENT(PROF_E_CHR_DEATH, chr->chrnum, aplayernum);
 	struct model *model = chr->model;
 	u32 stack2;
 	s32 race = CHRRACE(chr);
@@ -15042,6 +15049,7 @@ void cutsceneStart(u32 ailistid)
 {
 	struct prop *prop;
 
+	PROF_EVENT(PROF_E_CUTSCENE_START, ailistid, 0);
 #if PAL
 	var8009e388pf = 0;
 #else

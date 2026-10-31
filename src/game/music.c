@@ -12,6 +12,11 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
+#include "prof.h"
+#else
+#define PROF_EVENT(e, id, value)
+#endif
+#ifndef PLATFORM_N64
 #include "system.h"
 // MUSICDIAG (#396) - temporary probe: who asks the music for what, in order
 #define MUSICDIAG(fmt, ...) sysLogPrintf(LOG_NOTE, "MUSICDIAG: f=%d stage=%02x root=%d menutrack=%d " fmt, \
@@ -241,6 +246,8 @@ void musicQueueStartEvent(u32 tracktype, u32 tracknum, f32 arg2, u16 volume)
 		g_MusicEventQueue[g_MusicEventQueueLength].volume = volume;
 		g_MusicEventQueue[g_MusicEventQueueLength].eventtype = MUSICEVENTTYPE_PLAY;
 		g_MusicEventQueue[g_MusicEventQueueLength].id = g_MusicNextEventId++;
+		PROF_EVENT(PROF_E_MUSIC_QUEUE, g_MusicEventQueue[g_MusicEventQueueLength].id,
+				(MUSICEVENTTYPE_PLAY << 24) | ((tracktype & 0xff) << 16) | (tracknum & 0xffff));
 		g_MusicEventQueue[g_MusicEventQueueLength].numattempts = 0;
 		g_MusicEventQueue[g_MusicEventQueueLength].failcount = 0;
 		g_MusicEventQueueLength++;
@@ -254,6 +261,8 @@ void musicQueueStopEvent(s32 tracktype)
 		g_MusicEventQueue[g_MusicEventQueueLength].tracktype = tracktype;
 		g_MusicEventQueue[g_MusicEventQueueLength].eventtype = MUSICEVENTTYPE_STOP;
 		g_MusicEventQueue[g_MusicEventQueueLength].id = g_MusicNextEventId++;
+		PROF_EVENT(PROF_E_MUSIC_QUEUE, g_MusicEventQueue[g_MusicEventQueueLength].id,
+				(MUSICEVENTTYPE_STOP << 24) | ((tracktype & 0xff) << 16));
 		g_MusicEventQueue[g_MusicEventQueueLength].numattempts = 0;
 		g_MusicEventQueue[g_MusicEventQueueLength].failcount = 0;
 		g_MusicEventQueueLength++;
@@ -269,6 +278,8 @@ void musicQueueFadeEvent(s32 tracktype, f32 arg1, bool keepafterfade)
 		g_MusicEventQueue[g_MusicEventQueueLength].keepafterfade = keepafterfade;
 		g_MusicEventQueue[g_MusicEventQueueLength].eventtype = MUSICEVENTTYPE_FADE;
 		g_MusicEventQueue[g_MusicEventQueueLength].id = g_MusicNextEventId++;
+		PROF_EVENT(PROF_E_MUSIC_QUEUE, g_MusicEventQueue[g_MusicEventQueueLength].id,
+				(MUSICEVENTTYPE_FADE << 24) | ((tracktype & 0xff) << 16));
 		g_MusicEventQueue[g_MusicEventQueueLength].numattempts = 0;
 		g_MusicEventQueue[g_MusicEventQueueLength].failcount = 0;
 		g_MusicEventQueueLength++;

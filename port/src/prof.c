@@ -28,6 +28,7 @@
 #include "system.h"
 #include "config.h"
 #include "fs.h"
+#include "net/net.h"
 #include "prof.h"
 
 #ifdef PLATFORM_WIN32
@@ -72,6 +73,18 @@ static const struct profzonedef g_ProfZones[PROF_ZONE_COUNT] = {
 	[PROF_Z_AI_INTERP]     = { "ai.interp",       1 },
 	[PROF_Z_NET_OUT]       = { "net.out",         0 },
 	[PROF_Z_NET_IN]        = { "net.in",          0 },
+};
+
+static const char *const g_ProfEventNames[PROF_EVENT_COUNT] = {
+	[PROF_E_CHR_DEATH]      = "chr.death",
+	[PROF_E_PLAYER_DIE]     = "player.die",
+	[PROF_E_PLAYER_RESPAWN] = "player.respawn",
+	[PROF_E_TICKMODE]       = "tickmode",
+	[PROF_E_CUTSCENE_START] = "cutscene.start",
+	[PROF_E_CUTSCENE_SHOT]  = "cutscene.shot",
+	[PROF_E_MUSIC_QUEUE]    = "music.queue",
+	[PROF_E_MUSIC_DONE]     = "music.done",
+	[PROF_E_HUD_LABEL]      = "hud.label",
 };
 
 const char *profZoneName(s32 zone)
@@ -186,8 +199,12 @@ static u64 g_FxtBytesWritten = 0;
 #define FXT_STR_NETOUT   (2 + PROF_ZONE_COUNT + 3)
 #define FXT_STR_PROCESS  (2 + PROF_ZONE_COUNT + 4)
 #define FXT_STR_MARK     (2 + PROF_ZONE_COUNT + 5)
-#define FXT_STR_SEAT(s)  (2 + PROF_ZONE_COUNT + 6 + (s))
-#define FXT_STR_COUNT    (2 + PROF_ZONE_COUNT + 6 + PROF_SEATS)
+#define FXT_STR_ID       (2 + PROF_ZONE_COUNT + 6)
+#define FXT_STR_TICK     (2 + PROF_ZONE_COUNT + 7)
+#define FXT_STR_LVFRAME  (2 + PROF_ZONE_COUNT + 8)
+#define FXT_STR_EVENT(e) (2 + PROF_ZONE_COUNT + 9 + (e))
+#define FXT_STR_SEAT(s)  (2 + PROF_ZONE_COUNT + 9 + PROF_EVENT_COUNT + (s))
+#define FXT_STR_COUNT    (2 + PROF_ZONE_COUNT + 9 + PROF_EVENT_COUNT + PROF_SEATS)
 
 // thread table: seat s -> ref s + 1 (0 would mean inline)
 #define FXT_PROCESS_KOID 1ull
@@ -285,6 +302,12 @@ static void fxtWriteHeader(void)
 	fxtString(FXT_STR_NETOUT, "net.out.pkt");
 	fxtString(FXT_STR_PROCESS, "process");
 	fxtString(FXT_STR_MARK, "mark");
+	fxtString(FXT_STR_ID, "id");
+	fxtString(FXT_STR_TICK, "nettick");
+	fxtString(FXT_STR_LVFRAME, "lvframe60");
+	for (s32 e = 0; e < PROF_EVENT_COUNT; e++) {
+		fxtString(FXT_STR_EVENT(e), g_ProfEventNames[e]);
+	}
 
 	char pname[128];
 #ifdef VERSION_HASH
@@ -479,6 +502,27 @@ void profMark(const char *text)
 		memcpy(dst, text, len);
 		g_FxtWp += strwords;
 	}
+}
+
+// an engine event: instant on the current seat's track (or the frame track
+// outside a player loop) with id, value, the net tick and lvframe60 as args
+void profEvent(s32 ev, u32 id, u32 value)
+{
+	if (ev < 0 || ev >= PROF_EVENT_COUNT || !g_FxtFile) {
+		return;
+	}
+	const u64 now = profNow();
+	s32 seat = g_Vars.currentplayernum;
+	if (seat < 0 || seat >= PROF_SEAT_NONE || g_Vars.currentplayer == NULL) {
+		seat = PROF_SEAT_NONE;
+	}
+	fxtReserve();
+	fxtWord(fxtEventHeader(6, FXT_EV_INSTANT, 4, FXT_THREAD_REF(seat), FXT_STR_EVENT(ev)));
+	fxtWord(now);
+	fxtWord((u64)FXT_ARG_UINT32 | (1ull << 4) | ((u64)FXT_STR_ID << 16) | ((u64)id << 32));
+	fxtWord((u64)FXT_ARG_UINT32 | (1ull << 4) | ((u64)FXT_STR_VALUE << 16) | ((u64)value << 32));
+	fxtWord((u64)FXT_ARG_UINT32 | (1ull << 4) | ((u64)FXT_STR_TICK << 16) | ((u64)g_NetTick << 32));
+	fxtWord((u64)FXT_ARG_UINT32 | (1ull << 4) | ((u64)FXT_STR_LVFRAME << 16) | ((u64)g_Vars.lvframe60 << 32));
 }
 
 // ---- frame --------------------------------------------------------------

@@ -5,6 +5,7 @@
     tools/prof/profread.py run.fxt --frames        per-frame totals as CSV
     tools/prof/profread.py a.fxt --diff b.fxt      ratio table b/a (the dedupe table)
     tools/prof/profread.py run.fxt --counters      count series (props ticked, net bytes per message id, ...)
+    tools/prof/profread.py run.fxt --events [NAME|all]   engine events (chr.death, player.die, tickmode, music.*, hud.label ...)
     tools/prof/profread.py run.fxt --after 600 --before 1200   frame window
 
 /mark <text> in the chat box or the server console drops a marker; the table
@@ -39,6 +40,8 @@ class Trace:
         self.cells = defaultdict(lambda: [0, 0, 0, 0])
         self.frames = []         # (frame number, ts)
         self.marks = []          # (frame number, ts, text) from /mark
+        self.events = []         # (frame number, ts, seat, name, {arg: value}) engine-emitted
+        self.zone_names = set()
         self.counters = defaultdict(list)   # (seat, name, id) -> [(ts, value)]
         self.records = 0
         self.truncated = False
@@ -128,6 +131,9 @@ def parse(path, after=None, before=None):
                 j += max(asize, 1)
             if evtype == EV_INSTANT and name == "mark":
                 t.marks.append((cur_frame, ts, args[0][1] if args else ""))
+            elif evtype == EV_INSTANT and name != "frame":
+                if in_window:
+                    t.events.append((cur_frame, ts, t.seat_name(tref), name, dict(args)))
             elif evtype == EV_INSTANT and name == "frame":
                 cur_frame = args[0][1] if args else None
                 in_window = (after is None or (cur_frame is not None and cur_frame >= after)) and \
@@ -202,6 +208,32 @@ def counters(t):
         print("%-8s %-16s %6d %9d %12d %12.1f" % (seat, name, cid, len(vs), sum(vs), sum(vs) / len(vs)))
 
 
+def events(t, which=None):
+    """engine-emitted instant events, one per line, oldest first"""
+    tps = t.ticks_per_sec
+    f0 = t.first_ts or 0
+    if not which:
+        from collections import Counter
+        c = Counter(e[3] for e in t.events)
+        print("%-16s %8s" % ("event", "n"))
+        for k, n in sorted(c.items()):
+            print("%-16s %8d" % (k, n))
+        print("(--events NAME for the lines; NAME=all for everything)")
+        return
+    print("%8s %9s %-8s %-16s %10s %12s %9s %9s" % ("frame", "t(s)", "seat", "event", "id", "value", "nettick", "lvframe60"))
+    for fnum, ts, seat, name, a in t.events:
+        if which != "all" and name != which:
+            continue
+        value = a.get("value", "")
+        if name == "music.queue" and isinstance(value, int):
+            # eventtype<<24 | tracktype<<16 | tracknum: 1 play, 2 stop, 3 fade
+            kind = {1: "play", 2: "stop", 3: "fade"}.get(value >> 24, str(value >> 24))
+            value = "%s t%d #%d" % (kind, (value >> 16) & 0xff, value & 0xffff)
+        print("%8s %9.3f %-8s %-16s %10s %12s %9s %9s" % (
+            fnum if fnum is not None else "-", (ts - f0) / tps, seat, name,
+            a.get("id", ""), value, a.get("nettick", ""), a.get("lvframe60", "")))
+
+
 def frames_csv(t):
     """one line per frame: frame number, wall ms since the first frame, then the frame-track zones' inclusive ms"""
     # re-walk is simpler than keeping per-frame cells in parse(); do a cheap second pass keyed by frame marks
@@ -216,6 +248,7 @@ def main():
     ap.add_argument("trace")
     ap.add_argument("--diff", metavar="OTHER", help="second trace; print OTHER/trace ratios")
     ap.add_argument("--counters", action="store_true")
+    ap.add_argument("--events", nargs="?", const="", metavar="NAME", help="engine events: no NAME lists kinds and counts; NAME (or all) prints them")
     ap.add_argument("--frames", action="store_true")
     ap.add_argument("--after", type=int, help="first frame number to include")
     ap.add_argument("--before", type=int, help="frame number to stop at")
@@ -225,6 +258,8 @@ def main():
         diff(t, parse(a.diff, a.after, a.before))
     elif a.counters:
         counters(t)
+    elif a.events is not None:
+        events(t, a.events)
     elif a.frames:
         frames_csv(t)
     else:

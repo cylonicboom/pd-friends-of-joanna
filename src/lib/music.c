@@ -12,6 +12,11 @@
 #include "data.h"
 #include "types.h"
 #ifndef PLATFORM_N64
+#include "prof.h"
+#else
+#define PROF_EVENT(e, id, value)
+#endif
+#ifndef PLATFORM_N64
 #include "system.h"
 #endif
 
@@ -1307,6 +1312,8 @@ void musicTickEvents(void)
 #endif
 
 				if (result != RESULT_FAIL) {
+					PROF_EVENT(PROF_E_MUSIC_DONE, event->id, event->numattempts);
+
 					// Remove the item from the queue
 					g_MusicEventQueueLength--;
 

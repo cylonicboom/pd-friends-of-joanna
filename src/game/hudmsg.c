@@ -25,6 +25,11 @@
 #include "lib/vi.h"
 #include "data.h"
 #include "types.h"
+#ifndef PLATFORM_N64
+#include "prof.h"
+#else
+#define PROF_EVENT(e, id, value)
+#endif
 #include "string.h"
 #ifndef PLATFORM_N64
 #include "net/net.h"
@@ -466,6 +471,7 @@ static Gfx *hudmsgRenderPlayerNameStack(Gfx *gdl, u32 alpha)
 		x = viewleft + viewwidth - g_HudPaddingX - textwidth - 3;
 		y = liney;
 
+		PROF_EVENT(PROF_E_HUD_LABEL, mpchrnum, alpha);
 		gdl = textRender(gdl, &x, &y, label, g_CharsHandelGothicSm, g_FontHandelGothicSm, textcolour, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
 
 		liney += textheight + 1;
@@ -552,6 +558,7 @@ Gfx *hudmsgRenderPlayerName(Gfx *gdl, u32 alpha)
 	}
 #endif
 
+	PROF_EVENT(PROF_E_HUD_LABEL, mpchrnum, alpha);
 	gdl = textRender(gdl, &x, &y, name, g_CharsHandelGothicSm, g_FontHandelGothicSm, textcolour, 0x000000a0, viGetWidth(), viGetHeight(), 0, 0);
 
 #ifndef PLATFORM_N64
