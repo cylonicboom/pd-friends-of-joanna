@@ -245,7 +245,9 @@ void schedSubmitTask(OSSched *sc, OSScTask *t)
 
 void schedStartFrame(OSSched *sc)
 {
+	PROF_BEGIN(PROF_Z_GFX_STARTFRAME);
 	videoStartFrame();
+	PROF_END();
 	// netplay (Kai be46717): poll ENet and apply inbound state before the
 	// game tick. The session caps the render rate (default 120) because
 	// g_NetTick advances once per rendered frame.

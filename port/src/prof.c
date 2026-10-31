@@ -49,6 +49,7 @@ static const struct profzonedef g_ProfZones[PROF_ZONE_COUNT] = {
 	[PROF_Z_NET_END]       = { "net.endframe",    0 },
 	[PROF_Z_LVRENDER]      = { "lvrender",        0 },
 	[PROF_Z_GFXSWAP]       = { "gfxswap",         0 },
+	[PROF_Z_GFX_STARTFRAME] = { "gfx.startframe", 0 },
 	[PROF_Z_GFX_RUN]       = { "gfx.run",         0 },
 	[PROF_Z_GFX_ENDFRAME]  = { "gfx.endframe",    0 },
 	[PROF_Z_PROF_DUMP]     = { "prof.dump",       0 },

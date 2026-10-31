@@ -41,6 +41,7 @@ enum profzone {
 	PROF_Z_NET_END,         // netEndFrame
 	PROF_Z_LVRENDER,        // lvRender, whole
 	PROF_Z_GFXSWAP,         // gfxSwapBuffers (pool swap, not the drawing)
+	PROF_Z_GFX_STARTFRAME,  // videoStartFrame: gfx_start_frame (where a vsync wait may land)
 	PROF_Z_GFX_RUN,         // videoSubmitCommands: fast3d walks the display list into GL
 	PROF_Z_GFX_ENDFRAME,    // videoEndFrame: present / vsync wait
 	PROF_Z_PROF_DUMP,       // the dump's own cost (write + flush)
