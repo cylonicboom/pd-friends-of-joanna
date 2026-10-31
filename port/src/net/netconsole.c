@@ -43,6 +43,7 @@
 #include "system.h"
 #include "config.h"
 #include "net/net.h"
+#include "prof.h"
 
 #define NETCON_LINE 256
 
@@ -73,6 +74,7 @@ struct netconverb {
 static const struct netconverb s_conVerbs[] = {
 	{ "help",       CONV_PLAYER },
 	{ "?",          CONV_PLAYER },
+	{ "mark",       CONV_PLAYER }, // `mark <text>`: a marker in the --profdump trace and pd.log
 	{ "status",     0 },
 	{ "players",    0 },
 	{ "kick",       0 },
@@ -279,6 +281,7 @@ static void netConHelp(void)
 	netConPrintf("stage [n|name|list] | roles [b,c,a,n] | diff [0-3] | start | ready | unready");
 	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
 	netConPrintf("captain key [new] | standing [list|reload|add <id|name|principal>|rm <principal>]");
+	netConPrintf("mark <text>  - a marker in the --profdump trace and pd.log");
 }
 
 // `standing list|reload|add|rm` - the two-source standing list (netcaptain.c).
@@ -703,6 +706,12 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 
 	if (strcmp(cmd, "help") == 0 || strcmp(cmd, "?") == 0) {
 		netConHelp();
+	} else if (strcmp(cmd, "mark") == 0) {
+		profMark(arg);
+		netConPrintf(g_ProfOn ? "marked: %s" : "mark: profiler is off (--prof / --profdump); logged only: %s", arg);
+		if (!g_ProfOn) {
+			sysLogPrintf(LOG_NOTE, "mark %s", arg);
+		}
 	} else if (strcmp(cmd, "status") == 0) {
 		netConStatus();
 	} else if (strcmp(cmd, "players") == 0) {

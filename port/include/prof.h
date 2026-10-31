@@ -90,6 +90,7 @@ void profZoneBegin(s32 zone);
 void profZoneEnd(void);
 void profZoneCount(s32 zone, u32 n);
 void profNetMsg(s32 in, u32 msgid, u32 bytes);  // per-message-class byte counters (in: 1 = received)
+void profMark(const char *text);                // an instant event on the frame track: /mark from the console
 
 const char *profZoneName(s32 zone);
 s32 profZoneIsPerSeat(s32 zone);

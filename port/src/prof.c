@@ -168,6 +168,7 @@ static u64 g_FxtBytesWritten = 0;
 // argument types
 #define FXT_ARG_UINT32   2
 #define FXT_ARG_UINT64   4
+#define FXT_ARG_STRING   6
 #define FXT_ARG_KOID     8
 
 // zircon object types (zircon/syscalls/types.h)
@@ -182,8 +183,9 @@ static u64 g_FxtBytesWritten = 0;
 #define FXT_STR_NETIN    (2 + PROF_ZONE_COUNT + 2)
 #define FXT_STR_NETOUT   (2 + PROF_ZONE_COUNT + 3)
 #define FXT_STR_PROCESS  (2 + PROF_ZONE_COUNT + 4)
-#define FXT_STR_SEAT(s)  (2 + PROF_ZONE_COUNT + 5 + (s))
-#define FXT_STR_COUNT    (2 + PROF_ZONE_COUNT + 5 + PROF_SEATS)
+#define FXT_STR_MARK     (2 + PROF_ZONE_COUNT + 5)
+#define FXT_STR_SEAT(s)  (2 + PROF_ZONE_COUNT + 6 + (s))
+#define FXT_STR_COUNT    (2 + PROF_ZONE_COUNT + 6 + PROF_SEATS)
 
 // thread table: seat s -> ref s + 1 (0 would mean inline)
 #define FXT_PROCESS_KOID 1ull
@@ -280,6 +282,7 @@ static void fxtWriteHeader(void)
 	fxtString(FXT_STR_NETIN, "net.in.msg");
 	fxtString(FXT_STR_NETOUT, "net.out.pkt");
 	fxtString(FXT_STR_PROCESS, "process");
+	fxtString(FXT_STR_MARK, "mark");
 
 	char pname[128];
 #ifdef VERSION_HASH
@@ -443,6 +446,36 @@ void profNetMsg(s32 in, u32 msgid, u32 bytes)
 		g_ProfNetOut += bytes;
 		g_ProfCur[PROF_Z_NET_OUT][PROF_SEAT_NONE].count += bytes;
 		g_ProfCur[PROF_Z_NET_OUT][PROF_SEAT_NONE].calls++;
+	}
+}
+
+// a marker: instant event on the frame track, name "mark", the text as an
+// inline string argument - what the person saw, on the frame they saw it
+void profMark(const char *text)
+{
+	if (!g_ProfOn) {
+		return;
+	}
+	const u64 now = profNow();
+	sysLogPrintf(LOG_NOTE, "prof: mark %s", text ? text : "");
+	if (!g_FxtFile) {
+		return;
+	}
+	size_t len = text ? strlen(text) : 0;
+	if (len > 200) {
+		len = 200;
+	}
+	const u32 strwords = (u32)((len + 7) / 8);
+	// header, ts, arg header (string, inline value ref = 0x8000 | len), value words
+	fxtReserve();
+	fxtWord(fxtEventHeader(3 + strwords, FXT_EV_INSTANT, 1, FXT_THREAD_REF(PROF_SEAT_NONE), FXT_STR_MARK));
+	fxtWord(now);
+	fxtWord((u64)FXT_ARG_STRING | ((u64)(1 + strwords) << 4) | ((u64)FXT_STR_MARK << 16) | ((u64)(0x8000 | len) << 32));
+	if (strwords) {
+		u64 *dst = &g_FxtBuf[g_FxtWp];
+		memset(dst, 0, strwords * sizeof(u64));
+		memcpy(dst, text, len);
+		g_FxtWp += strwords;
 	}
 }
 

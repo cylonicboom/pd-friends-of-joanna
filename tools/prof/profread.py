@@ -7,6 +7,10 @@
     tools/prof/profread.py run.fxt --counters      count series (props ticked, net bytes per message id, ...)
     tools/prof/profread.py run.fxt --after 600 --before 1200   frame window
 
+/mark <text> in the chat box or the server console drops a marker; the table
+header lists them with their frame numbers, so --after/--before can window
+on what you saw.
+
 The timeline view is not here: open the .fxt in https://ui.perfetto.dev
 (it reads the format directly; seats are tracks). This tool is the table
 side - no dependencies, reads a truncated file up to the last whole record.
@@ -34,6 +38,7 @@ class Trace:
         # per (seat name, zone name): [count, total_ticks, max_ticks, self_ticks]
         self.cells = defaultdict(lambda: [0, 0, 0, 0])
         self.frames = []         # (frame number, ts)
+        self.marks = []          # (frame number, ts, text) from /mark
         self.counters = defaultdict(list)   # (seat, name, id) -> [(ts, value)]
         self.records = 0
         self.truncated = False
@@ -110,11 +115,20 @@ def parse(path, after=None, before=None):
                     val = (ah >> 32) & 0xffffffff
                 elif atype in (3, 4) and asize >= 2:
                     val = words[j + 1]
+                elif atype == 6:
+                    sref = (ah >> 32) & 0xffff
+                    if sref & 0x8000:
+                        ln = sref & 0x7fff
+                        val = data[(j + 1) * 8:(j + 1) * 8 + ln].decode("utf-8", "replace")
+                    else:
+                        val = t.strings.get(sref, "?")
                 else:
                     val = None
                 args.append((aname, val))
                 j += max(asize, 1)
-            if evtype == EV_INSTANT and name == "frame":
+            if evtype == EV_INSTANT and name == "mark":
+                t.marks.append((cur_frame, ts, args[0][1] if args else ""))
+            elif evtype == EV_INSTANT and name == "frame":
                 cur_frame = args[0][1] if args else None
                 in_window = (after is None or (cur_frame is not None and cur_frame >= after)) and \
                             (before is None or (cur_frame is not None and cur_frame < before))
@@ -155,6 +169,8 @@ def table(t, frames):
           "  TRUNCATED" if t.truncated else ""))
     if t.first_ts is not None and t.last_ts is not None:
         print("# span %.1f s" % ((t.last_ts - t.first_ts) / tps))
+    for fnum, ts, text in t.marks:
+        print("# mark @ frame %s, %.1f s: %s" % (fnum, (ts - t.first_ts) / tps, text))
     print("%-8s %-16s %9s %9s %9s %9s %8s" % ("seat", "zone", "self/fr", "incl/fr", "max", "total", "calls/fr"))
     print("%-8s %-16s %9s %9s %9s %9s %8s" % ("", "", "ms", "ms", "ms", "ms", ""))
     for (seat, zone), (calls, incl, mx, self_t) in rows:
