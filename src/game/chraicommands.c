@@ -58,6 +58,7 @@
 #include "types.h"
 #ifndef PLATFORM_N64
 #include "net/net.h"
+#include "prof.h"
 #endif
 #ifdef PLATFORM_N64
 #define netGhostUnsetMask(chr, flags) (flags) // no netplay on N64
@@ -5112,6 +5113,13 @@ bool aiNoOp00db(void)
  */
 bool aiEndLevel(void)
 {
+#ifndef PLATFORM_N64
+	{
+		bool isglobal = false;
+		PROF_EVENT(PROF_E_ENDLEVEL, g_Vars.chrdata ? g_Vars.chrdata->chrnum : 0xffff,
+				chraiGetListIdByList(g_Vars.ailist, &isglobal));
+	}
+#endif
 	if (debugAllowEndLevel()) {
 		if (g_IsTitleDemo) {
 			mainChangeToStage(STAGE_TITLE);

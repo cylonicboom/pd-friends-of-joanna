@@ -16079,6 +16079,9 @@ bool chrHasFlagById(struct chrdata *ref, u32 chrnum, u32 flag, u32 bank)
 
 void chrSetStageFlag(struct chrdata *chr, u32 flag)
 {
+	if ((g_StageFlags & flag) != flag) { // a transition, not every pass of a script loop
+		PROF_EVENT(PROF_E_STAGEFLAG_SET, flag, chr ? chr->chrnum : 0xffff);
+	}
 	g_StageFlags |= flag;
 
 #ifndef PLATFORM_N64
@@ -16095,6 +16098,9 @@ void chrSetStageFlag(struct chrdata *chr, u32 flag)
 
 void chrUnsetStageFlag(struct chrdata *chr, u32 flag)
 {
+	if (g_StageFlags & flag) {
+		PROF_EVENT(PROF_E_STAGEFLAG_UNSET, flag, chr ? chr->chrnum : 0xffff);
+	}
 	g_StageFlags = g_StageFlags & ~flag;
 
 #ifndef PLATFORM_N64

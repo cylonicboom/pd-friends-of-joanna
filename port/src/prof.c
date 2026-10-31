@@ -85,6 +85,10 @@ static const char *const g_ProfEventNames[PROF_EVENT_COUNT] = {
 	[PROF_E_MUSIC_QUEUE]    = "music.queue",
 	[PROF_E_MUSIC_DONE]     = "music.done",
 	[PROF_E_HUD_LABEL]      = "hud.label",
+	[PROF_E_STAGEFLAG_SET]  = "stageflag.set",
+	[PROF_E_STAGEFLAG_UNSET] = "stageflag.unset",
+	[PROF_E_OBJECTIVE]      = "objective",
+	[PROF_E_ENDLEVEL]       = "ai.endlevel",
 };
 
 const char *profZoneName(s32 zone)

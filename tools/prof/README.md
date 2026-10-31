@@ -44,7 +44,10 @@ each tagged with the net tick and lvframe60 so two machines' traces line up:
 `chr.death` (chrnum, killer), `player.die`, `player.respawn`, `tickmode`
 (new, old; 6 = cutscene), `cutscene.start` (ailist), `cutscene.shot` (animnum, every camera cut), `music.queue` /
 `music.done` (event id; done carries the attempts it took), `hud.label`
-(mpchrnum, alpha - every player-name label drawn). `profread.py --events`
+(mpchrnum, alpha - every player-name label drawn); and the script side:
+`stageflag.set` / `stageflag.unset` (flag bits, the chr whose list did it),
+`objective` (index, new status: 0 incomplete, 1 complete, 2 failed),
+`ai.endlevel` (chr, ailist id). `profread.py --events`
 lists them; `--events NAME` or `all` prints the lines. Add a kind to `enum
 profevent` and its name in `prof.c`, then `PROF_EVENT` at the site.
 

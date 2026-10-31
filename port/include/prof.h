@@ -86,6 +86,11 @@ enum profevent {
 	PROF_E_MUSIC_QUEUE,     // musicQueue*Event: id = event id, value = eventtype<<24 | tracktype<<16 | tracknum
 	PROF_E_MUSIC_DONE,      // musicTickEvents, event left the queue: id = event id, value = attempts
 	PROF_E_HUD_LABEL,       // hudmsg player-name label drawn: id = mpchrnum, value = alpha
+	// the script side: what an ailist raised, and who raised it
+	PROF_E_STAGEFLAG_SET,   // chrSetStageFlag, only when a bit actually flips: id = flag bits, value = the chr running (0xffff = none)
+	PROF_E_STAGEFLAG_UNSET, // chrUnsetStageFlag, same
+	PROF_E_OBJECTIVE,       // an objective's status changed: id = objective index, value = new status (0 incomplete, 1 complete, 2 failed)
+	PROF_E_ENDLEVEL,        // aiEndLevel ran: id = the chr running, value = its ailist id
 	PROF_EVENT_COUNT
 };
 

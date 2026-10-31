@@ -26,6 +26,11 @@
 #include "data.h"
 #include "types.h"
 #include "platform.h"
+#ifndef PLATFORM_N64
+#include "prof.h"
+#else
+#define PROF_EVENT(e, id, value)
+#endif
 
 struct objective *g_Objectives[MAX_OBJECTIVES];
 u32 g_ObjectiveStatuses[MAX_OBJECTIVES];
@@ -502,6 +507,7 @@ void objectivesCheckAll(void)
 			if (g_ObjectiveStatuses[i] != status) {
 				g_ObjectiveStatuses[i] = status;
 #ifndef PLATFORM_N64
+				PROF_EVENT(PROF_E_OBJECTIVE, i, status);
 				netobjchanged = true;
 
 				// Co-op client: if WE just completed an objective the host doesn't know
