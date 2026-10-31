@@ -789,6 +789,7 @@ extern s32 g_NetHaveChallenge;
 void netServerIdEnsure(void);
 void netCaptainKeyLoad(void);
 s32 netCaptainKeyNew(void);
+void netCaptainKeyCli(void);
 s32 netCaptainKeySign(const u8 nonce[32], const u8 serverid[32], u8 pk[32], u8 sig[64]);
 s32 netCaptainKeyVerify(const u8 nonce[32], const u8 pk[32], const u8 sig[64]);
 void netPkBase64(const u8 pk[32], char out[45]);

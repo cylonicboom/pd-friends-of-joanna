@@ -183,6 +183,17 @@ int main(int argc, const char **argv)
 		saveDumpFromArgs();
 	}
 
+	// --captain-key <pak|serial>: the pak's pk: principal from pd.ini, then
+	// exit. Needs the save dir resolved and pd.ini parsed, nothing else - no
+	// ROM, no window. Log lines go to stderr so stdout is just the answer.
+	if (sysArgCheck("--captain-key")) {
+		g_SysLogToStderr = 1;
+		sysInit();
+		fsInit();
+		configInit();
+		netCaptainKeyCli();
+	}
+
 	// the asset command line owns stdout; see assetCliFromArgs in pdmain.c
 	if (sysArgCheck("--asset") || sysArgCheck("--asset-probe")) {
 		g_SysLogToStderr = 1;

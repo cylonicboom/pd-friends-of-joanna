@@ -317,24 +317,23 @@ static void saveDumpPrint(const char *path, s32 json, const char *why)
 	}
 }
 
-void saveDumpFromArgs(void)
+/**
+ * Read a pak or eeprom image off disk into the dump buffers and walk its
+ * records. Returns 0 with `why` filled when it is not a PD save; the caller
+ * decides whether that is fatal. Shared by --save-dump and --captain-key.
+ */
+static s32 saveDumpLoad(const char *path, char *why, size_t whylen)
 {
-	const char *path = sysArgGetString("--save-dump");
-	const s32 json = sysArgCheck("--save-json");
-	char why[96] = "";
 	FILE *fp;
 	u8 *img;
 	long size;
 
-	if (!path || !path[0]) {
-		return;
-	}
-
+	why[0] = '\0';
 	fp = fopen(path, "rb");
 
 	if (!fp) {
-		fprintf(stderr, "--save-dump %s: can't open\n", path);
-		_exit(2);
+		snprintf(why, whylen, "can't open");
+		return 0;
 	}
 
 	fseek(fp, 0, SEEK_END);
@@ -342,15 +341,18 @@ void saveDumpFromArgs(void)
 	fseek(fp, 0, SEEK_SET);
 
 	if (size <= 0 || size > MPK_SIZE) {
-		fprintf(stderr, "--save-dump %s: %ld bytes is neither a controller pak nor an eeprom\n", path, size);
-		_exit(2);
+		snprintf(why, whylen, "%ld bytes is neither a controller pak nor an eeprom", size);
+		fclose(fp);
+		return 0;
 	}
 
 	img = calloc(1, MPK_SIZE);
 
 	if (fread(img, 1, size, fp) != (size_t)size) {
-		fprintf(stderr, "--save-dump %s: short read\n", path);
-		_exit(2);
+		snprintf(why, whylen, "short read");
+		fclose(fp);
+		free(img);
+		return 0;
 	}
 
 	fclose(fp);
@@ -360,8 +362,8 @@ void saveDumpFromArgs(void)
 		g_SaveDumpBlock = 0x20;
 
 		if (!saveDumpFromMpk(img, why, sizeof(why))) {
-			fprintf(stderr, "--save-dump %s: %s\n", path, why);
-			_exit(1);
+			free(img);
+			return 0;
 		}
 	} else {
 		// the game pak (eeprom): PD's filesystem from byte 0, 0x10 blocks
@@ -370,7 +372,47 @@ void saveDumpFromArgs(void)
 		g_SaveDumpLen = size;
 	}
 
+	free(img);
 	saveDumpWalk();
+	return 1;
+}
+
+/**
+ * The device serial a pak's files carry - the serial the captain key and the
+ * MpPlayer.<serial>-<id> ini keys are filed under. From the first occupied
+ * record with a good header; 0 when the pak has none.
+ */
+s32 saveDumpPakSerial(const char *path, u32 *serial, char *why, size_t whylen)
+{
+	if (!saveDumpLoad(path, why, whylen)) {
+		return 0;
+	}
+	for (s32 i = 0; i < g_SaveDumpNumFiles; i++) {
+		const struct savedumpfile *f = &g_SaveDumpFiles[i];
+		if (f->headerok && f->h.occupied && f->h.filetype != PAKFILETYPE_TERMINATOR) {
+			*serial = f->h.deviceserial;
+			return 1;
+		}
+	}
+	snprintf(why, whylen, "no occupied file on this pak");
+	return 0;
+}
+
+void saveDumpFromArgs(void)
+{
+	const char *path = sysArgGetString("--save-dump");
+	const s32 json = sysArgCheck("--save-json");
+	char why[96] = "";
+
+	if (!path || !path[0]) {
+		return;
+	}
+
+	if (!saveDumpLoad(path, why, sizeof(why))) {
+		fprintf(stderr, "--save-dump %s: %s\n", path, why);
+		_exit(strcmp(why, "can't open") == 0 ? 2 : 1);
+	}
+
 	saveDumpPrint(path, json, why);
 	fflush(stdout);
 	// before anything has touched pd.ini or the saves

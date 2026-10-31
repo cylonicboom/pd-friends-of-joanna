@@ -26,6 +26,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "platform.h"
@@ -35,6 +36,7 @@
 #include "bss.h"
 #include "config.h"
 #include "system.h"
+#include "savedump.h"
 #include "external/monocypher.h"
 
 #define CAPKEY_SEED_LEN 32
@@ -237,4 +239,68 @@ void netPkShort(const u8 *pk, char out[12])
 	netPkBase64(pk, full);
 	memcpy(out, full, 8);
 	out[8] = '\0';
+}
+
+/**
+ * --captain-key <pak.mpk | serial-hex>: print the pk: principal of that
+ * pak's captain key and exit - the string a standing list (Captain.Standing,
+ * servers.json) takes. Runs from main() after configInit, before the ROM is
+ * touched, so it works on a box with no game data. The seed comes from
+ * pd.ini (--savedir / --basedir decide which one); a pak that has never
+ * joined a net game has no key yet, and this says so rather than minting
+ * one: minting is the game's, so the key written is the key played with.
+ *
+ *   pd --captain-key paks/page-0000.mpk      -> pk:...
+ *   pd --captain-key 1b7a
+ */
+void netCaptainKeyCli(void)
+{
+	const char *arg = sysArgGetString("--captain-key");
+	u32 serial = 0;
+	char why[96] = "";
+	u8 seed[CAPKEY_SEED_LEN];
+	char keyname[48];
+	char seedhex[CAPKEY_SEED_LEN * 2 + 1] = "";
+	u8 secret[64];
+	u8 public[32];
+	char b64[45];
+
+	if (!arg || !arg[0]) {
+		fprintf(stderr, "--captain-key: which pak? a .mpk / eeprom.bin path, or the serial in hex\n");
+		_exit(2);
+	}
+
+	// a path if it exists on disk, else a hex serial
+	FILE *probe = fopen(arg, "rb");
+	if (probe) {
+		fclose(probe);
+		if (!saveDumpPakSerial(arg, &serial, why, sizeof(why))) {
+			fprintf(stderr, "--captain-key %s: %s\n", arg, why);
+			_exit(1);
+		}
+	} else {
+		char *end = NULL;
+		serial = (u32)strtoul(arg, &end, 16);
+		if (!end || *end || !arg[0]) {
+			fprintf(stderr, "--captain-key %s: not a file and not a hex serial\n", arg);
+			_exit(2);
+		}
+	}
+
+	snprintf(keyname, sizeof(keyname), "Pak.%x.CaptainKey", serial);
+	configRegisterString(keyname, seedhex, sizeof(seedhex));
+
+	if (!netCaptainKeyParseSeed(seedhex, seed)) {
+		fprintf(stderr, "--captain-key: pak %x has no key in pd.ini yet (%s) - it is minted the first time the pak joins or hosts a net game\n",
+				serial, keyname);
+		_exit(1);
+	}
+
+	crypto_eddsa_key_pair(secret, public, seed); // wipes seed
+	crypto_wipe(secret, sizeof(secret));
+	netPkBase64(public, b64);
+	printf("pk:%s\n", b64);
+	fprintf(stderr, "pak %x\n", serial);
+	fflush(stdout);
+	_exit(0);
 }
