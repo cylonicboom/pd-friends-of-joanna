@@ -2843,12 +2843,19 @@ void netStartFrame(void)
 	// netplay-perf-review-2026 "smaller"). Re-drain the queue with
 	// enet_host_check_events after each service, and cap the number of socket
 	// services so a sustained packet flood can't stall the frame.
+	//
+	// timeout 0: enet_host_service's timeout is how long it WAITS in select
+	// for a packet when none is queued, and a frame has nothing to wait for.
+	// with 1 it slept ~1.1 ms every frame on an idle host (measured with the
+	// zone profiler: net.startframe 1.149 ms/frame over 6954 frames on a
+	// self-hosted team mission, min 0.006 ms on the frames a packet was
+	// already there). 0 still reads the socket and queues what arrived.
 	const s32 maxservices = 8;
 	s32 numservices = 0;
 	ENetEvent ev = { .type = ENET_EVENT_TYPE_NONE };
 	for (;;) {
 		if (enet_host_check_events(g_NetHost, &ev) <= 0) {
-			if (numservices >= maxservices || enet_host_service(g_NetHost, &ev, 1) <= 0) {
+			if (numservices >= maxservices || enet_host_service(g_NetHost, &ev, 0) <= 0) {
 				break;
 			}
 			numservices++;
