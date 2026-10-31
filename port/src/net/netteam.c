@@ -55,6 +55,7 @@
 s32 g_NetTeamStageIndex = -1;
 s32 g_NetTeamDifficulty = DIFF_A;
 s32 g_NetTeamWait = -1;
+static void netTeamSeatedRoles(u8 *roles); // the seats a start fills, both ways in
 s32 g_NetTeamArmed = 0; // --team given: netTeamServerTick auto-starts at --team-wait. the window never sets it.
 u8 g_NetTeamRoles[MAX_PLAYERS] = { PLAYERROLE_BOND, PLAYERROLE_COOP, PLAYERROLE_NONE, PLAYERROLE_NONE };
 char g_NetTeamRolesCfg[16] = "b,c,n,n";
@@ -429,13 +430,14 @@ void netTeamServerTick(void)
 		return;
 	}
 
-	// seats beyond the connected players stay in the manifest with their role;
-	// playermgrAllocatePlayers(-1) seats them and netPlayersAllocate leaves them
-	// unbound (no client), so they idle. One start per arm.
+	// the same seating as the window's start: only the clients in the lobby
+	// get their seat's role, the rest are PLAYERROLE_NONE. One start per arm.
+	u8 roles[MAX_PLAYERS];
+	netTeamSeatedRoles(roles);
 	const s32 idx = g_NetTeamStageIndex;
 	g_NetTeamArmed = 0; // one start per arm; the stage stays selected for the lobby window
 	s_teamArmedTick = 0;
-	netTeamEnterStage(idx, g_NetTeamDifficulty, g_NetTeamRoles);
+	netTeamEnterStage(idx, g_NetTeamDifficulty, roles);
 }
 
 /**
@@ -795,22 +797,33 @@ s32 netTeamCanStart(char *why, u32 whylen)
 	#undef WHY
 }
 
-s32 netTeamStart(void)
+/**
+ * The roles a start actually seats: seats nobody sits in carry no role, so
+ * fojo's players[] stays dense and the manifest seats exactly the clients
+ * in the lobby. Both ways in (the window and --team-wait) go through this;
+ * passing g_NetTeamRoles verbatim spawned idle no-profile pawns for every
+ * configured seat nobody had joined.
+ */
+static void netTeamSeatedRoles(u8 *roles)
 {
-	if (!netTeamCanStart(NULL, 0)) {
-		return 0;
-	}
-
-	// seats nobody sits in carry no role: fojo's players[] is dense and the
-	// manifest seats exactly the clients in the lobby
-	u8 roles[MAX_PLAYERS];
-	memset(roles, PLAYERROLE_NONE, sizeof(roles));
+	netTeamLobbyBuild();
+	memset(roles, PLAYERROLE_NONE, MAX_PLAYERS);
 	for (s32 i = 0; i < g_NetTeamLobby.numclients; i++) {
 		const s32 seat = g_NetTeamLobby.clients[i].seat;
 		if (seat >= 0 && seat < MAX_PLAYERS) {
 			roles[seat] = g_NetTeamRoles[seat];
 		}
 	}
+}
+
+s32 netTeamStart(void)
+{
+	if (!netTeamCanStart(NULL, 0)) {
+		return 0;
+	}
+
+	u8 roles[MAX_PLAYERS];
+	netTeamSeatedRoles(roles);
 
 	const s32 idx = g_NetTeamStageIndex;
 	s_teamArmedTick = 0;
