@@ -57,6 +57,7 @@ extern u64 g_Rng2Seed; // src/game/rng2_c.c
 #include "fs.h"
 #include "romdata.h"
 #include "utils.h"
+#include "prof.h"
 
 // Forward-decl only: input.h can't be included here — windows.h (pulled in via
 // enet.h -> winsock2.h) #defines VK_RETURN/VK_ESCAPE/... which collide with
@@ -2454,6 +2455,7 @@ static void netServerEvReceive(struct netclient *cl)
 	// returning 0 (= *_NOP, rc stays 0) without advancing rp, so without this
 	// guard the loop would spin forever on a malformed packet (remote hang).
 	while (!rc && !cl->in.error && netbufReadLeft(&cl->in) > 0) {
+		const u32 rp0 = cl->in.rp;
 		msgid = netbufReadU8(&cl->in);
 		switch (msgid) {
 			case CLC_NOP: rc = 0; break;
@@ -2477,6 +2479,7 @@ static void netServerEvReceive(struct netclient *cl)
 				rc = 1;
 				break;
 		}
+		PROF_NETMSG(1, msgid, cl->in.rp - rp0);
 	}
 
 	if (rc) {
@@ -2522,6 +2525,7 @@ static void netClientEvReceive(struct netclient *cl)
 	// See netServerEvReceive: stop on cl->in.error too so a truncated trailing
 	// message can't spin this loop forever (SVC_NOP on a non-advancing read).
 	while (!rc && !cl->in.error && netbufReadLeft(&cl->in) > 0) {
+		const u32 rp0 = cl->in.rp;
 		msgid = netbufReadU8(&cl->in);
 		switch (msgid) {
 			case SVC_NOP: rc = 0; break;
@@ -2577,6 +2581,7 @@ static void netClientEvReceive(struct netclient *cl)
 				rc = 1;
 				break;
 		}
+		PROF_NETMSG(1, msgid, cl->in.rp - rp0);
 	}
 
 	if (rc) {
@@ -3983,6 +3988,7 @@ u32 netSend(struct netclient *dstcl, struct netbuf *buf, const s32 reliable, con
 		} else {
 			enet_peer_send(dstcl->peer, chan, p);
 		}
+		PROF_NETMSG(0, 0, buf->wp);
 	}
 
 	const u32 ret = buf->wp;
@@ -4732,7 +4738,7 @@ static bool netChrAnimLoopSpan(const struct chrnetsnap *snap, f32 *loopstart, f3
 	return true;
 }
 
-void netChrInterpolate(struct chrdata *chr)
+static void netChrInterpolateBody(struct chrdata *chr)
 {
 	if (!g_NetChrInterp || g_NetMode != NETMODE_CLIENT || !chr || !chr->prop) {
 		return;
@@ -5050,6 +5056,14 @@ void netChrInterpolate(struct chrdata *chr)
 			chr->model->anim->speed = speed;
 		}
 	}
+}
+
+// the zone profiler's ai.interp: the client-side counterpart of ai.exec
+void netChrInterpolate(struct chrdata *chr)
+{
+	PROF_BEGIN(PROF_Z_AI_INTERP);
+	netChrInterpolateBody(chr);
+	PROF_END();
 }
 
 static struct coord netLagCompLookup(const struct netclient *cl, u32 target_tick)

@@ -11,6 +11,7 @@
 #include "data.h"
 #include "types.h"
 #include "system.h" // sysLogPrintf/LOG_* for the ailist iteration cap
+#include "prof.h"
 #include "game/luaai.h" // struct luaaiselfinfo / luaaiplayerinfo for the bridge
 
 bool (*g_CommandPointers[])(void) = {
@@ -912,6 +913,10 @@ void chraiRunLoop(void)
 #endif
 		}
 	}
+
+#ifndef PLATFORM_N64
+	PROF_COUNT(PROF_Z_AI_EXEC, iterations);
+#endif
 }
 
 // The original interpreter: prepare the entity, then run its list in C.
@@ -953,17 +958,24 @@ void chraiExecute(void *entity, s32 proptype)
 		return;
 	}
 
+	PROF_BEGIN(PROF_Z_AI_EXEC);
+
 	// g_LuaAiEnabled is set once at startup: on when a Lua script is
 	// present, unless Game.LuaAiMode or --lua-ai / --no-lua-ai force it (see
 	// port/src/main.c). With it off this is exactly chraiExecuteBytecode.
 	if (g_LuaAiEnabled) {
 		s_LuaSteps = 0;
 		luaaiExecute(entity, proptype);
+		PROF_COUNT(PROF_Z_AI_EXEC, s_LuaSteps);
+		PROF_END();
 		return;
 	}
 #endif
 
 	chraiExecuteBytecode(entity, proptype);
+#ifndef PLATFORM_N64
+	PROF_END();
+#endif
 }
 
 u32 chraiGetCommandLength(u8 *ailist, u32 aioffset)
