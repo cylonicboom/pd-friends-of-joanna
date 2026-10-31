@@ -91,6 +91,8 @@ void profZoneEnd(void);
 void profZoneCount(s32 zone, u32 n);
 void profNetMsg(s32 in, u32 msgid, u32 bytes);  // per-message-class byte counters (in: 1 = received)
 void profMark(const char *text);                // an instant event on the frame track: /mark from the console
+void profNetSessionBegin(const char *role);     // Prof.OnNet: open a dated dump when a net session starts
+void profNetSessionEnd(void);                   // ... and close it at disconnect
 
 const char *profZoneName(s32 zone);
 s32 profZoneIsPerSeat(s32 zone);

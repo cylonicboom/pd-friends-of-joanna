@@ -13,7 +13,11 @@ inside the frame. `PROF_BEGIN(z)` / `PROF_END()` bracket a zone,
 | `--prof` | live table only (Profiler panel, netdiag `prof` line) |
 | `--profdump run.fxt` | live table + every edge streamed to `run.fxt` |
 | `Prof.Enabled=1`, `Prof.DumpPath=` | the same from pd.ini |
+| `--prof-net` / `Prof.OnNet=1` | a dump per net session, opened when you host or join and closed at disconnect: `<Prof.DumpDir>/<YYYYmmdd-HHMMSS>-<host|client|dedicated>.fxt`, dir defaults to `$S/prof` (the save dir) |
 | fojOS Profiler panel, "profile zones" | toggle live |
+
+CLI flags and the panel checkbox never write back to pd.ini; only the
+`Prof.*` keys you put there persist.
 
 Off, every hook is one load and one branch. On, an edge is one monotonic
 clock read and a few stores; the dump adds a 16-byte store. The dump's own

@@ -27,6 +27,7 @@
 #include "bss.h"
 #include "system.h"
 #include "config.h"
+#include "fs.h"
 #include "prof.h"
 
 #ifdef PLATFORM_WIN32
@@ -547,14 +548,69 @@ void profCrashFlush(void)
 	}
 }
 
+// ---- net sessions -------------------------------------------------------
+
+static s32 g_ProfCfgOnNet = 0;              // Prof.OnNet, the ini value
+static s32 g_ProfOnNet = 0;                 // ini or --prof-net; never written back
+static char g_ProfDumpDir[512] = "$S/prof"; // Prof.DumpDir
+static s32 g_ProfNetOwnsDump = 0;           // this session opened the dump (not --profdump)
+static s32 g_ProfOnBeforeNet = 0;
+
+/**
+ * Prof.OnNet=1: every net session (hosting or joining) gets its own dump,
+ * <Prof.DumpDir>/<YYYYmmdd-HHMMSS>-<role>.fxt, opened at netStartServer /
+ * netStartClient and closed at netDisconnect, with the profiler on for the
+ * session. A --profdump already running is left alone.
+ */
+void profNetSessionBegin(const char *role)
+{
+	if (!g_ProfOnNet || g_FxtFile) {
+		return;
+	}
+	const char *dir = fsFullPath(g_ProfDumpDir);
+	char dirbuf[512];
+	snprintf(dirbuf, sizeof(dirbuf), "%s", dir);
+	fsCreateDir(dirbuf);
+
+	char stamp[32];
+	const time_t now = time(NULL);
+	strftime(stamp, sizeof(stamp), "%Y%m%d-%H%M%S", localtime(&now));
+	char path[1024];
+	snprintf(path, sizeof(path), "%s/%s-%s.fxt", dirbuf, stamp, role ? role : "net");
+
+	g_ProfOnBeforeNet = g_ProfOn;
+	g_ProfOn = 1;
+	fxtOpen(path);
+	g_ProfNetOwnsDump = g_FxtFile != NULL;
+	if (!g_ProfNetOwnsDump) {
+		g_ProfOn = g_ProfOnBeforeNet;
+	}
+}
+
+void profNetSessionEnd(void)
+{
+	if (!g_ProfNetOwnsDump) {
+		return;
+	}
+	fxtClose();
+	g_ProfNetOwnsDump = 0;
+	g_ProfOn = g_ProfOnBeforeNet;
+}
+
 // ---- init ---------------------------------------------------------------
 
 static char g_ProfCfgDumpPath[1024] = "";
+static s32 g_ProfCfgEnabled = 0;
 
+// the ini keys bind their own variables: a CLI flag or the panel checkbox
+// flips the live g_ProfOn / g_ProfOnNet and must not be written back to
+// pd.ini at exit, or one --prof run leaves the profiler on for every run after
 PD_CONSTRUCTOR static void profConfigInit(void)
 {
-	configRegisterInt("Prof.Enabled", &g_ProfOn, 0, 1);
+	configRegisterInt("Prof.Enabled", &g_ProfCfgEnabled, 0, 1);
 	configRegisterString("Prof.DumpPath", g_ProfCfgDumpPath, sizeof(g_ProfCfgDumpPath) - 1);
+	configRegisterInt("Prof.OnNet", &g_ProfCfgOnNet, 0, 1);
+	configRegisterString("Prof.DumpDir", g_ProfDumpDir, sizeof(g_ProfDumpDir) - 1);
 }
 
 void profInit(void)
@@ -571,9 +627,12 @@ void profInit(void)
 	if (!dump && g_ProfCfgDumpPath[0]) {
 		dump = g_ProfCfgDumpPath;
 	}
+	g_ProfOn = g_ProfCfgEnabled;
 	if (sysArgCheck("--prof") || dump) {
 		g_ProfOn = 1;
 	}
+	// --prof-net / Prof.OnNet: a dump per net session
+	g_ProfOnNet = g_ProfCfgOnNet || sysArgCheck("--prof-net");
 	if (g_ProfOn && dump) {
 		fxtOpen(dump);
 	}

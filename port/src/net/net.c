@@ -1418,6 +1418,7 @@ s32 netStartServer(u16 port, s32 maxclients)
 	sysLogPrintf(LOG_NOTE, "NET: created server on port %u", port);
 
 	netDiagOpen();
+	profNetSessionBegin(g_NetDedicatedLatch ? "dedicated" : "host"); // Prof.OnNet
 	netDiagLogf("server_start", "port=%u maxclients=%d protocol=%d", port, maxclients, NET_PROTOCOL_VER);
 
 	// Ask the router to forward the game port to us (async; Net.UPnP.Enabled).
@@ -2143,6 +2144,7 @@ s32 netStartClient(const char *addr)
 	sysLogPrintf(LOG_NOTE, "NET: waiting for response from %s...", addr);
 
 	netDiagOpen();
+	profNetSessionBegin("client"); // Prof.OnNet
 	netDiagLogf("client_start", "addr=%s protocol=%d", addr, NET_PROTOCOL_VER);
 
 	return 0;
@@ -2226,6 +2228,7 @@ s32 netDisconnect(void)
 
 	netDiagLogf("disconnect", "wasingame=%d", (int)wasingame);
 	netDiagClose();
+	profNetSessionEnd();
 
 	sysLogPrintf(LOG_CHAT, "NET: disconnected");
 	netChatLogPush("disconnected");
