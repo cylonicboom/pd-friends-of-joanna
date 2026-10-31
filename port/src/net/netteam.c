@@ -800,7 +800,12 @@ s32 netTeamCanStart(char *why, u32 whylen)
 			bondseated = 1;
 		}
 		if (seat == 0) {
-			continue; // the host
+			// the host: a listen host with a role is a player and can start
+			// alone (a team mission seats one); a --dedicated host is not
+			if (!g_NetDedicatedLatch && g_NetTeamRoles[seat] != PLAYERROLE_NONE) {
+				seated++;
+			}
+			continue;
 		}
 		if (g_NetTeamRoles[seat] == PLAYERROLE_NONE) {
 			WHY("%s has no role", g_NetTeamLobby.clients[i].name);
@@ -809,7 +814,7 @@ s32 netTeamCanStart(char *why, u32 whylen)
 		seated++;
 	}
 	if (seated == 0) {
-		WHY("nobody has joined yet");
+		WHY(g_NetDedicatedLatch ? "nobody has joined yet" : "nobody is seated");
 		return 0;
 	}
 	if (!bondseated) {
