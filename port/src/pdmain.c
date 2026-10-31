@@ -94,6 +94,7 @@
 #include <ultra64.h>
 #include "watchdog.h"
 #include "net/net.h"
+#include "prof.h"
 
 extern u32 g_NumModDirs;
 extern u8 *g_MempHeap;
@@ -1272,6 +1273,9 @@ void mainLoop(void) {
         schedStartFrame(&g_Sched);
         mainTick();
         schedEndFrame(&g_Sched);
+        // zone profiler: the frame is netStartFrame .. netEndFrame inclusive;
+        // commit its table and write the frame mark
+        profFrameEnd((u32)g_Vars.lvframenum);
       }
 
       // The frame is presented and audio is queued; the loop is about to idle.
@@ -1375,8 +1379,10 @@ void mainTick(void) {
       // reads it. No-op unless --detrec / --detplay.
       detFrameBegin();
 
+      PROF_BEGIN(PROF_Z_FRAME_TICK);
       lvTick();
       playermgrShuffle();
+      PROF_END();
 
       if (g_StageNum < STAGE_TITLE) {
         // Lua possession (controllable cube, pd.possess_spawn) freecam input —
@@ -1395,12 +1401,14 @@ void mainTick(void) {
                                   g_Vars.currentplayer->viewheight);
           }
 
+          PROF_BEGIN(PROF_Z_TICKPLAYER);
           lvTickPlayer();
 
           // Possession: after the body ticks, override this player's camera to
           // follow the controllable cube's fly pose. No-op unless possession is
           // active.
           luaPossessApplyCamera();
+          PROF_END();
         }
       }
 
@@ -1408,7 +1416,9 @@ void mainTick(void) {
       // {inputs, hash} record, or compare against the recording.
       detEndTick();
 
+      PROF_BEGIN(PROF_Z_LVRENDER);
       gdl = lvRender(gdl);
+      PROF_END();
 
       if (debugGetProfileMode() >= 2) {
         gdl = profileRender(gdl);
@@ -1421,7 +1431,9 @@ void mainTick(void) {
     }
 
     if (g_MainGameLogicEnabled) {
+      PROF_BEGIN(PROF_Z_GFXSWAP);
       gfxSwapBuffers();
+      PROF_END();
       viUpdateMode();
     }
 

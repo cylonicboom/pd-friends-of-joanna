@@ -38,6 +38,7 @@
 #include "textrace.h"
 #include "game/luaai.h"
 #include "det.h"
+#include "prof.h"
 #include "net/net.h"
 #include "net/netupnp.h"
 
@@ -152,6 +153,7 @@ static void cleanup(void)
 	saveQueueFlush();
 	nameTraceDumpSeats("cleanup after flush");
 	videoShutdown();
+	profShutdown();
 	crashShutdown();
 	// TODO: actually shut down all subsystems
 }
@@ -218,6 +220,8 @@ int main(int argc, const char **argv)
 	// rest of the net flags; a latch set here makes the main menu auto-host
 	// or auto-join once the save file is loaded.
 	netInit();
+	// zone profiler: --prof / --profdump <path> (port/src/prof.c)
+	profInit();
 	watchdogInit();
 
 	g_ValidGbcRomFound = romdataCheckGbcRom();

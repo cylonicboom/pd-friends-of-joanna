@@ -27,6 +27,7 @@
 #include "input.h"
 #include "mixer.h"
 #include "net/net.h"
+#include "prof.h"
 #include "net/netupnp.h"
 
 /*
@@ -236,7 +237,9 @@ void schedSubmitTask(OSSched *sc, OSScTask *t)
 	if (sc->doAudio && t->list.t.type == M_AUDTASK) {
 		// send this into the mixer
 	} else if (t->list.t.type == M_GFXTASK) {
+		PROF_BEGIN(PROF_Z_GFX_RUN);
 		videoSubmitCommands((Gfx *)t->list.t.data_ptr);
+		PROF_END();
 	}
 }
 
@@ -249,7 +252,9 @@ void schedStartFrame(OSSched *sc)
 	if (g_Vars.diffframe60) {
 		if (g_NetMode) {
 			videoCapFramerate(videoGetNetplayFramerateLimit());
+			PROF_BEGIN(PROF_Z_NET_START);
 			netStartFrame();
+			PROF_END();
 		} else {
 			videoCapFramerate(0);
 		}
@@ -323,14 +328,18 @@ void schedEndFrame(OSSched *sc)
 	// pump sits outside the g_NetMode gate so a DeletePortMapping after
 	// "stop hosting" keeps ticking; it is a no-op when idle.
 	if (g_Vars.diffframe60) {
+		PROF_BEGIN(PROF_Z_NET_END);
 		netEndFrame();
+		PROF_END();
 	}
 	netUpnpTick();
 
 	sndHandleRetrace();
 	schedAudioFrame(sc);
 	schedRenderCrashPeriodically(sc->frameCount);
+	PROF_BEGIN(PROF_Z_GFX_ENDFRAME);
 	videoEndFrame();
+	PROF_END();
 
 	if (g_MainIsBooting == 0) {
 		schedConsiderScreenshot();

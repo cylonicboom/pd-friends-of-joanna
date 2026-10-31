@@ -8,6 +8,7 @@
 #include <SDL.h>
 #include <PR/ultratypes.h>
 #include "system.h"
+#include "prof.h"
 #include "platform.h"
 
 #define CRASH_LOG_FNAME "pd.crash.log"
@@ -204,6 +205,7 @@ static long __stdcall crashHandler(PEXCEPTION_POINTERS exinfo)
 
 	fflush(stderr);
 	fflush(stdout);
+	profCrashFlush();
 
 	crashStackTrace(msg, exinfo);
 
@@ -367,6 +369,7 @@ static void crashHandler(s32 sig, siginfo_t *siginfo, void *ctx)
 
 	fflush(stderr);
 	fflush(stdout);
+	profCrashFlush();
 
 	crashStackTrace(msg, sig, pc, siginfo ? siginfo->si_addr : NULL);
 
