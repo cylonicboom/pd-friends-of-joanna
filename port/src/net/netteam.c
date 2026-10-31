@@ -51,6 +51,7 @@
 #include "net/net.h"
 #include "net/netmsg.h"
 #include "net/netenet.h"
+#include "prof.h"
 
 s32 g_NetTeamStageIndex = -1;
 s32 g_NetTeamDifficulty = DIFF_A;
@@ -271,6 +272,29 @@ void netTeamDiagTick(void)
 		return;
 	}
 	lastsec = sec;
+	// zone profiler, when on: the last complete frame's table as one line per
+	// seat column that carries anything - zone=self_us/incl_us/calls/count
+	if (g_ProfOn) {
+		const struct profcell *cells = profLastFrame();
+		const double tous = 1000000.0 / (double)profTicksPerSecond();
+		for (s32 st = 0; st < PROF_SEATS; st++) {
+			char line[2048];
+			s32 n = 0;
+			s32 used = 0;
+			for (s32 z = 0; z < PROF_ZONE_COUNT && n < (s32)sizeof(line) - 64; z++) {
+				const struct profcell *c = &cells[z * PROF_SEATS + st];
+				if (!c->calls && !c->count) {
+					continue;
+				}
+				used = 1;
+				n += snprintf(line + n, sizeof(line) - n, " %s=%.0f/%.0f/%u/%u", profZoneName(z),
+						(double)c->self * tous, (double)c->incl * tous, c->calls, c->count);
+			}
+			if (used) {
+				netDiagLogf("prof", "seat=%d%s", st == PROF_SEAT_NONE ? -1 : st, line);
+			}
+		}
+	}
 	netDiagLogf("team", "stage=0x%02x tickmode=%d cutscene=%d lvframe60=%d players=%d bond=%d coop=%d anti=%d isteam=%d endscreen=%d csanim=%d csframe=%d ghost=%d",
 			g_StageNum, g_Vars.tickmode, g_Vars.in_cutscene, g_Vars.lvframe60, PLAYERCOUNT(),
 			g_Vars.bondplayernum, g_Vars.coopplayernum, g_Vars.antiplayernum, g_MissionConfig.isteam, g_MainIsEndscreen,

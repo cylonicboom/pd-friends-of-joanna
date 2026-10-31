@@ -34,6 +34,7 @@
 #include "asset.h"
 #include "system.h"
 #include "lib/profile.h"
+#include "prof.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -1515,6 +1516,90 @@ static void imguiOverlayDrawProfilerPanel(void)
 		ImGui::EndTable();
 	}
 	ImGui::TextDisabled("gfx pending: %u", latest.gfxpending);
+
+	// zone profiler (port/src/prof.c): the inside of the main-tick span, per
+	// zone and per seat, from the last complete frame
+	if (ImGui::CollapsingHeader("Zones", ImGuiTreeNodeFlags_DefaultOpen)) {
+		bool on = g_ProfOn != 0;
+		if (ImGui::Checkbox("profile zones", &on)) {
+			g_ProfOn = on ? 1 : 0;
+		}
+		if (const char *dump = profDumpPath()) {
+			ImGui::SameLine();
+			ImGui::TextDisabled("dumping to %s", dump);
+		}
+		if (g_ProfOn) {
+			const struct profcell *cells = profLastFrame();
+			const double tomsec = 1000.0 / (double)profTicksPerSecond();
+			// which seat columns carry anything this frame
+			bool seatused[PROF_SEATS] = { false };
+			for (s32 z = 0; z < PROF_ZONE_COUNT; ++z) {
+				for (s32 st = 0; st < PROF_SEATS; ++st) {
+					const struct profcell *c = &cells[z * PROF_SEATS + st];
+					if (c->calls || c->count) {
+						seatused[st] = true;
+					}
+				}
+			}
+			s32 ncols = 1;
+			for (s32 st = 0; st < PROF_SEATS; ++st) {
+				if (seatused[st]) {
+					ncols++;
+				}
+			}
+			if (ImGui::BeginTable("pd zones", ncols, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_SizingFixedFit)) {
+				ImGui::TableSetupColumn("zone");
+				for (s32 st = 0; st < PROF_SEATS; ++st) {
+					if (!seatused[st]) {
+						continue;
+					}
+					char hdr[16];
+					if (st == PROF_SEAT_NONE) {
+						snprintf(hdr, sizeof(hdr), "frame");
+					} else {
+						snprintf(hdr, sizeof(hdr), "seat %d", st);
+					}
+					ImGui::TableSetupColumn(hdr);
+				}
+				ImGui::TableHeadersRow();
+				for (s32 z = 0; z < PROF_ZONE_COUNT; ++z) {
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
+					ImGui::TextUnformatted(profZoneName(z));
+					s32 col = 1;
+					for (s32 st = 0; st < PROF_SEATS; ++st) {
+						if (!seatused[st]) {
+							continue;
+						}
+						ImGui::TableSetColumnIndex(col++);
+						const struct profcell *c = &cells[z * PROF_SEATS + st];
+						if (c->calls) {
+							// self ms, inclusive ms when children exist, calls, count
+							if (c->incl != c->self) {
+								ImGui::Text("%.3f/%.3f", (double)c->self * tomsec, (double)c->incl * tomsec);
+							} else {
+								ImGui::Text("%.3f", (double)c->self * tomsec);
+							}
+							if (c->calls > 1) {
+								ImGui::SameLine();
+								ImGui::TextDisabled("x%u", c->calls);
+							}
+							if (c->count) {
+								ImGui::SameLine();
+								ImGui::TextDisabled("n=%u", c->count);
+							}
+						} else if (c->count) {
+							ImGui::TextDisabled("n=%u", c->count);
+						} else {
+							ImGui::TextDisabled("-");
+						}
+					}
+				}
+				ImGui::EndTable();
+			}
+			ImGui::TextDisabled("ms self/incl, xcalls, n=count. --profdump <path> streams every edge as .fxt");
+		}
+	}
 
 	if (ImGui::CollapsingHeader("Markers")) {
 		static const char *markerNames[PROFILE_MARKER_SLOT_COUNT] = {
