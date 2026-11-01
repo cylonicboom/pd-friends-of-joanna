@@ -243,8 +243,9 @@ static inline void modDirInit(char* path, char* outModDir, s32 portable){
  *
  * An entry is a folder name under $B/mods, a path (anything with a '/'), or
  * $NAME to pull in another modlist. The list is picked by --modlist NAME,
- * else by `default`. --moddir, when given at all, wins over both, so a
- * one-off roster still works from the command line.
+ * else pd.ini's [Game] ModList (default "fojo+aio"), else the file's
+ * `default` when that key is empty. --moddir, when given at all, wins over
+ * all of them, so a one-off roster still works from the command line.
  *
  * Order still matters the way it always has (index 0 is the boot mod's
  * fallback row, the "mod_fojo" substring in pdmain.c finds the first match),
@@ -253,6 +254,15 @@ static inline void modDirInit(char* path, char* outModDir, s32 portable){
  */
 #define MODLIST_FNAME "$B/mods/modlists.txt"
 #define MODLIST_MAX_DEPTH 8
+
+// pd.ini [Game] ModList: the modlist mounted when no --modlist/--moddir is
+// given. Read on its own by fsInit, which runs before configInit.
+static char g_ModListName[64] = "fojo+aio";
+
+PD_CONSTRUCTOR static void modListConfigInit(void)
+{
+	configRegisterString("Game.ModList", g_ModListName, sizeof(g_ModListName) - 1);
+}
 
 // The body of `modlist NAME { ... }`, positioned just after the brace.
 static char *modListFind(char *data, const char *name, char *token)
@@ -454,9 +464,21 @@ s32 fsInit(void)
 	sysLogPrintf(LOG_NOTE, "base dir: %s", baseDir);
 	sysLogPrintf(LOG_NOTE, "save dir: %s", saveDir);
 
-	// No --moddir: the roster comes from a modlist. See modListLoad.
+	// No --moddir: the roster comes from a modlist. --modlist wins, then
+	// pd.ini's Game.ModList, then modlists.txt's `default`. pd.ini is not
+	// loaded until configInit, which needs saveDir from above, so the one key
+	// is read here on its own.
 	if (numModDirs == 0) {
-		numModDirs = modListLoad(sysArgGetString("--modlist"), sizeof(modDirs) / sizeof(modDirs[0]));
+		const char *listname = sysArgGetString("--modlist");
+		if (!listname) {
+			if (fsFileSize(CONFIG_PATH) > 0) {
+				configLoadKey(CONFIG_PATH, "Game.ModList");
+			}
+			if (g_ModListName[0]) {
+				listname = g_ModListName;
+			}
+		}
+		numModDirs = modListLoad(listname, sizeof(modDirs) / sizeof(modDirs[0]));
 	}
 	for (s32 i = 0; i < numModDirs; ++i) {
 		sysLogPrintf(LOG_NOTE, " mod dir %d: %s", i, modDirs[i]);

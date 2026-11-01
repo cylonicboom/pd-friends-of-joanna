@@ -1,6 +1,6 @@
-# Mod rosters. Pick one with --modlist NAME; with neither --modlist nor
-# --moddir the game mounts `default`. --moddir on the command line wins over
-# both.
+# Mod rosters. Pick one with --modlist NAME, or ModList= under [Game] in
+# pd.ini (it starts as "fojo+aio"). `default` here is only used when that key
+# is empty. --moddir on the command line wins over all of them.
 #
 # An entry is a folder name in this directory, a path, or $NAME to include
 # another modlist. Order matters: the first mod is the boot mod's fallback
