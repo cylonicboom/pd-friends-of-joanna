@@ -91,6 +91,9 @@ enum profevent {
 	PROF_E_STAGEFLAG_UNSET, // chrUnsetStageFlag, same
 	PROF_E_OBJECTIVE,       // an objective's status changed: id = objective index, value = new status (0 incomplete, 1 complete, 2 failed)
 	PROF_E_ENDLEVEL,        // aiEndLevel ran: id = the chr running, value = its ailist id
+	PROF_E_POSE,            // a seated player's body pose, at every cutscene shot and once a second in one:
+	                        //   id = seat<<24 | view theta deg<<9 | body yrot deg (both 0..359)
+	                        //   value = (aimsideback deg + 128) | (aimupback deg + 128)<<8 | (aimendback deg + 128)<<16, clamped
 	PROF_EVENT_COUNT
 };
 

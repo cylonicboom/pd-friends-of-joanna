@@ -89,6 +89,7 @@ static const char *const g_ProfEventNames[PROF_EVENT_COUNT] = {
 	[PROF_E_STAGEFLAG_UNSET] = "stageflag.unset",
 	[PROF_E_OBJECTIVE]      = "objective",
 	[PROF_E_ENDLEVEL]       = "ai.endlevel",
+	[PROF_E_POSE]           = "pose",
 };
 
 const char *profZoneName(s32 zone)

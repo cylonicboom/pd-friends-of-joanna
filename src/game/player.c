@@ -2385,6 +2385,56 @@ void playerStartCutscene2(void)
 	g_Vars.cutsceneskip60ths = 0;
 }
 
+#ifndef PLATFORM_N64
+/**
+ * The pose diary: where each seated player's body is pointing versus where
+ * the view is, packed into one event per seat. A twisted torso in a
+ * cutscene is a disagreement between these numbers, so they go in the
+ * trace at every shot and once a second while the scene plays.
+ */
+static u32 playerProfDeg(f32 rad)
+{
+	s32 d = (s32)(rad * (360.0f / M_BADTAU));
+	d %= 360;
+	if (d < 0) {
+		d += 360;
+	}
+	return (u32)d;
+}
+
+static u32 playerProfSignedDeg(f32 rad)
+{
+	s32 d = (s32)(rad * (360.0f / M_BADTAU)) + 128;
+	if (d < 0) {
+		d = 0;
+	} else if (d > 255) {
+		d = 255;
+	}
+	return (u32)d;
+}
+
+void playerProfPoses(void)
+{
+	if (!g_ProfOn) {
+		return;
+	}
+	for (s32 i = 0; i < PLAYERCOUNT(); i++) {
+		struct player *pl = g_Vars.players[i];
+		if (!pl || !pl->prop || !pl->prop->chr || !pl->prop->chr->model) {
+			continue;
+		}
+		struct chrdata *chr = pl->prop->chr;
+		const u32 theta = (u32)pl->vv_theta % 360u;
+		const u32 yrot = playerProfDeg(modelGetChrRotY(chr->model));
+		const u32 id = ((u32)i << 24) | (theta << 9) | yrot;
+		const u32 value = playerProfSignedDeg(chr->aimsideback)
+				| (playerProfSignedDeg(chr->aimupback) << 8)
+				| (playerProfSignedDeg(chr->aimendback) << 16);
+		profEvent(PROF_E_POSE, id, value);
+	}
+}
+#endif
+
 void playerStartCutscene(s16 animnum)
 {
 	if ((!g_IsTitleDemo && !g_Vars.autocutplaying)
@@ -2407,6 +2457,9 @@ void playerStartCutscene(s16 animnum)
 		if (g_Vars.currentplayer->haschrbody) {
 			playerStartCutscene2();
 		}
+#ifndef PLATFORM_N64
+		playerProfPoses();
+#endif
 	}
 }
 

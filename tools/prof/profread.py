@@ -220,18 +220,23 @@ def events(t, which=None):
             print("%-16s %8d" % (k, n))
         print("(--events NAME for the lines; NAME=all for everything)")
         return
-    print("%8s %9s %-8s %-16s %10s %12s %9s %9s" % ("frame", "t(s)", "seat", "event", "id", "value", "nettick", "lvframe60"))
+    print("%8s %9s %-8s %-16s %22s %18s %9s %9s" % ("frame", "t(s)", "seat", "event", "id", "value", "nettick", "lvframe60"))
     for fnum, ts, seat, name, a in t.events:
         if which != "all" and name != which:
             continue
         value = a.get("value", "")
+        ident = a.get("id", "")
+        if name == "pose" and isinstance(value, int) and isinstance(ident, int):
+            # id = seat<<24 | view theta<<9 | body yrot; value = side+128 | up+128<<8 | endback+128<<16
+            ident = "seat%d view%03d body%03d" % (ident >> 24, (ident >> 9) & 0x1ff, ident & 0x1ff)
+            value = "side%+d up%+d end%+d" % ((value & 0xff) - 128, ((value >> 8) & 0xff) - 128, ((value >> 16) & 0xff) - 128)
         if name == "music.queue" and isinstance(value, int):
             # eventtype<<24 | tracktype<<16 | tracknum: 1 play, 2 stop, 3 fade
             kind = {1: "play", 2: "stop", 3: "fade"}.get(value >> 24, str(value >> 24))
             value = "%s t%d #%d" % (kind, (value >> 16) & 0xff, value & 0xffff)
-        print("%8s %9.3f %-8s %-16s %10s %12s %9s %9s" % (
+        print("%8s %9.3f %-8s %-16s %22s %18s %9s %9s" % (
             fnum if fnum is not None else "-", (ts - f0) / tps, seat, name,
-            a.get("id", ""), value, a.get("nettick", ""), a.get("lvframe60", "")))
+            ident, value, a.get("nettick", ""), a.get("lvframe60", "")))
 
 
 def frames_csv(t):

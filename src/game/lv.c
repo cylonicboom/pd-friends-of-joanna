@@ -2409,6 +2409,13 @@ void lvTick(void)
 
 	lvCheckPauseStateChanged();
 
+#ifndef PLATFORM_N64
+	// the pose diary, once a second while a cutscene plays
+	if (g_Vars.tickmode == TICKMODE_CUTSCENE && g_Vars.lvframe60 % 60 == 0 && g_Vars.lvupdate60 > 0) {
+		playerProfPoses();
+	}
+#endif
+
 #if VERSION >= VERSION_NTSC_1_0
 	if (g_Vars.pakstocheck) {
 		paksTick();

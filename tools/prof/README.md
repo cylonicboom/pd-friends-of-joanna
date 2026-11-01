@@ -47,7 +47,10 @@ each tagged with the net tick and lvframe60 so two machines' traces line up:
 (mpchrnum, alpha - every player-name label drawn); and the script side:
 `stageflag.set` / `stageflag.unset` (flag bits, the chr whose list did it),
 `objective` (index, new status: 0 incomplete, 1 complete, 2 failed),
-`ai.endlevel` (chr, ailist id). `profread.py --events`
+`ai.endlevel` (chr, ailist id); `pose` (per seated player at every cutscene
+shot and once a second in one: view theta vs body yrot, and the aim
+side/up/endback joint angles - a twisted torso is a disagreement here;
+note the conventions differ, an aligned body reads yrot = 360 - theta). `profread.py --events`
 lists them; `--events NAME` or `all` prints the lines. Add a kind to `enum
 profevent` and its name in `prof.c`, then `PROF_EVENT` at the site.
 
