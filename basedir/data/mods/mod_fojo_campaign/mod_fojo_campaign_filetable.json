@@ -1,0 +1,27 @@
+{
+  "modName": "mod_fojo_campaign",
+  "description": "Friends of Joanna campaign levels.",
+  "author": "Catherine Reprobate",
+  "romSources": [
+    {
+      "id": "ntsc",
+      "filename": "pd.ntsc-final.z64",
+      "displayName": "Perfect Dark NTSC Final",
+      "expectedSize": 33554432,
+      "required": true,
+      "fallbackBehavior": "skip"
+    }
+  ],
+  "files": [
+    {
+      "name": "UsetupfojotestZ",
+      "source": {
+        "rom": "ntsc",
+        "lookup": "byName",
+        "alias": "UsetuplueZ"
+      },
+      "patch": "patches/UsetupfojotestZ.xdelta",
+      "description": "UsetupfojotestZ: UsetuplueZ from the player's own ROM, patched after inflate"
+    }
+  ]
+}

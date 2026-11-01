@@ -24,6 +24,7 @@ modlist fojo {
     mod_fojo-stages-fojo
     mod_fojo-characters-port4p
     mod_fojo-characters-fojo
+    mod_fojo_campaign
 }
 
 # only what four players need

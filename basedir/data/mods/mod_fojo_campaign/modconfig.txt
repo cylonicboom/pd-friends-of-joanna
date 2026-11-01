@@ -1,0 +1,41 @@
+modname "mod_fojo_campaign"
+modversion "0.1.0"
+
+# Mod: Friends of Joanna campaign
+# Author: Catherine Reprobate
+
+# fojo-test-area: Area 51 with every door, lift and object from Infiltration,
+# Rescue and Escape, and no characters. All three run on bg_lue with the same
+# pads, so the level is the vanilla bg/tiles/pads plus one new setup.
+#
+# The setup is src/setups/setupfojotest.c, made by tools/mergesetups from the
+# three setups' props (no chrs, no guard weapons, no ai-driven vehicles, no
+# objectives or tags; links rebuilt) and turned into C by tools/blahaj. It
+# ships as patches/UsetupfojotestZ.xdelta over the player's own UsetuplueZ:
+#   tools/mksetups --patches --patch-against setuplue \
+#       --mod-dir basedir/data/mods/mod_fojo_campaign setupfojotest
+#   tools/mkfiletable/mkfiletable mod_fojo_campaign --workspace <this dir> \
+#       --output <this dir> --rom-dir basedir/data --rom-dir <this dir>
+stage "fojo-test-area" {
+    bgfile "bgdata/bg_lue.seg"
+    tilesfile "bgdata/bg_lue_tilesZ"
+    padsfile "bgdata/bg_lue_padsZ"
+    setupfile "UsetupfojotestZ"
+    kind solo
+    # the renames kept are Infiltration's, whose text is in the LUE bank
+    langbank LUE
+    allocation "-ml0 -me0 -mgfx110 -mgfxtra80 -mvtx100 -ma500"
+    # Infiltration's env (near/far/transparency), overcast: grey sky, grey
+    # clouds, no sun
+    env {
+        near 15
+        far 12000
+        distfade 0 0 0
+        sky 0x6e6e74
+        suns none
+        clouds 1 5000 0 0x9c9ca0
+        water 0 0 0 0x000000
+        cloudsheight 0
+        transparency 1
+    }
+}
