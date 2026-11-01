@@ -68,6 +68,7 @@
 #include "net/net.h"
 #include "net/netmsg.h"
 #include "net/netprop.h"
+#include "chrorder.h"
 #endif
 #include "game/chaosstate.h"
 
@@ -14910,9 +14911,13 @@ void chraTick(struct chrdata *chr)
 		// setup's monitor scripts) have no syncid and still run: they hand
 		// out mission-start equipment and gate on stage flags the host
 		// mirrors (netmsgSvcStageFlagsRead OR-merges the local set).
+		//
+		// orders (port/src/chrorder.c): a chr given orders from the console
+		// or fojo-tui runs those in place of its ailist until they drain.
 		if (!chr->aipaused
 				&& !(g_NetMode == NETMODE_CLIENT && NET_COOP_GAME()
-					&& chr->prop && chr->prop->syncid))
+					&& chr->prop && chr->prop->syncid)
+				&& !chrOrderAiTick(chr))
 #endif
 		chraiExecute(chr, PROPTYPE_CHR);
 
