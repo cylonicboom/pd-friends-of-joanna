@@ -1,0 +1,45 @@
+# Mod rosters. Pick one with --modlist NAME; with neither --modlist nor
+# --moddir the game mounts `default`. --moddir on the command line wins over
+# both.
+#
+# An entry is a folder name in this directory, a path, or $NAME to include
+# another modlist. Order matters: the first mod is the boot mod's fallback
+# row, so the stage mod goes first.
+#
+# mod_fojo-stages-fojo and mod_fojo-stages-port4p are alternatives over the
+# same setups. Never put both in one list.
+
+modlist aio {
+    mod_aio_characters
+    mod_aio_darknoon
+    mod_aio_gex
+    mod_aio_goldfinger
+    mod_aio_kakariko
+    mod_aio_pdplus
+}
+
+# fojo's own stage changes and bios. The heads the bios belong to are in
+# characters-port4p, so it comes along.
+modlist fojo {
+    mod_fojo-stages-fojo
+    mod_fojo-characters-port4p
+    mod_fojo-characters-fojo
+}
+
+# only what four players need
+modlist port4p {
+    mod_fojo-stages-port4p
+    mod_fojo-characters-port4p
+}
+
+modlist "fojo+aio" {
+    $fojo
+    $aio
+}
+
+modlist "port4p+aio" {
+    $port4p
+    $aio
+}
+
+default "fojo+aio"

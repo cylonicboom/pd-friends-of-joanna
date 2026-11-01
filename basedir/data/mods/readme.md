@@ -2,7 +2,7 @@
 
 one folder per mod. a mod is a `modconfig.txt` plus a `filetable.dat` built from its `*_filetable.json` by `tools/mkfiletable`; `files/` and `textures/` only if it actually ships bytes.
 
-the default roster is in `port/src/fs.c`. anything else goes on with `--moddir`.
+which mods mount is a modlist in `modlists.txt`: `--modlist NAME` picks one, otherwise its `default`. `--moddir` on the command line still overrides both for a one-off.
 
 friends of joanna is four mods:
 

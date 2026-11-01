@@ -232,6 +232,155 @@ static inline void modDirInit(char* path, char* outModDir, s32 portable){
 	}
 }
 
+/*
+ * Modlists: named mod rosters in $B/mods/modlists.txt, in the modconfig
+ * grammar, the shape of yadloom's wadLists/profiles:
+ *
+ *   modlist aio  { mod_aio_characters mod_aio_gex ... }
+ *   modlist fojo { mod_fojo-stages-fojo mod_fojo-characters-port4p ... }
+ *   modlist "fojo+aio" { $fojo $aio }
+ *   default "fojo+aio"
+ *
+ * An entry is a folder name under $B/mods, a path (anything with a '/'), or
+ * $NAME to pull in another modlist. The list is picked by --modlist NAME,
+ * else by `default`. --moddir, when given at all, wins over both, so a
+ * one-off roster still works from the command line.
+ *
+ * Order still matters the way it always has (index 0 is the boot mod's
+ * fallback row, the "mod_fojo" substring in pdmain.c finds the first match),
+ * so a list says its order out loud. A mod named twice through two lists is
+ * kept once, where it first appears, and the repeat is logged.
+ */
+#define MODLIST_FNAME "$B/mods/modlists.txt"
+#define MODLIST_MAX_DEPTH 8
+
+// The body of `modlist NAME { ... }`, positioned just after the brace.
+static char *modListFind(char *data, const char *name, char *token)
+{
+	char *p = strParseToken(data, token, NULL);
+	while (p && token[0]) {
+		if (!strcmp(token, "modlist")) {
+			char listname[64];
+			p = strParseToken(p, token, NULL);
+			strncpy(listname, strUnquote(token), sizeof(listname) - 1);
+			listname[sizeof(listname) - 1] = '\0';
+			p = strParseToken(p, token, NULL);
+			if (!p || strcmp(token, "{")) {
+				sysLogPrintf(LOG_ERROR, "modlist: '%s' has no opening brace", listname);
+				return NULL;
+			}
+			if (!strcmp(listname, name)) {
+				return p;
+			}
+			while (p && token[0] && strcmp(token, "}")) {
+				p = strParseToken(p, token, NULL);
+			}
+		}
+		p = strParseToken(p, token, NULL);
+	}
+	return NULL;
+}
+
+static s32 modListExpand(char *data, const char *name, s32 depth, s32 count, s32 max)
+{
+	char token[UTIL_MAX_TOKEN + 1];
+
+	if (depth > MODLIST_MAX_DEPTH) {
+		sysLogPrintf(LOG_ERROR, "modlist: '%s' nests more than %d deep; is it including itself?", name, MODLIST_MAX_DEPTH);
+		return count;
+	}
+
+	char *p = modListFind(data, name, token);
+	if (!p) {
+		sysLogPrintf(LOG_ERROR, "modlist: no modlist named '%s' in %s", name, MODLIST_FNAME);
+		return count;
+	}
+
+	while ((p = strParseToken(p, token, NULL)) && token[0] && strcmp(token, "}")) {
+		char *entry = strUnquote(token);
+
+		if (entry[0] == '$' && !strchr(entry, '/')) {
+			char sub[64];
+			strncpy(sub, entry + 1, sizeof(sub) - 1);
+			sub[sizeof(sub) - 1] = '\0';
+			count = modListExpand(data, sub, depth + 1, count, max);
+			continue;
+		}
+
+		char dir[FS_MAXPATH + 1];
+		if (strchr(entry, '/')) {
+			snprintf(dir, sizeof(dir), "%s", entry);
+		} else {
+			snprintf(dir, sizeof(dir), "$B/mods/%s", entry);
+		}
+
+		bool dup = false;
+		for (s32 i = 0; i < count; ++i) {
+			if (!strcmp(modDirs[i], dir)) {
+				dup = true;
+				break;
+			}
+		}
+		if (dup) {
+			sysLogPrintf(LOG_WARNING, "modlist: '%s' is in the roster twice (again via '%s'); keeping the first", entry, name);
+			continue;
+		}
+		if (count >= max) {
+			sysLogPrintf(LOG_ERROR, "modlist: more than %d mods; '%s' and after dropped", max, entry);
+			break;
+		}
+		strncpy(modDirs[count], dir, FS_MAXPATH);
+		modDirs[count][FS_MAXPATH] = '\0';
+		count++;
+	}
+
+	return count;
+}
+
+// Fill modDirs[] from the modlist named `name`, or the file's `default`.
+static s32 modListLoad(const char *name, s32 max)
+{
+	u32 len = 0;
+	char *data = fsFileSize(MODLIST_FNAME) >= 0 ? fsFileLoad(MODLIST_FNAME, &len) : NULL;
+	if (!data) {
+		sysLogPrintf(LOG_ERROR, "modlist: no %s and no --moddir, so no mods are mounted", MODLIST_FNAME);
+		return 0;
+	}
+
+	char token[UTIL_MAX_TOKEN + 1];
+	char deflt[64] = "";
+	if (!name) {
+		char *p = strParseToken(data, token, NULL);
+		while (p && token[0]) {
+			if (!strcmp(token, "default")) {
+				p = strParseToken(p, token, NULL);
+				strncpy(deflt, strUnquote(token), sizeof(deflt) - 1);
+				break;
+			}
+			if (!strcmp(token, "modlist")) {
+				// skip the name and the block, so a mod called "default" in a list is not misread
+				p = strParseToken(p, token, NULL);
+				p = strParseToken(p, token, NULL);
+				while (p && token[0] && strcmp(token, "}")) {
+					p = strParseToken(p, token, NULL);
+				}
+			}
+			p = strParseToken(p, token, NULL);
+		}
+		if (!deflt[0]) {
+			sysLogPrintf(LOG_ERROR, "modlist: no --modlist given and %s has no `default`", MODLIST_FNAME);
+			sysMemFree(data);
+			return 0;
+		}
+		name = deflt;
+	}
+
+	const s32 count = modListExpand(data, name, 0, 0, max);
+	sysLogPrintf(LOG_NOTE, "modlist: '%s' mounts %d mods%s", name, count, deflt[0] ? " (the default)" : "");
+	sysMemFree(data);
+	return count;
+}
+
 s32 fsInit(void)
 {
 	sysGetExecutablePath(exeDir, FS_MAXPATH);
@@ -305,68 +454,12 @@ s32 fsInit(void)
 	sysLogPrintf(LOG_NOTE, "base dir: %s", baseDir);
 	sysLogPrintf(LOG_NOTE, "save dir: %s", saveDir);
 
-	// The shipped default when no --moddir is given. A hardcoded roster, and
-	// it stays one until a mods-dir scan or --boot-mod replaces it; order here
-	// is what resolution ties break on today.
-	//
-	// ORDER IS LOAD-BEARING, and not only as a tiebreak of last resort.
-	// romdataFileLoad takes a file's NAME from its owner's row but then hunts
-	// the BYTES through every mod dir in reverse, highest index first, so for
-	// a relative path two mods both ship, the LAST one listed wins. Measured
-	// on this roster: exactly four paths are contested with differing bytes,
-	// and all four are the files stage 0x24 names -
-	//   bgdata/bg_mp20.seg, bg_mp20_tilesZ, bg_mp20_padsZ, Ump_setupmp20Z
-	// which mod_gex_stages also carries. mod_kakariko_stages CLAIMS 0x24, so
-	// it has to sit after mod_gex_stages or Kakariko Village loads GoldenEye:X
-	// geometry. Nothing else on this roster is contested: the three character
-	// mods share 103 texture ids with the stage mods and every one of those is
-	// byte-identical.
-	//
-	// mod_fojo stays at index 0: pdmain.c finds the boot mod by looking for
-	// "mod_fojo" as a substring of a mod dir, and index 0 is also the row
-	// romdataFileLoad falls back to for an unowned id.
-	//
-	// The stage mods claim disjoint stages - 0x24, 0x10/0x49/0x07/0x14, 0x18 -
-	// so no stage is contested and each one's level data is reachable only on
-	// the stages it claims. The rest of their level data is inert until
-	// someone decides the claim question; see the AIO stage-claims decision.
-	//
-	// mod_darknoon_stages and mod_goldfinger_stages were added 2026-09-20 from
-	// the two mods in PD_AIO_March_2026 that had never been imported. They sit
-	// last, and that costs nothing: both were run through slugmod, so every
-	// file they carry has a name and a path no other mod can claim and every
-	// manifest row says `source: self`. They contest no bytes with anything
-	// above them, so their position is not load-bearing the way kakariko's is.
-	// They declare their stages BY NAME and take whatever free STAGE_EXTRA row
-	// the allocator gives them, so they contest no rows either.
-	//
-	// 2026-09-29: the shipped roster is mod_fojo + mod_gex_characters. That is
-	// what the basedir in pd-fojo/basedir carries and the only two that ship no
-	// third-party bytes - gex_characters is a manifest over the player's own
-	// gex.z64. The six others (aio_characters, gex_stages, aio_stages,
-	// kakariko_stages, darknoon_stages, goldfinger_stages) are loose AIO
-	// payload and stay out of the default until they come back either from the
-	// rom or through a prepare step over the player's own AIO download; the
-	// ordering notes above still hold for that day. Until then a basedir that
-	// has them mounts them with --moddir.
-	//
-	// 2026-11-01: mod_fojo split into four. stages-fojo and stages-port4p are
-	// alternatives over the same setups and never mount together; the default
-	// is stages-fojo. stages-fojo sits at index 0 because it is what the boot
-	// mod substring match ("mod_fojo", pdmain.c) lands on first, and it is the
-	// mod that claims the solo stages. To play without fojo's own stage
-	// changes, pass --moddir mod_fojo-stages-port4p in its place.
+	// No --moddir: the roster comes from a modlist. See modListLoad.
 	if (numModDirs == 0) {
-		numModDirs = 9;
-		strcpy(modDirs[0], "$B/mods/mod_fojo-stages-fojo");
-		strcpy(modDirs[1], "$B/mods/mod_fojo-characters-fojo");
-		strcpy(modDirs[2], "$B/mods/mod_fojo-characters-port4p");
-		strcpy(modDirs[3], "$B/mods/mod_aio_characters");
-		strcpy(modDirs[4], "$B/mods/mod_aio_darknoon");
-		strcpy(modDirs[5], "$B/mods/mod_aio_gex");
-		strcpy(modDirs[6], "$B/mods/mod_aio_goldfinger");
-		strcpy(modDirs[7], "$B/mods/mod_aio_kakariko");
-		strcpy(modDirs[8], "$B/mods/mod_aio_pdplus");
+		numModDirs = modListLoad(sysArgGetString("--modlist"), sizeof(modDirs) / sizeof(modDirs[0]));
+	}
+	for (s32 i = 0; i < numModDirs; ++i) {
+		sysLogPrintf(LOG_NOTE, " mod dir %d: %s", i, modDirs[i]);
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;
