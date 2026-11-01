@@ -5,13 +5,19 @@ modversion "0.1.0"
 # Author: Catherine Reprobate
 
 # fojo-test-area: Area 51 with every door, lift and object from Infiltration,
-# Rescue and Escape, and no characters. All three run on bg_lue with the same
+# Rescue and Escape, plus what Maian SOS has that does not land on a pad the
+# others use (and its saucer), and no characters. All four run on bg_lue with the same
 # pads, so the level is the vanilla bg/tiles/pads plus one new setup.
 #
 # The setup is src/setups/setupfojotest.c, made by tools/mergesetups from the
-# three setups' props (no chrs, no guard weapons, no ai-driven vehicles, no
-# objectives or tags; links rebuilt) and turned into C by tools/blahaj. It
-# ships as patches/UsetupfojotestZ.xdelta over the player's own UsetuplueZ:
+# four setups' props (no chrs, no guard weapons, no ai-driven vehicles, no
+# objectives or tags; links rebuilt; one object per pad, earlier stage wins,
+# so Rescue keeps its barrels over Escape's lab containers) and turned into C
+# by tools/blahaj:
+#   tools/mergesetups --one-per-pad --allow-overlap MODEL_ELVIS_SAUCER \
+#       build/ntsc-final/files/setup/setup{lue,lip,tra,sev}.bin -o merged.bin
+#   tools/blahaj --stage lue --name setupfojotest merged.bin -o src/setups/setupfojotest.c
+# It ships as patches/UsetupfojotestZ.xdelta over the player's own UsetuplueZ:
 #   tools/mksetups --patches --patch-against setuplue \
 #       --mod-dir basedir/data/mods/mod_fojo_campaign setupfojotest
 #   tools/mkfiletable/mkfiletable mod_fojo_campaign --workspace <this dir> \
