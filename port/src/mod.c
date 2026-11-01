@@ -3448,6 +3448,12 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	bool gavempsetup = false;
 	char arenaname[64];
 	arenaname[0] = '\0';
+
+	// The five file fields as they stood before this block, so a block that
+	// names a file it does not ship can be taken back whole (below).
+	const u32 prevfiles[5] = { stab->bgfileid, stab->tilefileid, stab->padsfileid, stab->setupfileid, stab->mpsetupfileid };
+	const s32 prevowner = g_ModStageNums[stagenum];
+
 	p = strParseToken(p, token, NULL);
 	while (p && token[0] && strcmp(token, "}") != 0) {
 		if (!strcmp(token, "bgfile")) {
@@ -3617,6 +3623,48 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	if (token[0] != '}') {
 		sysLogPrintf(LOG_ERROR, "modconfig: unterminated stage 0x%02x block", stagenum);
 		return NULL;
+	}
+
+	/*
+	 * A stage whose own files are not installed is refused, not loaded on
+	 * someone else's bytes. The file ids are mod-local, so a missing file
+	 * would otherwise resolve to whatever the ROM keeps at the same raw id -
+	 * a Submarine pick landing in Area 51, or a crash on a bg that does not
+	 * match its pads. Every file field this block set is checked; if any is
+	 * missing, the five fields and the stage's owner go back to what they
+	 * were before the block, and the stage is not registered, so it is never
+	 * listed as a mission or an arena. A block on a vanilla row leaves that
+	 * row vanilla, under its own name - never another map under this one's.
+	 */
+	{
+		static const char *const fieldnames[5] = { "bgfile", "tilesfile", "padsfile", "setupfile", "mpsetupfile" };
+		u32 *const fields[5] = { &stab->bgfileid, &stab->tilefileid, &stab->padsfileid, &stab->setupfileid, &stab->mpsetupfileid };
+		const char *own = modStageSlotName(stagenum);
+		const char *label = own ? own : (stageGetName(stagenum) ? stageGetName(stagenum) : "?");
+		bool missing = false;
+
+		for (s32 f = 0; f < 5; f++) {
+			const s32 id = (s32)*fields[f];
+
+			if (*fields[f] == prevfiles[f] || MOD_FILEID_MOD(id) < 0 || romdataFileIsAvailable(id)) {
+				continue;
+			}
+
+			const char *fname = romdataFileGetSlotName(MOD_FILEID_MOD(id), MOD_FILEID_RAW(id));
+			sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x (%s): %s '%s' (mod %d) is declared but not installed",
+					stagenum, label, fieldnames[f], fname ? fname : "?", MOD_FILEID_MOD(id));
+			missing = true;
+		}
+
+		if (missing) {
+			for (s32 f = 0; f < 5; f++) {
+				*fields[f] = prevfiles[f];
+			}
+			g_ModStageNums[stagenum] = prevowner;
+			sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x (%s): refused - mod %d does not ship every file it names, "
+					"so it is not listed and will not load on other files' bytes", stagenum, label, modnum);
+			return p;
+		}
 	}
 
 	// A solo-sized level on a row with no allocation entry and no key of its

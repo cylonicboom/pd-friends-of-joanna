@@ -611,6 +611,31 @@ static const struct romfilepatch filePatches[] = {
 // reads row 64 today; growing the array is what makes the guards honest, not
 // what makes the loops correct.
 static struct romfile fileSlots[MOD_TEX_MAP_MAX_MODS][ROMDATA_MAX_FILES];
+
+/*
+ * Are the ROM's bytes at this id the file the slot names?
+ *
+ * Every mod row starts as a copy of the ROM's table, so an id a mod never
+ * touched inherits the ROM's file under the ROM's name, and the ROM is the
+ * right answer for it. But file ids are mod-local: a mod that declares its own
+ * file at an id the ROM also has - every AIO arena does, from 0x01 up - names
+ * a different file there. When that file is not installed, the ROM's extent at
+ * the same id is somebody else's bytes: Area 51's bg served as Submarine's.
+ * Only a slot that still names the ROM's own file may fall through to it.
+ * With no ROM name table there is nothing to compare, and the old answer
+ * stands.
+ */
+static bool romdataSlotIsRomFile(s32 modNum, s32 fileNum)
+{
+	const char *rom = romdataRomFileName(fileNum);
+	const char *name = fileSlots[modNum][fileNum].name;
+
+	if (!rom || !name || name == rom) {
+		return true;
+	}
+
+	return strcmp(name, rom) == 0;
+}
 void fileSlotsInit(u32 numMods) {
 	// filePatches is the FILE_USETUPLUE fix and nothing else, so only that
 	// slot gets it - upstream keys the table the same way. Handing the list
@@ -3094,6 +3119,15 @@ u8 *romdataFileLoad(s32 fileNum, u32 *outSize)
 		if (fileSlots[modNum][fileNum].source == SRC_UNLOADED) {
 			// tried and failed, fall back to ROM
 			fileSlots[modNum][fileNum].source = SRC_ROM;
+			// For a file of the mod's own the ROM's bytes at this id are a
+			// different file. A stage that needs one is refused at modconfig
+			// time (modConfigParseStage), so reaching here is something else
+			// asking - say so loudly rather than serve it in silence.
+			if (fileSlots[modNum][fileNum].data && !romdataSlotIsRomFile(modNum, fileNum)) {
+				sysLogPrintf(LOG_ERROR, "romdataFileLoad: mod %d file %d (%s) is not installed; "
+						"the ROM's bytes at that id are '%s', a different file",
+						modNum, fileNum, fileSlots[modNum][fileNum].name, romdataRomFileName(fileNum));
+			}
 			DEBUG_FLOAD("romdataFileLoad: file %d (%s) FALLBACK TO ROM (context=%s, allowMod=%d)",
 				fileNum, fileSlots[modNum][fileNum].name, romdataGetContextPrefix(), allowMod);
 		}
@@ -3245,8 +3279,10 @@ s32 romdataFileIsAvailable(s32 fileNum)
 	}
 
 	// 6. the ROM. A mod row inherits the ROM's extent for every id the ROM
-	// has; an id past the end of it - every file a mod adds - has none.
-	return slot->data != NULL;
+	// has; an id past the end of it - every file a mod adds - has none. A
+	// slot that names a file of the mod's own is not available from the ROM
+	// at all, whatever the ROM keeps at that id (romdataSlotIsRomFile).
+	return slot->data != NULL && romdataSlotIsRomFile(modNum, fileNum);
 }
 
 void romdataFilePreprocess(s32 fileNum, s32 loadType, u8 *data, u32 size, u32 *outSize)
