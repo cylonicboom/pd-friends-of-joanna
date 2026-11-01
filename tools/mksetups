@@ -36,8 +36,17 @@ Usage, from the tree root:
 
     tools/mksetups                          # every setup, ROMID from env or ntsc-final
     tools/mksetups setupame mp_setupame     # just these
-    tools/mksetups --patches --mod-dir basedir/data/mods/mod_fojo setupame
+    tools/mksetups --patches --mod-dir basedir/data/mods/mod_fojo-stages-port4p setupame
                                             # and ship it as a per-file xdelta
+    tools/mksetups -D FOJO_FANFIC --patches --mod-dir basedir/data/mods/mod_fojo-stages-fojo setupame
+                                            # the fanfic build of the same source
+
+FOJO_FANFIC marks the perforation inside the setup sources: the default build
+is vanilla plus what four players need (mod_fojo-stages-port4p), and the
+#ifdef FOJO_FANFIC hunks are fojo's opinionated changes on top
+(mod_fojo-stages-fojo, which carries both and is mounted INSTEAD of port4p,
+never beside it). Both builds write the same build/<romid> outputs, so run
+them one after the other, never in parallel.
 --patches is how a modified setup SHIPS: not the setup (which is Rare's data
 with the edits inside) but an xdelta of the inflated bytes against the vanilla
 file inflated out of the player's own ROM, applied by the engine after inflate
@@ -213,7 +222,7 @@ def rarezip(data):
     return b'\x11\x73' + len(data).to_bytes(3, 'big') + c.compress(data) + c.flush()
 
 
-def build_one(llvm, romid, name, verbose, srcdir='src/setups'):
+def build_one(llvm, romid, name, verbose, srcdir='src/setups', extra_defines=()):
     version = VERSIONS[romid]
     pal = 1 if romid.startswith('pal') else 0
     B = 'build/%s' % romid
@@ -237,6 +246,7 @@ def build_one(llvm, romid, name, verbose, srcdir='src/setups'):
 
     defines = ['-DVERSION=%d' % version, '-DMATCHING=1', '-DPAL=%d' % pal,
                '-DPIRACYCHECKS=1', '-DROM_SIZE=32', '-DAVOID_UB']
+    defines += ['-D' + d for d in extra_defines]
     includes = ['-Iinclude', '-Iinclude/PR', '-Isrc/include',
                 '-Isrc/generated/%s' % romid, '-Isrc/lib/ultra/audio']
     if is_port_tree():
@@ -270,6 +280,9 @@ def main():
     ap.add_argument('--no-headers', action='store_true', help='skip regenerating src/generated/<romid>')
     ap.add_argument('--src-dir', default='src/setups', help='where <name>.c lives (default src/setups; tools/blahaj --check builds from build/<romid>/blahaj)')
     ap.add_argument('-v', '--verbose', action='store_true')
+    ap.add_argument('-D', '--define', action='append', default=[], metavar='NAME[=VAL]',
+                    help='extra preprocessor define for the setup sources, eg -D FOJO_FANFIC for the '
+                         'mod_fojo-stages-fojo build; repeatable')
     ap.add_argument('--patches', action='store_true',
                     help='write <mod-dir>/patches/U<name>Z.xdelta against the vanilla file and upsert the manifest rows')
     ap.add_argument('--mod-dir', help='the mod directory (data/mods/<name>); its folder name is the mod name')
@@ -295,7 +308,7 @@ def main():
     built = []
     for name in names:
         try:
-            binp, zipp, size = build_one(llvm, args.romid, name, args.verbose, args.src_dir)
+            binp, zipp, size = build_one(llvm, args.romid, name, args.verbose, args.src_dir, args.define)
         except subprocess.CalledProcessError as e:
             print('FAIL %s: %s' % (name, e))
             failed += 1
