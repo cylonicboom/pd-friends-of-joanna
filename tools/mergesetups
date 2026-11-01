@@ -35,6 +35,10 @@ are both kept: that is two objects, not a repeat. door_scale is state the engine
 carries from one door to the next, so each input's run starts with a reset
 to 1.0 and keeps its own door_scale records.
 
+--one-per-pad goes further: an object whose pad already holds an object from
+an earlier input is dropped even when the models differ (the earlier input
+keeps the spot), except models named with --allow-overlap.
+
 The intro (spawns, starting weapons) comes from --intro-from (default: the
 first input). paths and ailists are empty: there is nothing left to drive.
 
@@ -243,6 +247,12 @@ def main():
     ap.add_argument('--keep-foreign-renames', action='store_true',
                     help="keep rename_object records from inputs other than --intro-from; their text "
                          "ids point into those stages' lang banks, which the merged stage does not load")
+    ap.add_argument('--one-per-pad', action='store_true',
+                    help='drop an object whose pad is already taken by a kept object from an earlier '
+                         'input (different model or not): earlier inputs win the spot')
+    ap.add_argument('--allow-overlap', action='append', default=[], metavar='MODEL',
+                    help='with --one-per-pad: a model (number, or MODEL_ name from constants.h) that is '
+                         'kept even when its pad is taken; repeatable')
     ap.add_argument('-v', '--verbose', action='store_true')
     a = ap.parse_args()
 
@@ -284,10 +294,30 @@ def main():
                             warn('%s: prop %d (type 0x%02x) %s' % (name, r.idx, r.typ, why))
                         break
 
+    allow = set()
+    for m in a.allow_overlap:
+        if m.lower().startswith('0x') or m.isdigit():
+            allow.add(int(m, 0))
+        else:
+            import re
+            hdr = open(os.path.join(HERE, '..', 'src', 'include', 'constants.h')).read()
+            mm = re.search(r'#define\s+%s\s+(0x[0-9a-fA-F]+|\d+)' % re.escape(m), hdr)
+            if not mm:
+                sys.exit('mergesetups: --allow-overlap %s: no such model in constants.h' % m)
+            allow.add(int(mm.group(1), 0))
+
+    def placed_pad(r):
+        if r.typ not in GENERIC or (r.w[2] & (OBJFLAG_INSIDEANOTHEROBJ | OBJFLAG_ASSIGNEDTOCHR)):
+            return None
+        pad = r.w[1] & 0xffff
+        return None if pad == 0xffff else pad
+
     # lay out: each input in order, deduping physical objects against what is in
     out = []
     seen = {}
     stats = []
+    padowner = {}       # pad -> name of the input whose object holds it
+    padlost = []
     for name, recs in srcs:
         kept = dup = 0
         out.append(('scale', None))            # door_scale reset for this run
@@ -301,12 +331,31 @@ def main():
                 r.alias = seen[k]
                 dup += 1
                 continue
+            pad = placed_pad(r)
+            if a.one_per_pad and pad is not None and padowner.get(pad, name) != name:
+                model = r.model_pad()[0]
+                if model not in allow:
+                    padlost.append((name, r.idx, model, pad, padowner[pad]))
+                    dropped[id(r)] = 'pad taken by %s' % padowner[pad]
+                    continue
             if k is not None and k not in seen:
                 seen[k] = r
+            if pad is not None:
+                padowner.setdefault(pad, name)
             out.append(('rec', r))
             kept += 1
         drops = sum(1 for r in recs if id(r) in dropped)
         stats.append((name, len(recs), kept, dup, drops))
+
+    # a record linking to an object that lost its pad goes with it
+    for kind, r in out:
+        if kind == 'rec':
+            for t in r.links.values():
+                if id(t) in dropped and getattr(t, 'alias', None) is None:
+                    sys.exit('mergesetups: %s prop %d links to %s prop %d, dropped for its pad; '
+                             'resolve that by hand or --allow-overlap its model' % (r.src, r.idx, t.src, t.idx))
+    for name, idx, model, pad, owner in padlost:
+        print('mergesetups: %s prop %d (model 0x%04x) not placed: pad 0x%04x is %s\'s' % (name, idx, model, pad, owner))
 
     def final(r):
         while getattr(r, 'alias', None) is not None:
