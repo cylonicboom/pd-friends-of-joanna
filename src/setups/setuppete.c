@@ -141,6 +141,9 @@ u32 props[] = {
 
 	beginobjective(4, L_PETE_014, (DIFFBIT_A | DIFFBIT_SA | DIFFBIT_PA | DIFFBIT_PD)) // "Gain entry to G5 building"
 		complete_flags(STAGEFLAG_IN_ELEVATOR)
+#ifndef FOJO_FANFIC // fojo: no quarter for CIA agents
+		fail_flags(STAGEFLAG_CIVILIAN_DEAD)
+#endif
 		fail_flags(STAGEFLAG_ELEVATOR_SEALED)
 	endobjective
 
@@ -1904,6 +1907,10 @@ u8 func041d_fbi[] = {
 	endlist
 };
 
+#ifdef FOJO_FANFIC
+// fojo: no quarter for CIA agents. kept byte-for-byte as shipped: the
+// trailing backslash on the commented line splices set_ailist into the
+// comment too, so this macro ends at label(0x05).
 #define check_cia_dead(chr) \
 	beginloop(0x10) \
 		if_chr_dead(chr, /*goto*/ 0x05) \
@@ -1917,6 +1924,21 @@ u8 func041d_fbi[] = {
 	// set_stage_flag(STAGEFLAG_CIVILIAN_DEAD) \
 	// show_hudmsg(CHR_BOND, 0x321d) /* "Mission failed - unacceptable civilian casualties." */ \
 	set_ailist(CHR_SELF, GAILIST_IDLE)
+#else
+#define check_cia_dead(chr) \
+	beginloop(0x10) \
+		if_chr_dead(chr, /*goto*/ 0x05) \
+	endloop(0x10) \
+ \
+	/* Unreachable */ \
+	label(0x03) \
+	set_ailist(CHR_SELF, GAILIST_IDLE) \
+ \
+	label(0x05) \
+	set_stage_flag(STAGEFLAG_CIVILIAN_DEAD) \
+	show_hudmsg(CHR_BOND, 0x321d) /* "Mission failed - unacceptable civilian casualties." */ \
+	set_ailist(CHR_SELF, GAILIST_IDLE)
+#endif
 
 u8 func1009_check_cia1_dead[] = {
 	check_cia_dead(CHR_CIA1)
@@ -1937,8 +1959,10 @@ u8 func100a_check_cia2_dead[] = {
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 
 	label(0x05)
-	// set_stage_flag(STAGEFLAG_CIVILIAN_DEAD)
-	// show_hudmsg(CHR_BOND, L_PETE_029) // "Mission failed - unacceptable civilian casualties."
+#ifndef FOJO_FANFIC // fojo: no quarter for CIA agents
+	set_stage_flag(STAGEFLAG_CIVILIAN_DEAD)
+	show_hudmsg(CHR_BOND, L_PETE_029) // "Mission failed - unacceptable civilian casualties."
+#endif
 	set_ailist(CHR_SELF, GAILIST_IDLE)
 	endlist
 };
