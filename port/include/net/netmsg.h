@@ -79,6 +79,7 @@
 #define CLC_BOT_CMD 0x0e // Combat Sim: client orders an own-team simulant (botindex, command, targetindex); server validates team + applies
 #define CLC_STAGE_READY 0x0f // client's stage world is built (sent from netSyncIdsAllocate); triggers the JIP catch-up snapshot for mid-match joiners
 #define CLC_TEAM_READY 0x11 // fojo: {u8 ready} - the player's hub ready-up (proto 91)
+#define CLC_CONSOLE 0x12 // fojo: {str line} - a client's console line the host runs as NETCON_CLIENT (order, teleport; proto 96)
 #define CLC_DOOR_ACTIVATE 0x10 // client predicted a door open/close and tells the host the exact door (syncid); host runs propdoorInteract as that client so high-ping doors don't depend on re-deriving the door from a lagged position + momentary UCMD_ACTIVATE
 
 // Server status query (port-only server browser + master server). The "flags"
@@ -190,6 +191,8 @@ u8 netbufReadHeadSlot(struct netbuf *src);
 u8 netbufReadBodySlot(struct netbuf *src);
 u32 netmsgClcTeamReadyWrite(struct netbuf *dst, u8 ready);
 u32 netmsgClcTeamReadyRead(struct netbuf *src, struct netclient *srccl);
+u32 netmsgClcConsoleWrite(struct netbuf *dst, const char *line);
+u32 netmsgClcConsoleRead(struct netbuf *src, struct netclient *srccl);
 
 // SVC_CUTSCENE (co-op): mirror the host's in-engine cutscene state. In-engine
 // cutscenes (intro, mid-mission, outro) all run through playerStartCutscene /

@@ -881,6 +881,17 @@ void netTeamClientReady(struct netclient *cl, s32 ready)
 	netChatPrintf(NULL, "%s is %s", cl->settings.name, ready ? "ready" : "not ready");
 }
 
+s32 netClientSendConsole(const char *line)
+{
+	if (g_NetMode != NETMODE_CLIENT || !g_NetLocalClient) {
+		return 0;
+	}
+	netbufStartWrite(&g_NetMsgRel);
+	netmsgClcConsoleWrite(&g_NetMsgRel, line);
+	netSend(NULL, &g_NetMsgRel, true, NETCHAN_CONTROL);
+	return 1;
+}
+
 void netTeamSetReady(s32 ready)
 {
 	if (!g_NetLocalClient || !netTeamInHub()) {

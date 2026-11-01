@@ -1373,6 +1373,15 @@ u32 netmsgSvcChatRead(struct netbuf *src, struct netclient *srccl)
 	if (msg && !src->error) {
 		sysLogPrintf(LOG_CHAT, "%s", msg);
 		netChatLogPush(msg);
+		// the intercom's subscriber hears chat too: it is where the host's
+		// answer to a forwarded `order` / `teleport` arrives
+		if (netApiIsOn()) {
+			char fields[600];
+			s32 n = snprintf(fields, sizeof(fields), "\"text\":\"");
+			n = netApiJsonEscape(fields, sizeof(fields) - 2, n, msg);
+			snprintf(fields + n, sizeof(fields) - n, "\"");
+			netApiEvent("chat", fields);
+		}
 	}
 	return src->error;
 }
@@ -6562,6 +6571,32 @@ u32 netmsgClcTeamReadyRead(struct netbuf *src, struct netclient *srccl)
 	}
 	if (g_NetMode == NETMODE_SERVER) {
 		netTeamClientReady(srccl, ready ? 1 : 0);
+	}
+	return 0;
+}
+
+/**
+ * A client's console line, run on the host as that client (netconsole.c,
+ * NETCON_CLIENT): what it may run is Net.ClientAllow plus the player verbs,
+ * and the replies go back to that client alone as chat.
+ */
+u32 netmsgClcConsoleWrite(struct netbuf *dst, const char *line)
+{
+	netbufWriteU8(dst, CLC_CONSOLE);
+	netbufWriteStr(dst, line);
+	return dst->error;
+}
+
+u32 netmsgClcConsoleRead(struct netbuf *src, struct netclient *srccl)
+{
+	const char *line = netbufReadStr(src);
+	if (src->error || !line) {
+		return src->error;
+	}
+	if (g_NetMode == NETMODE_SERVER && srccl && srccl != g_NetLocalClient) {
+		struct netconorigin from = { NETCON_CLIENT, 0, srccl, NULL, NULL, 1 };
+		sysLogPrintf(LOG_NOTE, "NET: console from client %u (%s): %s", srccl->id, srccl->settings.name, line);
+		netConsoleExecFrom(line, &from);
 	}
 	return 0;
 }

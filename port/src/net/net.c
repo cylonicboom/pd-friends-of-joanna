@@ -2478,6 +2478,7 @@ static void netServerEvReceive(struct netclient *cl)
 			case CLC_STAGE_READY: rc = netmsgClcStageReadyRead(&cl->in, cl); break;
 			case CLC_DOOR_ACTIVATE: rc = netmsgClcDoorActivateRead(&cl->in, cl); break;
 			case CLC_TEAM_READY: rc = netmsgClcTeamReadyRead(&cl->in, cl); break;
+			case CLC_CONSOLE: rc = netmsgClcConsoleRead(&cl->in, cl); break;
 			default:
 				rc = 1;
 				break;

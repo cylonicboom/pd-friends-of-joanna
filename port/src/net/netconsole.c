@@ -58,15 +58,22 @@ static s32 s_conLen = 0;
 static struct netconorigin *s_conFrom = NULL;
 
 // Api.Allow: the verbs the intercom origin may run, comma separated. The
-// default names verbs that do not exist yet (the verdict and standing-list
-// slices); until they land the intercom can run nothing but what is listed.
-char g_NetConApiAllow[128] = "verdict,standing";
+// default is the sidecar's (verdict, standing) and the two read-only world
+// verbs fojo-tui polls (state, list). teleport and order are not in it: a
+// dev box that wants the map's clicks to act adds them in pd.ini.
+char g_NetConApiAllow[128] = "verdict,standing,state,list";
+
+// Net.ClientAllow: the verbs a remote player's line (CLC_CONSOLE) may run on
+// the host beyond the player verbs. order is in by default - netconworld.c
+// limits it to chrs on that player's side; teleport is a host's call.
+char g_NetConClientAllow[128] = "order";
 
 // the verb table: name, who may run it, help text. CONV_PLAYER verbs are any
 // origin's; CONV_FLOOR verbs are root's whatever an allow-list says; the
 // rest are root's, or an origin's when its allow-list names them.
-#define CONV_PLAYER 0x1
-#define CONV_FLOOR  0x2
+#define CONV_PLAYER  0x1
+#define CONV_FLOOR   0x2
+#define CONV_FORWARD 0x4 // on a client, sent to the host as CLC_CONSOLE and run there
 struct netconverb {
 	const char *name;
 	u32 flags;
@@ -88,6 +95,10 @@ static const struct netconverb s_conVerbs[] = {
 	{ "standing",   0 },           // list | reload | add <who> | rm <who>; Api.Allow's default opens it for the sidecar
 	{ "start",      0 },
 	{ "verdict",    0 },
+	{ "state",      0 },           // netconworld.c: who is where, paged
+	{ "list",       0 },           // rooms | pads | chrs, paged
+	{ "teleport",   CONV_FORWARD }, // the issuer's own player to an anchor
+	{ "order",      CONV_FORWARD }, // a chr's queue: goto <anchor> | wait | release
 	{ "endmission", CONV_FLOOR },
 	{ "lua",        CONV_FLOOR },
 	{ "quit",       CONV_FLOOR },
@@ -128,8 +139,8 @@ static s32 netConListHas(const char *list, const char *verb)
 /**
  * May this origin run this verb? Root may run anything. The floor verbs are
  * root's only. Player verbs are anyone's. Beyond that, a client may run
- * nothing (Captain.Allow is the captain slice's to add) and the intercom
- * may run what Api.Allow lists. An unknown verb is nobody's but root's, so
+ * what Net.ClientAllow lists (Captain.Allow is the captain slice's to add)
+ * and the intercom may run what Api.Allow lists. An unknown verb is nobody's but root's, so
  * the unknown-command reply still comes from the root path.
  */
 s32 netConAllowed(const struct netconorigin *from, const char *verb)
@@ -149,12 +160,13 @@ s32 netConAllowed(const struct netconorigin *from, const char *verb)
 	case NETCON_API:
 		return netConListHas(g_NetConApiAllow, verb);
 	case NETCON_CLIENT:
+		return netConListHas(g_NetConClientAllow, verb);
 	default:
 		return 0;
 	}
 }
 
-static void netConPrintf(const char *fmt, ...)
+void netConPrintf(const char *fmt, ...)
 {
 	char tmp[400];
 	va_list ap;
@@ -181,6 +193,11 @@ static void netConPrintf(const char *fmt, ...)
 		sysLogPrintf(LOG_CHAT, "%s", line);
 		netChatLogPush(line);
 	}
+}
+
+struct netconorigin *netConOrigin(void)
+{
+	return s_conFrom;
 }
 
 static s32 netConIsHost(void)
@@ -282,6 +299,8 @@ static void netConHelp(void)
 	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
 	netConPrintf("captain key [new] | standing [list|reload|add <id|name|principal>|rm <principal>]");
 	netConPrintf("mark <text>  - a marker in the --profdump trace and pd.log");
+	netConPrintf("state [from n] | list rooms|pads|chrs [from n] | teleport <anchor>");
+	netConPrintf("order <chr> goto <anchor> | wait | release | order release all   (anchor: pad|chr|room <n>, pos <x> <y> <z>)");
 }
 
 // `standing list|reload|add|rm` - the two-source standing list (netcaptain.c).
@@ -671,8 +690,9 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 
 	// ready / unready are the player's own; everything else is the host's
 	const s32 playercmd = strcmp(cmd, "ready") == 0 || strcmp(cmd, "unready") == 0;
-	if (fromchat && g_NetMode == NETMODE_CLIENT && !playercmd) {
-		netChatLogPush("commands are host only - /ready and /unready are yours");
+	const struct netconverb *fwd = netConFindVerb(cmd);
+	if (fromchat && g_NetMode == NETMODE_CLIENT && !playercmd && !(fwd && (fwd->flags & CONV_FORWARD))) {
+		netChatLogPush("commands are host only - /ready, /unready, /order and /teleport are yours");
 		return 1;
 	}
 
@@ -685,6 +705,21 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 			netConPrintf("%s: not yours to run", cmd);
 		} else {
 			netConPrintf("unknown command %s (help lists them)", cmd);
+		}
+		s_conFrom = prevfrom;
+		return r;
+	}
+
+	// a client's world verbs act on the host's world: send the whole line
+	// there (CLC_CONSOLE) and let the host's rules decide. Its answer comes
+	// back as chat, which the intercom's subscriber also gets as an event.
+	const struct netconverb *verb = netConFindVerb(cmd);
+	if (verb && (verb->flags & CONV_FORWARD) && g_NetMode == NETMODE_CLIENT) {
+		if (netClientSendConsole(line)) {
+			netConPrintf("%s: sent to the host", cmd);
+		} else {
+			from->ok = 0;
+			netConPrintf("%s: not connected to a host", cmd);
 		}
 		s_conFrom = prevfrom;
 		return r;
@@ -758,6 +793,14 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 			from->ok = 0;
 		}
 		netConPrintf("%s", why);
+	} else if (strcmp(cmd, "state") == 0) {
+		netConState(arg);
+	} else if (strcmp(cmd, "list") == 0) {
+		netConList(arg);
+	} else if (strcmp(cmd, "teleport") == 0) {
+		netConTeleport(arg);
+	} else if (strcmp(cmd, "order") == 0) {
+		netConOrder(arg);
 	} else if (strcmp(cmd, "endmission") == 0) {
 		if (netConInHub()) {
 			netConPrintf("not in a mission");
@@ -783,6 +826,7 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 PD_CONSTRUCTOR static void netConsoleConfigInit(void)
 {
 	configRegisterString("Api.Allow", g_NetConApiAllow, sizeof(g_NetConApiAllow) - 1);
+	configRegisterString("Net.ClientAllow", g_NetConClientAllow, sizeof(g_NetConClientAllow) - 1);
 }
 
 /**
