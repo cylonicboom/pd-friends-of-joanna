@@ -17,8 +17,9 @@ modversion "0.4.0"
 
 # this one: mod_fojo-characters-fojo
 #
-# Bios only. The heads they belong to live in mod_fojo-characters-port4p;
-# a ChrBio finds its head by name whichever mod declares it.
+# Bios and the Team Missions roster. The heads they belong to live in
+# mod_fojo-characters-port4p; a ChrBio or an Operative finds its head by name
+# whichever mod declares it.
 
 # >>> chrbios: generated from chrbios.md by tools/mkchrbios build-mod
 # Edit chrbios.md beside this file, then run tools/mkchrbios build-mod <this dir>.
@@ -71,3 +72,46 @@ ChrBio {
     section "Profile" "First-generation Institute-produced combat replicant. Distilled from captured dataDyne unit designated 'Poplin'. Institute R&D was unable to allocate funding to pay dataDyne the astronomical royalties for its TruGinger(tm) technology, so an alternate likeness was chosen. Unit was placed in storage following its pilot deployment until the commencement of [redacted]. This skunkwork project's field data was the basis of further developments, hence the designation \"Willow.\""
 }
 # <<< chrbios
+
+# Team Missions operatives, in carousel order. Joanna and Velvet are built in
+# and play vanilla (no colour) under port4p; their blocks here only colour
+# them. colour is 0xrrggbbaa for the hud and the slow stars' glows.
+Operative {
+    head "head_dark_combat"
+    colour 0x7ee0e6b0
+}
+
+Operative {
+    head "head_vd"
+    colour 0xe0a6c4b0
+}
+
+Operative {
+    head "head_mikado"
+    name "Mikado Dark"
+    shortname "Mikado"
+    colour 0xffd0a6b0
+    wardrobe "body_mikado"
+}
+
+Operative {
+    head "head_foslerfer"
+    name "Poplin Dark"
+    shortname "Poplin"
+    colour 0xfb9c8db0
+}
+
+Operative {
+    head "head_catherine"
+    name "Calico Dark"
+    shortname "Calico"
+    colour 0xa6e6bcb0
+    designation "CI Combat Unit #200x-0A1F"
+}
+
+Operative {
+    head "head_willow"
+    name "Willow Dark"
+    shortname "Willow"
+    colour 0x8e96c8b0
+}
