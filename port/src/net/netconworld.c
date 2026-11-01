@@ -2,6 +2,7 @@
  * The console's world verbs: what fojo-tui's map reads and does.
  *
  *   state [from N]                 who is where, paged
+ *   squad                          the issuer's side: health, shield, guns
  *   list rooms|pads|chrs [from N]  catalogs, paged
  *   teleport <anchor>              move the issuer's own player
  *   order <chr> goto <anchor>      queue a step for a chr (chrorder.c)
@@ -27,6 +28,16 @@
  *   rooms:  `r <id> <x> <y> <z>` (the room's centre)
  *   pads:   `p <id> <room> <x> <y> <z>`
  *   chrs:   `c <chrnum> <body> <head> <team>`
+ *   weapons: `w <num> <short name>` (the rest of the line is the name)
+ *   squad:  `squad <frame> me <playernum|-1> side <c|a|->`, then one line per
+ *           member: `s <playernum|-> <chrnum> <role> <body> <head> <wR> <wL>
+ *           <aR> <aL> <cR> <cL> <health> <shield>`. role is `b` operative,
+ *           `c` coop, `a` anti, `u` an ai buddy. w is a weaponnum (-1 for an
+ *           empty hand), a the rounds loaded and c the clip, `-` where pd
+ *           does not track them (buddies, empty hands). health and shield are
+ *           per mille, the way healthbar.c reads them. The side is the
+ *           issuer's: an anti sees the antis, anyone else the operative, the
+ *           coops and the ai buddies. Never paged: a full squad is one page.
  *
  * Who may run what is netConAllowed's (netconsole.c). Which chrs a client
  * may order is decided here, in netConWorldMayOrder: a chr on the same team
@@ -55,6 +66,8 @@
 #include "system.h"
 #include "net/net.h"
 #include "chrorder.h"
+#include "game/game_0b0fd0.h"
+#include "game/lang.h"
 
 // what a reply may hold before it pages: the intercom's datagram is 4096
 // and every '\n' doubles when the reply is JSON-escaped
@@ -317,6 +330,128 @@ void netConState(const char *arg)
 	}
 }
 
+// per mille, clamped
+static s32 netConWorldMille(f32 frac)
+{
+	if (frac <= 0.0f) {
+		return 0;
+	}
+	if (frac >= 1.0f) {
+		return 1000;
+	}
+	return (s32)(frac * 1000.0f + 0.5f);
+}
+
+static s32 netConWorldHealth(const struct chrdata *chr)
+{
+	if (chr->maxdamage <= 0.0f) {
+		return 0;
+	}
+	return netConWorldMille((chr->maxdamage - chr->damage) / chr->maxdamage);
+}
+
+static s32 netConWorldClip(s32 weaponnum)
+{
+	struct inventory_ammo *ammo = weaponnum > WEAPON_UNARMED ? weaponGetAmmoByFunction(weaponnum, 0) : NULL;
+	return ammo ? ammo->clipsize : 0;
+}
+
+static s32 netConWorldIsAnti(s32 pn)
+{
+	struct player *pl = g_Vars.players[pn];
+	return pl && (g_Vars.antiplayers[pn] == pl || g_Vars.anti == pl);
+}
+
+static void netConWorldSquadPlayer(s32 pn)
+{
+	struct player *pl = g_Vars.players[pn];
+	struct chrdata *chr = pl->prop->chr;
+	char role = 'c';
+	char ammo[2][8];
+	char clip[2][8];
+	s32 wep[2];
+
+	if (netConWorldIsAnti(pn)) {
+		role = 'a';
+	} else if (pn == g_Vars.bondplayernum) {
+		role = 'b';
+	}
+
+	wep[HAND_RIGHT] = pl->gunctrl.weaponnum;
+	wep[HAND_LEFT] = pl->gunctrl.dualwielding ? pl->gunctrl.weaponnum : -1;
+
+	for (s32 h = 0; h < 2; h++) {
+		const s32 c = wep[h] >= 0 ? netConWorldClip(wep[h]) : 0;
+		if (wep[h] < 0 || !pl->hands[h].inuse || c <= 0) {
+			strcpy(ammo[h], "-");
+			strcpy(clip[h], "-");
+		} else {
+			snprintf(ammo[h], sizeof(ammo[h]), "%d", pl->hands[h].loadedammo[0]);
+			snprintf(clip[h], sizeof(clip[h]), "%d", c);
+		}
+	}
+
+	netConWorldLine("s %d %d %c %d %d %d %d %s %s %s %s %d %d", pn, chr->chrnum, role,
+		chr->bodynum, chr->headnum, wep[HAND_RIGHT], wep[HAND_LEFT],
+		ammo[HAND_RIGHT], ammo[HAND_LEFT], clip[HAND_RIGHT], clip[HAND_LEFT],
+		netConWorldHealth(chr), netConWorldMille(chr->cshield * 0.125f));
+}
+
+static void netConWorldSquadBuddy(struct chrdata *chr)
+{
+	s32 wep[2];
+
+	for (s32 h = 0; h < 2; h++) {
+		struct prop *held = chr->weapons_held[h];
+		wep[h] = (held && held->weapon) ? held->weapon->weaponnum : -1;
+	}
+
+	netConWorldLine("s - %d u %d %d %d %d - - - - %d %d", chr->chrnum,
+		chr->bodynum, chr->headnum, wep[HAND_RIGHT], wep[HAND_LEFT],
+		netConWorldHealth(chr), netConWorldMille(chr->cshield * 0.125f));
+}
+
+/**
+ * The squad strip's one read: the issuer's side in a single page. A slot
+ * whose role is set but whose player is not seated yet (the accept frame,
+ * fojo-coop-players) is skipped, not dereferenced.
+ */
+void netConSquad(const char *arg)
+{
+	(void)arg;
+
+	if (!netConWorldInStage()) {
+		return;
+	}
+
+	const s32 pn = netConWorldPlayerNum();
+	s_worldUsed = 0;
+
+	if (pn < 0 || !netConWorldPlayerChr(pn)) {
+		netConWorldLine("squad %d me -1 side -", g_Vars.lvframenum);
+		return;
+	}
+
+	const s32 anti = netConWorldIsAnti(pn);
+	netConWorldLine("squad %d me %d side %c", g_Vars.lvframenum, pn, anti ? 'a' : 'c');
+
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (!netConWorldPlayerChr(i) || netConWorldIsAnti(i) != anti) {
+			continue;
+		}
+		netConWorldSquadPlayer(i);
+	}
+
+	if (!anti) {
+		for (s32 i = 0; i < g_Vars.numaibuddies && i < ARRAYCOUNT(g_Vars.aibuddies); i++) {
+			struct prop *prop = g_Vars.aibuddies[i];
+			if (prop && prop->chr) {
+				netConWorldSquadBuddy(prop->chr);
+			}
+		}
+	}
+}
+
 void netConList(const char *arg)
 {
 	const char *p = arg;
@@ -359,8 +494,31 @@ void netConList(const char *arg)
 				return;
 			}
 		}
+	} else if (netConWorldEat(&p, "weapons")) {
+		const s32 from = netConWorldFrom(p);
+		for (i = from; i <= WEAPON_SUICIDEPILL; i++) {
+			struct weapon *weapon = weaponFindById(i);
+			char name[48];
+			if (!weapon) {
+				continue;
+			}
+			snprintf(name, sizeof(name), "%s", weapon->shortname ? langGet(weapon->shortname) : "");
+			for (char *q = name; *q; q++) {
+				if (*q == '\n' || *q == '\r') {
+					*q = '\0';
+					break;
+				}
+			}
+			if (!name[0]) {
+				continue; // a slot with no name is not a weapon anyone holds
+			}
+			if (!netConWorldLine("w %d %s", i, name)) {
+				netConPrintf("more %d", i);
+				return;
+			}
+		}
 	} else {
-		netConWorldNo("list rooms|pads|chrs [from <n>]");
+		netConWorldNo("list rooms|pads|chrs|weapons [from <n>]");
 	}
 }
 

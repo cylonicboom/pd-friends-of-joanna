@@ -58,10 +58,10 @@ static s32 s_conLen = 0;
 static struct netconorigin *s_conFrom = NULL;
 
 // Api.Allow: the verbs the intercom origin may run, comma separated. The
-// default is the sidecar's (verdict, standing) and the two read-only world
-// verbs fojo-tui polls (state, list). teleport and order are not in it: a
+// default is the sidecar's (verdict, standing) and the read-only world
+// verbs fojo-tui polls (state, list, squad). teleport and order are not in it: a
 // dev box that wants the map's clicks to act adds them in pd.ini.
-char g_NetConApiAllow[128] = "verdict,standing,state,list";
+char g_NetConApiAllow[128] = "verdict,standing,state,list,squad";
 
 // Net.ClientAllow: the verbs a remote player's line (CLC_CONSOLE) may run on
 // the host beyond the player verbs. order is in by default - netconworld.c
@@ -96,7 +96,8 @@ static const struct netconverb s_conVerbs[] = {
 	{ "start",      0 },
 	{ "verdict",    0 },
 	{ "state",      0 },           // netconworld.c: who is where, paged
-	{ "list",       0 },           // rooms | pads | chrs, paged
+	{ "list",       0 },           // rooms | pads | chrs | weapons, paged
+	{ "squad",      0 },           // the issuer's side: health, shield, guns
 	{ "teleport",   CONV_FORWARD }, // the issuer's own player to an anchor
 	{ "order",      CONV_FORWARD }, // a chr's queue: goto <anchor> | wait | release
 	{ "endmission", CONV_FLOOR },
@@ -299,7 +300,7 @@ static void netConHelp(void)
 	netConPrintf("verdict <joinid> accept|deny [account:<x>] [owns-uuid] [reason] | endmission | lua <code> | quit");
 	netConPrintf("captain key [new] | standing [list|reload|add <id|name|principal>|rm <principal>]");
 	netConPrintf("mark <text>  - a marker in the --profdump trace and pd.log");
-	netConPrintf("state [from n] | list rooms|pads|chrs [from n] | teleport <anchor>");
+	netConPrintf("state [from n] | squad | list rooms|pads|chrs|weapons [from n] | teleport <anchor>");
 	netConPrintf("order <chr> goto <anchor> | wait | release | order release all   (anchor: pad|chr|room <n>, pos <x> <y> <z>)");
 }
 
@@ -797,6 +798,8 @@ s32 netConsoleExecFrom(const char *line, struct netconorigin *from)
 		netConState(arg);
 	} else if (strcmp(cmd, "list") == 0) {
 		netConList(arg);
+	} else if (strcmp(cmd, "squad") == 0) {
+		netConSquad(arg);
 	} else if (strcmp(cmd, "teleport") == 0) {
 		netConTeleport(arg);
 	} else if (strcmp(cmd, "order") == 0) {

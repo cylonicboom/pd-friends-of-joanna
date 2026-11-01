@@ -201,7 +201,7 @@ Net.Master.Advertise       # server registers with the master (0/1, default 1)
 Net.UPnP.Enabled           # UPnP-forward the server port on the router when hosting (0/1, default 1; see docs/PORT_UPNP.md)
 Server.Password            # host join password (empty = open server)
 Net.ClientAllow            # console verbs a remote player may run on the host beyond the player verbs (default `order`; add `teleport` on a dev box)
-Api.Allow                  # verbs the intercom may run (default `verdict,standing,state,list`; fojo-tui's map wants `teleport,order` too)
+Api.Allow                  # verbs the intercom may run (default `verdict,standing,state,list,squad`; fojo-tui's map wants `teleport,order` too)
 Net.Debug.LogPath          # diagnostic log file path (empty = disabled)
 Net.Debug.LogRate          # ticks between per-client/sim pos dumps (default 6, 0 = disabled)
 Game.Egg                   # vanity-egg auto-enable on boot (written as `Egg=` under [Game]): "0" (default) = off, "graslu" / "redvox57" = enable that banner (= the /graslu /redvox57 commands). Applied in netInit (netApplyEggConfig), case-insensitive. NOTE: must be a sectioned key — the config system mangles section-less keys (drops the first char on save).

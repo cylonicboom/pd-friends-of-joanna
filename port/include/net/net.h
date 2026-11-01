@@ -753,6 +753,7 @@ struct netconorigin *netConOrigin(void);
 // the world verbs (netconworld.c)
 void netConState(const char *arg);
 void netConList(const char *arg);
+void netConSquad(const char *arg);
 void netConTeleport(const char *arg);
 void netConOrder(const char *arg);
 // a client's forwarded console line (CLC_CONSOLE); 0 when not connected
