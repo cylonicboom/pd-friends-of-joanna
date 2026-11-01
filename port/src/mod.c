@@ -3305,6 +3305,71 @@ void modStageBindingReport(void)
  * declare stages by number, and it is the same resolution with the answer
  * written out by hand - not a legacy path with different semantics.
  */
+/*
+ * True when the stage block at p (its opening brace next) names, at its top
+ * level, a bg, tiles, pads, setup or mpsetup file that is not installed.
+ * Reads the block with its own cursor and applies nothing; logs each miss.
+ */
+static bool modConfigStageFilesMissing(char *p, char *token, s32 stagenum, s32 modnum)
+{
+	static const char *const keys[] = { "bgfile", "tilesfile", "padsfile", "setupfile", "setupFile", "mpsetupfile" };
+	const char *own = modStageSlotName(stagenum);
+	const char *label = own ? own : (stageGetName(stagenum) ? stageGetName(stagenum) : "?");
+	bool missing = false;
+	s32 depth = 0;
+
+	p = strParseToken(p, token, NULL);
+	if (!p || token[0] != '{' || token[1] != '\0') {
+		return false; // malformed; the real parse reports it
+	}
+	depth = 1;
+
+	while (depth > 0) {
+		p = strParseToken(p, token, NULL);
+		if (!p || !token[0]) {
+			break;
+		}
+		if (!strcmp(token, "{")) {
+			depth++;
+			continue;
+		}
+		if (!strcmp(token, "}")) {
+			depth--;
+			continue;
+		}
+		if (depth != 1) {
+			continue;
+		}
+		for (s32 k = 0; k < (s32)ARRAYCOUNT(keys); k++) {
+			if (strcmp(token, keys[k])) {
+				continue;
+			}
+			char key[16];
+			s32 id = -1;
+			strncpy(key, token, sizeof(key) - 1);
+			key[sizeof(key) - 1] = '\0';
+			p = modConfigParseFileValue(p, token, &id, modnum);
+			if (!p) {
+				return false; // a bad value; the real parse reports it
+			}
+			if (MOD_FILEID_MOD(id) >= 0 && !romdataFileIsAvailable(id)) {
+				const char *fname = romdataFileGetSlotName(MOD_FILEID_MOD(id), MOD_FILEID_RAW(id));
+				sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x (%s): %s '%s' (mod %d) is declared but not installed",
+						stagenum, label, key, fname ? fname : "?", MOD_FILEID_MOD(id));
+				missing = true;
+			}
+			break;
+		}
+	}
+
+	if (missing) {
+		sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x (%s): refused - mod %d does not ship every file it names; "
+				"none of its block is applied and it is not listed", stagenum, label, modnum);
+	}
+
+	return missing;
+}
+
 static char *modConfigParseStage(char *p, char *token, s32 modnum)
 {
 	bool placeholderrow = false; // an own-name allocation or a claimed STAGE_EXTRA row
@@ -3397,6 +3462,21 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		}
 	}
 
+	/*
+	 * A stage whose own files are not installed is refused before any of the
+	 * block is applied, not loaded on someone else's bytes. File ids are
+	 * mod-local, so a missing file would otherwise resolve to whatever the ROM
+	 * keeps at the same raw id - a Submarine pick landing in Area 51, or a
+	 * crash on a bg that does not match its pads. So the block's file keys are
+	 * read first, without applying anything; if any names a file nobody ships,
+	 * the whole block is skipped: no files, env, music, weather, langbank,
+	 * allocation or listing, and the stage keeps its owner. A block on a
+	 * vanilla row leaves that row wholly vanilla, under its own name.
+	 */
+	if (stagenum >= 0 && modConfigStageFilesMissing(p, token, stagenum, modnum)) {
+		return modConfigSkipBlock(p, token);
+	}
+
 	if (stagenum >= 0) {
 		const char *stagename = stageGetName(stagenum);
 
@@ -3448,11 +3528,6 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	bool gavempsetup = false;
 	char arenaname[64];
 	arenaname[0] = '\0';
-
-	// The five file fields as they stood before this block, so a block that
-	// names a file it does not ship can be taken back whole (below).
-	const u32 prevfiles[5] = { stab->bgfileid, stab->tilefileid, stab->padsfileid, stab->setupfileid, stab->mpsetupfileid };
-	const s32 prevowner = g_ModStageNums[stagenum];
 
 	p = strParseToken(p, token, NULL);
 	while (p && token[0] && strcmp(token, "}") != 0) {
@@ -3625,47 +3700,6 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 		return NULL;
 	}
 
-	/*
-	 * A stage whose own files are not installed is refused, not loaded on
-	 * someone else's bytes. The file ids are mod-local, so a missing file
-	 * would otherwise resolve to whatever the ROM keeps at the same raw id -
-	 * a Submarine pick landing in Area 51, or a crash on a bg that does not
-	 * match its pads. Every file field this block set is checked; if any is
-	 * missing, the five fields and the stage's owner go back to what they
-	 * were before the block, and the stage is not registered, so it is never
-	 * listed as a mission or an arena. A block on a vanilla row leaves that
-	 * row vanilla, under its own name - never another map under this one's.
-	 */
-	{
-		static const char *const fieldnames[5] = { "bgfile", "tilesfile", "padsfile", "setupfile", "mpsetupfile" };
-		u32 *const fields[5] = { &stab->bgfileid, &stab->tilefileid, &stab->padsfileid, &stab->setupfileid, &stab->mpsetupfileid };
-		const char *own = modStageSlotName(stagenum);
-		const char *label = own ? own : (stageGetName(stagenum) ? stageGetName(stagenum) : "?");
-		bool missing = false;
-
-		for (s32 f = 0; f < 5; f++) {
-			const s32 id = (s32)*fields[f];
-
-			if (*fields[f] == prevfiles[f] || MOD_FILEID_MOD(id) < 0 || romdataFileIsAvailable(id)) {
-				continue;
-			}
-
-			const char *fname = romdataFileGetSlotName(MOD_FILEID_MOD(id), MOD_FILEID_RAW(id));
-			sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x (%s): %s '%s' (mod %d) is declared but not installed",
-					stagenum, label, fieldnames[f], fname ? fname : "?", MOD_FILEID_MOD(id));
-			missing = true;
-		}
-
-		if (missing) {
-			for (s32 f = 0; f < 5; f++) {
-				*fields[f] = prevfiles[f];
-			}
-			g_ModStageNums[stagenum] = prevowner;
-			sysLogPrintf(LOG_ERROR, "modconfig: stage 0x%02x (%s): refused - mod %d does not ship every file it names, "
-					"so it is not listed and will not load on other files' bytes", stagenum, label, modnum);
-			return p;
-		}
-	}
 
 	// A solo-sized level on a row with no allocation entry and no key of its
 	// own would run on the MP default (-ma400); every campaign row carries the
