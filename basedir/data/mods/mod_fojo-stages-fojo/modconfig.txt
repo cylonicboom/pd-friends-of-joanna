@@ -8,8 +8,8 @@ modversion "0.4.0"
 #   mod_fojo-stages-port4p      setups with only what four players need
 #   mod_fojo-stages-fojo        the same plus fojo's own stage changes;
 #                               mounted INSTEAD of stages-port4p, never beside it
-#   mod_fojo-characters-port4p  characters four players need (empty for now)
-#   mod_fojo-characters-fojo    fojo's heads, bodies and bios
+#   mod_fojo-characters-port4p  the heads and bodies, as Combat Simulator characters
+#   mod_fojo-characters-fojo    fojo's bios for them
 #
 # Setups are built from pd-fojo/src/setups by tools/mksetups. The default
 # build is stages-port4p; -D FOJO_FANFIC adds the #ifdef FOJO_FANFIC hunks

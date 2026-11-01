@@ -8,8 +8,8 @@ friends of joanna is four mods:
 
 - `mod_fojo-stages-port4p` — setups with only what four players need
 - `mod_fojo-stages-fojo` — the same plus fojo's own stage changes. mounted *instead of* stages-port4p, never beside it; this is the default
-- `mod_fojo-characters-port4p` — characters four players need (empty for now)
-- `mod_fojo-characters-fojo` — fojo's heads, bodies and bios (`chrbios.md` → `tools/mkchrbios build-mod`)
+- `mod_fojo-characters-port4p` — the heads and bodies, each one a Combat Simulator character with its carousel name (`label`)
+- `mod_fojo-characters-fojo` — fojo's bios for them (`chrbios.md` → `tools/mkchrbios build-mod`)
 
 both stage mods build from `src/setups`: the plain build is port4p, `tools/mksetups -D FOJO_FANFIC` is fojo.
 
