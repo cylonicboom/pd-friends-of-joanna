@@ -1,0 +1,365 @@
+#!/usr/bin/env python3
+"""mergesetups - union the props of several stage setups into one new setup.
+
+For stages that share a bg and a pads file (Area 51: lue, lip and tra all run
+on bg_lue with the same 1384 pads), this takes every object from every input,
+drops what needs characters or scripts to make sense, and writes one setup
+whose props are the union. The output is a raw setup file; turn it into C with
+
+    tools/blahaj --stage lue --name setupx merged.bin -o src/setups/setupx.c
+
+and build it back with tools/mksetups like any other setup.
+
+What is dropped (each is a policy flag, all on by default):
+  chr records, and weapons/hats assigned to a chr      --keep-chrs
+  objectives, requirements and briefings                --keep-objectives
+  tags (they only name objects for ailists)             --keep-tags
+  ai-driven vehicles: truck, heli, tank, hovercar,      --keep-ai-vehicles
+  chopper (the a51 interceptors)
+  renames from inputs other than --intro-from: their    --keep-foreign-renames
+  text is in that stage's lang bank, and the merged
+  stage loads only the primary's (give it `langbank`)
+
+Props link to each other by RELATIVE command offset (setup.c resolves
+`index + offset`): lift doors, door siblings, lift door slots, padlocks,
+safe items, conditional scenery, blocked paths, linked guns, renames and an
+object inside another object (OBJFLAG_INSIDEANOTHEROBJ, offset in .pad).
+Every one is resolved to its target record, and re-encoded against the
+target's new index once the merge is laid out. A record whose target was
+dropped is dropped with it, and said so.
+
+The same physical object in two inputs (same type, model and pad, and the
+same owner for an object inside another) is kept once, from the first input
+that has it - so input order is priority. Two such records inside ONE input
+are both kept: that is two objects, not a repeat. door_scale is state the engine
+carries from one door to the next, so each input's run starts with a reset
+to 1.0 and keeps its own door_scale records.
+
+The intro (spawns, starting weapons) comes from --intro-from (default: the
+first input). paths and ailists are empty: there is nothing left to drive.
+
+Dev-side only (python3, stdlib). Inputs are raw or 1173-compressed setups,
+e.g. build/<romid>/files/setup/setuplue.bin from tools/mksetups.
+"""
+
+import argparse, os, struct, sys, zlib
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+
+OBJFLAG_ASSIGNEDTOCHR = 0x00004000
+OBJFLAG_INSIDEANOTHEROBJ = 0x00008000
+
+T_DOOR, T_DOORSCALE, T_WEAPON, T_CHR, T_LINKGUNS, T_HAT = 0x01, 0x02, 0x08, 0x09, 0x0e, 0x11
+T_LINKLIFTDOOR, T_TAG = 0x13, 0x16
+T_OBJECTIVE_FIRST, T_OBJECTIVE_LAST, T_BRIEFING = 0x17, 0x21, 0x23
+T_RENAMEOBJ, T_PADLOCKEDDOOR, T_SAFEITEM = 0x25, 0x26, 0x2c
+T_LIFT, T_CONDSCENERY, T_BLOCKEDPATH, T_END = 0x30, 0x31, 0x32, 0x34
+AI_VEHICLES = {0x27: 'truck', 0x28: 'heli', 0x2d: 'tank', 0x37: 'hovercar', 0x39: 'chopper'}
+# types whose record starts with the _generic_object header (model/pad in word 1)
+GENERIC = {0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0a, 0x0b, 0x0c, 0x0d, 0x0f, 0x10, 0x11, 0x12,
+           0x14, 0x15, 0x24, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2d, 0x2f, 0x30, 0x33, 0x35, 0x36, 0x37,
+           0x38, 0x39, 0x3a, 0x3b}
+DOOR_SIBLING_WORD = 47
+LIFT_DOOR_WORDS = (25, 26, 27, 28)
+
+
+def s16(v):
+    return v - 0x10000 if v & 0x8000 else v
+
+
+def s32(v):
+    return v - 0x100000000 if v & 0x80000000 else v
+
+
+def load(path):
+    b = open(path, 'rb').read()
+    if b[:2] == b'\x11\x73':
+        b = zlib.decompress(b[5:], -15)
+    return b
+
+
+def prop_lengths():
+    """Record lengths by type, from props.h via blahaj's macro tables."""
+    import importlib.machinery, importlib.util
+    loader = importlib.machinery.SourceFileLoader('blahaj', os.path.join(HERE, 'blahaj'))
+    spec = importlib.util.spec_from_loader('blahaj', loader)
+    bl = importlib.util.module_from_spec(spec)
+    loader.exec_module(bl)
+    t = bl.Tables(bl.ROOT, {})
+    lens = {typ: len(c[0][2]) for typ, c in t.prop_by_type.items() if c}
+    lens.update(bl.OBJ_LENGTHS)
+    return lens
+
+
+class Rec:
+    def __init__(self, src, idx, words):
+        self.src, self.idx, self.w = src, idx, list(words)
+        self.typ = words[0] & 0xff
+        self.links = {}      # (kind, slot) -> target Rec
+        self.out = None      # index in the merged props
+
+    def model_pad(self):
+        return self.w[1] >> 16, self.w[1] & 0xffff
+
+    def key(self):
+        """Physical identity, for dedupe. None = never deduped."""
+        if self.typ in GENERIC:
+            model, pad = self.model_pad()
+            owner = self.links.get(('pad', 0))
+            return ('obj', self.typ, model, pad, owner.key() if owner else None)
+        if self.typ in (T_LINKLIFTDOOR, T_PADLOCKEDDOOR, T_SAFEITEM, T_CONDSCENERY, T_BLOCKEDPATH,
+                        T_LINKGUNS, T_RENAMEOBJ):
+            parts = tuple(sorted((k, v.key()) for k, v in self.links.items()))
+            return ('link', self.typ, parts, tuple(self.w[1:]) if self.typ == T_RENAMEOBJ else None)
+        return None
+
+
+def parse(path, src, lens, warn):
+    d = load(path)
+    hdr = [struct.unpack_from('>I', d, i * 4)[0] for i in range(8)]
+    off, recs = hdr[4], []
+    while True:
+        typ = d[off + 3]
+        if typ == T_END:
+            break
+        n = lens.get(typ)
+        if n is None:
+            warn('%s: unknown prop type 0x%02x at +%#x, stepping one word' % (src, typ, off))
+            n = 1
+        recs.append(Rec(src, len(recs), struct.unpack_from('>%dI' % n, d, off)))
+        off += n * 4
+    intro_off = hdr[3]
+    intro = []
+    if intro_off:
+        # intro commands are variable length; copy words up to endintro (0x0c)
+        import importlib.machinery, importlib.util
+        o = intro_off
+        while True:
+            w = struct.unpack_from('>I', d, o)[0]
+            intro.append(w)
+            o += 4
+            if w == 0x0c and len(intro) and _intro_at_cmd(intro):
+                break
+    return recs, intro
+
+
+_INTRO_LEN = None
+
+
+def _intro_at_cmd(words):
+    """True when the last word sits on a command boundary (so 0x0c is endintro,
+    not an operand). Lengths are from intro.h via blahaj."""
+    global _INTRO_LEN
+    if _INTRO_LEN is None:
+        import importlib.machinery, importlib.util
+        loader = importlib.machinery.SourceFileLoader('blahaj2', os.path.join(HERE, 'blahaj'))
+        spec = importlib.util.spec_from_loader('blahaj2', loader)
+        bl = importlib.util.module_from_spec(spec)
+        loader.exec_module(bl)
+        t = bl.Tables(bl.ROOT, {})
+        _INTRO_LEN = {k: len(v[0][2]) for k, v in t.intro_by_type.items() if v}
+    i = 0
+    while i < len(words):
+        if i == len(words) - 1:
+            return words[i] == 0x0c
+        n = _INTRO_LEN.get(words[i])
+        if not n:
+            return False
+        i += n
+    return False
+
+
+def resolve(recs, src, warn):
+    """Turn every relative offset into a link to the target record."""
+    n = len(recs)
+
+    def tgt(r, off):
+        i = r.idx + off
+        return recs[i] if 0 <= i < n else None
+
+    for r in recs:
+        t, w = r.typ, r.w
+        slots = []
+        if t in GENERIC and (w[2] & OBJFLAG_INSIDEANOTHEROBJ):
+            slots.append((('pad', 0), s16(w[1] & 0xffff)))
+        if t == T_DOOR and len(w) > DOOR_SIBLING_WORD and w[DOOR_SIBLING_WORD]:
+            slots.append((('word', DOOR_SIBLING_WORD), s32(w[DOOR_SIBLING_WORD])))
+        if t == T_LIFT:
+            for k in LIFT_DOOR_WORDS:
+                if w[k]:
+                    slots.append((('word', k), s32(w[k])))
+        if t in (T_LINKLIFTDOOR, T_PADLOCKEDDOOR):
+            slots += [(('word', 1), s32(w[1])), (('word', 2), s32(w[2]))]
+        if t in (T_SAFEITEM, T_CONDSCENERY):
+            for k in (1, 2, 3):
+                if w[k] or (t == T_SAFEITEM):
+                    slots.append((('word', k), s32(w[k])))
+        if t in (T_BLOCKEDPATH, T_RENAMEOBJ):
+            slots.append((('word', 1), s32(w[1])))
+        if t == T_LINKGUNS:
+            slots += [(('hi', 1), s16(w[1] >> 16)), (('lo', 1), s16(w[1] & 0xffff))]
+        if t == T_TAG:
+            slots.append((('lo', 1), s16(w[1] & 0xffff)))
+        for slot, off in slots:
+            target = tgt(r, off)
+            if target is None:
+                warn('%s: prop %d (type 0x%02x) links %+d past the end' % (src, r.idx, t, off))
+                r.broken = True
+            else:
+                r.links[slot] = target
+
+
+def drop_reason(r, a, primary=None):
+    t = r.typ
+    if t == T_RENAMEOBJ and primary is not None and r.src != primary and not a.keep_foreign_renames:
+        # its strings are ids in the source stage's lang bank, and the merged
+        # stage loads one bank: the primary's (set `langbank` to match)
+        return "rename in another stage's lang bank"
+    if t == T_CHR and not a.keep_chrs:
+        return 'chr'
+    if t in (T_WEAPON, T_HAT) and (r.w[2] & OBJFLAG_ASSIGNEDTOCHR) and not a.keep_chrs:
+        return 'held by a chr'
+    if (T_OBJECTIVE_FIRST <= t <= T_OBJECTIVE_LAST or t == T_BRIEFING) and not a.keep_objectives:
+        return 'objective'
+    if t == T_TAG and not a.keep_tags:
+        return 'tag'
+    if t in AI_VEHICLES and not a.keep_ai_vehicles:
+        return 'ai vehicle (%s)' % AI_VEHICLES[t]
+    if getattr(r, 'broken', False):
+        return 'broken link'
+    return None
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split('\n\n')[0])
+    ap.add_argument('inputs', nargs='+', help='setup files, in priority order')
+    ap.add_argument('-o', '--output', required=True, help='raw merged setup to write')
+    ap.add_argument('--intro-from', type=int, default=0, help='index of the input whose intro is kept')
+    ap.add_argument('--keep-chrs', action='store_true')
+    ap.add_argument('--keep-objectives', action='store_true')
+    ap.add_argument('--keep-tags', action='store_true')
+    ap.add_argument('--keep-ai-vehicles', action='store_true')
+    ap.add_argument('--keep-foreign-renames', action='store_true',
+                    help="keep rename_object records from inputs other than --intro-from; their text "
+                         "ids point into those stages' lang banks, which the merged stage does not load")
+    ap.add_argument('-v', '--verbose', action='store_true')
+    a = ap.parse_args()
+
+    warnings = []
+
+    def warn(m):
+        warnings.append(m)
+        print('mergesetups: ' + m, file=sys.stderr)
+
+    lens = prop_lengths()
+    srcs, intros = [], []
+    for p in a.inputs:
+        name = os.path.basename(p)
+        recs, intro = parse(p, name, lens, warn)
+        resolve(recs, name, warn)
+        srcs.append((name, recs))
+        intros.append(intro)
+
+    # drop, then drop again anything linking to a dropped record, to a fixpoint
+    dropped = {}
+    for name, recs in srcs:
+        for r in recs:
+            why = drop_reason(r, a, srcs[a.intro_from][0])
+            if why:
+                dropped[id(r)] = why
+    changed = True
+    while changed:
+        changed = False
+        for name, recs in srcs:
+            for r in recs:
+                if id(r) in dropped:
+                    continue
+                for slot, t in r.links.items():
+                    if id(t) in dropped:
+                        why = 'links to a dropped %s' % dropped[id(t)]
+                        dropped[id(r)] = why
+                        changed = True
+                        if r.typ not in (T_TAG,):
+                            warn('%s: prop %d (type 0x%02x) %s' % (name, r.idx, r.typ, why))
+                        break
+
+    # lay out: each input in order, deduping physical objects against what is in
+    out = []
+    seen = {}
+    stats = []
+    for name, recs in srcs:
+        kept = dup = 0
+        out.append(('scale', None))            # door_scale reset for this run
+        for r in recs:
+            if id(r) in dropped:
+                continue
+            # dedupe only ACROSS inputs: two records at one pad in the same
+            # input are two objects (stacked pickups, a crate's contents)
+            k = r.key()
+            if k is not None and k in seen and seen[k].src != r.src:
+                r.alias = seen[k]
+                dup += 1
+                continue
+            if k is not None and k not in seen:
+                seen[k] = r
+            out.append(('rec', r))
+            kept += 1
+        drops = sum(1 for r in recs if id(r) in dropped)
+        stats.append((name, len(recs), kept, dup, drops))
+
+    def final(r):
+        while getattr(r, 'alias', None) is not None:
+            r = r.alias
+        return r
+
+    # indices first, then encode the links against them
+    for i, (kind, r) in enumerate(out):
+        if kind == 'rec':
+            r.out = i
+    words = []
+    for i, (kind, r) in enumerate(out):
+        if kind == 'scale':
+            words += [T_DOORSCALE, 0x10000]
+            continue
+        w = list(r.w)
+        for (sk, k), t in r.links.items():
+            off = final(t).out - i
+            if sk == 'word':
+                w[k] = off & 0xffffffff
+            elif sk == 'pad':
+                w[1] = (w[1] & 0xffff0000) | (off & 0xffff)
+            elif sk == 'hi':
+                w[1] = ((off & 0xffff) << 16) | (w[1] & 0xffff)
+            elif sk == 'lo':
+                w[1] = (w[1] & 0xffff0000) | (off & 0xffff)
+        words += w
+    words.append(T_END)
+
+    # file: header, intro, props, empty paths, empty ailists
+    intro = intros[a.intro_from]
+    hdr_len = 8 * 4
+    intro_off = hdr_len
+    props_off = intro_off + len(intro) * 4
+    paths_off = props_off + len(words) * 4
+    ailists_off = paths_off + 8
+    end = ailists_off + 8
+    hdr = [0, 0, 0, intro_off, props_off, paths_off, ailists_off, 0]
+    blob = struct.pack('>8I', *hdr) + struct.pack('>%dI' % len(intro), *intro) \
+        + struct.pack('>%dI' % len(words), *words) + b'\0' * 8 + b'\0' * 8
+    blob += b'\0' * ((-len(blob)) % 16)
+    open(a.output, 'wb').write(blob)
+
+    for name, total, kept, dup, drops in stats:
+        print('mergesetups: %-14s %4d props: %4d kept, %4d already in, %4d dropped' % (name, total, kept, dup, drops))
+    if a.verbose:
+        from collections import Counter
+        c = Counter(dropped.values())
+        for why, n in c.most_common():
+            print('mergesetups:   dropped %4d  %s' % (n, why))
+    print('mergesetups: wrote %s, %d props, %d bytes, %d warnings' % (
+        a.output, sum(1 for k, _ in out if k == 'rec'), len(blob), len(warnings)))
+
+
+if __name__ == '__main__':
+    main()

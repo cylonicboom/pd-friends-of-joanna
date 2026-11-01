@@ -288,6 +288,9 @@ def main():
     ap.add_argument('--mod-dir', help='the mod directory (data/mods/<name>); its folder name is the mod name')
     ap.add_argument('--rom', help='the base ROM to diff against (default: pd.<romid>.z64 in the mod\'s basedir data/ or data/roms/)')
     ap.add_argument('--xdelta3', default=os.environ.get('XDELTA3', 'xdelta3'))
+    ap.add_argument('--patch-against', metavar='SETUP',
+                    help='with --patches, for a NEW setup: diff against this vanilla setup (eg setuplue) '
+                         'and write a row that reads that file from the base rom and patches it')
     ap.add_argument('--keep-unchanged', action='store_true',
                     help='with --patches: write an (empty) patch and a row even for a build identical to vanilla')
     args = ap.parse_args()
@@ -342,6 +345,21 @@ def find_rom(args):
     sys.exit('mksetups: no base ROM: put %s in %s (or %s/roms), or pass --rom' % (fn, data, data))
 
 
+def base_rom_id(manifest, romid):
+    """The romSource id that names the base rom in this manifest, declared if
+    it is not there yet. A manifest cannot point a source at the base rom by
+    itself (mkfiletable has no 'base' id), so a new setup that reads a vanilla
+    file out of it declares the rom as a romSource."""
+    fn = 'pd.%s.z64' % romid
+    srcs = manifest.setdefault('romSources', [])
+    for s in srcs:
+        if s.get('filename') == fn:
+            return s['id']
+    srcs.append({'id': romid, 'filename': fn, 'displayName': 'Perfect Dark %s' % romid,
+                 'expectedSize': 33554432, 'required': True, 'fallbackBehavior': 'skip'})
+    return romid
+
+
 def write_patches(args, built):
     import tempfile
     xd = shutil.which(args.xdelta3)
@@ -368,9 +386,14 @@ def write_patches(args, built):
     with tempfile.TemporaryDirectory() as tmp:
         for name, binp in built:
             romname = 'U%sZ' % name
-            if romname not in vanilla:
-                sys.exit('mksetups: %s is not a file in %s' % (romname, os.path.basename(rom_path)))
-            f = vanilla[romname]
+            # a new setup (no file of that name in the rom) is diffed against
+            # the vanilla setup it was made from, and ships as that file plus
+            # the patch under its own name
+            basename = 'U%sZ' % args.patch_against if args.patch_against else romname
+            if basename not in vanilla:
+                sys.exit('mksetups: %s is not a file in %s%s' % (basename, os.path.basename(rom_path),
+                         '' if args.patch_against else '; a new setup needs --patch-against <vanilla setup>'))
+            f = vanilla[basename]
             van = inflate1173(rom[f['offset']:f['end_offset']])
             raw = open(binp, 'rb').read()
             if raw == van and not args.keep_unchanged:
@@ -386,7 +409,7 @@ def write_patches(args, built):
             subprocess.check_call([xd, '-e', '-A', '-S', 'none', '-f', '-s', van_path, binp, out])
             print('%s: %d -> %d bytes, patch %d B -> patches/%s.xdelta' % (
                 romname, len(van), len(raw), os.path.getsize(out), romname))
-            rows.append((romname, 'patches/%s.xdelta' % romname))
+            rows.append((romname, 'patches/%s.xdelta' % romname, basename))
     if not rows:
         return
     manifest_path = os.path.join(mod_dir, '%s_filetable.json' % mod_name)
@@ -397,17 +420,26 @@ def write_patches(args, built):
         manifest = {'modName': mod_name, 'files': []}
     files = manifest.setdefault('files', [])
     by_name = dict((e.get('name'), e) for e in files if isinstance(e, dict))
-    for romname, rel in rows:
+    for romname, rel, basename in rows:
         row = by_name.get(romname)
         if row is None:
             row = {'name': romname}
             files.append(row)
             by_name[romname] = row
-        row['replaces'] = romname
+        if basename == romname:
+            row['replaces'] = romname
+            row.pop('source', None)
+        else:
+            # a file of its own, read out of the base rom under the vanilla
+            # name it was made from, then patched
+            row.pop('replaces', None)
+            row['source'] = {'rom': base_rom_id(manifest, args.romid), 'lookup': 'byName', 'alias': basename}
         row['patch'] = rel
         row.pop('path', None)
         row.pop('prefix', None)
-        row.setdefault('description', "%s, patched after inflate against the player's own ROM" % romname)
+        row.setdefault('description', "%s, patched after inflate against the player's own ROM" % romname
+                       if basename == romname else
+                       "%s: %s from the player's own ROM, patched after inflate" % (romname, basename))
     with open(manifest_path, 'w') as fd:
         json.dump(manifest, fd, indent=2, ensure_ascii=False)
         fd.write('\n')
