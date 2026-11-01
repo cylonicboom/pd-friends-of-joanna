@@ -2398,8 +2398,12 @@ static bool ciIsBioCharUnlocked(struct biocharid *ch)
 {
 	switch (ch->bodynum) {
 	case BODY_DARK_COMBAT:
+		// Joanna has a built-in bio. Any other head on her body is listed
+		// only if a mounted mod gives it one, so a roster entry whose mod is
+		// not mounted drops out instead of showing Joanna's bio.
 		if (ch->mpheadnum == -1) return false;
-		return true;
+		if (ch->mpheadnum == MPHEAD_DARK_COMBAT) return true;
+		return modChrBioForMpHead(ch->mpheadnum) != NULL;
 	case BODY_CARRINGTON:
 		return true;
 	case BODY_CASSANDRA:
@@ -2467,6 +2471,15 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 		// <<< chrbios
 #endif
 	};
+
+	// A bio a mounted mod gives this head (a ChrBio block, keyed by head
+	// name) wins over the built-in one, vanilla heads included.
+	if (ch->mpheadnum >= 0) {
+		struct chrbio *modbio = modChrBioForMpHead(ch->mpheadnum);
+		if (modbio) {
+			return modbio;
+		}
+	}
 
 	if (ch->bodynum == BODY_DARK_COMBAT) {
 		if (ch->mpheadnum == MPHEAD_VD)                          return &bios[1];

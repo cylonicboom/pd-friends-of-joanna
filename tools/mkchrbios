@@ -5,6 +5,8 @@
   mkchrbios check     [--doc DOC] [--src SRC]   exit 1 if the C is stale
   mkchrbios extract   [--doc DOC] [--src SRC]   C -> markdown
   mkchrbios selftest  [--doc DOC] [--src SRC]   run the failure matrix on a copy
+  mkchrbios build-mod MODDIR                    MODDIR/chrbios.md -> ChrBio blocks
+  mkchrbios check-mod MODDIR                    exit 1 if MODDIR/modconfig.txt is stale
 
 The C side is the region between the sentinel comments in SRC. `build` never
 parses C — it finds the two markers and splices — so nothing outside them can
@@ -277,15 +279,25 @@ def selftest(doc_path, src_path):
     lo_a, hi_a = read_region(a, src); lo_b, hi_b = read_region(b, src)
     case("build touches only the region", a[:lo_a] == b[:lo_b] and a[hi_a:] == b[hi_b:])
 
+    # 3 and 4 need a literal bio with a ### Profile section. The built-in
+    # document has been all lang since fojo's bios moved into its mod, so
+    # append a placeholder one to the copy when it has none.
+    lit_doc = good_doc
+    if "### Profile" not in lit_doc:
+        n = len(re.findall(r"^## ", lit_doc, re.M))
+        lit_doc = lit_doc.rstrip("\n") + ("\n\n---\n\n## Lorem Ipsum\n\n- **index** `%d`\n- **kind** `literal`\n"
+                   "- **flags** `CHRBIO_FLAG_LITERAL`\n- **race** `Lorem`\n- **age** `00`\n\n"
+                   "### Profile\n\nLorem ipsum dolor sit amet.\n" % n)
+
     # 3. a prose line that looks like a field stays prose
-    reset(good_doc.replace("### Profile", "### Profile\n\n- **age** `99`", 1))
+    reset(lit_doc.replace("### Profile", "### Profile\n\n- **age** `99`", 1))
     rc, _ = run("build")
     body_kept = "- **age** `99`" in open(src).read()
     ages = re.findall(r'\(uintptr_t\)"99"', open(src).read())
     case("field-shaped prose stays prose", rc == 0 and body_kept and not ages)
 
     # 4. a --- inside prose survives
-    reset(good_doc.replace("### Profile\n", "### Profile\n\nabove\n---\nbelow\n", 1))
+    reset(lit_doc.replace("### Profile\n", "### Profile\n\nabove\n---\nbelow\n", 1))
     run("build")
     case("--- inside prose survives", "above\\n---\\nbelow" in open(src).read())
 
@@ -325,6 +337,142 @@ def selftest(doc_path, src_path):
         bad += 0 if ok else 1
     print("mkchrbios selftest: %d/%d passed" % (len(results) - bad, len(results)))
     return 1 if bad else 0
+
+# ── mod bios: MODDIR/chrbios.md -> ChrBio blocks in MODDIR/modconfig.txt ─
+
+MOD_OPEN = "# >>> chrbios: generated from chrbios.md by tools/mkchrbios build-mod"
+MOD_CLOSE = "# <<< chrbios"
+MOD_FIELDS = ("head", "race", "age")
+TOKEN_MAX = 1000   # strParseToken keeps 1023 chars of a quoted token, quotes included
+
+def cfg_escape(s):
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\t", "\\t")
+
+def parse_mod_md(text, path):
+    """Same shape as the core document - `##` name, a field run, a body - but
+    the fields are head/race/age and there is no index: a mod bio is keyed by
+    the head it belongs to, never by a slot."""
+    bios, cur, body, in_fields = [], None, [], False
+
+    def flush():
+        if cur is None:
+            return
+        if not cur.get("head"):
+            die("%s: '%s' has no `- **head**` field" % (path, cur["name"]))
+        lines = body[:]
+        while lines and not lines[-1].strip():
+            lines.pop()
+        if lines and lines[-1].strip() == "---":
+            lines.pop()
+        cur["desc"] = md_to_desc("\n".join(lines).strip("\n"))
+        bios.append(cur)
+
+    for line in text.split("\n"):
+        if line.startswith("## "):
+            flush()
+            cur = dict(name=line[3:].strip())
+            body, in_fields = [], True
+            continue
+        if cur is None:
+            continue
+        if in_fields:
+            if not line.strip():
+                continue
+            m = FIELD_RE.match(line)
+            if m:
+                if m.group(1) in MOD_FIELDS:
+                    cur[m.group(1)] = m.group(2)
+                continue
+            in_fields = False
+        body.append(line)
+    flush()
+    heads = [b["head"] for b in bios]
+    dup = sorted(set(h for h in heads if heads.count(h) > 1))
+    if dup:
+        die("%s: more than one bio for %s" % (path, ", ".join(dup)))
+    return bios
+
+def desc_parts(desc):
+    """Split a description back into the ChrBio parts the engine rejoins:
+    ('section', heading, body) for a |Heading - block and what follows it up
+    to the next heading, ('text', body) for anything before the first."""
+    parts = []
+    for b in desc.rstrip("\n").split("\n\n"):
+        if b.startswith("|") and b.endswith(" -"):
+            parts.append(["section", b[1:-2], []])
+        elif parts and parts[-1][0] == "section":
+            parts[-1][2].append(b)
+        else:
+            parts.append(["text", None, [b]])
+    return [(k, h, "\n\n".join(bs)) for k, h, bs in parts]
+
+def parts_to_desc(parts):
+    """What port/src/mod.c modConfigParseChrBio builds - kept here so the
+    round trip is checked before anything is written."""
+    out = []
+    for k, h, body in parts:
+        out.append(("|%s -\n\n%s" % (h, body)) if k == "section" else body)
+    return "\n\n".join(out) + "\n"
+
+def emit_mod(bios):
+    lines = [MOD_OPEN,
+             "# Edit chrbios.md beside this file, then run tools/mkchrbios build-mod <this dir>."]
+    for b in bios:
+        parts = desc_parts(b["desc"])
+        if parts_to_desc(parts) != b["desc"]:
+            die("'%s': the description does not survive the ChrBio round trip" % b["name"])
+        lines += ["ChrBio {",
+                  '    head "%s"' % cfg_escape(b["head"]),
+                  '    name "%s"' % cfg_escape(b["name"]),
+                  '    race "%s"' % cfg_escape(b.get("race", "")),
+                  '    age "%s"' % cfg_escape(b.get("age", ""))]
+        for k, h, body in parts:
+            for v in ([h, body] if k == "section" else [body]):
+                if len(cfg_escape(v)) > TOKEN_MAX:
+                    die("'%s': a part is %d chars escaped, over the %d a modconfig token holds; "
+                        "split it with another ### heading" % (b["name"], len(cfg_escape(v)), TOKEN_MAX))
+            if k == "section":
+                lines.append('    section "%s" "%s"' % (cfg_escape(h), cfg_escape(body)))
+            else:
+                lines.append('    text "%s"' % cfg_escape(body))
+        lines.append("}")
+    lines.append(MOD_CLOSE)
+    return "\n".join(lines) + "\n"
+
+def splice_mod(cfg, block, path):
+    if MOD_OPEN in cfg:
+        a = cfg.index(MOD_OPEN)
+        try:
+            b = cfg.index(MOD_CLOSE, a) + len(MOD_CLOSE)
+        except ValueError:
+            die("%s: '%s' with no '%s'" % (path, MOD_OPEN, MOD_CLOSE))
+        if b < len(cfg) and cfg[b] == "\n":
+            b += 1
+        return cfg[:a] + block + cfg[b:]
+    return cfg.rstrip("\n") + "\n\n" + block
+
+def mod_command(cmd, moddir):
+    doc = os.path.join(moddir, "chrbios.md")
+    cfg_path = os.path.join(moddir, "modconfig.txt")
+    if not os.path.exists(doc):
+        die("%s does not exist" % doc)
+    if not os.path.exists(cfg_path):
+        die("%s does not exist" % cfg_path)
+    bios = parse_mod_md(open(doc).read(), doc)
+    cfg = open(cfg_path).read()
+    new = splice_mod(cfg, emit_mod(bios), cfg_path)
+    if cmd == "check-mod":
+        if new == cfg:
+            print("mkchrbios: %s is up to date (%d bios)" % (cfg_path, len(bios)))
+            return 0
+        print("mkchrbios: %s is STALE — run 'mkchrbios build-mod %s'" % (cfg_path, moddir), file=sys.stderr)
+        return 1
+    if new == cfg:
+        print("mkchrbios: %s already up to date (%d bios)" % (cfg_path, len(bios)))
+        return 0
+    write_atomic(cfg_path, new)
+    print("mkchrbios: wrote %d ChrBio blocks into %s" % (len(bios), cfg_path))
+    return 0
 
 # ── commands ─────────────────────────────────────────────────────────
 
@@ -407,7 +555,21 @@ every case runs against the copies. Nine cases; prints a line each and a total.
 Run it after changing this tool.
 """))
 
+    for name, helptext in (("build-mod", "MODDIR/chrbios.md -> ChrBio blocks in MODDIR/modconfig.txt"),
+                           ("check-mod", "exit 1 if MODDIR/modconfig.txt is behind MODDIR/chrbios.md")):
+        sp = sub.add_parser(name, formatter_class=RAW, help=helptext, description=helptext,
+                            epilog="""\
+A mod's bios are keyed by head name (`- **head** `head_x``), not by index;
+the engine resolves the name at boot and a bio for a vanilla head replaces
+the built-in one. The blocks are written between two sentinel comments in
+modconfig.txt, appended at the end the first time. Nothing outside them moves.
+""")
+        sp.add_argument("moddir", help="the mod directory (data/mods/<name>)")
+
     a = ap.parse_args()
+
+    if a.command in ("build-mod", "check-mod"):
+        return mod_command(a.command, a.moddir)
 
     if a.command == "selftest":
         return selftest(a.doc, a.src)

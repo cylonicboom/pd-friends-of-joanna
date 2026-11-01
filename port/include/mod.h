@@ -247,6 +247,13 @@ void modSwitch(s32 modnum, s32 stagenum);
 s32 modNumFromStage(s32 stagenum);
 s32 modLookupHeadByName(const char *name);
 
+// ChrBio blocks: a character bio supplied by a mod, keyed by the head it
+// belongs to (by name, so it means the same thing on every machine and mod
+// order). Parsed at boot from every mounted modconfig alongside
+// HeadsAndBodies. Returns NULL when no mounted mod gives that head a bio.
+struct chrbio;
+struct chrbio *modChrBioForMpHead(s32 mpheadnum);
+
 // Persisted g_MpHeads / g_MpBodies index allocation, keyed by the head or body
 // name a modconfig declares. See the note above the store in mod.c.
 void modSlotReservationsInit(void);

@@ -2413,6 +2413,202 @@ static char *modConfigParseHeadsAndBodies(char *p, char *token, s32 modNum)
 	return p;
 }
 
+/*
+ * ChrBio { head "<head name>" name "..." race "..." age "..."
+ *          text "..." section "<heading>" "<body>" ... }
+ *
+ * A character bio supplied by a mod. The head is named, never numbered: it
+ * resolves through modLookupHeadByName at query time, so a bio follows its
+ * head wherever the roster put it this boot, and naming a vanilla head
+ * (head_dark_combat) replaces that character's built-in bio.
+ *
+ * The description is built the way the CI bio screen expects it: each
+ * `section` becomes "|<heading> -\n\n<body>", a `text` is emitted as-is, parts
+ * are joined by a blank line and the whole ends in "\n". Values take \n, \t,
+ * \\ and \" escapes; a single quoted token is capped at UTIL_MAX_TOKEN, which
+ * is why the body comes in parts rather than one string.
+ *
+ * modLoadAIO runs on every modSwitch, so a block seen again from the same mod
+ * replaces its own entry. Two different mods giving one head a bio is a
+ * collision: it is logged naming both, and the later one stands.
+ */
+#define MOD_CHRBIO_MAX 64
+
+struct modchrbio {
+	char head[64];
+	s32 modnum;
+	char *name;
+	char *race;
+	char *age;
+	char *desc;
+	struct chrbio bio;
+};
+
+static struct modchrbio g_ModChrBios[MOD_CHRBIO_MAX];
+static s32 g_NumModChrBios;
+
+static char *modChrBioUnescape(const char *in)
+{
+	size_t n = strlen(in);
+	char *out = malloc(n + 1);
+	if (!out) return NULL;
+	char *o = out;
+	for (const char *c = in; *c; ++c) {
+		if (c[0] == '\\' && c[1]) {
+			++c;
+			switch (*c) {
+			case 'n': *o++ = '\n'; break;
+			case 't': *o++ = '\t'; break;
+			default: *o++ = *c; break; // \\ and \" (the tokenizer already ate \")
+			}
+		} else {
+			*o++ = *c;
+		}
+	}
+	*o = '\0';
+	return out;
+}
+
+static void modChrBioAppend(char **desc, size_t *len, const char *part)
+{
+	size_t add = strlen(part);
+	size_t sep = *len ? 2 : 0;
+	char *grown = realloc(*desc, *len + sep + add + 2);
+	if (!grown) return;
+	*desc = grown;
+	if (sep) {
+		memcpy(*desc + *len, "\n\n", 2);
+	}
+	memcpy(*desc + *len + sep, part, add);
+	*len += sep + add;
+	(*desc)[*len] = '\0';
+}
+
+static void modChrBioFree(struct modchrbio *b)
+{
+	free(b->name);
+	free(b->race);
+	free(b->age);
+	free(b->desc);
+	memset(b, 0, sizeof(*b));
+}
+
+static char *modConfigParseChrBio(char *p, char *token, s32 modNum)
+{
+	struct modchrbio tmp;
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.modnum = modNum;
+	size_t desclen = 0;
+
+	p = strParseToken(p, token, NULL);
+	if (token[0] != '{' || token[1] != '\0') {
+		return NULL;
+	}
+
+	while (true) {
+		p = strParseToken(p, token, NULL);
+		if (!p || !token[0]) {
+			sysLogPrintf(LOG_ERROR, "modconfig: unterminated ChrBio block (mod %d)", modNum);
+			modChrBioFree(&tmp);
+			return NULL;
+		}
+		if (token[0] == '}' && token[1] == '\0') {
+			break;
+		}
+
+		if (!strcmp(token, "head")) {
+			p = strParseToken(p, token, NULL);
+			strncpy(tmp.head, strUnquote(token), sizeof(tmp.head) - 1);
+		} else if (!strcmp(token, "name") || !strcmp(token, "race") || !strcmp(token, "age")) {
+			char **dst = token[0] == 'n' ? &tmp.name : token[0] == 'r' ? &tmp.race : &tmp.age;
+			p = strParseToken(p, token, NULL);
+			free(*dst);
+			*dst = modChrBioUnescape(strUnquote(token));
+		} else if (!strcmp(token, "text")) {
+			p = strParseToken(p, token, NULL);
+			char *part = modChrBioUnescape(strUnquote(token));
+			if (part) {
+				modChrBioAppend(&tmp.desc, &desclen, part);
+				free(part);
+			}
+		} else if (!strcmp(token, "section")) {
+			p = strParseToken(p, token, NULL);
+			char *heading = modChrBioUnescape(strUnquote(token));
+			p = strParseToken(p, token, NULL);
+			char *body = modChrBioUnescape(strUnquote(token));
+			if (heading && body) {
+				size_t n = strlen(heading) + strlen(body) + 8;
+				char *part = malloc(n);
+				if (part) {
+					snprintf(part, n, "|%s -\n\n%s", heading, body);
+					modChrBioAppend(&tmp.desc, &desclen, part);
+					free(part);
+				}
+			}
+			free(heading);
+			free(body);
+		} else {
+			char where[64];
+			snprintf(where, sizeof(where), "ChrBio (mod %d)", modNum);
+			p = modConfigSkipUnknownKey(p, where, token);
+			if (!p) {
+				modChrBioFree(&tmp);
+				return NULL;
+			}
+		}
+	}
+
+	if (!tmp.head[0]) {
+		sysLogPrintf(LOG_WARNING, "modconfig: ChrBio with no head (mod %d), skipped", modNum);
+		modChrBioFree(&tmp);
+		return p;
+	}
+
+	modChrBioAppend(&tmp.desc, &desclen, "");
+	// modChrBioAppend joins with a blank line; the bio ends in a single "\n"
+	if (tmp.desc && desclen >= 2) {
+		tmp.desc[desclen - 1] = '\0';
+	}
+
+	tmp.bio.name = (uintptr_t)(tmp.name ? tmp.name : "");
+	tmp.bio.race = (uintptr_t)(tmp.race ? tmp.race : "");
+	tmp.bio.age = (uintptr_t)(tmp.age ? tmp.age : "");
+	tmp.bio.description = (uintptr_t)(tmp.desc ? tmp.desc : "");
+	tmp.bio.flags = CHRBIO_FLAG_LITERAL;
+
+	for (s32 i = 0; i < g_NumModChrBios; ++i) {
+		if (!strcmp(g_ModChrBios[i].head, tmp.head)) {
+			if (g_ModChrBios[i].modnum != modNum) {
+				sysLogPrintf(LOG_WARNING, "modconfig: ChrBio for '%s' given by mod %d and mod %d; mod %d's stands",
+						tmp.head, g_ModChrBios[i].modnum, modNum, modNum);
+			}
+			modChrBioFree(&g_ModChrBios[i]);
+			g_ModChrBios[i] = tmp;
+			return p;
+		}
+	}
+
+	if (g_NumModChrBios >= MOD_CHRBIO_MAX) {
+		sysLogPrintf(LOG_WARNING, "modconfig: more than %d ChrBio blocks, '%s' dropped", MOD_CHRBIO_MAX, tmp.head);
+		modChrBioFree(&tmp);
+		return p;
+	}
+
+	g_ModChrBios[g_NumModChrBios++] = tmp;
+	return p;
+}
+
+struct chrbio *modChrBioForMpHead(s32 mpheadnum)
+{
+	if (mpheadnum < 0) return NULL;
+	for (s32 i = 0; i < g_NumModChrBios; ++i) {
+		if (modLookupHeadByName(g_ModChrBios[i].head) == mpheadnum) {
+			return &g_ModChrBios[i].bio;
+		}
+	}
+	return NULL;
+}
+
 static char *modConfigParseMpHeads(char *p, char *token)
 {
 	struct mphead *new_array;
@@ -3414,6 +3610,14 @@ s32 modLoadAIO(void)
 			} else if (!strcmp(token, "HeadsAndBodies")) {
 				p = modConfigParseHeadsAndBodies(p, token, i);
 				continue;
+			} else if (!strcmp(token, "ChrBio")) {
+				char *prev = p;
+				p = modConfigParseChrBio(p, token, i);
+				if (!p) {
+					sysLogPrintf(LOG_ERROR, "modLoadAIO: malformed ChrBio block in %s", modDirs[i]);
+					p = modConfigSkipBlock(prev, token);
+				}
+				continue;
 			} else if (!strcmp(token, "stage")) {
 				// Skip stage number, then skip the block
 				p = strParseToken(p, token, NULL); // skip stage number
@@ -3735,6 +3939,14 @@ s32 modConfigLoad(const char *fname)
 			}
 			if (!p) {
 				sysLogPrintf(LOG_ERROR, "modconfig: malformed HeadsAndBodies block");
+				success = false;
+				break;
+			}
+		} else if (!strcmp(token, "ChrBio")) {
+			// Parsed for every mounted mod by modLoadAIO, not per active mod.
+			p = modConfigSkipBlock(p, token);
+			if (!p) {
+				sysLogPrintf(LOG_ERROR, "modconfig: malformed ChrBio block");
 				success = false;
 				break;
 			}
