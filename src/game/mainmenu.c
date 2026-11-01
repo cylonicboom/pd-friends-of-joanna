@@ -2210,9 +2210,11 @@ char *fojoMenuTextDeathCount(struct menuitem *item) {
     u8 bodynum = g_PlayerConfigsArray[g_MpPlayerNum].base.mpbodynum;
     s32 bodyindex = mpGetBodyId(bodynum);
 
-    if (selectedindex == FOJO_INDEX_CALICO) {
-      sprintf(buffer, "CI Combat Unit #200x-0A1F-%u",
-              deaths); // Compress consecutive '00' to '0' in the middle field
+    const struct modoperative *op = modOperativeAt(selectedindex);
+
+    if (op && op->designation[0]) {
+      // a fixed unit tag from her Operative block, verbatim
+      sprintf(buffer, "%.48s-%u", op->designation, deaths);
     } else {
       sprintf(buffer, "CI Combat Unit #%04x-%x-%u", shifted, bodyindex,
               deaths); // Compress consecutive '00' to '0' in the middle field
@@ -2262,51 +2264,16 @@ char *fojoMenuTextHeadName(struct menuitem *item) {
   return fojoGetHeadName(selectedindex);
 }
 
-// Map a FoJo carousel slot to the modconfig head_* name.
-// Slots map to fixed names; resolution happens at runtime so a modconfig
-// that omits any of these heads simply produces an empty slot.
-static const char *fojoHeadConfigName(s32 optionindex) {
-  if (!romsourceIsMounted("jpn") && optionindex >= FOJO_INDEX_MIKADO) {
-    optionindex++;
-  }
-  switch (optionindex) {
-  case FOJO_INDEX_JOANNA:
-    return NULL; // built-in, no modconfig name
-  case FOJO_INDEX_VELVET:
-    return NULL; // built-in, no modconfig name
-  case FOJO_INDEX_MIKADO:
-    return "head_mikado";
-  case FOJO_INDEX_POPLIN:
-    return "head_foslerfer";
-  case FOJO_INDEX_CALICO:
-    return "head_catherine";
-  case FOJO_INDEX_WILLOW:
-    return "head_willow";
-  default:
-    return NULL;
-  }
-}
-
+// A carousel slot's name: the roster's, in roster order.
 static const char *fojoHeadDisplayName(s32 optionindex) {
-  if (!romsourceIsMounted("jpn") && optionindex >= FOJO_INDEX_MIKADO) {
-    optionindex++;
+  const struct modoperative *op = modOperativeAt(optionindex);
+
+  if (op) {
+    return op->name;
   }
-  switch (optionindex) {
-  case FOJO_INDEX_JOANNA:
-    return "Joanna Dark";
-  case FOJO_INDEX_VELVET:
-    return "Velvet Dark";
-  case FOJO_INDEX_MIKADO:
-    return "Mikado Dark";
-  case FOJO_INDEX_POPLIN:
-    return "Poplin Dark";
-  case FOJO_INDEX_CALICO:
-    return "Calico Dark";
-  case FOJO_INDEX_WILLOW:
-    return "Willow Dark";
-  default:
-    return "Unknown";
-  }
+
+  // an empty roster still has Joanna in slot 0 (fojoInitHeadOptions)
+  return optionindex == 0 ? "Joanna Dark" : "Unknown";
 }
 
 /**
@@ -2362,31 +2329,20 @@ char *fojoGetHeadName(s32 optionindex) {
   return (char *)fojoHeadDisplayName(optionindex);
 }
 
-// Initialize the head options array based on what modconfig.txt actually
-// registered. Heads added by mods are looked up by name; missing heads are
-// skipped so the carousel only shows usable options.
+// The carousel's options are the Team Missions roster (modconfig Operative
+// blocks, mod.c) in roster order, so a carousel slot below g_FojoHeadCount is
+// a roster index. A roster with nobody on it still offers Joanna.
 void fojoInitHeadOptions(void) {
-  g_FojoHeadCount = 0;
-  g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_JOANNA;
-  g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_VELVET;
+  const s32 count = modOperativeCount();
 
-  for (s32 idx = FOJO_INDEX_MIKADO; idx <= FOJO_INDEX_WILLOW; ++idx) {
-    const char *cfgName = fojoHeadConfigName(idx);
-    if (!cfgName)
-      continue;
-    if (strcmp(cfgName, "head_mikado") == 0 && !romsourceIsMounted("jpn")) {
-      continue;
-    }
-    s32 mpheadnum = modLookupHeadByName(cfgName);
-    if (mpheadnum < 0) {
-      sysLogPrintf(LOG_NOTE,
-                   "fojoInitHeadOptions: skipping '%s' (not registered)",
-                   cfgName);
-      continue;
-    }
-    if (g_FojoHeadCount < NUM_FOJO_HEADS - 1) {
-      g_FojoHeadOptions[g_FojoHeadCount++] = mpheadnum;
-    }
+  g_FojoHeadCount = 0;
+
+  for (s32 i = 0; i < count && g_FojoHeadCount < NUM_FOJO_HEADS - 1; ++i) {
+    g_FojoHeadOptions[g_FojoHeadCount++] = modOperativeAt(i)->mpheadnum;
+  }
+
+  if (g_FojoHeadCount == 0) {
+    g_FojoHeadOptions[g_FojoHeadCount++] = FOJO_HEAD_JOANNA;
   }
   // Last slot reserved for player's CS head (added in fojoGetPlayerHead)
 }
@@ -2559,8 +2515,9 @@ MenuItemHandlerResult menuhandlerTeamOperativeHead(s32 operation,
 
     g_PlayerConfigsArray[g_MpPlayerNum].teamagentindex = selectedindex;
     if (g_PlayerConfigsArray[g_MpPlayerNum].configindex >= 0) {
-      g_ExtendedProfiles[g_PlayerConfigsArray[g_MpPlayerNum].configindex]
-          .teamagentindex_prop.s32 = selectedindex;
+      // by name, so the pick outlives this modlist's roster order
+      mpProfileStoreOperative(g_PlayerConfigsArray[g_MpPlayerNum].configindex,
+                              selectedindex);
     }
     data->carousel.value = selectedindex;
     mpProfileMarkDirty(g_MpPlayerNum);

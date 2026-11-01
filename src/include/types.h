@@ -6744,8 +6744,13 @@ struct extplayerprofile {
       // Whether this player's name label reads as their operative or as
       // their profile. See hudmsgRenderPlayerName.
       extplayerprop showoperativename_prop;
+      // The operative by the hash of her head name (modOperativeHash), so a
+      // pick survives a modlist whose roster is shorter or ordered otherwise.
+      // 0 = never saved by name (fall back to TeamAgentIndex); -1 = the
+      // carousel's last slot, the player's own head. See mpProfileOperative.
+      extplayerprop teamagenthash_prop;
     };
-    extplayerprop ptr[12];
+    extplayerprop ptr[13];
   };
 };
 

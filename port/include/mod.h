@@ -254,6 +254,26 @@ s32 modLookupHeadByName(const char *name);
 struct chrbio;
 struct chrbio *modChrBioForMpHead(s32 mpheadnum);
 
+// The Team Missions operative roster: Joanna and Velvet built in, then every
+// `Operative` block a mounted mod declares, in modlist order. An operative is
+// listed only while its head is registered, so a head a mod set does not carry
+// (or one whose rom is missing) drops out. Indexes are only good for this boot:
+// anything that is saved or sent goes by head name (modOperativeHash).
+struct modoperative {
+	char head[64];        // HeadsAndBodies name, e.g. "head_dark_combat"
+	char name[48];        // carousel / hud name
+	char shortname[24];   // one word, for labels; defaults to name
+	char wardrobe[48];    // body name prefix: "<wardrobe>_<outfit>", or ""
+	char designation[48]; // fixed unit tag for the carousel, or ""
+	u32 colour;           // 0xrrggbbaa hud tint; 0 = none (vanilla)
+	s32 mpheadnum;        // resolved when the roster is built
+};
+s32 modOperativeCount(void);
+const struct modoperative *modOperativeAt(s32 index);
+s32 modOperativeIndexForMpHead(s32 mpheadnum);
+u32 modOperativeHash(s32 index);
+s32 modOperativeIndexForHash(u32 hash);
+
 // Persisted g_MpHeads / g_MpBodies index allocation, keyed by the head or body
 // name a modconfig declares. See the note above the store in mod.c.
 void modSlotReservationsInit(void);

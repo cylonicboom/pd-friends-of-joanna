@@ -149,6 +149,9 @@ void mpProfileFlushSlotHashes(s32 playernum);
 
 // Profile state changed; the save queue commits it. See mplayer.c.
 void mpProfileMarkDirty(s32 playernum);
+// Friends of Joanna: a profile's operative, saved by head name (TeamAgentHash)
+s32 mpProfileOperative(s32 profileindex);
+void mpProfileStoreOperative(s32 profileindex, s32 index);
 void mpProfileFlushDirty(void);
 
 #endif

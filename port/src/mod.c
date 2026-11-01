@@ -103,6 +103,7 @@ s8 g_PropExplosionTypesOriginal[NUM_MODELS];
 static struct { char *name; s32 id; } *g_ModHeadNames = NULL;
 static void modBodyLabelsReset(void);
 static s32 g_NumModHeadNames = 0;
+static void modOperativesInvalidate(void);
 
 static struct { char *name; u32 filenum; } *g_ModHandFileNames = NULL;
 static s32 g_NumModHandFileNames = 0;
@@ -1441,6 +1442,7 @@ void modResetMplayerArrays(void)
 	free(g_ModHeadNames);
 	g_ModHeadNames = NULL;
 	g_NumModHeadNames = 0;
+	modOperativesInvalidate();
 
 	for (s32 i = 0; i < g_NumModHandFileNames; ++i) {
 		free(g_ModHandFileNames[i].name);
@@ -2609,6 +2611,191 @@ struct chrbio *modChrBioForMpHead(s32 mpheadnum)
 	return NULL;
 }
 
+/*
+ * Operative { head "<head name>" name "..." shortname "..." colour 0xrrggbbaa
+ *             wardrobe "<body prefix>" designation "..." }
+ *
+ * A Team Missions operative. Joanna and Velvet are built in (vanilla Team
+ * Missions plays them) with no colour; a block naming a head already on the
+ * roster - built-in or from an earlier mod - updates that entry in place and
+ * keeps its position, so a mod can colour Joanna without reordering anyone.
+ * Any other block appends. The roster lists an entry only while its head is
+ * registered (modLookupHeadByName), so the rom-gated and the absent drop out
+ * by themselves. Parsed at boot from every mounted mod beside HeadsAndBodies;
+ * modLoadAIO runs again on each modSwitch, so a block seen again replaces its
+ * own fields and never appends twice.
+ */
+#define MOD_OPERATIVES_MAX 32
+
+struct modoperativedecl {
+	struct modoperative op;
+	s32 modnum;            // -1 = built in
+};
+
+static struct modoperativedecl g_ModOperativeDecls[MOD_OPERATIVES_MAX] = {
+	{ { "head_dark_combat", "Joanna Dark", "Joanna", "", "", 0, -1 }, -1 },
+	{ { "head_vd",          "Velvet Dark", "Velvet", "", "", 0, -1 }, -1 },
+};
+static s32 g_NumModOperativeDecls = 2;
+
+static struct modoperative g_ModOperatives[MOD_OPERATIVES_MAX];
+static s32 g_NumModOperatives = -1;   // -1: rebuild on next ask
+
+static char *modConfigParseOperative(char *p, char *token, s32 modNum)
+{
+	struct modoperative op;
+	bool has[6] = { false };   // name shortname wardrobe designation colour
+	memset(&op, 0, sizeof(op));
+
+	p = strParseToken(p, token, NULL);
+	if (token[0] != '{' || token[1] != '\0') {
+		return NULL;
+	}
+
+	while (true) {
+		p = strParseToken(p, token, NULL);
+		if (!p || !token[0]) {
+			sysLogPrintf(LOG_ERROR, "modconfig: unterminated Operative block (mod %d)", modNum);
+			return NULL;
+		}
+		if (token[0] == '}' && token[1] == '\0') {
+			break;
+		}
+#define OP_STR(key, field, idx) \
+		if (!strcmp(token, key)) { \
+			p = strParseToken(p, token, NULL); \
+			strncpy(op.field, strUnquote(token), sizeof(op.field) - 1); \
+			if (idx >= 0) has[idx] = true; \
+			continue; \
+		}
+		OP_STR("head", head, -1)
+		OP_STR("name", name, 0)
+		OP_STR("shortname", shortname, 1)
+		OP_STR("wardrobe", wardrobe, 2)
+		OP_STR("designation", designation, 3)
+#undef OP_STR
+		if (!strcmp(token, "colour") || !strcmp(token, "color")) {
+			p = strParseToken(p, token, NULL);
+			op.colour = (u32)strtoul(strUnquote(token), NULL, 0);
+			has[4] = true;
+			continue;
+		}
+		char where[64];
+		snprintf(where, sizeof(where), "Operative (mod %d)", modNum);
+		p = modConfigSkipUnknownKey(p, where, token);
+		if (!p) {
+			return NULL;
+		}
+	}
+
+	if (!op.head[0]) {
+		sysLogPrintf(LOG_WARNING, "modconfig: Operative with no head (mod %d), skipped", modNum);
+		return p;
+	}
+
+	for (s32 i = 0; i < g_NumModOperativeDecls; ++i) {
+		struct modoperativedecl *d = &g_ModOperativeDecls[i];
+		if (strcmp(d->op.head, op.head)) {
+			continue;
+		}
+		if (d->modnum >= 0 && d->modnum != modNum) {
+			sysLogPrintf(LOG_WARNING, "modconfig: Operative '%s' declared by mod %d and mod %d; mod %d's fields stand",
+					op.head, d->modnum, modNum, modNum);
+		}
+		if (has[0]) memcpy(d->op.name, op.name, sizeof(op.name));
+		if (has[1]) memcpy(d->op.shortname, op.shortname, sizeof(op.shortname));
+		if (has[2]) memcpy(d->op.wardrobe, op.wardrobe, sizeof(op.wardrobe));
+		if (has[3]) memcpy(d->op.designation, op.designation, sizeof(op.designation));
+		if (has[4]) d->op.colour = op.colour;
+		if (d->modnum >= 0) {
+			d->modnum = modNum;   // built-ins stay -1
+		}
+		g_NumModOperatives = -1;
+		return p;
+	}
+
+	if (g_NumModOperativeDecls >= MOD_OPERATIVES_MAX) {
+		sysLogPrintf(LOG_WARNING, "modconfig: more than %d operatives, '%s' dropped", MOD_OPERATIVES_MAX, op.head);
+		return p;
+	}
+
+	if (!op.name[0]) {
+		strncpy(op.name, op.head, sizeof(op.name) - 1);
+	}
+	struct modoperativedecl *d = &g_ModOperativeDecls[g_NumModOperativeDecls++];
+	d->op = op;
+	d->modnum = modNum;
+	g_NumModOperatives = -1;
+	return p;
+}
+
+static void modOperativesInvalidate(void)
+{
+	g_NumModOperatives = -1;
+}
+
+static void modOperativesBuild(void)
+{
+	g_NumModOperatives = 0;
+	for (s32 i = 0; i < g_NumModOperativeDecls; ++i) {
+		const struct modoperativedecl *d = &g_ModOperativeDecls[i];
+		const s32 mphead = modLookupHeadByName(d->op.head);
+		if (mphead < 0) {
+			continue;
+		}
+		struct modoperative *op = &g_ModOperatives[g_NumModOperatives++];
+		*op = d->op;
+		op->mpheadnum = mphead;
+		if (!op->shortname[0]) {
+			strncpy(op->shortname, op->name, sizeof(op->shortname) - 1);
+		}
+	}
+}
+
+s32 modOperativeCount(void)
+{
+	if (g_NumModOperatives < 0) {
+		modOperativesBuild();
+	}
+	return g_NumModOperatives;
+}
+
+const struct modoperative *modOperativeAt(s32 index)
+{
+	if (index < 0 || index >= modOperativeCount()) {
+		return NULL;
+	}
+	return &g_ModOperatives[index];
+}
+
+s32 modOperativeIndexForMpHead(s32 mpheadnum)
+{
+	const s32 n = modOperativeCount();
+	for (s32 i = 0; i < n; ++i) {
+		if (g_ModOperatives[i].mpheadnum == mpheadnum) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+u32 modOperativeHash(s32 index)
+{
+	const struct modoperative *op = modOperativeAt(index);
+	return op ? modSlotNameHash(op->head) : 0;
+}
+
+s32 modOperativeIndexForHash(u32 hash)
+{
+	const s32 n = modOperativeCount();
+	for (s32 i = 0; hash && i < n; ++i) {
+		if (modSlotNameHash(g_ModOperatives[i].head) == hash) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 static char *modConfigParseMpHeads(char *p, char *token)
 {
 	struct mphead *new_array;
@@ -3610,6 +3797,14 @@ s32 modLoadAIO(void)
 			} else if (!strcmp(token, "HeadsAndBodies")) {
 				p = modConfigParseHeadsAndBodies(p, token, i);
 				continue;
+			} else if (!strcmp(token, "Operative")) {
+				char *prev = p;
+				p = modConfigParseOperative(p, token, i);
+				if (!p) {
+					sysLogPrintf(LOG_ERROR, "modLoadAIO: malformed Operative block in %s", modDirs[i]);
+					p = modConfigSkipBlock(prev, token);
+				}
+				continue;
 			} else if (!strcmp(token, "ChrBio")) {
 				char *prev = p;
 				p = modConfigParseChrBio(p, token, i);
@@ -3939,6 +4134,14 @@ s32 modConfigLoad(const char *fname)
 			}
 			if (!p) {
 				sysLogPrintf(LOG_ERROR, "modconfig: malformed HeadsAndBodies block");
+				success = false;
+				break;
+			}
+		} else if (!strcmp(token, "Operative")) {
+			// Parsed for every mounted mod by modLoadAIO, not per active mod.
+			p = modConfigSkipBlock(p, token);
+			if (!p) {
+				sysLogPrintf(LOG_ERROR, "modconfig: malformed Operative block");
 				success = false;
 				break;
 			}

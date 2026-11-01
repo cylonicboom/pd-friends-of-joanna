@@ -262,6 +262,7 @@ struct extplayerconfig g_PlayerExtCfg[MAX_PLAYERS] = {
       .showmissiontime_prop = {.u8 = 0},                                       \
       .showplayername_prop = {.u8 = 1},                                        \
       .showoperativename_prop = {.u8 = 1},                                     \
+      .teamagenthash_prop = {.s32 = 0},                                        \
   };
 
 struct extplayerprofile g_ExtendedProfiles[CONFIG_MAX_PROFILES];
@@ -343,14 +344,63 @@ static void mpExtendedProfileInitShowOperativeName(s32 profileindex,
       &g_ExtendedProfiles[profileindex].showoperativename_prop.u8;
 }
 
+#define TEAMAGENTHASH_OWNHEAD (-1)
+
+/*
+ * The operative a profile plays, saved by name: the hash of her head name, so
+ * the pick means the same person under every modlist. The index is only this
+ * boot's position on the roster (modOperativeCount() is the own-head slot).
+ * A hash whose operative this modlist does not carry answers -1 and is left
+ * alone in the profile, so going back to a modlist that has her restores her.
+ * A profile from before hashes (0) still goes by its index.
+ */
+s32 mpProfileOperative(s32 profileindex) {
+  const s32 hash = g_ExtendedProfiles[profileindex].teamagenthash_prop.s32;
+  const s32 count = modOperativeCount();
+  s32 index;
+
+  if (hash == TEAMAGENTHASH_OWNHEAD) {
+    return count;
+  }
+
+  if (hash != 0) {
+    return modOperativeIndexForHash((u32)hash);
+  }
+
+  index = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
+
+  return index >= 0 && index <= count ? index : -1;
+}
+
+void mpProfileStoreOperative(s32 profileindex, s32 index) {
+  s32 hash = 0;
+
+  if (index >= modOperativeCount()) {
+    hash = TEAMAGENTHASH_OWNHEAD;
+  } else if (index >= 0) {
+    hash = (s32)modOperativeHash(index);
+  }
+
+  g_ExtendedProfiles[profileindex].teamagentindex_prop.s32 = index;
+  g_ExtendedProfiles[profileindex].teamagenthash_prop.s32 = hash;
+}
+
 static void mpExtendedProfileInitTeamAgentIndex(s32 profileindex,
                                                 s32 playernum) {
-  s32 val = g_ExtendedProfiles[profileindex].teamagentindex_prop.s32;
-  if (val < 0 ||
-      g_ExtendedProfiles[profileindex].fileguid.deviceserial == 0xFFFF) {
-    val = playernum;
+  s32 val = -1;
+
+  if (g_ExtendedProfiles[profileindex].fileguid.deviceserial != 0xFFFF) {
+    val = mpProfileOperative(profileindex);
+  }
+
+  if (val < 0) {
+    // nobody picked, or picked someone this modlist doesn't carry: seat n
+    // plays operative n while there are enough, else Joanna. The saved hash
+    // is not touched - only a pick in the carousel replaces it.
+    val = playernum < modOperativeCount() ? playernum : 0;
     g_ExtendedProfiles[profileindex].teamagentindex_prop.s32 = val;
   }
+
   g_PlayerConfigsArray[playernum].teamagentindex = val;
 }
 
@@ -359,7 +409,7 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
     {CFG_U8, "ClassicSight", 0, 0, 1, &mpExtendedProfileInitClassicSight},
     {CFG_U8, "ShowLives", 0, 0, 1, &mpExtendedProfileInitShowLives},
     {CFG_S32, "TeamAgentIndex",
-     {.min_s32 = -1, .initialvalue_s32 = -1, .max_s32 = 10},
+     {.min_s32 = -1, .initialvalue_s32 = -1, .max_s32 = NUM_FOJO_HEADS},
      &mpExtendedProfileInitTeamAgentIndex},
     {CFG_U8, "InGameSubtitles", 1, 0, 1, &mpExtendedProfileInitInGameSubtitles},
     {CFG_U8, "CutsceneSubtitles", 0, 0, 1,
@@ -380,6 +430,9 @@ struct extprofileproperty g_ExtendedProfileProperties[] = {
      {.min_s32 = INT32_MIN, .initialvalue_s32 = 0, .max_s32 = INT32_MAX}, NULL},
     {CFG_U8, "ShowOperativeName", 1, 0, 1,
      &mpExtendedProfileInitShowOperativeName},
+    // No initfunc: TeamAgentIndex's reads it (mpProfileOperative).
+    {CFG_S32, "TeamAgentHash",
+     {.min_s32 = INT32_MIN, .initialvalue_s32 = 0, .max_s32 = INT32_MAX}, NULL},
 }; // these must be in the same order as the extendedprofile struct, ignoring
    // the fileguid
 
@@ -5846,7 +5899,7 @@ s32 mpProfileGetOperative(const struct fileguid *guid) {
 
   index = mpProfileExtIndex(guid, false);
 
-  return index >= 0 ? g_ExtendedProfiles[index].teamagentindex_prop.s32 : -1;
+  return index >= 0 ? mpProfileOperative(index) : -1;
 }
 
 s32 mpProfileSetOperative(const struct fileguid *guid, s32 operative) {
@@ -5857,7 +5910,7 @@ s32 mpProfileSetOperative(const struct fileguid *guid, s32 operative) {
     g_PlayerConfigsArray[seat].teamagentindex = operative;
 
     if (g_PlayerConfigsArray[seat].configindex >= 0) {
-      g_ExtendedProfiles[g_PlayerConfigsArray[seat].configindex].teamagentindex_prop.s32 = operative;
+      mpProfileStoreOperative(g_PlayerConfigsArray[seat].configindex, operative);
     }
 
     mpProfileMarkDirty(seat);
@@ -5870,7 +5923,7 @@ s32 mpProfileSetOperative(const struct fileguid *guid, s32 operative) {
     return -1;
   }
 
-  g_ExtendedProfiles[index].teamagentindex_prop.s32 = operative;
+  mpProfileStoreOperative(index, operative);
   saveQueueMarkConfig();
 
   return 0;

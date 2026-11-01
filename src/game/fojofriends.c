@@ -11,62 +11,25 @@
 #include "mod.h"
 
 /**
- * The friends of Jo: whose colour a player's HUD and the slow stars' glows
- * take. The colours are their favourite colours, alpha 0xb0 against the
- * crosshair's vanilla 0x28 -- a pastel at 0x28 washes out to nothing. Treat
- * 0xb0 as the middle of a range to tune; 0x90-0xd0 is where it should land.
+ * The friends of Jo are the Team Missions roster (modconfig Operative blocks,
+ * mod.c): a friend number is a roster index. Her colour, name and wardrobe
+ * are her block's. A colour is 0xrrggbbaa, alpha 0xb0 against the crosshair's
+ * vanilla 0x28 -- a pastel at 0x28 washes out to nothing; 0x90-0xd0 is where
+ * it should land. An operative with no colour (vanilla, as port4p's Joanna and
+ * Velvet are) tints nothing and takes no glow.
  */
-u32 g_FojoFriendColours[NUM_FOJO_FRIENDS] = {
-	/* FOJO_INDEX_JOANNA */ 0x7ee0e6b0,
-	/* FOJO_INDEX_VELVET */ 0xe0a6c4b0,
-	/* FOJO_INDEX_MIKADO */ 0xffd0a6b0,
-	/* FOJO_INDEX_POPLIN */ 0xfb9c8db0,
-	/* FOJO_INDEX_CALICO */ 0xa6e6bcb0,
-	/* FOJO_INDEX_WILLOW */ 0x8e96c8b0,
-};
-
-static const char *g_FojoFriendNames[NUM_FOJO_FRIENDS] = {
-	"Joanna", "Velvet", "Mikado", "Poplin", "Calico", "Willow",
-};
-
-// modconfig names, as fojoHeadConfigName has them; joanna and velvet are built in
-static const char *g_FojoFriendHeadNames[NUM_FOJO_FRIENDS] = {
-	NULL, NULL, "head_mikado", "head_foslerfer", "head_catherine", "head_willow",
-};
 
 extern s32 g_FojoHeadCount;
 
-static s32 g_FojoFriendHeads[NUM_FOJO_FRIENDS];
-static bool g_FojoFriendHeadsResolved = false;
-
-// the hud asks per green, several times a frame, so resolve the names once
-static void fojoFriendsResolveHeads(void)
-{
-	s32 i;
-
-	g_FojoFriendHeads[FOJO_INDEX_JOANNA] = FOJO_HEAD_JOANNA;
-	g_FojoFriendHeads[FOJO_INDEX_VELVET] = FOJO_HEAD_VELVET;
-
-	for (i = FOJO_INDEX_MIKADO; i < NUM_FOJO_FRIENDS; i++) {
-		g_FojoFriendHeads[i] = modLookupHeadByName(g_FojoFriendHeadNames[i]);
-	}
-
-	g_FojoFriendHeadsResolved = true;
-}
-
 /**
- * Which friend a player is, from the operative they picked: carousel slot ->
- * mpheadnum -> friend. The slot number alone isn't enough, because the
- * carousel skips heads that aren't loaded and mikado without a jpn rom.
- *
- * The last slot is the player's own combat sim head. That's a guest, not a
- * friend, and gets -1 like anything else unrecognised.
+ * Which friend a player is, from the operative they picked. The carousel's
+ * options are the roster in order, so a slot below g_FojoHeadCount is the
+ * friend number. The last slot is the player's own combat sim head. That's a
+ * guest, not a friend, and gets -1 like anything else unrecognised.
  */
 s32 fojoFriendForMpIndex(s32 mpindex)
 {
 	s32 slot;
-	s32 head;
-	s32 i;
 
 	if (mpindex < 0 || mpindex >= MAX_PLAYERS) {
 		return -1;
@@ -78,36 +41,20 @@ s32 fojoFriendForMpIndex(s32 mpindex)
 
 	slot = g_PlayerConfigsArray[mpindex].teamagentindex;
 
-	if (slot < 0 || slot >= g_FojoHeadCount) {
+	if (slot < 0 || slot >= g_FojoHeadCount || !modOperativeAt(slot)) {
 		return -1;
 	}
 
-	if (!g_FojoFriendHeadsResolved) {
-		fojoFriendsResolveHeads();
-	}
-
-	head = g_FojoHeadOptions[slot];
-
-	for (i = 0; i < NUM_FOJO_FRIENDS; i++) {
-		if (g_FojoFriendHeads[i] >= 0 && g_FojoFriendHeads[i] == head) {
-			return i;
-		}
-	}
-
-	return -1;
+	return slot;
 }
 
 /**
  * A friend's wardrobe: the bodies she wears in place of Joanna's, registered
- * by a mod under "<prefix>_<outfit>" - body_mikado_combat, body_mikado_snow.
- * NULL means she wears the vanilla body. The outfit words are the vanilla
- * Joanna rows the stage asks for, so a friend with a wardrobe needs one body
- * per word she covers and the rest fall through to Joanna's.
+ * by a mod under "<wardrobe>_<outfit>" - body_mikado_combat, body_mikado_snow.
+ * No wardrobe means she wears the vanilla body. The outfit words are the
+ * vanilla Joanna rows the stage asks for, so a friend with a wardrobe needs
+ * one body per word she covers and the rest fall through to Joanna's.
  */
-static const char *g_FojoFriendWardrobe[NUM_FOJO_FRIENDS] = {
-	NULL, NULL, "body_mikado", NULL, NULL, NULL,
-};
-
 static const struct {
 	u16 bodynum;
 	const char *outfit;
@@ -133,13 +80,15 @@ s32 fojoFriendWardrobeBody(s32 friendnum, s32 bodynum)
 	s32 i;
 	s32 found;
 
-	if (friendnum < 0 || friendnum >= NUM_FOJO_FRIENDS || !g_FojoFriendWardrobe[friendnum]) {
+	const struct modoperative *op = modOperativeAt(friendnum);
+
+	if (!op || !op->wardrobe[0]) {
 		return bodynum;
 	}
 
 	for (i = 0; i < ARRAYCOUNT(g_FojoOutfitWords); i++) {
 		if (g_FojoOutfitWords[i].bodynum == bodynum) {
-			snprintf(name, sizeof(name), "%s_%s", g_FojoFriendWardrobe[friendnum], g_FojoOutfitWords[i].outfit);
+			snprintf(name, sizeof(name), "%s_%s", op->wardrobe, g_FojoOutfitWords[i].outfit);
 			found = modLookupBodynumByName(name);
 			return found >= 0 ? found : bodynum;
 		}
@@ -162,7 +111,9 @@ static u32 fojoFriendsHudTint(s32 mpindex)
 
 	friendnum = fojoFriendForMpIndex(mpindex);
 
-	return friendnum >= 0 ? g_FojoFriendColours[friendnum] : 0;
+	const struct modoperative *op = modOperativeAt(friendnum);
+
+	return op ? op->colour : 0;
 }
 
 /**
@@ -172,14 +123,29 @@ static u32 fojoFriendsHudTint(s32 mpindex)
  */
 static void fojoFriendsGlowShare(struct menubgglowshare *share)
 {
+	static u32 colours[MENUBG_MAX_GLOWS];
+	s32 glowfor[NUM_FOJO_HEADS];
+	const s32 count = modOperativeCount();
 	s32 i;
 
-	share->count = NUM_FOJO_FRIENDS;
+	share->count = 0;
 
-	for (i = 0; i < NUM_FOJO_FRIENDS; i++) {
-		share->colour[i] = &g_FojoFriendColours[i];
-		share->weight[i] = 0;
-		share->label[i] = g_FojoFriendNames[i];
+	// only the coloured get a glow; the cap is the menu's, not the roster's
+	for (i = 0; i < count && i < NUM_FOJO_HEADS; i++) {
+		const struct modoperative *op = modOperativeAt(i);
+
+		glowfor[i] = -1;
+
+		if (op->colour == 0 || share->count >= MENUBG_MAX_GLOWS) {
+			continue;
+		}
+
+		glowfor[i] = share->count;
+		colours[share->count] = op->colour;
+		share->colour[share->count] = &colours[share->count];
+		share->weight[share->count] = 0;
+		share->label[share->count] = op->shortname;
+		share->count++;
 	}
 
 	for (i = 0; i < MAX_PLAYERS; i++) {
@@ -191,8 +157,8 @@ static void fojoFriendsGlowShare(struct menubgglowshare *share)
 
 		friendnum = fojoFriendForMpIndex(i);
 
-		if (friendnum >= 0) {
-			share->weight[friendnum] += g_PlayerConfigsArray[i].deaths;
+		if (friendnum >= 0 && friendnum < count && glowfor[friendnum] >= 0) {
+			share->weight[glowfor[friendnum]] += g_PlayerConfigsArray[i].deaths;
 		}
 	}
 }

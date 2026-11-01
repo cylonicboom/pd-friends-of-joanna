@@ -3166,15 +3166,9 @@
 #define FOJO_HEAD_CALICO    0x4d                // TBD dD-originated Jo (Catherine)
 
 
-#define FOJO_INDEX_JOANNA          0
-#define FOJO_INDEX_VELVET          1
-#define FOJO_INDEX_MIKADO          2
-#define FOJO_INDEX_POPLIN          3
-#define FOJO_INDEX_CALICO          4
-#define FOJO_INDEX_WILLOW          5
-
-// including CS character
-#define NUM_FOJO_HEADS FOJO_INDEX_WILLOW + 2
+// the Team Missions roster is modconfig's (Operative blocks, mod.c): up to
+// MOD_OPERATIVES_MAX operatives, plus the player's own CS head in the last slot
+#define NUM_FOJO_HEADS (32 + 1)
 
 #define MPLOCKTYPE_NONE       0
 #define MPLOCKTYPE_LASTWINNER 1
