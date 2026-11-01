@@ -1,0 +1,139 @@
+{
+  "modName": "mod_fojo-stages-port4p",
+  "modVersion": "1.0",
+  "description": "Friends of Joanna stage setups: only what four players need to get through the missions.",
+  "author": "Catherine Reprobate",
+  "imports": [],
+  "files": [
+    {
+      "name": "UsetupstatZ",
+      "description": "UsetupstatZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupstatZ",
+      "stageId": "0x16",
+      "stageName": "extra spawns for coop characters",
+      "patch": "patches/UsetupstatZ.xdelta"
+    },
+    {
+      "name": "UsetupearZ",
+      "description": "UsetupearZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupearZ",
+      "stageId": "0x33",
+      "stageName": "investigation",
+      "patch": "patches/UsetupearZ.xdelta"
+    },
+    {
+      "name": "UsetuppamZ",
+      "description": "UsetuppamZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetuppamZ",
+      "stageId": "0x38",
+      "stageName": "deep sea",
+      "patch": "patches/UsetuppamZ.xdelta"
+    },
+    {
+      "name": "UsetupameZ",
+      "description": "UsetupameZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupameZ",
+      "stageId": "0x30",
+      "stageName": "defection",
+      "patch": "patches/UsetupameZ.xdelta"
+    },
+    {
+      "name": "UsetuplueZ",
+      "description": "UsetuplueZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetuplueZ",
+      "stageId": "0x2f",
+      "stageName": "infiltration",
+      "patch": "patches/UsetuplueZ.xdelta"
+    },
+    {
+      "name": "UsetuppeteZ",
+      "description": "UsetuppeteZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetuppeteZ",
+      "stageId": "0x1d",
+      "stageName": "chicago",
+      "patch": "patches/UsetuppeteZ.xdelta"
+    },
+    {
+      "name": "UsetupeldZ",
+      "description": "UsetupeldZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupeldZ",
+      "stageId": "0x2c",
+      "stageName": "villa",
+      "patch": "patches/UsetupeldZ.xdelta"
+    },
+    {
+      "name": "UsetupleeZ",
+      "description": "UsetupleeZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupleeZ",
+      "stageId": "0x34",
+      "stageName": "hangar elevator fixes",
+      "patch": "patches/UsetupleeZ.xdelta"
+    },
+    {
+      "name": "UsetupimpZ",
+      "description": "UsetupimpZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupimpZ",
+      "stageId": "0x2d",
+      "stageName": "extra spawns, QOL changes for coop mode",
+      "patch": "patches/UsetupimpZ.xdelta"
+    },
+    {
+      "name": "UsetupritZ",
+      "description": "UsetupritZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupritZ",
+      "patch": "patches/UsetupritZ.xdelta"
+    },
+    {
+      "name": "UsetupsevZ",
+      "description": "UsetupsevZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupsevZ",
+      "patch": "patches/UsetupsevZ.xdelta"
+    },
+    {
+      "name": "UsetupshoZ",
+      "description": "UsetupshoZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupshoZ",
+      "patch": "patches/UsetupshoZ.xdelta"
+    },
+    {
+      "name": "UsetupwaxZ",
+      "description": "UsetupwaxZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupwaxZ",
+      "patch": "patches/UsetupwaxZ.xdelta"
+    },
+    {
+      "name": "UsetupaztZ",
+      "description": "UsetupaztZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupaztZ",
+      "patch": "patches/UsetupaztZ.xdelta"
+    },
+    {
+      "name": "UsetupcaveZ",
+      "description": "UsetupcaveZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupcaveZ",
+      "patch": "patches/UsetupcaveZ.xdelta"
+    },
+    {
+      "name": "UsetupdamZ",
+      "description": "UsetupdamZ, patched after inflate against the player's own ROM",
+      "type": "setup",
+      "replaces": "UsetupdamZ",
+      "patch": "patches/UsetupdamZ.xdelta"
+    }
+  ]
+}

@@ -1,155 +1,25 @@
 {
-  "modName": "Friends of Joanna",
+  "modName": "mod_fojo-characters-fojo",
   "modVersion": "1.0",
-  "description": "Mod: Friends of Joanna stage fixes for Friends of Joanna Setup files generated from https://github.com/cylonicboom/pd-friends-of-joanna/tree/fojo-ailists (based on N64 / master branch)",
+  "description": "Friends of Joanna characters: heads, bodies and bios.",
   "author": "Catherine Reprobate",
+  "imports": [],
+  "romSources": [
+    {
+      "id": "jpn",
+      "filename": "pd.jpn-final.z64",
+      "displayName": "Perfect Dark JPN Final",
+      "expectedSize": 33554432,
+      "required": false,
+      "fallbackBehavior": "skip",
+      "textures": {
+        "tlistOffset": "0x1ff68f0",
+        "tlistCount": 3511,
+        "texdataOffset": "0x1d61f90"
+      }
+    }
+  ],
   "files": [
-    {
-      "name": "UsetupstatZ",
-      "description": "UsetupstatZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupstatZ",
-      "stageId": "0x16",
-      "stageName": "extra spawns for coop characters",
-      "patch": "patches/UsetupstatZ.xdelta"
-    },
-    {
-      "name": "UsetupearZ",
-      "description": "UsetupearZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupearZ",
-      "stageId": "0x33",
-      "stageName": "investigation",
-      "patch": "patches/UsetupearZ.xdelta"
-    },
-    {
-      "name": "UsetuppamZ",
-      "description": "UsetuppamZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetuppamZ",
-      "stageId": "0x38",
-      "stageName": "deep sea",
-      "patch": "patches/UsetuppamZ.xdelta"
-    },
-    {
-      "name": "UsetupdishZ",
-      "description": "UsetupdishZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupdishZ",
-      "stageId": "0x26",
-      "stageName": "pre-load Mikado Dark as a hidden character",
-      "patch": "patches/UsetupdishZ.xdelta"
-    },
-    {
-      "name": "UsetupameZ",
-      "description": "UsetupameZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupameZ",
-      "stageId": "0x30",
-      "stageName": "defection",
-      "patch": "patches/UsetupameZ.xdelta"
-    },
-    {
-      "name": "UsetuplueZ",
-      "description": "UsetuplueZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetuplueZ",
-      "stageId": "0x2f",
-      "stageName": "infiltration",
-      "patch": "patches/UsetuplueZ.xdelta"
-    },
-    {
-      "name": "UsetuppeteZ",
-      "description": "UsetuppeteZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetuppeteZ",
-      "stageId": "0x1d",
-      "stageName": "chicago",
-      "patch": "patches/UsetuppeteZ.xdelta"
-    },
-    {
-      "name": "UsetupeldZ",
-      "description": "UsetupeldZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupeldZ",
-      "stageId": "0x2c",
-      "stageName": "villa",
-      "patch": "patches/UsetupeldZ.xdelta"
-    },
-    {
-      "name": "UsetupleeZ",
-      "description": "UsetupleeZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupleeZ",
-      "stageId": "0x34",
-      "stageName": "hangar elevator fixes",
-      "patch": "patches/UsetupleeZ.xdelta"
-    },
-    {
-      "name": "UsetupimpZ",
-      "description": "UsetupimpZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupimpZ",
-      "stageId": "0x2d",
-      "stageName": "extra spawns, QOL changes for coop mode",
-      "patch": "patches/UsetupimpZ.xdelta"
-    },
-    {
-      "name": "UsetupritZ",
-      "description": "UsetupritZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupritZ",
-      "patch": "patches/UsetupritZ.xdelta"
-    },
-    {
-      "name": "UsetupsevZ",
-      "description": "UsetupsevZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupsevZ",
-      "patch": "patches/UsetupsevZ.xdelta"
-    },
-    {
-      "name": "UsetupshoZ",
-      "description": "UsetupshoZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupshoZ",
-      "patch": "patches/UsetupshoZ.xdelta"
-    },
-    {
-      "name": "UsetupwaxZ",
-      "description": "UsetupwaxZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupwaxZ",
-      "patch": "patches/UsetupwaxZ.xdelta"
-    },
-    {
-      "name": "UsetupaztZ",
-      "description": "UsetupaztZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupaztZ",
-      "patch": "patches/UsetupaztZ.xdelta"
-    },
-    {
-      "name": "UsetupcaveZ",
-      "description": "UsetupcaveZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupcaveZ",
-      "patch": "patches/UsetupcaveZ.xdelta"
-    },
-    {
-      "name": "UsetupdamZ",
-      "description": "UsetupdamZ, patched after inflate against the player's own ROM",
-      "type": "setup",
-      "replaces": "UsetupdamZ",
-      "patch": "patches/UsetupdamZ.xdelta"
-    },
-    {
-      "name": "bgdata",
-      "path": "files/bgdata",
-      "description": "Background data",
-      "replaces": "bgdata",
-      "prefix": "always"
-    },
     {
       "name": "CheadFoslerferZ",
       "path": "files/CheadFoslerferZ",
@@ -871,22 +741,6 @@
         "id": "0x0db2"
       },
       "prefix": "always"
-    }
-  ],
-  "imports": [],
-  "romSources": [
-    {
-      "id": "jpn",
-      "filename": "pd.jpn-final.z64",
-      "displayName": "Perfect Dark JPN Final",
-      "expectedSize": 33554432,
-      "required": false,
-      "fallbackBehavior": "skip",
-      "textures": {
-        "tlistOffset": "0x1ff68f0",
-        "tlistCount": 3511,
-        "texdataOffset": "0x1d61f90"
-      }
     }
   ]
 }

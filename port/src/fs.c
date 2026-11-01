@@ -349,15 +349,24 @@ s32 fsInit(void)
 	// rom or through a prepare step over the player's own AIO download; the
 	// ordering notes above still hold for that day. Until then a basedir that
 	// has them mounts them with --moddir.
+	//
+	// 2026-11-01: mod_fojo split into four. stages-fojo and stages-port4p are
+	// alternatives over the same setups and never mount together; the default
+	// is stages-fojo. stages-fojo sits at index 0 because it is what the boot
+	// mod substring match ("mod_fojo", pdmain.c) lands on first, and it is the
+	// mod that claims the solo stages. To play without fojo's own stage
+	// changes, pass --moddir mod_fojo-stages-port4p in its place.
 	if (numModDirs == 0) {
-		numModDirs = 7;
-		strcpy(modDirs[0], "$B/mods/mod_fojo");
-		strcpy(modDirs[1], "$B/mods/mod_aio_characters");
-		strcpy(modDirs[2], "$B/mods/mod_aio_darknoon");
-		strcpy(modDirs[3], "$B/mods/mod_aio_gex");
-		strcpy(modDirs[4], "$B/mods/mod_aio_goldfinger");
-		strcpy(modDirs[5], "$B/mods/mod_aio_kakariko");
-		strcpy(modDirs[6], "$B/mods/mod_aio_pdplus");
+		numModDirs = 9;
+		strcpy(modDirs[0], "$B/mods/mod_fojo-stages-fojo");
+		strcpy(modDirs[1], "$B/mods/mod_fojo-characters-fojo");
+		strcpy(modDirs[2], "$B/mods/mod_fojo-characters-port4p");
+		strcpy(modDirs[3], "$B/mods/mod_aio_characters");
+		strcpy(modDirs[4], "$B/mods/mod_aio_darknoon");
+		strcpy(modDirs[5], "$B/mods/mod_aio_gex");
+		strcpy(modDirs[6], "$B/mods/mod_aio_goldfinger");
+		strcpy(modDirs[7], "$B/mods/mod_aio_kakariko");
+		strcpy(modDirs[8], "$B/mods/mod_aio_pdplus");
 	}
 	fileSlotsInit(numModDirs);
 	g_NumModDirs = numModDirs;

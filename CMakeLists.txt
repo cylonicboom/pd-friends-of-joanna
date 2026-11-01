@@ -483,7 +483,7 @@ else()
 endif()
 
 # Stage setups. A modified setup ships as a per-file xdelta of its inflated
-# bytes against the vanilla file (basedir/data/mods/mod_fojo/patches/
+# bytes against the vanilla file (basedir/data/mods/mod_fojo-stages-*/patches/
 # U<name>Z.xdelta), never as the setup itself. tools/mksetups --patches
 # compiles src/setups/<name>.c for MIPS (clang + lld + llvm-objcopy, no MIPS
 # gcc, no N64 tree), diffs it against the vanilla file inflated out of the base
@@ -498,7 +498,8 @@ endif()
 # patches/U<name>Z.xdelta is one output, its source src/setups/<name>.c. A
 # setup that is not modified has no patch and is not built - it is already in
 # the ROM. Ship a new one by running `tools/mksetups --patches --mod-dir
-# basedir/data/mods/mod_fojo <name>` once and reconfiguring; the glob is read
+# basedir/data/mods/mod_fojo-stages-port4p <name>` (and again with
+# `-D FOJO_FANFIC` for mod_fojo-stages-fojo) once and reconfiguring; the glob is read
 # at configure. One mksetups run for the whole set, not one per file: it
 # regenerates src/generated/<romid> on every run and parallel runs would race.
 #
@@ -508,8 +509,18 @@ endif()
 # outside its own checkout. The base ROM is the ntsc one, and every ROM a
 # manifest names (the jpn one for Mikado's byName rows) has to be there too.
 # No base ROM, no target.
-set(FOJO_MOD_DIR "${CMAKE_SOURCE_DIR}/basedir/data/mods/mod_fojo")
-file(GLOB FOJO_SETUP_PATCHES "${FOJO_MOD_DIR}/patches/Usetup*Z.xdelta" "${FOJO_MOD_DIR}/patches/Ump_setup*Z.xdelta")
+# Two stage mods build from the same sources: mod_fojo-stages-port4p is the
+# default build, mod_fojo-stages-fojo adds -D FOJO_FANFIC. mksetups writes
+# build/<romid> in place, so the second run is chained after the first.
+set(FOJO_STAGE_MODS mod_fojo-stages-port4p mod_fojo-stages-fojo)
+set(FOJO_STAGE_DEFINES_mod_fojo-stages-port4p "")
+set(FOJO_STAGE_DEFINES_mod_fojo-stages-fojo -D FOJO_FANFIC)
+set(FOJO_MODS_DIR "${CMAKE_SOURCE_DIR}/basedir/data/mods")
+set(FOJO_ANY_SETUP_PATCHES "")
+foreach(mod ${FOJO_STAGE_MODS})
+  file(GLOB FOJO_SETUP_PATCHES_${mod} "${FOJO_MODS_DIR}/${mod}/patches/Usetup*Z.xdelta" "${FOJO_MODS_DIR}/${mod}/patches/Ump_setup*Z.xdelta")
+  list(APPEND FOJO_ANY_SETUP_PATCHES ${FOJO_SETUP_PATCHES_${mod}})
+endforeach()
 find_program(FOJO_CLANG NAMES clang HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
 find_program(FOJO_LLD NAMES ld.lld HINTS /opt/homebrew/opt/lld/bin /usr/local/opt/lld/bin)
 find_program(FOJO_OBJCOPY NAMES llvm-objcopy HINTS /opt/homebrew/opt/llvm/bin /usr/local/opt/llvm/bin)
@@ -549,42 +560,55 @@ if(ZLIB_FOUND)
 endif()
 
 if(PYTHON3_EXECUTABLE AND FOJO_CLANG AND FOJO_LLD AND FOJO_OBJCOPY AND FOJO_XDELTA3
-   AND FOJO_BASE_ROM AND FOJO_SETUP_PATCHES AND TARGET mkfiletable)
-  set(FOJO_SETUP_NAMES "")
-  set(FOJO_SETUP_SOURCES "")
-  foreach(out ${FOJO_SETUP_PATCHES})
-    get_filename_component(fn "${out}" NAME)
-    string(REGEX REPLACE "^U(.*)Z\\.xdelta$" "\\1" name "${fn}")
-    list(APPEND FOJO_SETUP_NAMES "${name}")
-    list(APPEND FOJO_SETUP_SOURCES "${CMAKE_SOURCE_DIR}/src/setups/${name}.c")
-  endforeach()
+   AND FOJO_BASE_ROM AND FOJO_ANY_SETUP_PATCHES AND TARGET mkfiletable)
   get_filename_component(FOJO_LLVM_BIN "${FOJO_CLANG}" DIRECTORY)
   get_filename_component(FOJO_LLD_BIN "${FOJO_LLD}" DIRECTORY)
   # mkfiletable tries <dir>/roms/<file> then <dir>/<file>, as the game does.
   set(FOJO_ROM_DIRS --rom-dir "${FOJO_ROM_DIR}")
-  add_custom_command(
-    OUTPUT ${FOJO_SETUP_PATCHES}
-    COMMAND "${CMAKE_COMMAND}" -E env "LLVM_BIN=${FOJO_LLVM_BIN}" "LLD_BIN=${FOJO_LLD_BIN}"
-            "${PYTHON3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/mksetups"
-            --patches --mod-dir "${FOJO_MOD_DIR}" --rom "${FOJO_BASE_ROM}" --xdelta3 "${FOJO_XDELTA3}"
-            ${FOJO_SETUP_NAMES}
-    DEPENDS "${CMAKE_SOURCE_DIR}/tools/mksetups"
-            "${CMAKE_SOURCE_DIR}/ld/zero-lld.ld"
-            ${FOJO_SETUP_SOURCES}
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Building stage setup patches into basedir/data/mods/mod_fojo/patches"
-    VERBATIM)
-  add_custom_command(
-    OUTPUT "${FOJO_MOD_DIR}/filetable.dat"
-    COMMAND mkfiletable mod_fojo --workspace "${FOJO_MOD_DIR}" --output "${FOJO_MOD_DIR}"
-            ${FOJO_ROM_DIRS} --rom-dir "${FOJO_MOD_DIR}" --allow-orphans
-    DEPENDS mkfiletable ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/mod_fojo_filetable.json"
-    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    COMMENT "Rebuilding mod_fojo/filetable.dat"
-    VERBATIM)
-  add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_PATCHES} "${FOJO_MOD_DIR}/filetable.dat")
+  set(FOJO_SETUP_OUTPUTS "")
+  set(FOJO_PREV_STAGE_OUTPUT "")
+  foreach(mod ${FOJO_STAGE_MODS})
+    set(dir "${FOJO_MODS_DIR}/${mod}")
+    set(patches ${FOJO_SETUP_PATCHES_${mod}})
+    if(NOT patches)
+      continue()
+    endif()
+    set(names "")
+    set(sources "")
+    foreach(out ${patches})
+      get_filename_component(fn "${out}" NAME)
+      string(REGEX REPLACE "^U(.*)Z\\.xdelta$" "\\1" name "${fn}")
+      list(APPEND names "${name}")
+      list(APPEND sources "${CMAKE_SOURCE_DIR}/src/setups/${name}.c")
+    endforeach()
+    add_custom_command(
+      OUTPUT ${patches}
+      COMMAND "${CMAKE_COMMAND}" -E env "LLVM_BIN=${FOJO_LLVM_BIN}" "LLD_BIN=${FOJO_LLD_BIN}"
+              "${PYTHON3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/tools/mksetups"
+              ${FOJO_STAGE_DEFINES_${mod}}
+              --patches --mod-dir "${dir}" --rom "${FOJO_BASE_ROM}" --xdelta3 "${FOJO_XDELTA3}"
+              ${names}
+      DEPENDS "${CMAKE_SOURCE_DIR}/tools/mksetups"
+              "${CMAKE_SOURCE_DIR}/ld/zero-lld.ld"
+              ${sources}
+              ${FOJO_PREV_STAGE_OUTPUT}
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      COMMENT "Building stage setup patches into basedir/data/mods/${mod}/patches"
+      VERBATIM)
+    add_custom_command(
+      OUTPUT "${dir}/filetable.dat"
+      COMMAND mkfiletable ${mod} --workspace "${dir}" --output "${dir}"
+              ${FOJO_ROM_DIRS} --rom-dir "${dir}" --allow-orphans
+      DEPENDS mkfiletable ${patches} "${dir}/${mod}_filetable.json"
+      WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+      COMMENT "Rebuilding ${mod}/filetable.dat"
+      VERBATIM)
+    list(APPEND FOJO_SETUP_OUTPUTS ${patches} "${dir}/filetable.dat")
+    set(FOJO_PREV_STAGE_OUTPUT "${dir}/filetable.dat")
+  endforeach()
+  add_custom_target(pd_setups ALL DEPENDS ${FOJO_SETUP_OUTPUTS})
 else()
-  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM (basedir/data/pd.ntsc-final.z64 or basedir/data/roms/, and the jpn rom beside it); using the committed basedir/data/mods/mod_fojo/patches + filetable.dat")
+  message(STATUS "setups: not rebuilding - needs python, clang, ld.lld, llvm-objcopy, xdelta3, zlib and a base ROM (basedir/data/pd.ntsc-final.z64 or basedir/data/roms/); using the committed basedir/data/mods/mod_fojo-stages-*/patches + filetable.dat")
 endif()
 
 # Game target
