@@ -1365,8 +1365,12 @@ void setupLoadFiles(s32 stagenum)
 			}
 		} while (modified);
 
-		// Sort the stage AI lists by ID asc
-		do {
+		// Sort the stage AI lists by ID asc. The loop reads entry i + 1, so it
+		// needs at least one list before the terminator: a setup with no stage
+		// lists at all (a scripted-nothing sandbox) has only the terminator, and
+		// the read went one past it - into whatever was allocated next, here the
+		// pads file - and swapped that in as a list.
+		if (g_StageSetup.ailists[0].list != NULL) do {
 			modified = false;
 
 			for (i = 0; g_StageSetup.ailists[i + 1].list != NULL; i++) {
