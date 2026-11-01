@@ -2250,7 +2250,21 @@ void texLoad(texnum_t *updateword, struct texpool *pool, bool unusedarg)
 	struct tex *tail;
 	u32 freebytes;
 	u8 usingsharedpool = 0;
+#ifdef PLATFORM_N64
 	s8 buffer5kb[5 * 1024 + 0x40];
+#else
+	/*
+	 * The shared pool decodes onto this scratch and copies the result out to
+	 * the heap. Rare's 5 KB on the stack was enough for every vanilla
+	 * texture, but the inflaters write with no bound, and a mod's texture can
+	 * decode to more: GoldenEye X's 0x617 (Frost Valley) ran the pool 360
+	 * bytes past it and smashed texLoad's stack. texLoad does not re-enter,
+	 * so one static buffer with room for the largest texture the format can
+	 * describe serves every call; the check after the inflate catches a
+	 * texture that is larger still.
+	 */
+	static s8 buffer5kb[64 * 1024 + 0x40];
+#endif
 	s32 thisoffset;
 	s32 nextoffset;
 	u16 *texnumptr;
@@ -2455,6 +2469,13 @@ haveCompBytes:
 			} else {
 				bytesout = texInflateNonZlib(compptr, pool->leftpos, hasloddata, numlods, pool, unusedarg);
 			}
+
+#ifndef PLATFORM_N64
+			if (usingsharedpool && pool->leftpos + bytesout > (u8 *) buffer5kb + sizeof(buffer5kb)) {
+				sysLogPrintf(LOG_ERROR, "texLoad: texture 0x%04x decoded to %d bytes, past the %d-byte shared scratch; memory after it is corrupt",
+						g_TexNumToLoad, bytesout, (s32) sizeof(buffer5kb));
+			}
+#endif
 
 			// If we're using the shared pool, the data must be copied out of
 			// the stack and into the heap.
