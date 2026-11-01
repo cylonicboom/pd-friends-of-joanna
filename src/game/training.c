@@ -2453,21 +2453,16 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 		/*9*/ { L_DISH_161, L_DISH_162, L_DISH_163, L_DISH_164, 0 }, // The U.S. President
 #else
 		// >>> chrbios: generated from src/game/chrbios.md by tools/mkchrbios
-		/*0*/  { (uintptr_t)"Joanna Dark", (uintptr_t)"cI-027 Replicant (Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #027 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\nManufacturer: Carrington\n\n|Profile -\n\nHighly trained but inexperienced. Reactions superb. Proficient with a variety of weapons. Very competent all-round agent. Highest recorded training scores resulted in the creation of a new class of training grade. The embodiment of the Carrington Institute's ideal agent, hence the call sign 'Perfect Dark.'\n", CHRBIO_FLAG_LITERAL },
-		/*1*/  { (uintptr_t)"Velvet Dark", (uintptr_t)"cI-042 Replicant (Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #042 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\nManufacturer: Carrington\n\n|Profile -\n\nSister combat replicant to agent Perfect Dark. Experiences are transferred between locally active friend agents. Variation between agents may reduce psychological intrusions regarding their nature, but cause occasional glitches during memory transfer. More research must be conducted with experimental control agent 'Jonathan.' Couches at the institute are made with the highest quality velvet, hence the call sign 'Velvet Dark.'\n", CHRBIO_FLAG_LITERAL },
-		/*2*/  { (uintptr_t)"Mikado Dark", (uintptr_t)"cI-101 Replicant (Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #101 -\n\nTraining Status: Complete\nTraining Grade: A++\nActive Status: Assigned\nManufacturer: Carrington\n\n|Profile -\n\nTokyo's instantiation of the Perfect Dark combat agent but with localized experiential modules. Their likeness and personality is influenced by an amalgamation of Japanese cultural media training data collected from the years 1980-1990. Some of the agent's training data has been back ported to the other Perfect Dark agents to aid in better cooperation between friends. The perfect embodiment of Japanese corporate values, hence the call sign 'Mikado Dark.'\n", CHRBIO_FLAG_LITERAL },
-		/*3*/  { (uintptr_t)"Poplin Dark", (uintptr_t)"dD-100 Replicant (Female)", (uintptr_t)"20 (apparent)", (uintptr_t)"|CI File #081 -\n\nTraining Status: N/A\nTraining Grade: N/A\nActive Status: Unassigned\nManufacturer: dataDyne\n\n|Profile -\n\nFirst-generation dataDyne-produced autonomous combat agent. Pre-loaded with extracted Joanna Dark personality and skill models. Mission to destroy the [redacted] in Africa was successful, but the agent was retired after found to have suffered from data contamination. Given this agent's inextricable moral compass, they can still can be repurposed for emergencies if their friends' lives are at risk, hence the call sign 'Poplin Dark.'\n", CHRBIO_FLAG_LITERAL },
-		/*4*/  { (uintptr_t)"Calico Dark", (uintptr_t)"dD-200x Replicant (Female)", (uintptr_t)"27 (apparent)", (uintptr_t)"|CI File #141 -\n\nTraining Status: N/A\nTraining Grade: N/A\nActive Status: Unassigned\nManufacturer: dataDyne\n\n|Profile -\n\nExperimental dataDyne protoype unit. A composite of experiential modules harvested from anonymous engramboards. It was fitted with self-replicating neurotic modules intended to render it docile and subservient. dataDyne records indicate this unit killed its handlers during a botched affinity calibration sequence. Caution is advised when interacting with this agent.\n", CHRBIO_FLAG_LITERAL },
-		/*5*/  { (uintptr_t)"Willow Dark", (uintptr_t)"cI-001 Replicant (Female)", (uintptr_t)"23 (apparent)", (uintptr_t)"|CI File #197 -\n\nTraining Status: N/A\nTraining Grade: N/A\nActive Status: Unassigned\nManufacturer: Carrington\n\n|Profile -\n\nFirst-generation Institute-produced combat replicant. Distilled from captured dataDyne unit designated 'Poplin'. Institute R&D was unable to allocate funding to pay dataDyne the astronomical royalties for its TruGinger(tm) technology, so an alternate likeness was chosen. Unit was placed in storage following its pilot deployment until the commencement of [redacted]. This skunkwork project's field data was the basis of further developments, hence the designation \"Willow.\"\n", CHRBIO_FLAG_LITERAL },
-		/*6*/  { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226, 0 }, // Jonathan
-		/*7*/  { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230, 0 }, // Daniel Carrington
-		/*8*/  { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234, 0 }, // Cassandra De Vries
-		/*9*/  { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238, 0 }, // Trent Easton
-		/*10*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242, 0 }, // Dr. Caroll
-		/*11*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246, 0 }, // Elvis
-		/*12*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250, 0 }, // Mr. Blonde
-		/*13*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254, 0 }, // Mr. Blonde (repeat)
-		/*14*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258, 0 }, // The U.S. President
+		/*0*/ { L_MISC_219, L_MISC_220, L_MISC_221, L_MISC_222, 0 }, // Joanna Dark
+		/*1*/ { L_MISC_223, L_MISC_224, L_MISC_225, L_MISC_226, 0 }, // Jonathan
+		/*2*/ { L_MISC_227, L_MISC_228, L_MISC_229, L_MISC_230, 0 }, // Daniel Carrington
+		/*3*/ { L_MISC_231, L_MISC_232, L_MISC_233, L_MISC_234, 0 }, // Cassandra De Vries
+		/*4*/ { L_MISC_235, L_MISC_236, L_MISC_237, L_MISC_238, 0 }, // Trent Easton
+		/*5*/ { L_MISC_239, L_MISC_240, L_MISC_241, L_MISC_242, 0 }, // Dr. Caroll
+		/*6*/ { L_MISC_243, L_MISC_244, L_MISC_245, L_MISC_246, 0 }, // Elvis
+		/*7*/ { L_MISC_247, L_MISC_248, L_MISC_249, L_MISC_250, 0 }, // Mr. Blonde
+		/*8*/ { L_MISC_251, L_MISC_252, L_MISC_253, L_MISC_254, 0 }, // Mr. Blonde (repeat)
+		/*9*/ { L_MISC_255, L_MISC_256, L_MISC_257, L_MISC_258, 0 }, // The U.S. President
 		// <<< chrbios
 #endif
 	};
@@ -2481,35 +2476,28 @@ struct chrbio *ciGetChrBio(struct biocharid *ch)
 		}
 	}
 
-	if (ch->bodynum == BODY_DARK_COMBAT) {
-		if (ch->mpheadnum == MPHEAD_VD)                          return &bios[1];
-		if (g_FojoMpHeadMikado >= 0 && ch->mpheadnum == g_FojoMpHeadMikado) return &bios[2];
-		if (g_FojoMpHeadPoplin >= 0 && ch->mpheadnum == g_FojoMpHeadPoplin) return &bios[3];
-		if (g_FojoMpHeadCalico >= 0 && ch->mpheadnum == g_FojoMpHeadCalico) return &bios[4];
-		if (g_FojoMpHeadWillow >= 0 && ch->mpheadnum == g_FojoMpHeadWillow) return &bios[5];
-		return &bios[0]; // Joanna (default)
-	}
-
 	switch (ch->bodynum) {
+	case BODY_DARK_COMBAT:
+		return &bios[0];
 	case BODY_JONATHAN:
-		return &bios[6];
+		return &bios[1];
 	case BODY_CARRINGTON:
-		return &bios[7];
+		return &bios[2];
 	case BODY_CASSANDRA:
-		return &bios[8];
+		return &bios[3];
 	case BODY_TRENT:
-		return &bios[9];
+		return &bios[4];
 	case BODY_DRCAROLL:
-		return &bios[10];
+		return &bios[5];
 	case BODY_THEKING:
-		return &bios[11];
+		return &bios[6];
 	case BODY_MRBLONDE:
 		if (ciIsStageComplete(SOLOSTAGEINDEX_CRASHSITE)) {
-			return &bios[13];
+			return &bios[8];
 		}
-		return &bios[12];
+		return &bios[7];
 	case BODY_PRESIDENT:
-		return &bios[14];
+		return &bios[9];
 	}
 
 	return NULL;
