@@ -265,7 +265,7 @@ struct g_vars {
   /*0x4ac*/ s8 mpplayerteams[MAX_PLAYERS];
   /*0x4b0*/ u32 mpquickteam;
   /*0x4b4*/ s32 stagenum;
-  /*0x4b8*/ struct prop *aibuddies[4];
+  /*0x4b8*/ struct prop *aibuddies[MAX_AIBUDDIES];
   /*0x4c8*/ u32 dontplaynrg; // allow X music to be played (NRG = energy track)
   /*0x4cc*/ s32 in_cutscene;
   /*0x4d0*/ u8 paksneededformenu;

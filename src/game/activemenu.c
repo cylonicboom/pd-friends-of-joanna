@@ -234,7 +234,7 @@ void amSetAiBuddyTemperament(bool aggressive)
 {
 	s32 i;
 
-	for (i = 0; i < g_Vars.numaibuddies; i++) {
+	for (i = 0; i < g_Vars.numaibuddies && i < ARRAYCOUNT(g_Vars.aibuddies); i++) {
 		if (g_Vars.aibuddies[i]) {
 			struct chrdata *chr = g_Vars.aibuddies[i]->chr;
 
@@ -254,7 +254,7 @@ void amSetAiBuddyStealth(void)
 {
 	s32 i;
 
-	for (i = 0; i < g_Vars.numaibuddies; i++) {
+	for (i = 0; i < g_Vars.numaibuddies && i < ARRAYCOUNT(g_Vars.aibuddies); i++) {
 		if (g_Vars.aibuddies[i]) {
 			struct chrdata *chr = g_Vars.aibuddies[i]->chr;
 
@@ -277,7 +277,7 @@ s32 amGetFirstBuddyIndex(void)
 {
 	s32 i;
 
-	for (i = 0; i < g_Vars.numaibuddies; i++) {
+	for (i = 0; i < g_Vars.numaibuddies && i < ARRAYCOUNT(g_Vars.aibuddies); i++) {
 		if (g_Vars.aibuddies[i]) {
 			struct chrdata *chr = g_Vars.aibuddies[i]->chr;
 

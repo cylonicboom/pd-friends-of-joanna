@@ -5802,7 +5802,7 @@ void playerTick(bool arg0)
 			g_Vars.aibuddiesspawned = true;
 
 			// Spawn coop bots
-			for (i = 0; i < g_Vars.numaibuddies; i++) {
+			for (i = 0; i < g_Vars.numaibuddies && i < ARRAYCOUNT(g_Vars.aibuddies); i++) {
 				prop = NULL;
 
 				// If no buddy cheats are active, spawn Velvet

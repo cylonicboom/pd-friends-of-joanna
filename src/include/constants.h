@@ -15,6 +15,13 @@
 
 #define MAX_ARTIFACTS          120
 #define MAX_BOTS               8
+// g_Vars.aibuddies. vanilla's co-op buddy menu stops at four (getMaxAiBuddies);
+// team missions fill every empty seat, so the port keeps room for six
+#ifdef PLATFORM_N64
+#define MAX_AIBUDDIES          4
+#else
+#define MAX_AIBUDDIES          6
+#endif
 #define MAX_CHRSPERSQUADRON    16
 #define MAX_CHRSPERTEAM        32
 #define MAX_CHRWAYPOINTS       6
