@@ -10,6 +10,7 @@
 #include "game/debug.h"
 #include "game/game_0b0fd0.h"
 #include "game/playermgr.h"
+#include "game/fojofriends.h"
 #include "game/player.h"
 #include "game/savebuffer.h"
 #include "game/menugfx.h"
@@ -866,6 +867,8 @@ void endscreenContinue(s32 context)
 						s32 teamPlayers = getNumTeamPlayerRoleAssignments();
 						DEBUG_ENDSCREEN("endscreenContinue: Setting num players to %d\n", teamPlayers);
 						setNumPlayers(teamPlayers);
+						fojoBuddySettleSeats();
+						g_Vars.numaibuddies = playermgrCountBuddySeats();
 					}
 					else {
 						DEBUG_ENDSCREEN("endscreenContinue: isteam=false, disabling team players, setting 1 player\n");

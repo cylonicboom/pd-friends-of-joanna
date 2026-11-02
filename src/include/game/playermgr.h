@@ -31,6 +31,7 @@ s32 playermgrAddPlayer(void);
 s32 playermgrBudgetCount(void);
 bool aiBuddiesActive(void);
 s32 playermgrCountBuddySeats(void);
+s32 playermgrBuddySeatAt(s32 index);
 
 // a seat a person sits in: anything but empty or a Perfect Buddy
 static inline bool playerroleIsHuman(s32 role)

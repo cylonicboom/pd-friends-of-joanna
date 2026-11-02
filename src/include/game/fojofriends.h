@@ -11,5 +11,6 @@ void fojoFriendsInit(void);
 s32 fojoBuddyRollOperative(void);
 s32 fojoBuddySeatOperative(s32 seat);
 void fojoBuddySettleSeats(void);
+bool fojoBuddyIdentity(s32 seat, s32 *bodynum, s32 *headnum);
 
 #endif

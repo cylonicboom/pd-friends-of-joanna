@@ -10,6 +10,7 @@
 #include "types.h"
 #include "mod.h"
 #include "lib/rng.h"
+#include "game/mplayer/mplayer.h"
 
 /**
  * The friends of Jo are the Team Missions roster (modconfig Operative blocks,
@@ -99,6 +100,34 @@ void fojoBuddySettleSeats(void)
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
 		fojoBuddySeatOperative(i);
 	}
+}
+
+/**
+ * Dress a buddy seat's chr as its operative: the roster head, and her
+ * wardrobe's version of the body the stage gave the buddy. Leaves both alone
+ * and answers false when the seat has no operative or her head is not loaded,
+ * so the buddy spawns as vanilla's.
+ */
+bool fojoBuddyIdentity(s32 seat, s32 *bodynum, s32 *headnum)
+{
+	const s32 friendnum = fojoBuddySeatOperative(seat);
+	const struct modoperative *op = modOperativeAt(friendnum);
+	s32 head;
+
+	if (!op) {
+		return false;
+	}
+
+	head = mpGetHeadId(op->mpheadnum);
+
+	if (head < 0) {
+		return false;
+	}
+
+	*headnum = head;
+	*bodynum = fojoFriendWardrobeBody(friendnum, *bodynum);
+
+	return true;
 }
 
 /**

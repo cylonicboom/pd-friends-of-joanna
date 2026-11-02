@@ -905,12 +905,13 @@ void playermgrAllocatePlayer(s32 index)
 /**
  * Whether vanilla's AI buddies (g_Vars.aibuddies, the "Perfect Buddies" of
  * the co-op buddy menu) are in play this mission. Every buddy site asks this
- * instead of spelling the expression out.
+ * instead of spelling the expression out. Co-op with buddies, or a team
+ * mission whose empty seats hold them.
  */
 bool aiBuddiesActive(void)
 {
 	return !g_Vars.normmplayerisrunning
-		&& g_MissionConfig.iscoop
+		&& (g_MissionConfig.iscoop || g_MissionConfig.isteam)
 		&& g_Vars.numaibuddies > 0;
 }
 
@@ -928,7 +929,22 @@ s32 playermgrCountBuddySeats(void)
 		}
 	}
 
-	return count;
+	return count > MAX_AIBUDDIES ? MAX_AIBUDDIES : count;
+}
+
+/**
+ * The seat the index'th buddy came from, in seat order: g_Vars.aibuddies[i]
+ * in a team mission is the buddy for playermgrBuddySeatAt(i). -1 past the end.
+ */
+s32 playermgrBuddySeatAt(s32 index)
+{
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.playerroles[i] == PLAYERROLE_BUDDY && index-- == 0) {
+			return i;
+		}
+	}
+
+	return -1;
 }
 
 void playermgrCalculateAiBuddyNums(void)

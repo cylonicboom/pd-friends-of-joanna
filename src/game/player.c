@@ -5798,7 +5798,10 @@ void playerTick(bool arg0)
 		if (aiBuddiesActive()
 				&& !g_Vars.aibuddiesspawned
 				&& g_Vars.stagenum != STAGE_CITRAINING
-				&& g_Vars.lvframenum > 20) {
+				&& g_Vars.lvframenum > 20
+				// fojo: a team mission's buddies spawn beside the operative,
+				// not whichever seat happens to tick first
+				&& (!g_MissionConfig.isteam || g_Vars.currentplayer == g_Vars.bond)) {
 			g_Vars.aibuddiesspawned = true;
 
 			// Spawn coop bots
@@ -5811,8 +5814,16 @@ void playerTick(bool arg0)
 								| 1 << CHEAT_HOTSHOT
 								| 1 << CHEAT_HITANDRUN
 								| 1 << CHEAT_ALIEN)) == 0) {
+					s32 buddybody = BODY_DARK_COMBAT;
+					s32 buddyhead = HEAD_VD;
+
+					// fojo: a team mission's buddy wears her seat's operative
+					if (g_MissionConfig.isteam) {
+						fojoBuddyIdentity(playermgrBuddySeatAt(i), &buddybody, &buddyhead);
+					}
+
 					if (stageGetIndex(g_Vars.stagenum) == STAGEINDEX_AIRBASE) {
-						prop = chrSpawnAtCoord(BODY_DARK_COMBAT, HEAD_VD,
+						prop = chrSpawnAtCoord(buddybody, buddyhead,
 								&g_Vars.currentplayer->prop->pos,
 								g_Vars.currentplayer->prop->rooms,
 								BADDEG2RAD(g_Vars.currentplayer->vv_theta / 2),
@@ -5826,7 +5837,7 @@ void playerTick(bool arg0)
 								ailistFindById(GAILIST_INIT_DEFAULT_BUDDY),
 								SPAWNFLAG_ALLOWONSCREEN);
 					} else {
-						prop = chrSpawnAtCoord(BODY_DARK_COMBAT, HEAD_VD,
+						prop = chrSpawnAtCoord(buddybody, buddyhead,
 								&g_Vars.currentplayer->prop->pos,
 								g_Vars.currentplayer->prop->rooms,
 								BADDEG2RAD(g_Vars.currentplayer->vv_theta / 2),

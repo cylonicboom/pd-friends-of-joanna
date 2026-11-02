@@ -5123,7 +5123,7 @@ void chrDamage(struct chrdata *chr, f32 damage, struct coord *vector, struct gse
 
 	// Don't allow coop AI to kill or destroy anything
 	// which anti wouldn't be able to
-	if (g_MissionConfig.iscoop
+	if ((g_MissionConfig.iscoop || aiBuddiesActive())
 			&& aprop
 			&& aprop != vprop
 			&& aprop->type == PROPTYPE_CHR

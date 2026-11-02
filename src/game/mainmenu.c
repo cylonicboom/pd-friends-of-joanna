@@ -938,6 +938,9 @@ MenuItemHandlerResult menuhandlerAcceptMission(s32 operation,
     if (g_MissionConfig.isteam) {
       playermgrResetTeamPlayers();
       setNumPlayers(getNumTeamPlayerRoleAssignments());
+      // the seats decide, never a count left over from another mission
+      fojoBuddySettleSeats();
+      g_Vars.numaibuddies = playermgrCountBuddySeats();
     } else if (g_MissionConfig.iscoop) {
       if (g_Vars.numaibuddies == 0) {
         // Coop with human buddy
