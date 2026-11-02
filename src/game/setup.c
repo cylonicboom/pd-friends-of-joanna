@@ -35,6 +35,9 @@
 #include "lib/ailist.h"
 #include "lib/anim.h"
 #include "lib/collision.h"
+#ifndef PLATFORM_N64
+#include "editspawn.h"
+#endif
 #include "data.h"
 #include "types.h"
 
@@ -1445,7 +1448,13 @@ void setupLoadFiles(s32 stagenum)
 			numobjs += scenarioNumProps();
 		}
 
+#ifndef PLATFORM_N64
+		// editor spawns: room for EDITSPAWN_RESERVE models of each kind, since
+		// a spawned chr's gun is a second model (editspawn.c)
+		modelmgrAllocateSlots(numobjs + editspawnReserve(stagenum), numchrs + editspawnReserve(stagenum));
+#else
 		modelmgrAllocateSlots(numobjs, numchrs);
+#endif
 	} else {
 		// cover isn't set to NULL here... I guess it's not important
 		g_StageSetup.waypoints = NULL;
@@ -1468,6 +1477,10 @@ void setupLoadFiles(s32 stagenum)
 	if (IS4MB());
 
 	g_Vars.maxprops = numobjs + numchrs + extra + 40;
+#ifndef PLATFORM_N64
+	// editor spawns, x2 for a chr and the gun in its hand
+	g_Vars.maxprops += editspawnReserve(stagenum) * 2;
+#endif
 }
 
 static void setupMarkLiftDoors()
@@ -1523,6 +1536,10 @@ void setupCreateProps(s32 stagenum)
 
 	g_Briefing.briefingtextnum = L_MISC_042; // "No briefing for this mission"
 
+#ifndef PLATFORM_N64
+	editspawnStageInit();
+#endif
+
 	if (stagenum < STAGE_TITLE) {
 		if (g_StageSetup.padfiledata) {
 			setupPreparePads();
@@ -1541,9 +1558,15 @@ void setupCreateProps(s32 stagenum)
 				numchrs += g_Vars.numaibuddies;
 			}
 
+#ifndef PLATFORM_N64
+			chrmgrConfigure(numchrs + editspawnReserve(stagenum));
+		} else {
+			chrmgrConfigure(editspawnReserve(stagenum));
+#else
 			chrmgrConfigure(numchrs);
 		} else {
 			chrmgrConfigure(0);
+#endif
 		}
 
 		for (j = 0; j < PLAYERCOUNT(); j++) {
