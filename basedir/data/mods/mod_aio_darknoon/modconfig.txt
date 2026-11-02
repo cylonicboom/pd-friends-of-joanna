@@ -1,5 +1,6 @@
 modname "mod_aio_darknoon"
 modversion "6.0.0"
+modauthor "Jonaeru / Atari-Dude"
 
 # ==========================================================================
 # mod_aio_darknoon
@@ -76,6 +77,7 @@ stage "darknoon" {
   mpsetupfile "Ump_setupmp7_aio_darknoonZ"
   kind mp
   arenaname "Valley"
+  author "MRKane"
   # lifted 2026-09-20 (lift-out/lift.py rule 3c): langbank lang.c:198 (STAGE_TEST_MP7 -> LANGBANK_MP7); allocation pdmain.c:153 (STAGE_TEST_MP7); env env.c:160 (STAGE_TEST_MP7 nofog, 'Valley')
   langbank MP7
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"

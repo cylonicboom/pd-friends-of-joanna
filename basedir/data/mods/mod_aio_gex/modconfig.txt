@@ -1,5 +1,6 @@
 modname "mod_aio_gex"
 modversion "6.0.0"
+modauthor "Jonaeru / Atari-Dude"
 
 # ==========================================================================
 # mod_aio_gex

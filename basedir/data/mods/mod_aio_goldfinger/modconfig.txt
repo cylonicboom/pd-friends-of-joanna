@@ -1,5 +1,6 @@
 modname "mod_aio_goldfinger"
 modversion "6.0.0"
+modauthor "Jonaeru / Atari-Dude"
 
 # ==========================================================================
 # mod_aio_goldfinger
@@ -104,6 +105,7 @@ stage "goldfinger_tunnels" {
   mpsetupfile "Ump_setuparec_aio_goldfingerZ"
   kind mp
   arenaname "Tunnels"
+  author "Trevor"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:240 (STAGE_EXTRA23 -> LANGBANK_AREC); allocation pdmain.c:204 (STAGE_EXTRA23)
   langbank AREC
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
@@ -116,6 +118,7 @@ stage "goldfinger_mall" {
   mpsetupfile "Ump_setupcrad_aio_goldfingerZ"
   kind mp
   arenaname "Mall"
+  author "MRKane"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:239 (STAGE_EXTRA22 -> LANGBANK_CRAD); allocation pdmain.c:203 (STAGE_EXTRA22)
   langbank CRAD
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
@@ -128,6 +131,7 @@ stage "goldfinger_junkyard" {
   mpsetupfile "Ump_setupmp11_aio_goldfingerZ"
   kind mp
   arenaname "Junkyard"
+  author "Comet"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:237 (STAGE_EXTRA20 -> LANGBANK_MP11); allocation pdmain.c:201 (STAGE_EXTRA20); env env.c:83 (STAGE_EXTRA20 fog, 'Junkyard (Same as Egyptian)')
   langbank MP11
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
@@ -151,6 +155,7 @@ stage "goldfinger_steelmill" {
   mpsetupfile "Ump_setupref_aio_goldfingerZ"
   kind mp
   arenaname "Steel Mill"
+  author "Garabuyo & Sogun"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:238 (STAGE_EXTRA21 -> LANGBANK_REF); allocation pdmain.c:202 (STAGE_EXTRA21); env env.c:84 (STAGE_EXTRA21 fog, 'Steel Mill (Same as Complex)')
   langbank REF
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"

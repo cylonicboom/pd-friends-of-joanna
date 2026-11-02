@@ -1,5 +1,6 @@
 modname "mod_aio_pdplus"
 modversion "6.0.0"
+modauthor "Jonaeru / Atari-Dude"
 
 # ==========================================================================
 # mod_aio_pdplus
@@ -230,6 +231,7 @@ stage "STAGE_TEST_DEST" {
   mpsetupfile "Ump_setupdest_aio_pdplusZ"
   kind mp
   arenaname "Training Day"
+  author "MRKane"
   # lifted 2026-09-20 (lift-out/lift.py rule 3d): langbank lang.c:158 (STAGE_TEST_DEST -> LANGBANK_DEST); allocation pdmain.c:168 (STAGE_TEST_DEST)
   langbank DEST
   allocation "-ml0 -me0 -mgfx120 -mvtx98 -ma400"
@@ -728,6 +730,7 @@ stage "pdplus_suburb" {
   mpsetupfile "Ump_setuparch_aio_pdplusZ"
   kind mp
   arenaname "Suburb"
+  author "Oofjay"
   # from jonaeru @ d3e4205: row 0x04 STAGE_TEST_ARCH (vanilla table); arena name L_MPMENU in the AIO LmpmenuE bank
   langbank ARCH   # lang.c:181
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:162

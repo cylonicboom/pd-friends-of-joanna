@@ -1,5 +1,6 @@
 modname "mod_aio_kakariko"
 modversion "6.0.0"
+modauthor "Jonaeru / Atari-Dude"
 
 # ==========================================================================
 # mod_aio_kakariko
@@ -97,6 +98,7 @@ stage "STAGE_24" {
   # Name taken from the mod's own LmpmenuE string, not invented.
   kind mp
   arenaname "Kakariko Village"
+  author "Sogun"
   # lifted 2026-09-20 (lift-out/lift.py rule 3d): langbank lang.c:156 (STAGE_24 -> LANGBANK_SEVX); env env.c:60 (STAGE_24 fog, 'Stormy (Fixed far from 10000 to 20000)')
   langbank SEVX
   env {
@@ -155,6 +157,7 @@ stage "kakariko_arec" {
   mpsetupfile "Ump_setuparec_aio_kakarikoZ"
   kind mp
   arenaname "Targitzan's Temple"
+  author "Sogun"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:235 (STAGE_EXTRA19 -> LANGBANK_AREC); allocation pdmain.c:199 (STAGE_EXTRA19); env env.c:189 (STAGE_EXTRA19 nofog, 'Targitzan's Temple')
   langbank AREC
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
@@ -178,6 +181,7 @@ stage "kakariko_mp13" {
   mpsetupfile "Ump_setupmp13_aio_kakarikoZ"
   kind mp
   arenaname "War Colors"
+  author "Sogun"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:244 (STAGE_EXTRA26 -> LANGBANK_MP13); allocation pdmain.c:208 (STAGE_EXTRA26); env env.c:186 (STAGE_EXTRA26 nofog, 'War Colors (Same as Villa MP, far from 10000 to 20000)')
   langbank MP13
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
@@ -201,6 +205,7 @@ stage "kakariko_ref" {
   mpsetupfile "Ump_setupref_aio_kakarikoZ"
   kind mp
   arenaname "Tawfret Ruins"
+  author "Sogun"
   # lifted 2026-09-20 (lift-out/lift.py rule 3a): langbank lang.c:234 (STAGE_EXTRA18 -> LANGBANK_REF); allocation pdmain.c:198 (STAGE_EXTRA18); env env.c:188 (STAGE_EXTRA18 nofog, 'Tawfret Ruins')
   langbank REF
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"
