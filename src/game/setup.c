@@ -1408,9 +1408,10 @@ void setupLoadFiles(s32 stagenum)
 		numchrs += setupCountCommandType(OBJTYPE_CHR);
 
 		if (aiBuddiesActive()) {
-			// @bug? The Hotshot buddy has two guns, but only one is counted here.
 			numchrs += g_Vars.numaibuddies;
-			numobjs += g_Vars.numaibuddies; // the buddy's weapon
+			// fojo: room for a pair each. vanilla counted one, short for the
+			// Hotshot buddy, and an operative can carry two
+			numobjs += g_Vars.numaibuddies * 2;
 		}
 
 		numobjs += setupCountCommandType(OBJTYPE_WEAPON);

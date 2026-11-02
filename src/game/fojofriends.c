@@ -11,6 +11,9 @@
 #include "mod.h"
 #include "lib/rng.h"
 #include "game/mplayer/mplayer.h"
+#include "game/propobj.h"
+#include "net/playlist.h"
+#include "system.h"
 
 /**
  * The friends of Jo are the Team Missions roster (modconfig Operative blocks,
@@ -126,6 +129,57 @@ bool fojoBuddyIdentity(s32 seat, s32 *bodynum, s32 *headnum)
 
 	*headnum = head;
 	*bodynum = fojoFriendWardrobeBody(friendnum, *bodynum);
+
+	return true;
+}
+
+static s32 fojoFriendWeaponByName(const char *name, const char *who)
+{
+	s32 mpweapon;
+
+	if (!name[0]) {
+		return WEAPON_NONE;
+	}
+
+	mpweapon = playlistLookupMpWeapon(name);
+
+	if (mpweapon <= MPWEAPON_NONE || mpweapon >= NUM_MPWEAPONS) {
+		sysLogPrintf(LOG_WARNING, "operative %s: no weapon called '%s'", who, name);
+		return WEAPON_NONE;
+	}
+
+	return g_MpWeapons[mpweapon].weaponnum;
+}
+
+/**
+ * Hand a buddy seat's chr her operative's guns: the Operative block's weapon
+ * in the right hand and offhand in the left. Answers false, and gives nothing,
+ * when the seat has no operative or she names no weapon, so the caller gives
+ * vanilla's. AI buddies carry their operative's guns; people take theirs from
+ * the setup file.
+ */
+bool fojoBuddyArm(s32 seat, struct chrdata *chr)
+{
+	const struct modoperative *op = modOperativeAt(fojoBuddySeatOperative(seat));
+	s32 right;
+	s32 left;
+
+	if (!op) {
+		return false;
+	}
+
+	right = fojoFriendWeaponByName(op->weapon, op->shortname);
+	left = fojoFriendWeaponByName(op->offhand, op->shortname);
+
+	if (right == WEAPON_NONE) {
+		return false;
+	}
+
+	chrGiveWeaponWithAutoModel(chr, right, 0);
+
+	if (left != WEAPON_NONE) {
+		chrGiveWeaponWithAutoModel(chr, left, OBJFLAG_WEAPON_LEFTHANDED);
+	}
 
 	return true;
 }

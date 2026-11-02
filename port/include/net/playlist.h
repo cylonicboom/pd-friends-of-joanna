@@ -125,6 +125,9 @@ void playlistDumpToChat(void);
 s32 playlistLookupStage(const char *name);
 s32 playlistLookupScenario(const char *name);
 s32 playlistLookupBotDiff(const char *name);
+// a weapon by the `banned=` tokens (MAGSEC4, LAPTOP, PP9I...): its MPWEAPON_*
+// index, -1 if the name is unknown. The Operative block's weapon keys use it.
+s32 playlistLookupMpWeapon(const char *name);
 u64 playlistLookupOption(const char *name);
 u64 playlistAllOptionBits(void);
 

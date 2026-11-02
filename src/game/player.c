@@ -5870,7 +5870,11 @@ void playerTick(bool arg0)
 						chr->cloakfadefinished = true;
 						chr->cloakfadefrac = 0;
 
-						chrGiveWeapon(chr, MODEL_CHRFALCON2, WEAPON_FALCON2, 0);
+						// fojo: a team mission's buddy carries her operative's guns
+						if (!g_MissionConfig.isteam
+								|| !fojoBuddyArm(playermgrBuddySeatAt(i), chr)) {
+							chrGiveWeapon(chr, MODEL_CHRFALCON2, WEAPON_FALCON2, 0);
+						}
 					}
 				}
 

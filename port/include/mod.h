@@ -276,6 +276,9 @@ struct modoperative {
 	char designation[48]; // fixed unit tag for the carousel, or ""
 	u32 colour;           // 0xrrggbbaa hud tint; 0 = none (vanilla)
 	s32 mpheadnum;        // resolved when the roster is built
+	char weapon[24];      // what she carries as a Perfect Buddy, by name
+	                      // (the playlist `banned=` tokens), or ""
+	char offhand[24];     // her left hand, same names, or ""
 };
 s32 modOperativeCount(void);
 const struct modoperative *modOperativeAt(s32 index);

@@ -260,6 +260,11 @@ u64 playlistAllOptionBits(void)
 	return m;
 }
 
+s32 playlistLookupMpWeapon(const char *name)
+{
+	return lookupNamedId(s_mpweapons, name, -1);
+}
+
 static const char *stageName(s32 stagenum)
 {
 	for (const struct namedid *p = s_stages; p->name; ++p) {

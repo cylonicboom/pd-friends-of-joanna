@@ -2645,7 +2645,7 @@ static s32 g_NumModOperatives = -1;   // -1: rebuild on next ask
 static char *modConfigParseOperative(char *p, char *token, s32 modNum)
 {
 	struct modoperative op;
-	bool has[6] = { false };   // name shortname wardrobe designation colour
+	bool has[8] = { false };   // name shortname wardrobe designation colour - weapon offhand
 	memset(&op, 0, sizeof(op));
 
 	p = strParseToken(p, token, NULL);
@@ -2674,6 +2674,8 @@ static char *modConfigParseOperative(char *p, char *token, s32 modNum)
 		OP_STR("shortname", shortname, 1)
 		OP_STR("wardrobe", wardrobe, 2)
 		OP_STR("designation", designation, 3)
+		OP_STR("weapon", weapon, 6)
+		OP_STR("offhand", offhand, 7)
 #undef OP_STR
 		if (!strcmp(token, "colour") || !strcmp(token, "color")) {
 			p = strParseToken(p, token, NULL);
@@ -2708,6 +2710,8 @@ static char *modConfigParseOperative(char *p, char *token, s32 modNum)
 		if (has[2]) memcpy(d->op.wardrobe, op.wardrobe, sizeof(op.wardrobe));
 		if (has[3]) memcpy(d->op.designation, op.designation, sizeof(op.designation));
 		if (has[4]) d->op.colour = op.colour;
+		if (has[6]) memcpy(d->op.weapon, op.weapon, sizeof(op.weapon));
+		if (has[7]) memcpy(d->op.offhand, op.offhand, sizeof(op.offhand));
 		if (d->modnum >= 0) {
 			d->modnum = modNum;   // built-ins stay -1
 		}
