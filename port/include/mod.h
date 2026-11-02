@@ -81,6 +81,10 @@ s32 modFileIdMod(s32 id);
 #define MOD_FILEID_MOD(id)  modFileIdMod((s32)(id))
 
 extern char g_ModNames[64][64];
+// A modconfig's top-level `modauthor`: who made the mod as a whole. A block
+// that credits one asset to someone else carries its own `author` key; this is
+// what a credit falls back to when the block names nobody.
+extern char g_ModAuthors[64][64];
 extern char g_ModVersions[64][32];
 extern s32 g_TexModNum;
 extern s32 g_TexCurrentModelFileNum;  // low 16 bits: fileSlot of the model currently being loaded/rendered; 0 when none
@@ -165,6 +169,7 @@ struct modStageRegEntry {
 	u8 requirefeature;  /* challengeIsFeatureUnlocked arg; 0 = always unlocked */
 	u16 langid;         /* legacy MpArena name; 0 when there is none */
 	char *name;         /* owned display string, or NULL - see arenaname */
+	char *author;       /* owned; the declaring block's `author`, or NULL */
 };
 
 extern struct modStageRegEntry *g_ModStageReg;
@@ -178,6 +183,10 @@ struct modStageRegEntry *modStageRegFind(s32 stagenum);
 struct modStageRegEntry *modStageRegRecord(s32 stagenum, s32 modnum, s32 kind,
 		const char *name, s32 langid, s32 requirefeature);
 s32 modStageRegCount(s32 kindmask);
+// "mod: NAME author: WHO" for the mod that owns stagenum, or "" when no mod
+// declared it. The author is the stage block's own `author`, else the mod's
+// `modauthor`; the clause is left out when both are empty.
+const char *modStageCredit(s32 stagenum, char *buf, size_t bufSize);
 void modStageRegReport(void);
 
 /**

@@ -601,6 +601,7 @@ static bool g_DebugModStage = false;
 
 char g_ModNames[64][64];
 char g_ModVersions[64][32];
+char g_ModAuthors[64][64];
 
 struct mparenagroup *g_MpArenaGroups = NULL;
 s32 g_NumMpArenaGroups = 0;
@@ -2891,6 +2892,7 @@ void modStageRegReset(void)
 {
 	for (s32 i = 0; i < g_NumModStageReg; i++) {
 		free(g_ModStageReg[i].name);
+		free(g_ModStageReg[i].author);
 	}
 	free(g_ModStageReg);
 	g_ModStageReg = NULL;
@@ -2919,6 +2921,40 @@ s32 modStageRegCount(s32 kindmask)
 	}
 
 	return count;
+}
+
+const char *modStageCredit(s32 stagenum, char *buf, size_t bufSize)
+{
+	const struct modStageRegEntry *e = modStageRegFind(stagenum);
+	const char *modname;
+	const char *author;
+	char dirbuf[16];
+
+	if (!buf || bufSize == 0) {
+		return "";
+	}
+
+	buf[0] = '\0';
+
+	if (!e) {
+		return buf;
+	}
+
+	modname = (e->modnum >= 0 && e->modnum < 64 && g_ModNames[e->modnum][0])
+			? g_ModNames[e->modnum]
+			: modDirName(e->modnum, dirbuf, sizeof(dirbuf));
+
+	author = (e->author && e->author[0]) ? e->author
+			: (e->modnum >= 0 && e->modnum < 64 && g_ModAuthors[e->modnum][0]) ? g_ModAuthors[e->modnum]
+			: NULL;
+
+	if (author) {
+		snprintf(buf, bufSize, "mod: %s author: %s", modname, author);
+	} else {
+		snprintf(buf, bufSize, "mod: %s", modname);
+	}
+
+	return buf;
 }
 
 /*
@@ -2965,7 +3001,15 @@ struct modStageRegEntry *modStageRegRecord(s32 stagenum, s32 modnum, s32 kind,
 	}
 
 	// Last writer wins on the owning mod, matching g_ModStageNums above, which
-	// the same block has already overwritten the same way.
+	// the same block has already overwritten the same way. An author belongs to
+	// the mod that wrote it: when ownership moves, the previous mod's credit
+	// must not ride along under the new mod's name. A stage block sets the new
+	// one straight after this returns.
+	if (e->modnum != (s8)modnum) {
+		free(e->author);
+		e->author = NULL;
+	}
+
 	e->modnum = (s8)modnum;
 	e->kind |= (u8)(kind & MODSTAGE_KIND_BOTH);
 
@@ -3528,6 +3572,8 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	bool gavempsetup = false;
 	char arenaname[64];
 	arenaname[0] = '\0';
+	char author[64];
+	author[0] = '\0';
 
 	p = strParseToken(p, token, NULL);
 	while (p && token[0] && strcmp(token, "}") != 0) {
@@ -3687,6 +3733,13 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 			PARSE_STAGE_STRING("", "arenaname", tmps);
 			strncpy(arenaname, tmps, sizeof(arenaname) - 1);
 			arenaname[sizeof(arenaname) - 1] = '\0';
+		} else if (!strcmp(token, "author")) {
+			// Who made this level, when it is not who made the mod: an AIO
+			// pack credits each map to its own maker. Falls back to the mod's
+			// `modauthor` - see modStageCredit.
+			PARSE_STAGE_STRING("", "author", tmps);
+			strncpy(author, tmps, sizeof(author) - 1);
+			author[sizeof(author) - 1] = '\0';
 		} else {
 			char where[32];
 			snprintf(where, sizeof(where), "stage 0x%02x", stagenum);
@@ -3746,7 +3799,15 @@ static char *modConfigParseStage(char *p, char *token, s32 modnum)
 	// Recorded only once the block has parsed cleanly, so a malformed block
 	// cannot put a half-read stage in a menu. sidx >= 0 was checked above, so
 	// everything reaching here has a g_Stages row and can actually load.
-	modStageRegRecord(stagenum, modnum, kind, arenaname[0] ? arenaname : NULL, 0, 0);
+	struct modStageRegEntry *reg = modStageRegRecord(stagenum, modnum, kind,
+			arenaname[0] ? arenaname : NULL, 0, 0);
+
+	// The block is the whole word on its own credit: a reparse that dropped
+	// the key drops the credit, rather than keeping a stale one.
+	if (reg) {
+		free(reg->author);
+		reg->author = author[0] ? strDuplicate(author) : NULL;
+	}
 
 	return p;
 }
@@ -3826,6 +3887,11 @@ void modScanAllMods(void)
 				p = strParseToken(p, token, NULL);
 				if (token[0]) {
 					strncpy(g_ModVersions[i], strUnquote(token), sizeof(g_ModVersions[i]) - 1);
+				}
+			} else if (!strcmp(token, "modauthor")) {
+				p = strParseToken(p, token, NULL);
+				if (token[0]) {
+					strncpy(g_ModAuthors[i], strUnquote(token), sizeof(g_ModAuthors[i]) - 1);
 				}
 			}
 			p = strParseToken(p, token, NULL);
@@ -4180,6 +4246,14 @@ s32 modConfigLoad(const char *fname)
 				char *ver = strUnquote(token);
 				if (modnum >= 0 && modnum < 64) {
 					strncpy(g_ModVersions[modnum], ver, sizeof(g_ModVersions[modnum]) - 1);
+				}
+			}
+		} else if (!strcmp(token, "modauthor")) {
+			p = strParseToken(p, token, NULL);
+			if (token[0]) {
+				char *who = strUnquote(token);
+				if (modnum >= 0 && modnum < 64) {
+					strncpy(g_ModAuthors[modnum], who, sizeof(g_ModAuthors[modnum]) - 1);
 				}
 			}
 		} else if (!strcmp(token, "stage")) {

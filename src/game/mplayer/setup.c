@@ -479,6 +479,56 @@ s16 mpChooseRandomGexStage(void) {
 }
 #endif
 
+#ifndef PLATFORM_N64
+// The g_MpArenas row the arena list has highlighted, for the credits marquee
+// under it. The list reports focus as an index among *unlocked* rows, so this
+// is converted back to a table row on the way in. -1 until the list first
+// focuses, and the marquee falls back to the selected arena then.
+static s32 g_MpArenaFocusRow = -1;
+
+/*
+ * The credits marquee under the arena list:
+ *   "Mall, mod: mod_goldfinger_stages author: MRKane"
+ * A vanilla row no mod declared shows its name alone.
+ */
+char *mpArenaMenuTextCredits(struct menuitem *item) {
+  static char text[256];
+  char credit[192];
+  const char *name;
+  s32 row = g_MpArenaFocusRow;
+  s32 i;
+
+  if (row < 0 || row >= mpGetNumStages()) {
+    row = -1;
+
+    for (i = 0; i < mpGetNumStages(); i++) {
+      if (g_MpArenas[i].stagenum == g_MpSetup.stagenum) {
+        row = i;
+        break;
+      }
+    }
+
+    if (row < 0) {
+      return "";
+    }
+  }
+
+  name = (g_MpArenas[row].customname && g_MpArenas[row].customname[0])
+             ? g_MpArenas[row].customname
+             : langGet(g_MpArenas[row].name);
+
+  modStageCredit(g_MpArenas[row].stagenum, credit, sizeof(credit));
+
+  if (credit[0]) {
+    snprintf(text, sizeof(text), "%s, %s", name ? name : "", credit);
+  } else {
+    snprintf(text, sizeof(text), "%s", name ? name : "");
+  }
+
+  return text;
+}
+#endif
+
 MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item,
                                          union handlerdata *data) {
   // Vanilla groups (17 arenas)
@@ -557,6 +607,24 @@ MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item,
 
     g_MpSetup.stagenum = g_MpArenas[i].stagenum;
     break;
+#ifndef PLATFORM_N64
+  case MENUOP_LISTITEMFOCUS:
+    // Fired by the list on open (with the selected index) and on every
+    // up/down move, so the marquee follows the highlight, not the selection.
+    g_MpArenaFocusRow = -1;
+
+    for (i = 0; i < mpGetNumStages(); i++) {
+      if (challengeIsFeatureUnlocked(g_MpArenas[i].requirefeature)) {
+        if (count == data->list.value) {
+          g_MpArenaFocusRow = i;
+          break;
+        }
+
+        count++;
+      }
+    }
+    break;
+#endif
   case MENUOP_GETSELECTEDINDEX:
     for (i = 0; i < mpGetNumStages(); i++) {
       if (g_MpSetup.stagenum == g_MpArenas[i].stagenum) {
@@ -3603,6 +3671,16 @@ struct menuitem g_MpArenaMenuItems[] = {
         0x0000004d,
         mpArenaMenuHandler,
     },
+#ifndef PLATFORM_N64
+    {
+        MENUITEMTYPE_MARQUEE,
+        0,
+        MENUITEMFLAG_SMALLFONT | MENUITEMFLAG_MARQUEE_FADEBOTHSIDES,
+        (uintptr_t)&mpArenaMenuTextCredits,
+        0,
+        NULL,
+    },
+#endif
     {MENUITEMTYPE_END},
 };
 

@@ -16,6 +16,9 @@ s16 mpChooseRandomSoloStage(void);
 s16 mpChooseRandomGexStage(void);
 #endif
 MenuItemHandlerResult mpArenaMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data);
+#ifndef PLATFORM_N64
+char *mpArenaMenuTextCredits(struct menuitem *item);
+#endif
 char *mpMenuTextWeaponNameForSlot(struct menuitem *item);
 char *mpMenuTextSetupName(struct menuitem *item);
 MenuItemHandlerResult mpCharacterBodyMenuHandler(s32 operation, struct menuitem *item, union handlerdata *data, s32 mpbodynum, s32 mpheadnum, bool isplayer);
