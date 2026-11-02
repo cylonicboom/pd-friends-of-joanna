@@ -21,6 +21,7 @@
 #include "lib/memp.h"
 #include "lib/model.h"
 #include "lib/mtx.h"
+#include "net/net.h"
 #include "romdata.h"
 #include "system.h"
 #include "editspawn.h"
@@ -43,6 +44,10 @@
  * model tables by that much because none of them can grow mid-stage; the
  * tracker below refuses past it. A corpse keeps its chr slot until reaped, so
  * a spawn can also fail on a full chr table before the budget says so.
+ *
+ * Off in netplay: no reserve at stage load and every spawn refused. A spawn
+ * is local only and never goes over the wire, and without the reserve it
+ * would eat the tables' own spare. Collaborative editing is a later maybe.
  */
 
 #define EDITSPAWN_AIM_DIST 4000.f
@@ -246,6 +251,10 @@ const char *editspawnLastMessage(void)
 
 s32 editspawnReserve(s32 stagenum)
 {
+	if (g_NetMode != NETMODE_NONE) {
+		return 0;
+	}
+
 	return stagenum < STAGE_TITLE ? EDITSPAWN_RESERVE : 0;
 }
 
@@ -993,6 +1002,11 @@ struct prop *editspawnSpawn(s32 kind, s32 index, struct editspawnaim *aim)
 	}
 
 	snprintf(name, sizeof(name), "%s", editspawnCatalogName(kind, index));
+
+	if (g_NetMode != NETMODE_NONE) {
+		editspawnSay("spawning is off in netplay (%s)", name);
+		return NULL;
+	}
 
 	if (s_NumTracked >= EDITSPAWN_RESERVE) {
 		snprintf(s_Message, sizeof(s_Message),

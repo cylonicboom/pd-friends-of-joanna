@@ -196,6 +196,7 @@ static char g_ImGuiOverlayIniPath[FS_MAXPATH + 1];
 
 extern s32 g_StageNum;
 extern "C" s32 g_MainChangeToStageNum;
+extern "C" s32 g_NetMode;
 extern "C" bool hotjoinAvailable(void);
 extern "C" s32 hotjoinFreeSlot(void);
 extern "C" s32 hotjoinLastSlot(void);
@@ -1874,7 +1875,11 @@ static void imguiOverlayDrawRuntimePanel(void)
 			ImGui::SetTooltip("Off: a crosshair spawn backs 30 off whatever the view ray hit.\n"
 					"On: it backs off by its own size and is pushed out of nearby walls.");
 		}
-		ImGui::Text("Spawns: %d / %d (live only)", editspawnCount(), EDITSPAWN_RESERVE);
+		if (g_NetMode != NETMODE_NONE) {
+			ImGui::TextDisabled("Spawns: off in netplay");
+		} else {
+			ImGui::Text("Spawns: %d / %d (live only)", editspawnCount(), EDITSPAWN_RESERVE);
+		}
 		if (editspawnLastMessage()[0]) {
 			ImGui::TextDisabled("%s", editspawnLastMessage());
 		}
