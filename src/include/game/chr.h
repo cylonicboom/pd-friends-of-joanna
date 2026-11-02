@@ -125,6 +125,12 @@ struct chrdata *chrFindByLiteralId(s32 chrnum);
 struct prop *chrGetHeldProp(struct chrdata *chr, s32 hand);
 struct prop *chrGetHeldUsableProp(struct chrdata *chr, s32 hand);
 struct prop *chrGetTargetProp(struct chrdata *chr);
+
+// fojo: which pronoun lines about a chr should use. one resolver so the
+// source can change (a per-chr override) without touching the callers
+#define PRONOUN_SHE 0
+#define PRONOUN_HE  1
+s32 chrGetPronoun(struct chrdata *chr);
 bool chrUpdateGeometry(struct prop *prop, u8 **start, u8 **end);
 void chrGetBbox(struct prop *prop, f32 *radius, f32 *ymax, f32 *ymin);
 

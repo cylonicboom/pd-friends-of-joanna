@@ -5624,6 +5624,31 @@ struct prop *chrGetTargetProp(struct chrdata *chr)
 	return ret;
 }
 
+/**
+ * fojo: the pronoun to use when talking about this chr.
+ *
+ * The head's ismale bit, the same check chrChoke uses to pick male or female
+ * argh/cough samples, so a modded head declares it with the HeadsAndBodies
+ * "ismale" key. A chr whose body carries its own head has
+ * headnum < 0; that falls back to the body's bit.
+ */
+s32 chrGetPronoun(struct chrdata *chr)
+{
+	s32 num;
+
+	if (chr == NULL) {
+		return PRONOUN_SHE;
+	}
+
+	num = chr->headnum >= 0 ? chr->headnum : chr->bodynum;
+
+	if (num >= 0 && num < g_NumHeadsAndBodies && g_HeadsAndBodies[num].ismale) {
+		return PRONOUN_HE;
+	}
+
+	return PRONOUN_SHE;
+}
+
 bool chrUpdateGeometry(struct prop *prop, u8 **start, u8 **end)
 {
 	struct chrdata *chr = prop->chr;
