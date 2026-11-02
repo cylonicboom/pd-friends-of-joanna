@@ -51,7 +51,7 @@ static int s_chatSeen = 0;
 static bool s_chatScrollToEnd = false;
 static bool s_inited = false;
 
-static const char *const kRoleNames[] = { "none", "co-op", "counter-op", "operative" };
+static const char *const kRoleNames[] = { "none", "co-op", "counter-op", "operative", "buddy" };
 static const char *const kDiffNames[] = { "Agent", "Special Agent", "Perfect Agent", "Perfect Dark" };
 
 // langGet strings carry '\n' width markers; the window wants one line.
@@ -638,7 +638,7 @@ static void imguiNetplayDrawEngineSeats(void)
 		ImGui::TableNextColumn();
 		ImGui::Text("%d", i + 1);
 		ImGui::TableNextColumn();
-		ImGui::TextUnformatted(kRoleNames[g_Vars.playerroles[i] & 3]);
+		ImGui::TextUnformatted(kRoleNames[(u32)g_Vars.playerroles[i] < ARRAYCOUNT(kRoleNames) ? g_Vars.playerroles[i] : 0]);
 		ImGui::TableNextColumn();
 		if (pl == g_Vars.bond) {
 			ImGui::TextColored(ImVec4(0.95f, 0.8f, 0.35f, 1.0f), "%s", is);

@@ -2550,7 +2550,7 @@ s32 getNumTeamPlayerRoleAssignments(void)
 {
 	s32 count = 0;
 	for (s32 i = 0; i < MAX_PLAYERS; i++) {
-		if (g_Vars.playerroles[i]) count++;
+		if (playerroleIsHuman(g_Vars.playerroles[i])) count++;
 	}
 
 	return count;

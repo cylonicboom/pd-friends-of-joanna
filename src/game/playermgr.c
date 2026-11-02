@@ -67,7 +67,8 @@ void playermgrInit(void)
  *  Resets bond player number to 0
  *  Turns off player numbers
  *
- *  Sets bond player in playerroles array to PLAYERROLE_BOND
+ *  Sets bond player in playerroles array to PLAYERROLE_BOND, and every other
+ *  seat to a Perfect Buddy: a team fills up the rest of the squad by default
  */
 void playermgrDisableTeamPlayers(bool clearroles)
 {
@@ -79,7 +80,7 @@ void playermgrDisableTeamPlayers(bool clearroles)
 		g_Vars.playerroles[g_Vars.bondplayernum] = PLAYERROLE_BOND;
 		for (s32 i = 0; i < MAX_PLAYERS; i++) {
 			if (i == g_Vars.bondplayernum) continue;
-			g_Vars.playerroles[i] = PLAYERROLE_NONE;
+			g_Vars.playerroles[i] = PLAYERROLE_BUDDY;
 		}
 	}
 }
@@ -109,7 +110,7 @@ void playermgrResetTeamPlayers(void)
 	}
 	g_Vars.bondplayernum = 0;
 	for (s32 i = 0; i < bondseat; i++) {
-		if (g_Vars.playerroles[i] != PLAYERROLE_NONE) {
+		if (playerroleIsHuman(g_Vars.playerroles[i])) {
 			g_Vars.bondplayernum++;
 		}
 	}
@@ -206,7 +207,7 @@ s32 playermgrAllocatePlayers(s32 playercount)
 		playercount = 0;
 		g_MpSetup.chrslots = 0;
 		for (s32 i = 0; i < MAX_PLAYERS; i++) {
-			if (g_Vars.playerroles[i]) {
+			if (playerroleIsHuman(g_Vars.playerroles[i])) {
 				playermgrAllocatePlayer(playercount);
 				g_MpSetup.chrslots |= 1 << i;
 				if (g_Vars.playerroles[i] == PLAYERROLE_COOP) {
@@ -910,6 +911,23 @@ bool aiBuddiesActive(void)
 	return !g_Vars.normmplayerisrunning
 		&& g_MissionConfig.iscoop
 		&& g_Vars.numaibuddies > 0;
+}
+
+/**
+ * How many seats a Perfect Buddy holds. A team mission's numaibuddies is this,
+ * worked out at accept and never trusted from a previous mission.
+ */
+s32 playermgrCountBuddySeats(void)
+{
+	s32 count = 0;
+
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		if (g_Vars.playerroles[i] == PLAYERROLE_BUDDY) {
+			count++;
+		}
+	}
+
+	return count;
 }
 
 void playermgrCalculateAiBuddyNums(void)

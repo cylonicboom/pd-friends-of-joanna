@@ -142,6 +142,7 @@ extern const uintptr_t g_PlayerRoleNames[] = {
     (uintptr_t)"Co-Operative",      // PLAYERROLE_COOP
     (uintptr_t)"Counter-Operative", // PLAYERROLE_ANTI
     (uintptr_t)"Operative",         // PLAYERROLE_BOND
+    (uintptr_t)"Perfect Buddy",     // PLAYERROLE_BUDDY
 };
 
 char *menuTextCurrentStageName(struct menuitem *item) {
@@ -1804,42 +1805,66 @@ menuhandlerTeamMissionDifficultyDropdown(s32 operation, struct menuitem *item,
   return 0;
 }
 
+// fojo: what a seat's role dropdown offers. A seat with a pad can hold a
+// person or a Perfect Buddy; a seat without one can only hold a buddy or
+// nobody, buddy first so an empty seat reads as filled.
+static const s32 g_SeatRolesWithPad[] = {
+    PLAYERROLE_NONE, PLAYERROLE_COOP, PLAYERROLE_ANTI, PLAYERROLE_BUDDY,
+};
+static const s32 g_SeatRolesWithoutPad[] = {
+    PLAYERROLE_BUDDY, PLAYERROLE_NONE,
+};
+
+static const s32 *seatRoleOptions(s32 playernum, s32 *count) {
+  if (joyGetConnectedControllers() & (1 << playernum)) {
+    *count = ARRAYCOUNT(g_SeatRolesWithPad);
+    return g_SeatRolesWithPad;
+  }
+
+  *count = ARRAYCOUNT(g_SeatRolesWithoutPad);
+  return g_SeatRolesWithoutPad;
+}
+
 MenuItemHandlerResult
 menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct menuitem *item,
                                     union handlerdata *data, s32 playernum) {
+  s32 count;
+  const s32 *options = seatRoleOptions(playernum, &count);
 
   switch (operation) {
   case MENUOP_GETOPTIONCOUNT: {
-    s32 optioncount = 3;
-    if (playernum == 0)
-      optioncount = 1;
-    if (!(joyGetConnectedControllers() & (1 << playernum)))
-      optioncount = 1;
-
-    data->dropdown.value = optioncount;
+    data->dropdown.value = playernum == 0 ? 1 : count;
   } break;
   case MENUOP_GETOPTIONTEXT: {
     if (playernum == 0) {
-      return (uintptr_t)g_PlayerRoleNames[3];
+      return (uintptr_t)g_PlayerRoleNames[PLAYERROLE_BOND];
     }
-    return (uintptr_t)g_PlayerRoleNames[data->dropdown.value];
+    if (data->dropdown.value >= (uintptr_t)count) {
+      return (uintptr_t)"";
+    }
+    return (uintptr_t)g_PlayerRoleNames[options[data->dropdown.value]];
   } break;
   case MENUOP_SET: {
     if (playernum == 0) {
-      s32 playerrole = PLAYERROLE_BOND;
-      g_Vars.playerroles[playernum] = playerrole;
+      g_Vars.playerroles[playernum] = PLAYERROLE_BOND;
       break;
     }
-    s32 playerrole = data->dropdown.value;
-    g_Vars.playerroles[playernum] = playerrole;
+    if (data->dropdown.value < (uintptr_t)count) {
+      g_Vars.playerroles[playernum] = options[data->dropdown.value];
+    }
   } break;
   case MENUOP_GETSELECTEDINDEX: {
     if (playernum == 0) {
-      data->dropdown.value = 3;
+      data->dropdown.value = 0;
       break;
     }
-    s32 playerrole = g_Vars.playerroles[playernum];
-    data->dropdown.value = playerrole;
+    data->dropdown.value = 0;
+    for (s32 i = 0; i < count; i++) {
+      if (options[i] == g_Vars.playerroles[playernum]) {
+        data->dropdown.value = i;
+        break;
+      }
+    }
     iniRegisterPlayerSave(&g_PlayerConfigsArray[playernum].fileguid, 1,
                           playernum);
   } break;

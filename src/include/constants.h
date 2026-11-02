@@ -5323,6 +5323,10 @@ enum weaponnum {
 #define PLAYERROLE_COOP 1
 #define PLAYERROLE_ANTI 2
 #define PLAYERROLE_BOND 3
+// fojo: a Perfect Buddy holds the seat. A chr, not a player: no player struct,
+// no viewport, no chrslot bit. Netplay does not carry it yet (netmsg reads
+// anything past BOND as NONE)
+#define PLAYERROLE_BUDDY 4
 // if controller pak-like support was added and everyone had 4 profiles, this is twice the max
 #define CONFIG_MAX_PROFILES ((MAX_PLAYERS * 4) * 2)
 

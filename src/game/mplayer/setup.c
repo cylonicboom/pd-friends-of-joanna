@@ -1,5 +1,6 @@
 #include "game/mplayer/setup.h"
 #include "bss.h"
+#include "game/playermgr.h"
 #include "constants.h"
 #include "data.h"
 #include "game/camdraw.h"
@@ -3292,7 +3293,7 @@ MenuItemHandlerResult menuhandlerHandicapPlayer(s32 operation,
   switch (operation) {
   case MENUOP_CHECKHIDDEN:
     if ((g_MpSetup.chrslots & (1 << playernum)) == 0) {
-      if (g_Vars.playerroles[playernum]) {
+      if (playerroleIsHuman(g_Vars.playerroles[playernum])) {
         return 0;
       }
       return 1;
