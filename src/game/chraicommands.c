@@ -7234,6 +7234,111 @@ s16 g_MaianQuipBank[][4] = {
 		|| (soundnum) == SFX_F_STAND_STILL)
 
 /**
+ * fojo: quip lines that only make sense aimed at a woman - the ones that call
+ * their target "she", "her" or "girl", and the civilian come-ons.
+ *
+ * Vanilla only ever points guards at Joanna, so every bank above assumes the
+ * target is a woman. With a male head on the other end these are filtered
+ * out, and the quip falls back to another column of the same row (same voice,
+ * same intent, subtitle column stays in step), then to another row via
+ * g_QuipRowsWithoutHer, then to silence.
+ *
+ * Deliberately not here: lines about the speaker's own dead squadmate
+ * ("he's bought it"), and insults that aren't gendered in combat ("you
+ * bitch").
+ */
+static const s16 g_QuipLinesForHer[] = {
+	SFX_M0_SHES_MINE,
+	SFX_M0_WIPE_HER_OUT,
+	SFX_M0_WASTE_HER,
+	SFX_M0_SURROUND_HER,
+	SFX_M0_GODS_SAKE_SOMEONE_HIT_HER,
+	SFX_M0_SHES_A_TRICKY_ONE,
+	SFX_M0_SHE_GOT_ME,
+	SFX_M0_I_SEE_HER,
+	SFX_M0_THERE_SHE_IS,
+	SFX_M1_TAKE_HER_DOWN,
+	SFX_M1_EVERYBODY_GET_HER,
+	SFX_M1_SHES_TOO_GOOD_RUN,
+	SFX_M1_SURROUND_HER,
+	SFX_M1_GET_HER,
+	SFX_M1_M2_LOOK_OUT_SHES_COMING,
+	SFX_M1_SOMEONE_HIT_HER,
+	SFX_M1_DAMN_SHES_GOOD,
+	SFX_M2_LET_HER_HAVE_IT,
+	SFX_M2_HEY_DISTRACT_HER,
+	SFX_M2_KEEP_HER_OCCUPIED,
+	SFX_M2_HELL_SHES_GOOD,
+	SFX_M2_GET_HER,
+	SFX_F_EVERYONE_GET_HER,
+	SFX_F_GET_HER,
+	SFX_F_SOMEONE_HIT_HER,
+	SFX_F_DAMN_SHES_GOOD,
+	MP3_CASS_YOU_WILL_REGRET,       // "...this intrusion, girl!"
+	SFX_SHOULD_HAVE_COME_HERE_GIRL,
+	SFX_CIV_HEY_SUGAR_WANNA_PARTY,
+	SFX_CIV_HEY_BABY,
+};
+
+/**
+ * fojo: guard bank rows to try when every column of a row is for her.
+ * In vanilla data only voicebox 0's MISSEDPLAYER2 needs it; the table is
+ * here so a voice pack that adds more gendered rows has somewhere to go.
+ */
+static const s16 g_QuipRowsWithoutHer[][2] = {
+	{ QUIP_MISSEDPLAYER2, QUIP_MISSEDPLAYER1 },
+};
+
+static bool quipIsForHer(s16 audioid)
+{
+	s32 i;
+
+	for (i = 0; i < ARRAYCOUNT(g_QuipLinesForHer); i++) {
+		if (g_QuipLinesForHer[i] == audioid) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * fojo: true if the speaker's target is someone the her lines would be
+ * wrong about. Keyed on the speaker's own target, not the say_quip chr arg:
+ * 219 of the 248 say_quip sites in vanilla ailists pass CHR_BOND there, which
+ * only decides whose screen gets the subtitle.
+ */
+static bool quipMustAvoidHer(struct chrdata *speaker)
+{
+	struct prop *target = chrGetTargetProp(speaker);
+
+	if (target == NULL || target->chr == NULL
+			|| (target->type != PROPTYPE_CHR && target->type != PROPTYPE_PLAYER)) {
+		return false;
+	}
+
+	return chrGetPronoun(target->chr) != PRONOUN_SHE;
+}
+
+/**
+ * fojo: a column (0-2) of rowptr whose line isn't for her, or -1.
+ */
+static s32 quipColumnWithoutHer(s16 *rowptr)
+{
+	s32 clean[3];
+	s32 numclean = 0;
+	s32 i;
+
+	for (i = 0; i < 3; i++) {
+		if (rowptr[1 + i] && !quipIsForHer(rowptr[1 + i])) {
+			clean[numclean++] = i;
+		}
+	}
+
+	return numclean ? clean[rngRandom() % numclean] : -1;
+}
+
+/**
  * @cmd 0130
  */
 bool aiSayQuip(void)
@@ -7261,6 +7366,9 @@ bool aiSayQuip(void)
 	u8 headshotted = 0;
 #endif
 	struct chrdata *loopchr;
+	bool avoidher = false;
+	bool rerouted = false;
+	s32 alt;
 
 	// Choose bank
 	if (CHRRACE(g_Vars.chrdata) == RACE_SKEDAR) {
@@ -7356,7 +7464,31 @@ bool aiSayQuip(void)
 					audioid = rowptr[1 + g_Vars.chrdata->tude];
 				}
 
-				if (audioWasNotPlayedRecently(audioid) || CHRRACE(g_Vars.chrdata) == RACE_SKEDAR) {
+				// fojo: don't call a target "her" if they aren't
+				avoidher = quipMustAvoidHer(g_Vars.chrdata);
+
+				if (avoidher && quipIsForHer(audioid)) {
+					alt = quipColumnWithoutHer(rowptr);
+
+					if (alt < 0 && bank == (s16 *) g_GuardQuipBank[g_Vars.chrdata->voicebox * 41]) {
+						for (i = 0; i < ARRAYCOUNT(g_QuipRowsWithoutHer); i++) {
+							if (g_QuipRowsWithoutHer[i][0] == row) {
+								row = g_QuipRowsWithoutHer[i][1];
+								rowptr = (s16 *) bank + row * 4;
+								alt = quipColumnWithoutHer(rowptr);
+								break;
+							}
+						}
+					}
+
+					// alt < 0: audioid 0 drops into the fallback below,
+					// which finds nothing clean and stays quiet
+					column = alt >= 0 ? alt : 0;
+					audioid = alt >= 0 ? rowptr[1 + alt] : 0;
+					rerouted = true;
+				}
+
+				if ((audioid || !rerouted) && (audioWasNotPlayedRecently(audioid) || CHRRACE(g_Vars.chrdata) == RACE_SKEDAR)) {
 					audioMarkAsRecentlyPlayed(audioid);
 
 					if (audioid == SFX_M1_CHOKING && !headshotted) {
@@ -7398,7 +7530,7 @@ bool aiSayQuip(void)
 							hudmsgCreateWithColour(text, HUDMSGTYPE_INGAMESUBTITLE, cmd[9]);
 						}
 					} else if (cmd[8]) {
-						text = langGet(g_QuipTexts[cmd[8] - 1][1 + g_Vars.chrdata->tude]);
+						text = langGet(g_QuipTexts[cmd[8] - 1][1 + (rerouted ? column : g_Vars.chrdata->tude)]);
 
 #if VERSION >= VERSION_NTSC_1_0
 						if (!sndIsFiltered(audioid))
@@ -7413,7 +7545,8 @@ bool aiSayQuip(void)
 
 					for (i = 1; i < ARRAYCOUNT(g_GuardQuipBank[row]); i++) {
 						if (audioWasNotPlayedRecently(g_GuardQuipBank[row][i])
-								&& audioWasNotPlayedRecently(rowptr[i])) {
+								&& audioWasNotPlayedRecently(rowptr[i])
+								&& !(avoidher && quipIsForHer(rowptr[i]))) {
 							audioid = rowptr[i];
 							break;
 						}
