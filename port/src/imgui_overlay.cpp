@@ -32,6 +32,7 @@
 #include "texscope.h"
 #include "romdata.h"
 #include "asset.h"
+#include "editspawn.h"
 #include "system.h"
 #include "lib/profile.h"
 #include "prof.h"
@@ -396,6 +397,14 @@ static bool g_ImGuiTeleportPending = false;
 static bool g_ImGuiTeleportEye = false;
 static struct coord g_ImGuiTeleportPos;
 static struct prop *g_ImGuiTeleportProp = NULL;  // set: land beside it, not on it
+// Editor spawns (editspawn.c), deferred like teleport. Crosshair spawns aim
+// when they run, not when the bar closed - the camera has not moved between.
+static bool g_ImGuiSpawnPending = false;
+static s32 g_ImGuiSpawnKind = 0;
+static s32 g_ImGuiSpawnIndex = -1;
+static bool g_ImGuiSpawnCrosshair = false;
+static struct coord g_ImGuiSpawnPos;
+static struct prop *g_ImGuiSpawnProp = NULL;     // set: spawn beside it, not in it
 static struct fileguid g_ImGuiAddPlayerGuid;
 static bool g_ImGuiPlayersFocusPicker = false;
 static s32 g_ImGuiPlayersPick = -1;
@@ -1854,6 +1863,20 @@ static void imguiOverlayDrawRuntimePanel(void)
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("No chr or object advances its ailist while set (chraiExecute).\n"
 					"Everything else ticks. A chr mid-action finishes the action.");
+		}
+	}
+	{
+		bool source = g_EditSpawnSourceCrosshair != 0;
+		if (ImGui::Checkbox("Perfect Dark Source crosshairs", &source)) {
+			g_EditSpawnSourceCrosshair = source ? 1 : 0;
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Off: a crosshair spawn backs 30 off whatever the view ray hit.\n"
+					"On: it backs off by its own size and is pushed out of nearby walls.");
+		}
+		ImGui::Text("Spawns: %d / %d (live only)", editspawnCount(), EDITSPAWN_RESERVE);
+		if (editspawnLastMessage()[0]) {
+			ImGui::TextDisabled("%s", editspawnLastMessage());
 		}
 	}
 	ImGui::SeparatorText("Time");
@@ -6417,6 +6440,24 @@ static void imguiOverlayRunPlayerRequests(void)
 		g_ImGuiTeleportProp = NULL;
 	}
 
+	if (g_ImGuiSpawnPending) {
+		g_ImGuiSpawnPending = false;
+
+		if (g_MainChangeToStageNum < 0 && g_Vars.currentplayer && g_Vars.currentplayer->prop) {
+			struct editspawnaim aim;
+			struct prop *anchor = (g_ImGuiSpawnProp && imguiOverlayPropIsCurrent(g_ImGuiSpawnProp))
+				? g_ImGuiSpawnProp : NULL;
+			const bool aimed = g_ImGuiSpawnCrosshair
+				? editspawnAimCrosshair(&aim)
+				: editspawnAimAt(&aim, &g_ImGuiSpawnPos, anchor);
+
+			if (aimed) {
+				editspawnSpawn(g_ImGuiSpawnKind, g_ImGuiSpawnIndex, &aim);
+			}
+		}
+		g_ImGuiSpawnProp = NULL;
+	}
+
 	if (g_ImGuiAddPlayerPending) {
 		g_ImGuiAddPlayerPending = false;
 
@@ -8305,6 +8346,8 @@ enum {
 	kFojoBarTeleport,   // ! sigil / argument stage: a pad, an entity or a room, activated = go there
 	kFojoBarRegister,   // a register, index = slot
 	kFojoBarYankHere,   // "a with nothing after it: copy "" into a
+	kFojoBarPick,       // a spawn verb's catalog entry, index = catalog row
+	kFojoBarCrosshair,  // a spawn verb's anchor stage: where the view ray lands
 };
 
 struct imguiOverlayBarHit {
@@ -8328,18 +8371,22 @@ static struct imguiOverlayBarHit g_ImGuiOverlayBarHits[kFojoBarMaxHits];
 static s32 g_ImGuiOverlayBarHitCount = 0;
 static s32 g_ImGuiOverlayBarVerb = -1;      // command row waiting for its argument, or -1
 static s32 g_ImGuiOverlayBarYankInto = -1;  // "a prefix: the top hit is yanked here instead of acted on
+static s32 g_ImGuiOverlayBarPick = -1;      // spawn verb: catalog row picked, now asking where; -1 = asking what
+static s32 g_ImGuiOverlayBarPickKind = 0;   // spawn verb: which catalog, copied from the verb's spawnKind
 
 // Commands. argKind says whether the bar stops to ask for something after
 // the verb: kFojoArgNone runs at once, kFojoArgAnchor switches the bar into
 // the argument stage (registers first, then every valid target) and runs
-// runArg with what was picked.
-enum { kFojoArgNone, kFojoArgAnchor };
+// runArg with what was picked. kFojoArgPick asks for a catalog entry of
+// spawnKind first, then the same anchor stage with the crosshair on top.
+enum { kFojoArgNone, kFojoArgAnchor, kFojoArgPick };
 
 struct imguiOverlayCommandDef {
 	const char *name;
 	void (*run)(void);
 	s32 argKind;
 	void (*runArg)(const struct coord *where, bool eye, const char *label);
+	s32 spawnKind;      // kFojoArgPick only
 };
 
 static void imguiOverlayCmdFloor1(void) { g_ImGuiOverlayWorkspace = 0; }
@@ -8394,6 +8441,34 @@ static void imguiOverlayVerbTeleport(const struct coord *where, bool eye, const 
 	sysLogPrintf(LOG_NOTE, "IMGUI: teleport -> %s (%.1f %.1f %.1f)", label, where->x, where->y, where->z);
 }
 static void imguiOverlayCmdTeleport(void) { /* argument stage does the work */ }
+
+// Spawn verbs: what, then where. Live only - a spawn never mints a pad
+// (pad minting is explicit, #307), so nothing here reaches the journal.
+static void imguiOverlayQueueSpawn(s32 kind, s32 index, bool crosshair, const struct coord *where, const char *label)
+{
+	g_ImGuiSpawnKind = kind;
+	g_ImGuiSpawnIndex = index;
+	g_ImGuiSpawnCrosshair = crosshair;
+	if (where) g_ImGuiSpawnPos = *where;
+	g_ImGuiSpawnProp = crosshair ? NULL : g_ImGuiOverlayAnchorProp;
+	g_ImGuiSpawnPending = true;
+	sysLogPrintf(LOG_NOTE, "IMGUI: spawn %s -> %s", editspawnCatalogName(kind, index), label);
+}
+static void imguiOverlayVerbSpawn(const struct coord *where, bool eye, const char *label)
+{
+	(void)eye;
+	if (g_ImGuiOverlayBarPick < 0) return;
+	imguiOverlayQueueSpawn(g_ImGuiOverlayBarPickKind, g_ImGuiOverlayBarPick, false, where, label);
+}
+static void imguiOverlayCmdSpawn(void)       { /* argument stages do the work */ }
+static void imguiOverlayCmdUndoSpawn(void)   { editspawnUndo(); }
+static void imguiOverlayCmdClearSpawns(void) { editspawnClear(); }
+static void imguiOverlayCmdSourceCrosshair(void)
+{
+	g_EditSpawnSourceCrosshair = !g_EditSpawnSourceCrosshair;
+	sysLogPrintf(LOG_NOTE, "IMGUI: perfect dark source crosshairs %s", g_EditSpawnSourceCrosshair ? "on" : "off");
+}
+
 // "" takes where jo stands; "a then enter on it copies it up
 static void imguiOverlayCmdYankPos(void)
 {
@@ -8475,6 +8550,16 @@ static const struct imguiOverlayCommandDef g_ImGuiOverlayCommandDefs[] = {
 	{ "KB+M to player 4",         imguiOverlayCmdKbm4 },
 	{ "Pause ailists",            imguiOverlayCmdPauseAi },
 	{ "Resume ailists",           imguiOverlayCmdResumeAi },
+	{ "Spawn chr",                imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_CHR },
+	{ "Spawn ally",               imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_ALLY },
+	{ "Spawn prop",               imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_PROP },
+	{ "Spawn glass",              imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_GLASS },
+	{ "Spawn weapon",             imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_WEAPON },
+	{ "Spawn gadget",             imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_GADGET },
+	{ "Spawn ammo",               imguiOverlayCmdSpawn, kFojoArgPick, imguiOverlayVerbSpawn, EDITSPAWN_AMMO },
+	{ "Undo spawn",               imguiOverlayCmdUndoSpawn },
+	{ "Clear spawns",             imguiOverlayCmdClearSpawns },
+	{ "Perfect Dark Source crosshairs", imguiOverlayCmdSourceCrosshair },
 };
 
 static const s32 kFojoCommandCount =
@@ -8870,6 +8955,40 @@ static void imguiOverlayBarSearchAnchor(const char *q)
 	}
 }
 
+// a spawn verb's first stage: its catalog, fuzzed. Props and glass carry
+// their model number so two crates can be told apart.
+static void imguiOverlayBarSearchPick(const char *q)
+{
+	const s32 kind = g_ImGuiOverlayBarPickKind;
+	const s32 n = editspawnCatalogCount(kind);
+	s32 score;
+
+	for (s32 i = 0; i < n; ++i) {
+		char label[80];
+		char detail[32];
+
+		snprintf(label, sizeof(label), "%s", editspawnCatalogName(kind, i));
+
+		if (q[0]) {
+			if (!imguiOverlayBarFuzzy(label, q, &score)) continue;
+		} else {
+			score = 1000 - i; // catalog order
+		}
+
+		switch (kind) {
+		case EDITSPAWN_PROP:
+		case EDITSPAWN_GLASS:
+			snprintf(detail, sizeof(detail), "model 0x%03x", editspawnCatalogModel(kind, i));
+			break;
+		default:
+			snprintf(detail, sizeof(detail), "spawn");
+			break;
+		}
+
+		imguiOverlayBarPush(kFojoBarPick, i, NULL, score, label, detail);
+	}
+}
+
 // " sigil: registers. `"` lists them, `"a` shows a and offers to copy ""
 // into it, `"a<query>` runs the ordinary search and yanks the top hit.
 static bool imguiOverlayBarSearchRegisters(const char *q)
@@ -8932,6 +9051,17 @@ static void imguiOverlayBarSearch(void)
 
 	// a verb is waiting for its argument: registers first, then targets
 	if (g_ImGuiOverlayBarVerb >= 0) {
+		if (g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb].argKind == kFojoArgPick) {
+			if (g_ImGuiOverlayBarPick < 0) {
+				imguiOverlayBarSearchPick(q);
+				goto sort;
+			}
+			// enter on an empty query spawns at the crosshair
+			if (!q[0] || imguiOverlayBarFuzzy("crosshair", q, &score)) {
+				imguiOverlayBarPush(kFojoBarCrosshair, -1, NULL, 20000, "crosshair",
+						g_EditSpawnSourceCrosshair ? "where you look  source" : "where you look");
+			}
+		}
 		imguiOverlayBarSearchAnchor(q);
 		goto sort;
 	}
@@ -9158,6 +9288,25 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		bool eye = hit->whereIsEye;
 		bool ok = hit->kind == kFojoBarTeleport;
 
+		// a spawn verb's first stage: the pick, then stay open and ask where
+		if (def->argKind == kFojoArgPick && g_ImGuiOverlayBarPick < 0) {
+			if (hit->kind == kFojoBarPick) {
+				g_ImGuiOverlayBarPick = hit->index;
+				g_ImGuiOverlayBarQuery[0] = '\0';
+				g_ImGuiOverlayBarSel = 0;
+				g_ImGuiOverlayBarJustOpened = true;
+			}
+			return;
+		}
+
+		if (hit->kind == kFojoBarCrosshair) {
+			imguiOverlayQueueSpawn(g_ImGuiOverlayBarPickKind, g_ImGuiOverlayBarPick, true, NULL, "crosshair");
+			g_ImGuiOverlayBarPick = -1;
+			g_ImGuiOverlayBarVerb = -1;
+			g_ImGuiOverlayBarOpen = false;
+			return;
+		}
+
 		g_ImGuiOverlayAnchorProp = hit->prop;
 
 		if (hit->kind == kFojoBarRegister) {
@@ -9175,6 +9324,7 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 
 		g_ImGuiOverlayAnchorProp = NULL;
 
+		g_ImGuiOverlayBarPick = -1;
 		g_ImGuiOverlayBarVerb = -1;
 		g_ImGuiOverlayBarOpen = false;
 		return;
@@ -9240,6 +9390,8 @@ static void imguiOverlayBarActivate(const struct imguiOverlayBarHit *hit)
 		if (g_ImGuiOverlayCommandDefs[hit->index].argKind != kFojoArgNone) {
 			// stay open, ask for the argument
 			g_ImGuiOverlayBarVerb = hit->index;
+			g_ImGuiOverlayBarPick = -1;
+			g_ImGuiOverlayBarPickKind = g_ImGuiOverlayCommandDefs[hit->index].spawnKind;
 			g_ImGuiOverlayBarQuery[0] = '\0';
 			g_ImGuiOverlayBarSel = 0;
 			g_ImGuiOverlayBarJustOpened = true;
@@ -9369,13 +9521,21 @@ static void imguiOverlayDrawAwesomeBar(void)
 		g_ImGuiOverlayBarJustOpened = false;
 	}
 
-	if (g_ImGuiOverlayBarVerb >= 0) {
+	const bool pickVerb = g_ImGuiOverlayBarVerb >= 0
+		&& g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb].argKind == kFojoArgPick;
+
+	if (pickVerb && g_ImGuiOverlayBarPick >= 0) {
+		ImGui::TextDisabled("%s %s \u2026 where", g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb].name,
+				editspawnCatalogName(g_ImGuiOverlayBarPickKind, g_ImGuiOverlayBarPick));
+	} else if (g_ImGuiOverlayBarVerb >= 0) {
 		ImGui::TextDisabled("%s \u2026", g_ImGuiOverlayCommandDefs[g_ImGuiOverlayBarVerb].name);
 	}
 
 	ImGui::SetNextItemWidth(-1.0f);
 	ImGui::InputTextWithHint("##fojofind",
-			g_ImGuiOverlayBarVerb >= 0 ? "a register (\"a), or a pad, chr, prop or room number"
+			pickVerb && g_ImGuiOverlayBarPick < 0 ? "what to spawn"
+			: pickVerb ? "enter for the crosshair, or a register (\"a), a pad, chr, prop or room"
+			: g_ImGuiOverlayBarVerb >= 0 ? "a register (\"a), or a pad, chr, prop or room number"
 			: "find a window, an entity, a command, #a file slot, _a pad, !go somewhere, \"registers",
 			g_ImGuiOverlayBarQuery, sizeof(g_ImGuiOverlayBarQuery));
 
@@ -9391,7 +9551,12 @@ static void imguiOverlayDrawAwesomeBar(void)
 	}
 
 	if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) {
-		if (g_ImGuiOverlayBarVerb >= 0) {
+		if (pickVerb && g_ImGuiOverlayBarPick >= 0) {
+			// asking where: back to asking what
+			g_ImGuiOverlayBarPick = -1;
+			g_ImGuiOverlayBarQuery[0] = '\0';
+			g_ImGuiOverlayBarSel = 0;
+		} else if (g_ImGuiOverlayBarVerb >= 0) {
 			// back to the verb line, not out of the bar
 			g_ImGuiOverlayBarVerb = -1;
 			g_ImGuiOverlayBarQuery[0] = '\0';
@@ -9456,6 +9621,7 @@ static void imguiOverlayDrawAwesomeBar(void)
 static void imguiOverlayOpenAwesomeBar(void)
 {
 	g_ImGuiOverlayBarVerb = -1;
+	g_ImGuiOverlayBarPick = -1;
 	g_ImGuiOverlayBarYankInto = -1;
 	g_ImGuiOverlayBarOpen = true;
 	g_ImGuiOverlayBarJustOpened = true;
