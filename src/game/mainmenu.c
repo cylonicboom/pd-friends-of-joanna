@@ -37,6 +37,7 @@
 #include "lib/str.h"
 #include "lib/vi.h"
 #include "mod.h"
+#include "game/fojofriends.h"
 #include "game/missionrow.h"
 #ifndef PLATFORM_N64
 #include "soloprogress.h"
@@ -1850,7 +1851,17 @@ menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct menuitem *item,
       break;
     }
     if (data->dropdown.value < (uintptr_t)count) {
+      const s32 was = g_Vars.playerroles[playernum];
+
       g_Vars.playerroles[playernum] = options[data->dropdown.value];
+
+      // a seat that just became a buddy rolls who it is, so the row under
+      // it shows the result and can be changed
+      if (options[data->dropdown.value] == PLAYERROLE_BUDDY &&
+          was != PLAYERROLE_BUDDY) {
+        g_Vars.buddyoperative[playernum] = -1;
+        fojoBuddySeatOperative(playernum);
+      }
     }
   } break;
   case MENUOP_GETSELECTEDINDEX: {
@@ -1870,6 +1881,57 @@ menuhandlerBuddyOptionsPlayerAssign(s32 operation, struct menuitem *item,
   } break;
   }
   return 0;
+}
+
+// fojo: the row under a Perfect Buddy seat: which operative from the Team
+// Missions roster sits there. Hidden for any other role, and when the roster
+// is empty (the buddy spawns as vanilla's then).
+MenuItemHandlerResult menuhandlerBuddySeatOperative(s32 operation,
+                                                    struct menuitem *item,
+                                                    union handlerdata *data,
+                                                    s32 seat) {
+  const s32 count = modOperativeCount();
+
+  switch (operation) {
+  case MENUOP_CHECKHIDDEN:
+    return g_Vars.playerroles[seat] != PLAYERROLE_BUDDY || count <= 0;
+  case MENUOP_GETOPTIONCOUNT:
+    data->dropdown.value = count;
+    break;
+  case MENUOP_GETOPTIONTEXT: {
+    const struct modoperative *op = modOperativeAt(data->dropdown.value);
+    return (uintptr_t)(op ? op->name : "");
+  }
+  case MENUOP_SET:
+    if (data->dropdown.value < (uintptr_t)count) {
+      g_Vars.buddyoperative[seat] = data->dropdown.value;
+    }
+    break;
+  case MENUOP_GETSELECTEDINDEX: {
+    const s32 op = fojoBuddySeatOperative(seat);
+    data->dropdown.value = op >= 0 ? op : 0;
+  } break;
+  }
+
+  return 0;
+}
+
+MenuItemHandlerResult menuhandlerBuddySeat2Operative(s32 operation,
+                                                     struct menuitem *item,
+                                                     union handlerdata *data) {
+  return menuhandlerBuddySeatOperative(operation, item, data, 1);
+}
+
+MenuItemHandlerResult menuhandlerBuddySeat3Operative(s32 operation,
+                                                     struct menuitem *item,
+                                                     union handlerdata *data) {
+  return menuhandlerBuddySeatOperative(operation, item, data, 2);
+}
+
+MenuItemHandlerResult menuhandlerBuddySeat4Operative(s32 operation,
+                                                     struct menuitem *item,
+                                                     union handlerdata *data) {
+  return menuhandlerBuddySeatOperative(operation, item, data, 3);
 }
 
 MenuItemHandlerResult
@@ -2943,6 +3005,14 @@ struct menuitem g_TeamPlayerRolesMenuItems[] = {
         MENUITEMTYPE_DROPDOWN,
         0,
         MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"    as",
+        0,
+        menuhandlerBuddySeat2Operative,
+    }, // ""
+    {
+        MENUITEMTYPE_DROPDOWN,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
         (uintptr_t)g_PlayerNames[2],
         0,
         menuhandlerBuddyOptionsPlayer3Assign,
@@ -2951,9 +3021,25 @@ struct menuitem g_TeamPlayerRolesMenuItems[] = {
         MENUITEMTYPE_DROPDOWN,
         0,
         MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"    as",
+        0,
+        menuhandlerBuddySeat3Operative,
+    }, // ""
+    {
+        MENUITEMTYPE_DROPDOWN,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
         (uintptr_t)g_PlayerNames[3],
         0,
         menuhandlerBuddyOptionsPlayer4Assign,
+    }, // ""
+    {
+        MENUITEMTYPE_DROPDOWN,
+        0,
+        MENUITEMFLAG_LITERAL_TEXT,
+        (uintptr_t)"    as",
+        0,
+        menuhandlerBuddySeat4Operative,
     }, // ""
     {MENUITEMTYPE_SEPARATOR},
     {

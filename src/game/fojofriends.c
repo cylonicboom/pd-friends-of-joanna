@@ -9,6 +9,7 @@
 #include "data.h"
 #include "types.h"
 #include "mod.h"
+#include "lib/rng.h"
 
 /**
  * The friends of Jo are the Team Missions roster (modconfig Operative blocks,
@@ -46,6 +47,58 @@ s32 fojoFriendForMpIndex(s32 mpindex)
 	}
 
 	return slot;
+}
+
+/**
+ * Who a Perfect Buddy seat is: a roster index in g_Vars.buddyoperative, the
+ * same index the Team Missions carousel stores for a person. A seat nobody
+ * picked gets a random one. -1 with an empty roster, and the buddy spawns as
+ * vanilla's.
+ *
+ * The roll is its own function so a better rule replaces only its body.
+ */
+s32 fojoBuddyRollOperative(void)
+{
+	const s32 count = modOperativeCount();
+
+	if (count <= 0) {
+		return -1;
+	}
+
+	return rngRandom() % count;
+}
+
+/**
+ * The seat's operative, rolled now if it was never picked or the roster has
+ * shrunk under it. -1 for a seat that is not a buddy.
+ */
+s32 fojoBuddySeatOperative(s32 seat)
+{
+	s32 op;
+
+	if (seat < 0 || seat >= MAX_PLAYERS || g_Vars.playerroles[seat] != PLAYERROLE_BUDDY) {
+		return -1;
+	}
+
+	op = g_Vars.buddyoperative[seat];
+
+	if (op < 0 || op >= modOperativeCount()) {
+		op = fojoBuddyRollOperative();
+		g_Vars.buddyoperative[seat] = op;
+	}
+
+	return op;
+}
+
+/**
+ * Every buddy seat has an operative before a mission starts, including the
+ * ones that were buddies by default and never went through the menu.
+ */
+void fojoBuddySettleSeats(void)
+{
+	for (s32 i = 0; i < MAX_PLAYERS; i++) {
+		fojoBuddySeatOperative(i);
+	}
 }
 
 /**

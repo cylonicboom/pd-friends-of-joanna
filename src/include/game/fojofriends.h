@@ -8,5 +8,8 @@
 s32 fojoFriendForMpIndex(s32 mpindex);
 s32 fojoFriendWardrobeBody(s32 friendnum, s32 bodynum);
 void fojoFriendsInit(void);
+s32 fojoBuddyRollOperative(void);
+s32 fojoBuddySeatOperative(s32 seat);
+void fojoBuddySettleSeats(void);
 
 #endif

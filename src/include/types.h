@@ -188,6 +188,7 @@ struct g_vars {
                                     // currentplayer, but for anti
   /*ext*/ struct player *antiplayers[MAX_PLAYERS]; // Counter-op
   /*ext*/ s32 playerroles[MAX_PLAYERS];
+  /*ext*/ s32 buddyoperative[MAX_PLAYERS]; // fojo: a buddy seat's roster index, -1 = not picked
   /*0x2ac*/ s32 tickmode;
   /*0x2b0*/ s32 killcount;
   /*0x2b4*/ u32 knockoutcount;

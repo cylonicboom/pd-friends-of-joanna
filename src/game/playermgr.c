@@ -81,6 +81,7 @@ void playermgrDisableTeamPlayers(bool clearroles)
 		for (s32 i = 0; i < MAX_PLAYERS; i++) {
 			if (i == g_Vars.bondplayernum) continue;
 			g_Vars.playerroles[i] = PLAYERROLE_BUDDY;
+			g_Vars.buddyoperative[i] = -1;
 		}
 	}
 }
