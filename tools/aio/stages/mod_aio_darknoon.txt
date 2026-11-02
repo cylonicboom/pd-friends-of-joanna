@@ -101,4 +101,23 @@ stage "darknoon_silo_surprise" {
   allocation "-ml0 -me0 -mgfx200 -mvtx200 -ma400"   # pdmain.c:205
   # no env.c row for this stage upstream
 }
-
+#
+# --- the bug where silo surprise's props came in at vanilla scale ---
+# Ported from jonaeru/perfect_dark @ d3e4205. That tree gives Dark Noon its
+# own copy of the prop table, g_DarkNoonModelStates
+# (src/game/modeldata/general.c:1305), picked in objInitWithModelDef when
+# g_ModNum == MOD_DARKNOON (src/game/propobj.c:2091). Diffed against vanilla
+# g_ModelStates in the same file it differs in exactly these two rows, both
+# tagged "// Silo Surprise" upstream; no file field differs. The work is
+# jonaeru's; only the mechanism is ours.
+#
+# Without it the retina lock renders at vanilla 1.0, ten times too big, and
+# the TTB box at vanilla 0x0066, about a quarter of its intended size.
+#
+# 0.099853515625 is exactly 409/4096 = 0x0199; the parser truncates, so see
+# mod_aio_gex for why not 0.1. Like mod_aio_gex's, this block must stay LAST:
+# a malformed ModelStates aborts the parse of everything after it.
+ModelStates {
+  0x0153 { Scale 0.099853515625 }   # PretinalockZ  vanilla 0x1000
+  0x0193 { Scale 0.099853515625 }   # Pttb_boxZ     vanilla 0x0066
+}
