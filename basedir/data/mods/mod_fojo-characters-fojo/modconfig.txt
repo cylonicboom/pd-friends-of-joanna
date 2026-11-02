@@ -79,6 +79,8 @@ ChrBio {
 Operative {
     head "head_dark_combat"
     colour 0x7ee0e6b0
+    weapon "FALCON2SCOPE"
+    offhand "FALCON2SCOPE"
 }
 
 Operative {
