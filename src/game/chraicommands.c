@@ -4590,9 +4590,7 @@ bool aiDuplicateChr(void)
 			clone->flags2 = chr->flags2;
 			clone->padpreset1 = chr->padpreset1;
 
-			if (g_Vars.normmplayerisrunning == false
-					&& g_MissionConfig.iscoop
-					&& g_Vars.numaibuddies > 0) {
+			if (aiBuddiesActive()) {
 				clone->flags |= CHRFLAG0_AIVSAI;
 			}
 

@@ -13,6 +13,7 @@
 #include "game/pad.h"
 #include "game/propobj.h"
 #include "bss.h"
+#include "game/playermgr.h"
 #include "lib/memp.h"
 #include "lib/model.h"
 #include "lib/mema.h"
@@ -919,7 +920,7 @@ void bodyAllocateChr(s32 stagenum, struct packedchr *packed, s32 cmdindex)
 				chr->chrflags |= CHRCFLAG_CLONEABLE;
 			}
 
-			if (!g_Vars.normmplayerisrunning && g_MissionConfig.iscoop && g_Vars.numaibuddies > 0) {
+			if (aiBuddiesActive()) {
 				chr->flags |= CHRFLAG0_AIVSAI;
 			}
 

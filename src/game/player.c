@@ -5795,9 +5795,7 @@ void playerTick(bool arg0)
 				&g_Vars.currentplayer->prop->pos,
 				g_Vars.currentplayer->prop->rooms);
 
-		if (g_Vars.normmplayerisrunning == false
-				&& g_MissionConfig.iscoop
-				&& g_Vars.numaibuddies > 0
+		if (aiBuddiesActive()
 				&& !g_Vars.aibuddiesspawned
 				&& g_Vars.stagenum != STAGE_CITRAINING
 				&& g_Vars.lvframenum > 20) {

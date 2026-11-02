@@ -900,6 +900,18 @@ void playermgrAllocatePlayer(s32 index)
 	modSpectateReset();
 }
 
+/**
+ * Whether vanilla's AI buddies (g_Vars.aibuddies, the "Perfect Buddies" of
+ * the co-op buddy menu) are in play this mission. Every buddy site asks this
+ * instead of spelling the expression out.
+ */
+bool aiBuddiesActive(void)
+{
+	return !g_Vars.normmplayerisrunning
+		&& g_MissionConfig.iscoop
+		&& g_Vars.numaibuddies > 0;
+}
+
 void playermgrCalculateAiBuddyNums(void)
 {
 	s32 i;

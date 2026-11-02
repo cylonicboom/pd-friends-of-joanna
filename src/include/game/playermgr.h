@@ -29,5 +29,6 @@ bool playermgrHasTeamRoles(void);
 s32 playermgrRemoveLastPlayer(void);
 s32 playermgrAddPlayer(void);
 s32 playermgrBudgetCount(void);
+bool aiBuddiesActive(void);
 
 #endif

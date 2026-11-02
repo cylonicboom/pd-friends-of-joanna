@@ -12,6 +12,7 @@
 #include "game/radar.h"
 #include "game/options.h"
 #include "bss.h"
+#include "game/playermgr.h"
 #include "lib/vi.h"
 #include "lib/mtx.h"
 #include "data.h"
@@ -373,7 +374,7 @@ Gfx *radarRender(Gfx *gdl)
 #endif
 
 	// Draw dots for coop AI buddies
-	if (!g_Vars.normmplayerisrunning && g_MissionConfig.iscoop) {
+	if (aiBuddiesActive()) {
 		for (i = 0; i < g_Vars.numaibuddies && i < ARRAYCOUNT(g_Vars.aibuddies); i++) {
 			struct prop *prop = g_Vars.aibuddies[i];
 

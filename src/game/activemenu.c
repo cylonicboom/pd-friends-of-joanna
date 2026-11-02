@@ -19,6 +19,7 @@
 #include "game/mplayer/mplayer.h"
 #include "game/options.h"
 #include "bss.h"
+#include "game/playermgr.h"
 #include "lib/vi.h"
 #include "lib/main.h"
 #include "lib/mtx.h"
@@ -381,7 +382,7 @@ void amApply(s32 slot)
 		}
 		break;
 	default:
-		if (g_MissionConfig.iscoop) {
+		if (aiBuddiesActive()) {
 			if (amGetFirstBuddyIndex() > -1) {
 				if (slot == 1) {
 					amSetAiBuddyTemperament(true); // aggressive
@@ -503,7 +504,7 @@ void amGetSlotDetails(s32 slot, u32 *flags, char *label, s32 len)
 	default: // Orders screen
 		AMLABELCPY(label, len, "");
 
-		if (g_MissionConfig.iscoop) {
+		if (aiBuddiesActive()) {
 			if (slot == 4) {
 				AMLABELCPY(label, len, langGet(L_MISC_474)); // "Perfect Buddies"
 			} else if (slot == 1) {
@@ -674,7 +675,7 @@ void amChangeScreen(s32 step)
 		}
 	} else {
 		// Solo missions, or MP with no teams
-		if (g_MissionConfig.iscoop && amGetFirstBuddyIndex() >= 0) {
+		if (aiBuddiesActive() && amGetFirstBuddyIndex() >= 0) {
 			// Weapon selection, second function and AI buddy commands
 			maxscreenindex = 2;
 		} else {
@@ -1462,7 +1463,7 @@ Gfx *amRender(Gfx *gdl)
 					mode = AMSLOTMODE_FOCUSED;
 				}
 
-				if (g_MissionConfig.iscoop && (buddynum = amGetFirstBuddyIndex(), buddynum >= 0)) {
+				if (aiBuddiesActive() && (buddynum = amGetFirstBuddyIndex(), buddynum >= 0)) {
 					if (mode == AMSLOTMODE_DEFAULT && g_AmMenus[g_AmIndex].screenindex >= 2) {
 						struct chrdata *chr = g_Vars.aibuddies[buddynum]->chr;
 
@@ -1524,13 +1525,13 @@ Gfx *amRender(Gfx *gdl)
 			struct g_vars *vars = &g_Vars;
 
 #if VERSION >= VERSION_JPN_FINAL
-			if (!(g_MissionConfig.iscoop && amGetFirstBuddyIndex() >= 0)
+			if (!(aiBuddiesActive() && amGetFirstBuddyIndex() >= 0)
 					&& g_Vars.normmplayerisrunning
 					&& g_AmMenus[g_AmIndex].screenindex >= 2) {
 				gdl = amRenderAibotInfo(gdl, g_AmMenus[g_AmIndex].screenindex - 2);
 			}
 #else
-			if (!(g_MissionConfig.iscoop && amGetFirstBuddyIndex() >= 0)
+			if (!(aiBuddiesActive() && amGetFirstBuddyIndex() >= 0)
 					&& vars->normmplayerisrunning
 					&& g_AmMenus[g_AmIndex].screenindex >= 2) {
 				gdl = amRenderAibotInfo(gdl, g_AmMenus[g_AmIndex].screenindex - 2);
