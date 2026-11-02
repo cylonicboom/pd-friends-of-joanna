@@ -84,6 +84,8 @@ Operative {
 Operative {
     head "head_vd"
     colour 0xe0a6c4b0
+    weapon "DY357MAGNUM"
+    offhand "DY357MAGNUM"
 }
 
 Operative {
@@ -92,6 +94,8 @@ Operative {
     shortname "Mikado"
     colour 0xffd0a6b0
     wardrobe "body_mikado"
+    weapon "PP9I"
+    offhand "PP9I"
 }
 
 Operative {
@@ -99,6 +103,8 @@ Operative {
     name "Poplin Dark"
     shortname "Poplin"
     colour 0xfb9c8db0
+    weapon "MAGSEC4"
+    offhand "MAGSEC4"
 }
 
 Operative {
@@ -107,6 +113,7 @@ Operative {
     shortname "Calico"
     colour 0xa6e6bcb0
     designation "CI Combat Unit #200x-0A1F"
+    weapon "SHOTGUN"
 }
 
 Operative {
@@ -114,4 +121,5 @@ Operative {
     name "Willow Dark"
     shortname "Willow"
     colour 0x8e96c8b0
+    weapon "LAPTOPGUN"
 }
