@@ -24,6 +24,8 @@
 #include "net/net.h"
 #include "romdata.h"
 #include "system.h"
+#include "config.h"
+#include "savequeue.h"
 #include "editspawn.h"
 
 /**
@@ -68,6 +70,21 @@ s32 g_EditSpawnSourceCrosshair = 0;
 
 // set by editspawnResolve when no step found headroom, read by editspawnSpawn
 static bool s_NoHeadroom = false;
+
+PD_CONSTRUCTOR static void editspawnConfigInit(void)
+{
+	configRegisterInt("Editor.SourceCrosshairs", &g_EditSpawnSourceCrosshair, 0, 1);
+}
+
+void editspawnSetSourceCrosshair(s32 on)
+{
+	on = on ? 1 : 0;
+
+	if (g_EditSpawnSourceCrosshair != on) {
+		g_EditSpawnSourceCrosshair = on;
+		saveQueueMarkConfig();
+	}
+}
 
 struct editspawnentry {
 	const char *name;

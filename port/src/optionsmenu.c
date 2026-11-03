@@ -24,6 +24,7 @@
 #include "optionsmenu.h"
 #include "config.h"
 #include "weightyaim.h"
+#include "editspawn.h"
 
 static s32 g_ExtMenuPlayer = 0;
 static struct menudialogdef *g_ExtNextDialog = NULL;
@@ -1791,6 +1792,21 @@ static MenuItemHandlerResult menuhandlerCrosshairSize(s32 operation, struct menu
 	return 0;
 }
 
+// Not per player: the editor has one crosshair-spawn setting for the session,
+// so every player's page shows and sets the same Editor.SourceCrosshairs.
+static MenuItemHandlerResult menuhandlerSourceCrosshairs(s32 operation, struct menuitem *item, union handlerdata *data)
+{
+	switch (operation) {
+	case MENUOP_GET:
+		return g_EditSpawnSourceCrosshair;
+	case MENUOP_SET:
+		editspawnSetSourceCrosshair(data->checkbox.value);
+		break;
+	}
+
+	return 0;
+}
+
 static MenuItemHandlerResult menuhandlerCrosshairHealth(s32 operation, struct menuitem *item, union handlerdata *data)
 {
 	static const char *opts[] = {
@@ -2036,6 +2052,14 @@ struct menuitem g_ExtendedGameMenuItems[] = {
 		(uintptr_t)"Use Key Reloads",
 		0,
 		menuhandlerUseKeyReloads,
+	},
+	{
+		MENUITEMTYPE_CHECKBOX,
+		0,
+		MENUITEMFLAG_LITERAL_TEXT,
+		(uintptr_t)"Perfect Dark Source Crosshairs",
+		0,
+		menuhandlerSourceCrosshairs,
 	},
 	{
 		MENUITEMTYPE_SEPARATOR,

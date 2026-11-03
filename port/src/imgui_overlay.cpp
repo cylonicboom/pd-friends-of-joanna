@@ -1869,11 +1869,13 @@ static void imguiOverlayDrawRuntimePanel(void)
 	{
 		bool source = g_EditSpawnSourceCrosshair != 0;
 		if (ImGui::Checkbox("Perfect Dark Source crosshairs", &source)) {
-			g_EditSpawnSourceCrosshair = source ? 1 : 0;
+			editspawnSetSourceCrosshair(source ? 1 : 0);
 		}
 		if (ImGui::IsItemHovered()) {
 			ImGui::SetTooltip("Off: a crosshair spawn backs 30 off whatever the view ray hit.\n"
-					"On: it backs off by its own size and is pushed out of nearby walls.");
+					"On: it backs off by its own size, is pushed out of walls at the height\n"
+					"it will stand, and steps back from an overhang too low for it.\n"
+					"Saved (Editor.SourceCrosshairs); also in Fojo Options > Game.");
 		}
 		if (g_NetMode != NETMODE_NONE) {
 			ImGui::TextDisabled("Spawns: off in netplay");
@@ -8470,7 +8472,7 @@ static void imguiOverlayCmdUndoSpawn(void)   { editspawnUndo(); }
 static void imguiOverlayCmdClearSpawns(void) { editspawnClear(); }
 static void imguiOverlayCmdSourceCrosshair(void)
 {
-	g_EditSpawnSourceCrosshair = !g_EditSpawnSourceCrosshair;
+	editspawnSetSourceCrosshair(!g_EditSpawnSourceCrosshair);
 	sysLogPrintf(LOG_NOTE, "IMGUI: perfect dark source crosshairs %s", g_EditSpawnSourceCrosshair ? "on" : "off");
 }
 

@@ -44,8 +44,12 @@ struct editspawnaim {
 };
 
 // the "perfect dark source crosshairs" option: a crosshair spawn is pushed
-// out of every surface within its own size, not only backed off along the ray
+// out of every surface within its own size, not only backed off along the ray,
+// and stepped back from an overhang too low for it. Saved as
+// Editor.SourceCrosshairs; set it through editspawnSetSourceCrosshair so the
+// change reaches pd.ini.
 extern s32 g_EditSpawnSourceCrosshair;
+void editspawnSetSourceCrosshair(s32 on);
 
 // 0 outside gameplay stages; what setup.c adds to the chr, prop and model counts
 s32 editspawnReserve(s32 stagenum);
