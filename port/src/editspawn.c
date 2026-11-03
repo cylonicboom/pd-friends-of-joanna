@@ -71,6 +71,16 @@ s32 g_EditSpawnSourceCrosshair = 0;
 // set by editspawnResolve when no step found headroom, read by editspawnSpawn
 static bool s_NoHeadroom = false;
 
+// Source crosshairs traces: every step of a crosshair resolve goes to the log
+// as "editspawn: xh ...". Spawns are one-offs, so this is a handful of lines
+// per spawn. Flip to 0 once the placement is trusted.
+#define EDITSPAWN_TRACE 1
+#if EDITSPAWN_TRACE
+#define XH(...) sysLogPrintf(LOG_NOTE, "editspawn: xh " __VA_ARGS__)
+#else
+#define XH(...) ((void)0)
+#endif
+
 PD_CONSTRUCTOR static void editspawnConfigInit(void)
 {
 	configRegisterInt("Editor.SourceCrosshairs", &g_EditSpawnSourceCrosshair, 0, 1);
@@ -518,6 +528,10 @@ bool editspawnAimCrosshair(struct editspawnaim *aim)
 	aim->crosshair = true;
 	aim->valid = true;
 
+	XH("ray eye (%.0f %.0f %.0f) dir (%.2f %.2f %.2f) hit (%.0f %.0f %.0f) dist %.0f eyeroom %d",
+			aim->eye.x, aim->eye.y, aim->eye.z, aim->dir.x, aim->dir.y, aim->dir.z,
+			to.x, to.y, to.z, aim->hitdist, aim->eyerooms[0]);
+
 	return true;
 }
 
@@ -628,6 +642,10 @@ static void editspawnPushOut(struct coord *pos, RoomNum *rooms, f32 clearance, c
 			}
 		}
 
+		XH("push iter %d at (%.0f %.0f %.0f) room %d clearance %.0f ys %.0f%s%.0f: %d ways hit, push (%.1f %.1f)",
+				iter, pos->x, pos->y, pos->z, rooms[0], clearance, ys[0],
+				numys > 1 ? "/" : "", numys > 1 ? ys[1] : 0.f, hits, push.x, push.z);
+
 		if (hits == 0) {
 			return;
 		}
@@ -639,6 +657,7 @@ static void editspawnPushOut(struct coord *pos, RoomNum *rooms, f32 clearance, c
 		portal00018148(pos, &next, rooms, nextrooms, NULL, 0);
 
 		if (nextrooms[0] <= 0) {
+			XH("push iter %d refused: (%.0f %.0f %.0f) is in no room", iter, next.x, next.y, next.z);
 			return;
 		}
 
@@ -659,6 +678,7 @@ static bool editspawnSpan(struct coord *pos, RoomNum *rooms, f32 *floory, f32 *c
 	f32 c = 0.f;
 
 	if (cdFindFloorRoomYColourFlagsAtPos(pos, rooms, &y, NULL, NULL) <= 0) {
+		XH("span at (%.0f %.0f %.0f) room %d: no floor below", pos->x, pos->y, pos->z, rooms[0]);
 		return false;
 	}
 
@@ -669,8 +689,16 @@ static bool editspawnSpan(struct coord *pos, RoomNum *rooms, f32 *floory, f32 *c
 	probe.y = y + 1.f;
 	c = probe.y;
 
-	if (cdFindCeilingRoomYColourFlagsAtPos(&probe, rooms, &c, NULL, NULL) > 0 && c > probe.y) {
-		*ceily = c;
+	{
+		RoomNum croom = cdFindCeilingRoomYColourFlagsAtPos(&probe, rooms, &c, NULL, NULL);
+
+		if (croom > 0 && c > probe.y) {
+			*ceily = c;
+		}
+
+		XH("span at (%.0f %.0f %.0f) room %d: floor %.0f, ceiling %s%.0f (room %d)",
+				pos->x, pos->y, pos->z, rooms[0], y,
+				*ceily > y + 999999.f ? "none, raw " : "", c, croom);
 	}
 
 	return true;
@@ -687,6 +715,8 @@ static bool editspawnSpan(struct coord *pos, RoomNum *rooms, f32 *floory, f32 *c
 static void editspawnFit(struct editspawnaim *aim, struct coord *pos, RoomNum *rooms, f32 clearance, f32 height, f32 pulled)
 {
 	const f32 step = clearance > 20.f ? clearance : 20.f;
+
+	XH("fit clearance %.0f height %.0f pulled %.0f step %.0f", clearance, height, pulled, step);
 
 	for (s32 i = 0; ; i++) {
 		struct coord next;
@@ -714,8 +744,11 @@ static void editspawnFit(struct editspawnaim *aim, struct coord *pos, RoomNum *r
 		// the push can move it over a different floor
 		if (!editspawnSpan(pos, rooms, &floory, &ceily)
 				|| ceily - floory >= height + EDITSPAWN_HEADROOM) {
+			XH("fit done after %d step(s) at (%.0f %.0f %.0f)", i, pos->x, pos->y, pos->z);
 			return;
 		}
+
+		XH("fit step %d: %.0f of headroom, needs %.0f", i, ceily - floory, height + EDITSPAWN_HEADROOM);
 
 		if (i >= EDITSPAWN_FIT_STEPS || pulled + step > aim->hitdist * 0.5f) {
 			s_NoHeadroom = true;
@@ -758,6 +791,7 @@ static bool editspawnResolve(struct editspawnaim *aim, f32 clearance, f32 height
 	if (!aim->crosshair) {
 		*pos = aim->pos;
 		roomsCopy(aim->rooms, rooms);
+		XH("anchor spawn, not resolved: (%.0f %.0f %.0f)", pos->x, pos->y, pos->z);
 		return true;
 	}
 
@@ -774,6 +808,9 @@ static bool editspawnResolve(struct editspawnaim *aim, f32 clearance, f32 height
 	pos->y = aim->pos.y - aim->dir.y * pull;
 	pos->z = aim->pos.z - aim->dir.z * pull;
 
+	XH("resolve source %s: clearance %.0f height %.0f pull %.0f -> (%.0f %.0f %.0f)",
+			g_EditSpawnSourceCrosshair ? "ON" : "off", clearance, height, pull, pos->x, pos->y, pos->z);
+
 	portal00018148(&aim->eye, pos, aim->eyerooms, rooms, NULL, 0);
 
 	if (rooms[0] <= 0) {
@@ -786,6 +823,8 @@ static bool editspawnResolve(struct editspawnaim *aim, f32 clearance, f32 height
 	}
 
 	aim->yaw = editspawnYawToPlayer(pos);
+
+	XH("resolved (%.0f %.0f %.0f) room %d", pos->x, pos->y, pos->z, rooms[0]);
 
 	return true;
 }
@@ -967,6 +1006,9 @@ static struct prop *editspawnPlaceObj(struct defaultobj *obj, struct editspawnai
 	// drops the object onto whatever floor is below the point
 	func0f06a730(obj, &pos, &mtx, rooms, &pos);
 
+	XH("obj placed at (%.0f %.0f %.0f), prop at (%.0f %.0f %.0f) room %d",
+			pos.x, pos.y, pos.z, prop->pos.x, prop->pos.y, prop->pos.z, prop->rooms[0]);
+
 	propActivate(prop);
 	propEnable(prop);
 
@@ -1099,6 +1141,10 @@ static struct prop *editspawnChr(s32 bodynum, bool ally, struct editspawnaim *ai
 
 	ailist = ailistFindById(ally ? GAILIST_INIT_DEFAULT_BUDDY : GAILIST_UNALERTED);
 	prop = chrSpawnAtCoord(bodynum, -1, &pos, rooms, aim->yaw, ailist, SPAWNFLAG_ALLOWONSCREEN);
+
+	XH("chr asked for (%.0f %.0f %.0f) room %d, got %s (%.0f %.0f %.0f)",
+			pos.x, pos.y, pos.z, rooms[0], prop ? "prop at" : "nothing",
+			prop ? prop->pos.x : 0.f, prop ? prop->pos.y : 0.f, prop ? prop->pos.z : 0.f);
 
 	if (!prop) {
 		return NULL;
