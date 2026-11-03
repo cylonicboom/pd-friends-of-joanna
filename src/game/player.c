@@ -21,6 +21,7 @@
 #include "game/bondgun.h"
 #include "game/env.h"
 #include "game/gunfx.h"
+#include "game/sight.h"
 #include "game/game_0b0fd0.h"
 #include "game/game_0b2150.h"
 #include "game/tex.h"
@@ -6892,6 +6893,12 @@ Gfx *playerRenderHud(Gfx *gdl)
 		}
 
 		gdl = lasersightRenderDot(gdl);
+
+#ifndef PLATFORM_N64
+		// Perfect Dark Source crosshairs: the cross on the surface, same pass
+		// and matrices as the dot (sight.c)
+		gdl = sightRenderSurfaceCrosshair(gdl);
+#endif
 
 		if (g_NbombsActive) {
 			gdl = nbombRenderOverlay(gdl);

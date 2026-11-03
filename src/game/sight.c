@@ -27,6 +27,14 @@
 #include <math.h>
 #include "video.h"
 #include "weightyaim.h" // [weightyaim]
+#include "platform.h"
+#include "config.h"
+#include "system.h"
+#include "editspawn.h" // g_EditSpawnSourceCrosshair: the "Perfect Dark Source Crosshairs" option
+#include "game/camera.h"
+#include "game/game_0b0fd0.h"
+#include "game/bondmove.h"
+#include "lib/mtx.h"
 
 #define SIGHT_COLOUR ((PLAYER_EXTCFG().crosshairhealth >= CROSSHAIR_HEALTH_ON_GREEN) ? sightGetCrosshairHealthColor(g_Vars.currentplayer->bondhealth, g_Vars.currentplayer->prop->chr->cshield * 0.125f) : hudTintCrosshair(PLAYER_EXTCFG().crosshaircolour))
 #define SIGHT_SCALE PLAYER_EXTCFG().crosshairsize
@@ -1804,6 +1812,10 @@ Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight)
 #endif
 
 		if (showtarget) {
+#ifndef PLATFORM_N64
+			// Source crosshairs: the world pass already drew it on the surface
+			if (!sightSurfaceCrosshairWanted())
+#endif
 			gdl = sightDrawTarget(gdl, crossx, crossy);
 		}
 	}
@@ -1819,3 +1831,293 @@ Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight)
 
 	return gdl;
 }
+
+#ifndef PLATFORM_N64
+/**
+ * Perfect Dark Source crosshairs.
+ *
+ * The target cross is drawn where the aim line meets the world instead of on
+ * the screen: a "+" lying in the plane of the surface, like the laser sight's
+ * dot (lasersightRenderDot, gunfx.c). Perspective does the rest - it gets
+ * smaller as the surface gets farther away and bigger up close, and a wall
+ * seen at an angle squashes it.
+ *
+ * Its size in the world is SourceCrosshairs.WorldSize while the surface is
+ * between NearDist and FarDist. Past FarDist it grows with distance, so on
+ * screen it stops shrinking there; inside NearDist it shrinks with distance,
+ * so it stops growing. Size in world units = WorldSize * d / clamp(d, near, far).
+ *
+ * The point and the surface come from the aim trace lv.c runs every frame
+ * (propFindAimingAt -> bgun0f0a94d0): hand->dotpos and hand->dotrot, the
+ * normal of a bg hit or the shot direction for a prop. When the trace finds
+ * nothing, or that trace does not run (plain split-screen multiplayer), the
+ * flat cross is drawn as before.
+ */
+static f32 g_SourceXhairWorldSize = 10.f;
+static f32 g_SourceXhairNear = 60.f;
+static f32 g_SourceXhairFar = 1200.f;
+static f32 g_SourceXhairAlphaMul = 3.f; // the flat cross overdraws itself; a quad does not
+static s32 g_SourceXhairTrace = 1;
+
+PD_CONSTRUCTOR static void sightSourceXhairConfigInit(void)
+{
+	configRegisterFloat("SourceCrosshairs.WorldSize", &g_SourceXhairWorldSize, 0.5f, 200.f);
+	configRegisterFloat("SourceCrosshairs.NearDist", &g_SourceXhairNear, 1.f, 2000.f);
+	configRegisterFloat("SourceCrosshairs.FarDist", &g_SourceXhairFar, 10.f, 20000.f);
+	configRegisterFloat("SourceCrosshairs.AlphaMul", &g_SourceXhairAlphaMul, 0.f, 10.f);
+	configRegisterInt("SourceCrosshairs.Trace", &g_SourceXhairTrace, 0, 1);
+}
+
+// why the surface cross is or is not drawn, logged when it changes
+static const char *g_SourceXhairWhy = "";
+
+static bool sightSourceXhairNo(const char *why)
+{
+	g_SourceXhairWhy = why;
+	return false;
+}
+
+/**
+ * Whether this frame's crosshair goes on the surface: the same conditions
+ * sightDraw uses to show the target cross, plus a hit to put it on. Called
+ * from both passes so they agree.
+ */
+bool sightSurfaceCrosshairWanted(void)
+{
+	struct player *player = g_Vars.currentplayer;
+	s32 mpindex;
+	s32 sight;
+	bool sighton;
+
+	if (!g_EditSpawnSourceCrosshair) {
+		return sightSourceXhairNo("option off");
+	}
+
+	if (!player || !player->prop || !g_Vars.currentplayerstats) {
+		return sightSourceXhairNo("no player");
+	}
+
+	if (player->activemenumode != AMMODE_CLOSED || player->gunctrl.passivemode || player->bondhealth <= 0.0f) {
+		return sightSourceXhairNo("menu, passive or dead");
+	}
+
+	sight = currentPlayerGetSight();
+
+	if (PLAYERCOUNT() >= 2 && g_Vars.coopplayernum < 0 && g_Vars.antiplayernum < 0) {
+		sight = SIGHT_DEFAULT;
+	}
+
+	if (sight == SIGHT_NONE || sight == SIGHT_ZOOM) {
+		return sightSourceXhairNo("no sight, or a zoom sight");
+	}
+
+	if (weightyAimHideCrosshair()) {
+		return sightSourceXhairNo("weighty aim hides the crosshair");
+	}
+
+	mpindex = g_Vars.currentplayerstats->mpindex;
+
+	if (!optionsGetSightOnScreen(mpindex)) {
+		return sightSourceXhairNo("sight on screen is off");
+	}
+
+	sighton = player->gunsightoff == 0 && !player->mpmenuon;
+
+	if (!((optionsGetAlwaysShowTarget(mpindex) && !sighton)
+				|| (sighton && sightHasTargetWhileAiming(sight))
+				|| weightyAimForceCrosshair())) {
+		return sightSourceXhairNo("target cross not shown now");
+	}
+
+	// lv.c only traces the aim every frame under these conditions; otherwise
+	// the dot info is whatever the last shot left behind, and a cross put
+	// there would stick to it
+	if (!(PLAYERCOUNT() == 1
+				|| g_Vars.currentcoopplayernum >= 0
+				|| g_Vars.currentantiplayernum >= 0
+				|| (weaponHasFlag(bgunGetWeaponNum(HAND_RIGHT), WEAPONFLAG_AIMTRACK) && bmoveIsInSightAimMode()))) {
+		return sightSourceXhairNo("no per-frame aim trace here (split-screen)");
+	}
+
+	if (!player->hands[HAND_RIGHT].hasdotinfo) {
+		return sightSourceXhairNo("aim trace hit nothing");
+	}
+
+	g_SourceXhairWhy = "on";
+
+	return true;
+}
+
+static void sightSourceXhairTrace(bool wanted, const struct coord *pos, const struct coord *nrm, f32 dist, f32 size)
+{
+	static const char *lastwhy = NULL;
+	static s32 frames = 0;
+
+	if (!g_SourceXhairTrace) {
+		return;
+	}
+
+	if (g_SourceXhairWhy != lastwhy) {
+		sysLogPrintf(LOG_NOTE, "sourcexhair: %s", g_SourceXhairWhy);
+		lastwhy = g_SourceXhairWhy;
+	}
+
+	// while drawn, a sample about once a second at 60
+	if (wanted && pos && ++frames >= 60) {
+		frames = 0;
+		sysLogPrintf(LOG_NOTE, "sourcexhair: at (%.0f %.0f %.0f) normal (%.2f %.2f %.2f) dist %.0f size %.1f",
+				pos->x, pos->y, pos->z, nrm->x, nrm->y, nrm->z, dist, size);
+	}
+}
+
+Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
+{
+	struct player *player = g_Vars.currentplayer;
+	struct hand *hand;
+	struct coord pos;
+	struct coord nrm;
+	f32 u[3];
+	f32 v[3];
+	f32 dist;
+	f32 clamped;
+	f32 size;
+	f32 thick;
+	f32 gap;
+	u32 colour;
+	u32 alpha;
+	Mtxf mtxf;
+	Mtxf *mtx;
+	Vtx *vertices;
+	Col *colours;
+	s32 arm;
+
+	if (!sightSurfaceCrosshairWanted()) {
+		sightSourceXhairTrace(false, NULL, NULL, 0, 0);
+		return gdl;
+	}
+
+	hand = &player->hands[HAND_RIGHT];
+
+	pos.x = hand->dotpos.x - player->cam_pos.x;
+	pos.y = hand->dotpos.y - player->cam_pos.y;
+	pos.z = hand->dotpos.z - player->cam_pos.z;
+	dist = sqrtf(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
+
+	// vertices are s16 at 5x (see below), so 6000 is about as far as it can go
+	if (dist < 1.0f || dist > 6000.0f) {
+		g_SourceXhairWhy = dist < 1.0f ? "hit is at the eye" : "hit is past 6000";
+		sightSourceXhairTrace(false, NULL, NULL, 0, 0);
+		return gdl;
+	}
+
+	// The surface's own axes, built the way lasersightRenderDot builds them:
+	// u level along the surface, v down it. A floor or a ceiling has no
+	// level direction of its own, so it takes the world's x and z.
+	nrm = hand->dotrot;
+
+	if (nrm.x == 0.0f && nrm.z == 0.0f) {
+		u[0] = 1.0f; u[1] = 0.0f; u[2] = 0.0f;
+		v[0] = 0.0f; v[1] = 0.0f; v[2] = 1.0f;
+	} else {
+		f32 len = sqrtf(nrm.x * nrm.x + nrm.y * nrm.y + nrm.z * nrm.z);
+		f32 nx = nrm.x / len;
+		f32 ny = nrm.y / len;
+		f32 nz = nrm.z / len;
+		f32 h = sqrtf(nx * nx + nz * nz);
+
+		u[0] = nz / h;      u[1] = 0.0f; u[2] = -nx / h;
+		v[0] = ny * nx / h; v[1] = -h;   v[2] = ny * nz / h;
+	}
+
+	clamped = dist;
+
+	if (clamped < g_SourceXhairNear) {
+		clamped = g_SourceXhairNear;
+	}
+
+	if (clamped > g_SourceXhairFar) {
+		clamped = g_SourceXhairFar;
+	}
+
+	size = g_SourceXhairWorldSize * (SIGHT_SCALE > 0 ? SIGHT_SCALE : 1) * 0.5f * dist / clamped;
+	thick = size * 0.12f;
+	gap = size * 0.33f;
+
+	sightSourceXhairTrace(true, &hand->dotpos, &nrm, dist, size);
+
+	// a touch off the surface, toward the eye, so it neither fights the wall
+	// for depth nor hides under a bullet hole
+	{
+		const f32 lift = (2.0f + size * 0.1f) / dist;
+
+		pos.x -= pos.x * lift;
+		pos.y -= pos.y * lift;
+		pos.z -= pos.z * lift;
+	}
+
+	colour = SIGHT_COLOUR;
+	alpha = (u32)((colour & 0xff) * g_SourceXhairAlphaMul);
+
+	if (alpha > 0xff) {
+		alpha = 0xff;
+	}
+
+	gDPSetCycleType(gdl++, G_CYC_1CYCLE);
+	gDPSetColorDither(gdl++, G_CD_DISABLE);
+	gDPSetRenderMode(gdl++, G_RM_AA_ZB_XLU_SURF, G_RM_AA_ZB_XLU_SURF2);
+	gDPSetAlphaCompare(gdl++, G_AC_NONE);
+	gDPSetCombineMode(gdl++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+	gDPSetPrimColor(gdl++, 0, 0, (colour >> 24) & 0xff, (colour >> 16) & 0xff, (colour >> 8) & 0xff, alpha);
+	gSPClearGeometryMode(gdl++, G_CULL_BOTH);
+
+	// the laser dot's matrix: the camera's rotation, no translation, a fifth
+	// scale, so a vertex is (world - eye) * 5 and keeps s16 precision
+	mtx4LoadIdentity(&mtxf);
+	mtx00015be0(camGetWorldToScreenMtxf(), &mtxf);
+	mtxf.m[3][0] = 0.0f;
+	mtxf.m[3][1] = 0.0f;
+	mtxf.m[3][2] = 0.0f;
+	mtx00015f88(0.2f, &mtxf);
+
+	mtx = gfxAllocateMatrix();
+	mtxF2L(&mtxf, mtx);
+	gSPMatrix(gdl++, osVirtualToPhysical(mtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+
+	colours = gfxAllocateColours(1);
+	colours[0].word = PD_BE32(colour | 0xff);
+	gSPColor(gdl++, osVirtualToPhysical(colours), 1);
+
+	// four arms, each a quad from the gap out to the tip
+	vertices = gfxAllocateVertices(16);
+
+	for (arm = 0; arm < 4; arm++) {
+		// along: the arm's direction; across: its width
+		const f32 *along = (arm & 1) ? v : u;
+		const f32 *across = (arm & 1) ? u : v;
+		const f32 sign = (arm & 2) ? -1.0f : 1.0f;
+		const f32 ends[2] = { gap * sign, size * sign };
+		s32 k;
+
+		for (k = 0; k < 4; k++) {
+			Vtx *vtx = &vertices[arm * 4 + k];
+			const f32 a = ends[(k == 1 || k == 2) ? 1 : 0];
+			const f32 b = (k < 2) ? -thick : thick;
+
+			vtx->x = (pos.x + along[0] * a + across[0] * b) * 5.0f;
+			vtx->y = (pos.y + along[1] * a + across[1] * b) * 5.0f;
+			vtx->z = (pos.z + along[2] * a + across[2] * b) * 5.0f;
+			vtx->s = 0;
+			vtx->t = 0;
+			vtx->colour = 0;
+		}
+	}
+
+	gSPVertex(gdl++, osVirtualToPhysical(vertices), 16, 0);
+	gSPTri2(gdl++, 0, 1, 2, 2, 3, 0);
+	gSPTri2(gdl++, 4, 5, 6, 6, 7, 4);
+	gSPTri2(gdl++, 8, 9, 10, 10, 11, 8);
+	gSPTri2(gdl++, 12, 13, 14, 14, 15, 12);
+
+	return gdl;
+}
+#endif

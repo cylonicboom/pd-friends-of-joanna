@@ -25,4 +25,9 @@ Gfx *sightDrawTarget(Gfx *gdl, f32 crossx, f32 crossy);
 bool sightHasTargetWhileAiming(s32 sight);
 Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight);
 
+// Perfect Dark Source crosshairs (PC only): the crosshair drawn on the
+// surface it points at, in the world pass, like the laser dot
+bool sightSurfaceCrosshairWanted(void);
+Gfx *sightRenderSurfaceCrosshair(Gfx *gdl);
+
 #endif
