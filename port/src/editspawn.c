@@ -57,6 +57,18 @@
 // off = sandbox mode's fixed 30 back along the ray, which is the default
 s32 g_EditSpawnSourceCrosshair = 0;
 
+// Source crosshairs, vertically: the low probe ring sits this far off the
+// floor at most, so a step or a ramp is not read as a wall; a spawn wants
+// this much air between its top and whatever is overhead; and a spawn that
+// does not fit under an overhang steps back along the view ray this many
+// times looking for room.
+#define EDITSPAWN_KNEE 20.f
+#define EDITSPAWN_HEADROOM 2.f
+#define EDITSPAWN_FIT_STEPS 4
+
+// set by editspawnResolve when no step found headroom, read by editspawnSpawn
+static bool s_NoHeadroom = false;
+
 struct editspawnentry {
 	const char *name;
 	s16 id;    // body, weapon, ammo type or model number, by kind
@@ -543,10 +555,16 @@ bool editspawnAimAt(struct editspawnaim *aim, const struct coord *pos, struct pr
 }
 
 // Perfect dark source crosshairs: probe eight ways around the point and push
-// it out of anything closer than the spawn's clearance. Opposite walls closer
-// together than twice the clearance cancel, which centres the spawn between
-// them. Each step is taken only if the portal walk still finds a room.
-static void editspawnPushOut(struct coord *pos, RoomNum *rooms, f32 clearance)
+// it out of anything closer than the spawn's clearance. Each way is probed at
+// every height in ys and the deepest hit counts, so a wall that only reaches
+// the spawn's knees or its head still pushes. Opposite walls closer together
+// than twice the clearance cancel, which centres the spawn between them. Each
+// step is taken only if the portal walk still finds a room.
+//
+// The probes start from rooms[] even when ys[] is above or below pos->y.
+// Rooms in PD run floor to ceiling, so this holds everywhere except a probe
+// that crosses into a storey above; there the probe is simply blind.
+static void editspawnPushOut(struct coord *pos, RoomNum *rooms, f32 clearance, const f32 *ys, s32 numys)
 {
 	for (s32 iter = 0; iter < 2; iter++) {
 		struct coord push = { 0, 0, 0 };
@@ -558,25 +576,38 @@ static void editspawnPushOut(struct coord *pos, RoomNum *rooms, f32 clearance)
 			const f32 a = i * (M_PI / 4.f);
 			const f32 dx = sinf(a);
 			const f32 dz = cosf(a);
-			struct coord to;
+			f32 deepest = 0.f;
 
-			to.x = pos->x + dx * clearance;
-			to.y = pos->y;
-			to.z = pos->z + dz * clearance;
+			for (s32 h = 0; h < numys; h++) {
+				struct coord from;
+				struct coord to;
 
-			if (cdExamLos08(pos, rooms, &to, CDTYPE_BG | CDTYPE_DOORS | CDTYPE_OBJS,
-						GEOFLAG_WALL | GEOFLAG_BLOCK_SHOOT) == CDRESULT_COLLISION) {
-				struct coord hit;
-				f32 d;
+				from.x = pos->x;
+				from.y = ys[h];
+				from.z = pos->z;
 
-				cdGetPos(&hit, __LINE__, "editspawn.c");
-				d = sqrtf((hit.x - pos->x) * (hit.x - pos->x) + (hit.z - pos->z) * (hit.z - pos->z));
+				to.x = pos->x + dx * clearance;
+				to.y = ys[h];
+				to.z = pos->z + dz * clearance;
 
-				if (d < clearance) {
-					push.x -= dx * (clearance - d);
-					push.z -= dz * (clearance - d);
-					hits++;
+				if (cdExamLos08(&from, rooms, &to, CDTYPE_BG | CDTYPE_DOORS | CDTYPE_OBJS,
+							GEOFLAG_WALL | GEOFLAG_BLOCK_SHOOT) == CDRESULT_COLLISION) {
+					struct coord hit;
+					f32 d;
+
+					cdGetPos(&hit, __LINE__, "editspawn.c");
+					d = sqrtf((hit.x - pos->x) * (hit.x - pos->x) + (hit.z - pos->z) * (hit.z - pos->z));
+
+					if (clearance - d > deepest) {
+						deepest = clearance - d;
+					}
 				}
+			}
+
+			if (deepest > 0.f) {
+				push.x -= dx * deepest;
+				push.z -= dz * deepest;
+				hits++;
 			}
 		}
 
@@ -599,12 +630,107 @@ static void editspawnPushOut(struct coord *pos, RoomNum *rooms, f32 clearance)
 	}
 }
 
+// The floor a spawn at pos will be dropped onto, and the ceiling over that
+// floor. A ceiling here is the underside of the nearest floor tile overhead -
+// a ledge, a walkway, the next storey. A room's drawn ceiling is not
+// collision, so nothing can see it, and a spawn can still poke through one.
+// No ceiling found reads as unlimited headroom.
+static bool editspawnSpan(struct coord *pos, RoomNum *rooms, f32 *floory, f32 *ceily)
+{
+	struct coord probe;
+	f32 y = 0.f;
+	f32 c = 0.f;
+
+	if (cdFindFloorRoomYColourFlagsAtPos(pos, rooms, &y, NULL, NULL) <= 0) {
+		return false;
+	}
+
+	*floory = y;
+	*ceily = y + 1000000.f;
+
+	probe = *pos;
+	probe.y = y + 1.f;
+	c = probe.y;
+
+	if (cdFindCeilingRoomYColourFlagsAtPos(&probe, rooms, &c, NULL, NULL) > 0 && c > probe.y) {
+		*ceily = c;
+	}
+
+	return true;
+}
+
+// Source crosshairs with height. Both callers drop the spawn onto the floor
+// below the point, so the walls that matter are the ones beside where it
+// will stand, not beside where the ray hit: the push-out probes at knee
+// height and near the top of the spawn, measured up from that floor. Then,
+// if what is overhead leaves less than the spawn's height, it steps back
+// along the view ray - which is open all the way to the eye, it is how the
+// point was found - and tries again. Past EDITSPAWN_FIT_STEPS, or halfway
+// back to the eye, it keeps the last try and s_NoHeadroom says so.
+static void editspawnFit(struct editspawnaim *aim, struct coord *pos, RoomNum *rooms, f32 clearance, f32 height, f32 pulled)
+{
+	const f32 step = clearance > 20.f ? clearance : 20.f;
+
+	for (s32 i = 0; ; i++) {
+		struct coord next;
+		RoomNum nextrooms[8];
+		f32 floory;
+		f32 ceily;
+		f32 ys[2];
+		f32 knee = height * 0.25f;
+
+		if (knee > EDITSPAWN_KNEE) {
+			knee = EDITSPAWN_KNEE;
+		}
+
+		if (!editspawnSpan(pos, rooms, &floory, &ceily)) {
+			// nothing below to drop onto: probe where the point is
+			ys[0] = pos->y;
+			editspawnPushOut(pos, rooms, clearance, ys, 1);
+			return;
+		}
+
+		ys[0] = floory + knee;
+		ys[1] = floory + height * 0.9f;
+		editspawnPushOut(pos, rooms, clearance, ys, height * 0.9f > knee ? 2 : 1);
+
+		// the push can move it over a different floor
+		if (!editspawnSpan(pos, rooms, &floory, &ceily)
+				|| ceily - floory >= height + EDITSPAWN_HEADROOM) {
+			return;
+		}
+
+		if (i >= EDITSPAWN_FIT_STEPS || pulled + step > aim->hitdist * 0.5f) {
+			s_NoHeadroom = true;
+			sysLogPrintf(LOG_NOTE, "editspawn: %.0f under the overhang, needs %.0f",
+					ceily - floory, height + EDITSPAWN_HEADROOM);
+			return;
+		}
+
+		pulled += step;
+		next.x = aim->pos.x - aim->dir.x * pulled;
+		next.y = aim->pos.y - aim->dir.y * pulled;
+		next.z = aim->pos.z - aim->dir.z * pulled;
+
+		portal00018148(&aim->eye, &next, aim->eyerooms, nextrooms, NULL, 0);
+
+		if (nextrooms[0] <= 0) {
+			s_NoHeadroom = true;
+			return;
+		}
+
+		*pos = next;
+		roomsCopy(nextrooms, rooms);
+	}
+}
+
 // Where this spawn actually goes. An anchor is used as given. A crosshair
 // point is backed off the surface it hit: by the fixed 30 sandbox mode uses,
 // or, with source crosshairs on, by the spawn's own clearance - never more
 // than half the distance to the eye, so it cannot end up behind the camera -
-// and then pushed out sideways.
-static bool editspawnResolve(struct editspawnaim *aim, f32 clearance, struct coord *pos, RoomNum *rooms)
+// and then fitted: pushed out of walls at the height it will stand, and
+// stepped back from an overhang too low for it (editspawnFit).
+static bool editspawnResolve(struct editspawnaim *aim, f32 clearance, f32 height, struct coord *pos, RoomNum *rooms)
 {
 	f32 pull = EDITSPAWN_PULLBACK;
 
@@ -639,7 +765,7 @@ static bool editspawnResolve(struct editspawnaim *aim, f32 clearance, struct coo
 		*pos = pprop->pos;
 		roomsCopy(pprop->rooms, rooms);
 	} else if (g_EditSpawnSourceCrosshair) {
-		editspawnPushOut(pos, rooms, clearance);
+		editspawnFit(aim, pos, rooms, clearance, height, pull);
 	}
 
 	aim->yaw = editspawnYawToPlayer(pos);
@@ -771,6 +897,18 @@ static f32 editspawnObjClearance(struct defaultobj *obj)
 	return r;
 }
 
+// the model's height, scaled: what has to fit under an overhang
+static f32 editspawnObjHeight(struct defaultobj *obj)
+{
+	struct modelrodata_bbox *bbox = modelFindBboxRodata(obj->model);
+
+	if (bbox && bbox->ymax > bbox->ymin) {
+		return (bbox->ymax - bbox->ymin) * obj->model->scale;
+	}
+
+	return 20.f;
+}
+
 static struct prop *editspawnPlaceObj(struct defaultobj *obj, struct editspawnaim *aim)
 {
 	struct modeldef *modeldef;
@@ -802,7 +940,7 @@ static struct prop *editspawnPlaceObj(struct defaultobj *obj, struct editspawnai
 	modelSetScale(obj->model, obj->model->scale * (obj->extrascale * (1.0f / 256.0f)));
 
 	// the model exists now, so its size is known before it is placed
-	if (!editspawnResolve(aim, editspawnObjClearance(obj), &pos, rooms)) {
+	if (!editspawnResolve(aim, editspawnObjClearance(obj), editspawnObjHeight(obj), &pos, rooms)) {
 		return NULL;
 	}
 
@@ -931,7 +1069,9 @@ static struct prop *editspawnChr(s32 bodynum, bool ally, struct editspawnaim *ai
 	f32 floory;
 	u8 *ailist;
 
-	if (!editspawnResolve(aim, 30.f, &pos, rooms)) {
+	// the chr is not made yet, so its size is the stock one: radius 30, and
+	// the height of a standing guard (setup.c's DrCaroll fixup uses 185 too)
+	if (!editspawnResolve(aim, 30.f, 185.f, &pos, rooms)) {
 		return NULL;
 	}
 
@@ -1020,6 +1160,8 @@ struct prop *editspawnSpawn(s32 kind, s32 index, struct editspawnaim *aim)
 		return NULL;
 	}
 
+	s_NoHeadroom = false;
+
 	switch (kind) {
 	case EDITSPAWN_CHR:
 	case EDITSPAWN_ALLY:
@@ -1044,7 +1186,8 @@ struct prop *editspawnSpawn(s32 kind, s32 index, struct editspawnaim *aim)
 
 	if (prop) {
 		editspawnTrack(prop);
-		editspawnSay("spawned %s (live only)", name);
+		editspawnSay(s_NoHeadroom ? "spawned %s (live only) - no headroom, it may clip"
+				: "spawned %s (live only)", name);
 	} else {
 		editspawnSay("could not spawn %s there", name);
 	}
