@@ -26,11 +26,16 @@
  * change the framing in both places or neither.
  */
 
+#ifdef _WIN32
+#define _CRT_RAND_S /* rand_s is only declared with this, before stdlib.h */
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
-#ifndef _WIN32
+#ifdef _WIN32
+#include <process.h> /* _getpid */
+#else
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
