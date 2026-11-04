@@ -31,8 +31,9 @@
 #include "config.h"
 #include "system.h"
 #include "editspawn.h" // g_EditSpawnSourceCrosshair: the "Perfect Dark Source Crosshairs" option
+#include "sourcexhair.h"
+#include "savequeue.h"
 #include "game/camera.h"
-#include "game/game_0b0fd0.h"
 #include "game/bondmove.h"
 #include "lib/mtx.h"
 
@@ -1836,36 +1837,125 @@ Gfx *sightDraw(Gfx *gdl, bool sighton, s32 sight)
 /**
  * Perfect Dark Source crosshairs.
  *
- * The target cross is drawn where the aim line meets the world instead of on
- * the screen: a "+" lying in the plane of the surface, like the laser sight's
- * dot (lasersightRenderDot, gunfx.c). Perspective does the rest - it gets
- * smaller as the surface gets farther away and bigger up close, and a wall
- * seen at an angle squashes it.
+ * Near things, the target cross is drawn where the aim line meets the world
+ * instead of on the screen: a "+" turned toward the plane of the surface,
+ * like the laser sight's dot (lasersightRenderDot, gunfx.c), so it grows as
+ * the surface comes closer and a wall seen at an angle squashes it.
  *
- * Its size in the world is SourceCrosshairs.WorldSize while the surface is
- * between NearDist and FarDist. Past FarDist it grows with distance, so on
- * screen it stops shrinking there; inside NearDist it shrinks with distance,
- * so it stops growing. Size in world units = WorldSize * d / clamp(d, near, far).
+ * Far things get the flat cross, exactly as stock: past
+ * g_SourceXhair.normaldist sightDraw draws it and this draws nothing. Inside
+ * that distance sourceXhairWeight() eases from 0 to 1 across the blend band,
+ * and the weight scales both halves of the effect - growth and skew - so the
+ * handover is a slide, not a snap. The world cross is sized in screen pixels
+ * from the flat cross's own geometry (sightDrawTarget: arms from 1x to 3x
+ * SIGHT_SCALE, one pixel wide), so at weight 0 it is the flat cross.
  *
  * The point and the surface come from the aim trace lv.c runs every frame
  * (propFindAimingAt -> bgun0f0a94d0): hand->dotpos and hand->dotrot, the
- * normal of a bg hit or the shot direction for a prop. When the trace finds
- * nothing, or that trace does not run (plain split-screen multiplayer), the
- * flat cross is drawn as before.
+ * normal of a bg hit or the shot direction for a prop. With no hit, or where
+ * that trace does not run (plain split-screen multiplayer), it is the flat
+ * cross.
+ *
+ * Tuned live in the Fojo Crosshair window; saved as [SourceCrosshairs].
  */
-static f32 g_SourceXhairWorldSize = 10.f;
-static f32 g_SourceXhairNear = 60.f;
-static f32 g_SourceXhairFar = 1200.f;
-static f32 g_SourceXhairAlphaMul = 3.f; // the flat cross overdraws itself; a quad does not
-static s32 g_SourceXhairTrace = 1;
+struct sourcexhairtuning g_SourceXhair;
+
+static const struct sourcexhairtuning g_SourceXhairDefaults = {
+	1500.0f, // normaldist
+	60.0f,   // neardist
+	0.6f,    // blend
+	0.6f,    // grow
+	0.75f,   // skew
+	1.0f,    // size
+	2.0f,    // alphamul
+	1,       // trace
+};
+
+static struct sourcexhairlive g_SourceXhairLive;
+
+void sourceXhairReset(void)
+{
+	g_SourceXhair = g_SourceXhairDefaults;
+	sourceXhairChanged();
+}
+
+static void sourceXhairClamp(void)
+{
+	struct sourcexhairtuning *t = &g_SourceXhair;
+
+	if (t->neardist < 1.0f) t->neardist = 1.0f;
+	if (t->normaldist < t->neardist + 1.0f) t->normaldist = t->neardist + 1.0f;
+	if (t->blend < 0.0f) t->blend = 0.0f;
+	if (t->blend > 1.0f) t->blend = 1.0f;
+	if (t->grow < 0.0f) t->grow = 0.0f;
+	if (t->grow > 1.0f) t->grow = 1.0f;
+	if (t->skew < 0.0f) t->skew = 0.0f;
+	if (t->skew > 1.0f) t->skew = 1.0f;
+	if (t->size < 0.1f) t->size = 0.1f;
+	if (t->alphamul < 0.0f) t->alphamul = 0.0f;
+}
+
+void sourceXhairChanged(void)
+{
+	sourceXhairClamp();
+	saveQueueMarkConfig();
+}
 
 PD_CONSTRUCTOR static void sightSourceXhairConfigInit(void)
 {
-	configRegisterFloat("SourceCrosshairs.WorldSize", &g_SourceXhairWorldSize, 0.5f, 200.f);
-	configRegisterFloat("SourceCrosshairs.NearDist", &g_SourceXhairNear, 1.f, 2000.f);
-	configRegisterFloat("SourceCrosshairs.FarDist", &g_SourceXhairFar, 10.f, 20000.f);
-	configRegisterFloat("SourceCrosshairs.AlphaMul", &g_SourceXhairAlphaMul, 0.f, 10.f);
-	configRegisterInt("SourceCrosshairs.Trace", &g_SourceXhairTrace, 0, 1);
+	g_SourceXhair = g_SourceXhairDefaults;
+
+	configRegisterFloat("SourceCrosshairs.NormalDist", &g_SourceXhair.normaldist, 2.f, 20000.f);
+	configRegisterFloat("SourceCrosshairs.NearDist", &g_SourceXhair.neardist, 1.f, 5000.f);
+	configRegisterFloat("SourceCrosshairs.Blend", &g_SourceXhair.blend, 0.f, 1.f);
+	configRegisterFloat("SourceCrosshairs.Grow", &g_SourceXhair.grow, 0.f, 1.f);
+	configRegisterFloat("SourceCrosshairs.Skew", &g_SourceXhair.skew, 0.f, 1.f);
+	configRegisterFloat("SourceCrosshairs.Size", &g_SourceXhair.size, 0.1f, 10.f);
+	configRegisterFloat("SourceCrosshairs.AlphaMul", &g_SourceXhair.alphamul, 0.f, 10.f);
+	configRegisterInt("SourceCrosshairs.Trace", &g_SourceXhair.trace, 0, 1);
+}
+
+f32 sourceXhairWeight(f32 dist)
+{
+	const struct sourcexhairtuning *t = &g_SourceXhair;
+	f32 band = t->blend * (t->normaldist - t->neardist);
+	f32 x;
+
+	if (dist >= t->normaldist) {
+		return 0.0f;
+	}
+
+	if (band < 1.0f) {
+		return 1.0f; // blend 0: a hard switch at normaldist
+	}
+
+	x = (t->normaldist - dist) / band;
+
+	if (x >= 1.0f) {
+		return 1.0f;
+	}
+
+	return x * x * (3.0f - 2.0f * x); // smoothstep
+}
+
+f32 sourceXhairScreenScale(f32 dist)
+{
+	const struct sourcexhairtuning *t = &g_SourceXhair;
+	f32 d = dist < t->neardist ? t->neardist : dist;
+	f32 w = sourceXhairWeight(dist);
+
+	if (d >= t->normaldist) {
+		return t->size;
+	}
+
+	// full perspective from normaldist in would be normaldist / d; grow and
+	// the weight take a share of that, as an exponent so it stays smooth
+	return t->size * __builtin_powf(t->normaldist / d, t->grow * w);
+}
+
+const struct sourcexhairlive *sourceXhairLive(void)
+{
+	return &g_SourceXhairLive;
 }
 
 // why the surface cross is or is not drawn, logged when it changes
@@ -1879,15 +1969,17 @@ static bool sightSourceXhairNo(const char *why)
 
 /**
  * Whether this frame's crosshair goes on the surface: the same conditions
- * sightDraw uses to show the target cross, plus a hit to put it on. Called
- * from both passes so they agree.
+ * sightDraw uses to show the target cross, a hit to put it on, and that hit
+ * nearer than normaldist. Called from both passes so they agree.
  */
 bool sightSurfaceCrosshairWanted(void)
 {
 	struct player *player = g_Vars.currentplayer;
+	struct hand *hand;
 	s32 mpindex;
 	s32 sight;
 	bool sighton;
+	f32 dx, dy, dz;
 
 	if (!g_EditSpawnSourceCrosshair) {
 		return sightSourceXhairNo("option off");
@@ -1939,21 +2031,43 @@ bool sightSurfaceCrosshairWanted(void)
 		return sightSourceXhairNo("no per-frame aim trace here (split-screen)");
 	}
 
-	if (!player->hands[HAND_RIGHT].hasdotinfo) {
+	hand = &player->hands[HAND_RIGHT];
+
+	if (!hand->hasdotinfo) {
 		return sightSourceXhairNo("aim trace hit nothing");
 	}
 
-	g_SourceXhairWhy = "on";
+	dx = hand->dotpos.x - player->cam_pos.x;
+	dy = hand->dotpos.y - player->cam_pos.y;
+	dz = hand->dotpos.z - player->cam_pos.z;
+	g_SourceXhairLive.dist = sqrtf(dx * dx + dy * dy + dz * dz);
+	g_SourceXhairLive.weight = sourceXhairWeight(g_SourceXhairLive.dist);
+	g_SourceXhairLive.scale = sourceXhairScreenScale(g_SourceXhairLive.dist);
+
+	if (g_SourceXhairLive.dist < 1.0f) {
+		return sightSourceXhairNo("hit is at the eye");
+	}
+
+	// vertices are s16 at 5x (see below), so 6000 is about as far as it can go
+	if (g_SourceXhairLive.dist > 6000.0f || g_SourceXhairLive.weight <= 0.001f) {
+		return sightSourceXhairNo("far: normal crosshair");
+	}
+
+	g_SourceXhairWhy = "on the surface";
 
 	return true;
 }
 
-static void sightSourceXhairTrace(bool wanted, const struct coord *pos, const struct coord *nrm, f32 dist, f32 size)
+static void sightSourceXhairTrace(bool drawn)
 {
 	static const char *lastwhy = NULL;
 	static s32 frames = 0;
+	struct sourcexhairlive *live = &g_SourceXhairLive;
 
-	if (!g_SourceXhairTrace) {
+	live->drawn = drawn;
+	live->why = g_SourceXhairWhy;
+
+	if (!g_SourceXhair.trace) {
 		return;
 	}
 
@@ -1963,11 +2077,27 @@ static void sightSourceXhairTrace(bool wanted, const struct coord *pos, const st
 	}
 
 	// while drawn, a sample about once a second at 60
-	if (wanted && pos && ++frames >= 60) {
+	if (drawn && ++frames >= 60) {
 		frames = 0;
-		sysLogPrintf(LOG_NOTE, "sourcexhair: at (%.0f %.0f %.0f) normal (%.2f %.2f %.2f) dist %.0f size %.1f",
-				pos->x, pos->y, pos->z, nrm->x, nrm->y, nrm->z, dist, size);
+		sysLogPrintf(LOG_NOTE, "sourcexhair: dist %.0f weight %.2f scale %.2f", live->dist, live->weight, live->scale);
 	}
+}
+
+// the surface's own axes, the way lasersightRenderDot builds them: u level
+// along the plane, v down it. A floor or a ceiling has no level direction of
+// its own, so it takes the world's x and z.
+static void sightSourceXhairBasis(const f32 *n, f32 *u, f32 *v)
+{
+	f32 h = sqrtf(n[0] * n[0] + n[2] * n[2]);
+
+	if (h < 0.0001f) {
+		u[0] = 1.0f; u[1] = 0.0f; u[2] = 0.0f;
+		v[0] = 0.0f; v[1] = 0.0f; v[2] = 1.0f;
+		return;
+	}
+
+	u[0] = n[2] / h;        u[1] = 0.0f; u[2] = -n[0] / h;
+	v[0] = n[1] * n[0] / h; v[1] = -h;   v[2] = n[1] * n[2] / h;
 }
 
 Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
@@ -1975,14 +2105,17 @@ Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
 	struct player *player = g_Vars.currentplayer;
 	struct hand *hand;
 	struct coord pos;
-	struct coord nrm;
+	f32 n[3];
 	f32 u[3];
 	f32 v[3];
 	f32 dist;
-	f32 clamped;
-	f32 size;
-	f32 thick;
+	f32 w;
+	f32 pxworld;
+	f32 scale;
+	f32 tip;
 	f32 gap;
+	f32 thick;
+	f32 len;
 	u32 colour;
 	u32 alpha;
 	Mtxf mtxf;
@@ -1992,63 +2125,60 @@ Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
 	s32 arm;
 
 	if (!sightSurfaceCrosshairWanted()) {
-		sightSourceXhairTrace(false, NULL, NULL, 0, 0);
+		sightSourceXhairTrace(false);
 		return gdl;
 	}
 
 	hand = &player->hands[HAND_RIGHT];
+	dist = g_SourceXhairLive.dist;
+	w = g_SourceXhairLive.weight;
 
 	pos.x = hand->dotpos.x - player->cam_pos.x;
 	pos.y = hand->dotpos.y - player->cam_pos.y;
 	pos.z = hand->dotpos.z - player->cam_pos.z;
-	dist = sqrtf(pos.x * pos.x + pos.y * pos.y + pos.z * pos.z);
 
-	// vertices are s16 at 5x (see below), so 6000 is about as far as it can go
-	if (dist < 1.0f || dist > 6000.0f) {
-		g_SourceXhairWhy = dist < 1.0f ? "hit is at the eye" : "hit is past 6000";
-		sightSourceXhairTrace(false, NULL, NULL, 0, 0);
-		return gdl;
+	// The plane it lies in: from facing the eye (the flat cross) toward the
+	// surface's own, by skew and the weight. The surface normal from a bg
+	// hit can face either way; take the side the eye is on.
+	{
+		f32 e[3] = { -pos.x / dist, -pos.y / dist, -pos.z / dist };
+		f32 s[3] = { hand->dotrot.x, hand->dotrot.y, hand->dotrot.z };
+		f32 k = g_SourceXhair.skew * w;
+		f32 slen = sqrtf(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+
+		if (slen < 0.0001f) {
+			s[0] = e[0]; s[1] = e[1]; s[2] = e[2];
+		} else {
+			s[0] /= slen; s[1] /= slen; s[2] /= slen;
+
+			if (s[0] * e[0] + s[1] * e[1] + s[2] * e[2] < 0.0f) {
+				s[0] = -s[0]; s[1] = -s[1]; s[2] = -s[2];
+			}
+		}
+
+		n[0] = e[0] + (s[0] - e[0]) * k;
+		n[1] = e[1] + (s[1] - e[1]) * k;
+		n[2] = e[2] + (s[2] - e[2]) * k;
+		len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+		n[0] /= len; n[1] /= len; n[2] /= len;
 	}
 
-	// The surface's own axes, built the way lasersightRenderDot builds them:
-	// u level along the surface, v down it. A floor or a ceiling has no
-	// level direction of its own, so it takes the world's x and z.
-	nrm = hand->dotrot;
+	sightSourceXhairBasis(n, u, v);
 
-	if (nrm.x == 0.0f && nrm.z == 0.0f) {
-		u[0] = 1.0f; u[1] = 0.0f; u[2] = 0.0f;
-		v[0] = 0.0f; v[1] = 0.0f; v[2] = 1.0f;
-	} else {
-		f32 len = sqrtf(nrm.x * nrm.x + nrm.y * nrm.y + nrm.z * nrm.z);
-		f32 nx = nrm.x / len;
-		f32 ny = nrm.y / len;
-		f32 nz = nrm.z / len;
-		f32 h = sqrtf(nx * nx + nz * nz);
+	// world units per screen pixel at this distance, in the flat cross's
+	// own pixels (viewport height, the same space sightDrawTarget draws in)
+	pxworld = 2.0f * dist * __builtin_tanf(viGetFovY() * (M_PI / 360.0f)) / viGetViewHeight();
+	scale = g_SourceXhairLive.scale * (SIGHT_SCALE > 0 ? SIGHT_SCALE : 1);
+	gap = 1.0f * scale * pxworld;
+	tip = 3.0f * scale * pxworld;
+	thick = 0.5f * pxworld * g_SourceXhairLive.scale;
 
-		u[0] = nz / h;      u[1] = 0.0f; u[2] = -nx / h;
-		v[0] = ny * nx / h; v[1] = -h;   v[2] = ny * nz / h;
-	}
-
-	clamped = dist;
-
-	if (clamped < g_SourceXhairNear) {
-		clamped = g_SourceXhairNear;
-	}
-
-	if (clamped > g_SourceXhairFar) {
-		clamped = g_SourceXhairFar;
-	}
-
-	size = g_SourceXhairWorldSize * (SIGHT_SCALE > 0 ? SIGHT_SCALE : 1) * 0.5f * dist / clamped;
-	thick = size * 0.12f;
-	gap = size * 0.33f;
-
-	sightSourceXhairTrace(true, &hand->dotpos, &nrm, dist, size);
+	sightSourceXhairTrace(true);
 
 	// a touch off the surface, toward the eye, so it neither fights the wall
 	// for depth nor hides under a bullet hole
 	{
-		const f32 lift = (2.0f + size * 0.1f) / dist;
+		const f32 lift = (2.0f + tip * 0.1f) / dist;
 
 		pos.x -= pos.x * lift;
 		pos.y -= pos.y * lift;
@@ -2056,7 +2186,7 @@ Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
 	}
 
 	colour = SIGHT_COLOUR;
-	alpha = (u32)((colour & 0xff) * g_SourceXhairAlphaMul);
+	alpha = (u32)((colour & 0xff) * g_SourceXhair.alphamul);
 
 	if (alpha > 0xff) {
 		alpha = 0xff;
@@ -2095,7 +2225,7 @@ Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
 		const f32 *along = (arm & 1) ? v : u;
 		const f32 *across = (arm & 1) ? u : v;
 		const f32 sign = (arm & 2) ? -1.0f : 1.0f;
-		const f32 ends[2] = { gap * sign, size * sign };
+		const f32 ends[2] = { gap * sign, tip * sign };
 		s32 k;
 
 		for (k = 0; k < 4; k++) {

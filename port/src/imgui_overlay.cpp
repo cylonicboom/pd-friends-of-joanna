@@ -33,6 +33,7 @@
 #include "romdata.h"
 #include "asset.h"
 #include "editspawn.h"
+#include "sourcexhair.h"
 #include "system.h"
 #include "lib/profile.h"
 #include "prof.h"
@@ -62,6 +63,7 @@ static bool g_ImGuiOverlayShowProportions = false;
 static bool g_ImGuiOverlayShowStance = false;
 static bool g_ImGuiOverlayShowPauseBlur = false;
 static bool g_ImGuiOverlayShowSway = false;
+static bool g_ImGuiOverlayShowCrosshair = false;
 static bool g_ImGuiOverlayShowMenuBg = false;
 static bool g_ImGuiOverlayShowAudio = false;
 static bool g_ImGuiOverlayShowLua = false;
@@ -7520,6 +7522,105 @@ static void imguiOverlayDrawSwayPanel(void)
 	}
 }
 
+// ----------------------------------------------------------------------------
+// Crosshair panel
+//
+// Perfect Dark Source crosshairs (sight.c): where the cross hands over from the
+// flat one to the one drawn on the surface, and how gently. Every change is
+// [SourceCrosshairs] in pd.ini, saved through the queue.
+// ----------------------------------------------------------------------------
+
+static bool imguiOverlayCrosshairKnob(const char *label, f32 *v, f32 lo, f32 hi, const char *fmt, const char *tip)
+{
+	const bool changed = ImGui::SliderFloat(label, v, lo, hi, fmt);
+
+	if (tip && ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", tip);
+	}
+
+	return changed;
+}
+
+static void imguiOverlayDrawCrosshairPanel(void)
+{
+	struct sourcexhairtuning *t = &g_SourceXhair;
+	const struct sourcexhairlive *live = sourceXhairLive();
+	bool on = g_EditSpawnSourceCrosshair != 0;
+	bool trace = t->trace != 0;
+	bool changed = false;
+
+	if (ImGui::Checkbox("Perfect Dark Source Crosshairs", &on)) {
+		editspawnSetSourceCrosshair(on ? 1 : 0);
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Also in Fojo Options > Game. Moves editor crosshair spawns off walls too.");
+	}
+
+	ImGui::Separator();
+	ImGui::TextDisabled("Distances are world units from your eye to what you aim at.");
+
+	changed |= imguiOverlayCrosshairKnob("Normal crosshair beyond", &t->normaldist, t->neardist + 1.0f, 6000.0f, "%.0f",
+			"Farther than this, the flat crosshair, exactly as stock.\n"
+			"Nearer, it starts moving onto the surface.");
+	changed |= imguiOverlayCrosshairKnob("Stops growing inside", &t->neardist, 1.0f, t->normaldist - 1.0f, "%.0f",
+			"Closer than this it keeps the size it had here.");
+	changed |= imguiOverlayCrosshairKnob("Blend", &t->blend, 0.0f, 1.0f, "%.2f",
+			"How gently it hands over. 0 snaps onto the surface at the\n"
+			"normal distance; 1 eases in across the whole range, so the\n"
+			"growth and the skew only reach full strength up close.");
+	changed |= imguiOverlayCrosshairKnob("Grow", &t->grow, 0.0f, 1.0f, "%.2f",
+			"How much bigger it gets as you close in.\n"
+			"0 keeps the flat cross's size on screen; 1 is full perspective.");
+	changed |= imguiOverlayCrosshairKnob("Skew", &t->skew, 0.0f, 1.0f, "%.2f",
+			"How far it turns to lie on the surface.\n"
+			"0 always faces you; 1 lies flat on the wall.");
+	changed |= imguiOverlayCrosshairKnob("Size", &t->size, 0.25f, 4.0f, "%.2fx",
+			"On-screen size at the normal distance, times the flat cross.\n"
+			"Above 1 it jumps at the hand-over; Crosshair Size still applies.");
+	changed |= imguiOverlayCrosshairKnob("Opacity boost", &t->alphamul, 0.0f, 6.0f, "%.1fx",
+			"Times the crosshair colour's own alpha.");
+
+	if (ImGui::Checkbox("Log to pd.log (sourcexhair:)", &trace)) {
+		t->trace = trace ? 1 : 0;
+		changed = true;
+	}
+
+	if (changed) {
+		sourceXhairChanged();
+	}
+
+	ImGui::Separator();
+
+	{
+		static const s32 N = 64;
+		float scale[N];
+		float weight[N];
+		const f32 maxd = t->normaldist * 1.25f;
+
+		for (s32 i = 0; i < N; i++) {
+			const f32 d = maxd * (i + 0.5f) / N;
+			scale[i] = sourceXhairScreenScale(d);
+			weight[i] = sourceXhairWeight(d);
+		}
+
+		ImGui::PlotLines("Size", scale, N, 0, NULL, 0.0f, 3.4e38f, ImVec2(0, 60));
+		ImGui::PlotLines("On surface", weight, N, 0, NULL, 0.0f, 1.0f, ImVec2(0, 40));
+		ImGui::TextDisabled("Near on the left, %.0f on the right.", maxd);
+	}
+
+	ImGui::Separator();
+	ImGui::Text("Now: %s", live->why && *live->why ? live->why : "-");
+
+	if (live->dist > 0.0f) {
+		ImGui::Text("distance %.0f   on surface %.2f   size %.2fx", live->dist, live->weight, live->scale);
+	}
+
+	if (ImGui::Button("Reset to defaults")) {
+		sourceXhairReset();
+	}
+}
+
 static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Runtime",     "Fojo Runtime",     &g_ImGuiOverlayShowRuntime,     imguiOverlayDrawRuntimePanel,     360.0f, 300.0f, 0.0f, 0.00f, NULL, kFojoDev  },
 	{ "Stage",       "Fojo Stage",       &g_ImGuiOverlayShowStage,       imguiOverlayDrawStagePanel,       480.0f, 560.0f, 1.0f, 0.00f, NULL, kFojoDev  },
@@ -7543,6 +7644,7 @@ static const struct imguiOverlayWindowDef g_ImGuiOverlayWindowDefs[] = {
 	{ "Profiles",    "Fojo Profiles",    &g_ImGuiOverlayShowProfiles,    imguiProfilesDrawPanel,           520.0f, 520.0f, 0.5f, 0.45f, NULL, kFojoUser },
 	{ "Netplay",     "Fojo Netplay",     &g_ImGuiOverlayShowNetplay,     imguiNetplayDrawPanel,            520.0f, 560.0f, 0.5f, 0.45f, NULL, kFojoUser },
 	{ "Import",      "Fojo Import",      &g_ImGuiOverlayShowImport,      imguiOverlayDrawImportPanel,      460.0f, 260.0f, 0.5f, 0.65f, NULL, kFojoDev  },
+	{ "Crosshair",   "Fojo Crosshair",   &g_ImGuiOverlayShowCrosshair,   imguiOverlayDrawCrosshairPanel,   420.0f, 520.0f, 0.5f, 0.50f, NULL, kFojoUser },
 };
 
 // The change mask below is one bit per row, so the table has a ceiling of 32.
