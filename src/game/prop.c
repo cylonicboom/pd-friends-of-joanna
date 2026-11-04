@@ -3553,7 +3553,7 @@ void farsightChooseTarget(void)
 		s32 numchrs = chrsGetNumSlots();
 
 		for (i = numchrs - 1; i >= 0; i--) {
-			struct prop *prop = g_ChrSlots[i].prop;
+			struct prop *prop = chrslotGet(i)->prop;
 
 			if (prop && prop->chr) {
 				if ((prop->type == PROPTYPE_CHR && (prop->flags & PROPFLAG_ENABLED))

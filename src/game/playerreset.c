@@ -488,7 +488,7 @@ void playerReset(void)
 	numchrs = chrsGetNumSlots();
 
 	for (i = 0; i < numchrs; i++) {
-		chr = &g_ChrSlots[i];
+		chr = chrslotGet(i);
 
 		if (chr->target == -2) {
 			chr->target = g_Vars.currentplayer->prop - g_Vars.props;

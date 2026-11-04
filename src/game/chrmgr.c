@@ -23,8 +23,8 @@ void chrmgrReset(void)
 	var80062978 = 0;
 	var8006297c = 0;
 	g_NextChrnum = 5000;
-	g_ChrSlots = NULL;
-	g_NumChrSlots = 0;
+	g_ChrSlotStore = NULL;
+	g_ChrSlotCount = 0;
 
 	g_ShieldHits = mempAlloc(sizeof(struct shieldhit) * 20, MEMPOOL_STAGE);
 
@@ -51,32 +51,33 @@ void chrmgrReset(void)
 	resetSomeStageThings();
 }
 
+// The one place the chr slot store is allocated; see game/chrslots.h.
 void chrmgrConfigure(s32 numchrs)
 {
 	s32 i;
 
-	g_NumChrSlots = playermgrBudgetCount() + numchrs + 10; // fojo: MAX_PLAYERS in a team mission
-	g_ChrSlots = mempAlloc(ALIGN16(g_NumChrSlots * sizeof(struct chrdata)), MEMPOOL_STAGE);
+	g_ChrSlotCount = playermgrBudgetCount() + numchrs + 10; // fojo: MAX_PLAYERS in a team mission
+	g_ChrSlotStore = mempAlloc(ALIGN16(g_ChrSlotCount * sizeof(struct chrdata)), MEMPOOL_STAGE);
 
 #ifndef PLATFORM_N64
 	// Zero the whole slot array. MEMPOOL_STAGE is rewound, never cleared, so
 	// slots otherwise start as whatever the PREVIOUS stage left at this pool
 	// offset - and chrInit is field-by-field, leaving the port-appended fields
 	// (the netplay snapshot ring pointer among them) on those stale bytes.
-	memset(g_ChrSlots, 0, g_NumChrSlots * sizeof(struct chrdata));
+	memset(g_ChrSlotStore, 0, g_ChrSlotCount * sizeof(struct chrdata));
 #endif
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		g_ChrSlots[i].chrnum = -1;
-		g_ChrSlots[i].model = NULL;
-		g_ChrSlots[i].prop = NULL;
+	for (i = 0; i < g_ChrSlotCount; i++) {
+		g_ChrSlotStore[i].chrnum = -1;
+		g_ChrSlotStore[i].model = NULL;
+		g_ChrSlotStore[i].prop = NULL;
 	}
 
 	g_NumChrs = 0;
-	g_Chrnums = mempAlloc(ALIGN16(g_NumChrSlots * sizeof(g_Chrnums[0])), MEMPOOL_STAGE);
-	g_ChrIndexes = mempAlloc(ALIGN16(g_NumChrSlots * sizeof(g_ChrIndexes[0])), MEMPOOL_STAGE);
+	g_Chrnums = mempAlloc(ALIGN16(g_ChrSlotCount * sizeof(g_Chrnums[0])), MEMPOOL_STAGE);
+	g_ChrIndexes = mempAlloc(ALIGN16(g_ChrSlotCount * sizeof(g_ChrIndexes[0])), MEMPOOL_STAGE);
 
-	for (i = 0; i < g_NumChrSlots; i++) {
+	for (i = 0; i < g_ChrSlotCount; i++) {
 		g_Chrnums[i] = -1;
 		g_ChrIndexes[i] = -1;
 	}

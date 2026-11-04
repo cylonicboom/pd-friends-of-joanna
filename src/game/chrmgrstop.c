@@ -11,14 +11,14 @@ void chrmgrStop(void)
 {
 	s32 i;
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum >= 0
-				&& g_ChrSlots[i].prop
-				&& g_ChrSlots[i].prop->type == PROPTYPE_CHR) {
-			chrRemove(g_ChrSlots[i].prop, true);
-			propDelist(g_ChrSlots[i].prop);
-			propDisable(g_ChrSlots[i].prop);
-			propFree(g_ChrSlots[i].prop);
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum >= 0
+				&& chrslotGet(i)->prop
+				&& chrslotGet(i)->prop->type == PROPTYPE_CHR) {
+			chrRemove(chrslotGet(i)->prop, true);
+			propDelist(chrslotGet(i)->prop);
+			propDisable(chrslotGet(i)->prop);
+			propFree(chrslotGet(i)->prop);
 		}
 	}
 }

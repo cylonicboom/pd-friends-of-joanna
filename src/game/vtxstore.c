@@ -180,7 +180,7 @@ void *vtxstoreAllocate(s32 count, s32 index, struct modelnode *node, s32 level)
 	tally = 0;
 
 	for (i = 0; i < numchrs; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+		struct chrdata *chr = chrslotGet(i);
 
 		if (chr->model
 				&& chr->prop

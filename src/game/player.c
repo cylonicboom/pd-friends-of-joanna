@@ -1133,28 +1133,28 @@ void playerSpawn(void)
 			}
 
 			for (i = 0; i < chrsGetNumSlots(); i++) {
-				if (g_ChrSlots[i].model
-						&& g_ChrSlots[i].prop
-						&& (g_ChrSlots[i].hidden & CHRHFLAG_BASICGUARD)
-						&& (g_ChrSlots[i].chrflags & CHRCFLAG_HIDDEN) == 0
-						&& g_ChrSlots[i].prop->type == PROPTYPE_CHR
-						&& !chrIsDead(&g_ChrSlots[i])
-						&& (g_ChrSlots[i].prop->flags & PROPFLAG_ENABLED)) {
+				if (chrslotGet(i)->model
+						&& chrslotGet(i)->prop
+						&& (chrslotGet(i)->hidden & CHRHFLAG_BASICGUARD)
+						&& (chrslotGet(i)->chrflags & CHRCFLAG_HIDDEN) == 0
+						&& chrslotGet(i)->prop->type == PROPTYPE_CHR
+						&& !chrIsDead(chrslotGet(i))
+						&& (chrslotGet(i)->prop->flags & PROPFLAG_ENABLED)) {
 					if (g_Vars.bond->prop) {
-						xdiff = g_ChrSlots[i].prop->pos.x - g_Vars.bond->prop->pos.x;
-						ydiff = g_ChrSlots[i].prop->pos.y - g_Vars.bond->prop->pos.y;
-						zdiff = g_ChrSlots[i].prop->pos.z - g_Vars.bond->prop->pos.z;
+						xdiff = chrslotGet(i)->prop->pos.x - g_Vars.bond->prop->pos.x;
+						ydiff = chrslotGet(i)->prop->pos.y - g_Vars.bond->prop->pos.y;
+						zdiff = chrslotGet(i)->prop->pos.z - g_Vars.bond->prop->pos.z;
 					} else {
-						xdiff = g_ChrSlots[i].prop->pos.x - g_Vars.currentplayer->prop->pos.x;
-						ydiff = g_ChrSlots[i].prop->pos.y - g_Vars.currentplayer->prop->pos.y;
-						zdiff = g_ChrSlots[i].prop->pos.z - g_Vars.currentplayer->prop->pos.z;
+						xdiff = chrslotGet(i)->prop->pos.x - g_Vars.currentplayer->prop->pos.x;
+						ydiff = chrslotGet(i)->prop->pos.y - g_Vars.currentplayer->prop->pos.y;
+						zdiff = chrslotGet(i)->prop->pos.z - g_Vars.currentplayer->prop->pos.z;
 					}
 
 					sqdist = xdiff * xdiff + ydiff * ydiff + zdiff * zdiff;
 
 					if (g_Vars.lvframenum > 0
-							&& (g_ChrSlots[i].hidden & CHRHFLAG_ONBONDSSCREEN)
-							&& func0f06b39c(&sp78, &sp90, &g_ChrSlots[i].prop->pos, modelGetEffectiveScale(g_ChrSlots[i].model))
+							&& (chrslotGet(i)->hidden & CHRHFLAG_ONBONDSSCREEN)
+							&& func0f06b39c(&sp78, &sp90, &chrslotGet(i)->prop->pos, modelGetEffectiveScale(chrslotGet(i)->model))
 							&& (rngRandom() % 8)) {
 						sqdist += 1000 * 1000;
 					}
@@ -1179,7 +1179,7 @@ void playerSpawn(void)
 						}
 
 						// Write new sqdist
-						sortedchrs[j] = &g_ChrSlots[i];
+						sortedchrs[j] = chrslotGet(i);
 						sorteddists[j] = sqdist;
 
 						if (numsqdists < 9) {

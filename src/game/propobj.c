@@ -227,7 +227,7 @@ bool doorCallLift(struct prop *doorprop, bool allowclose)
 								 * @bug: This is missing a chrIsDead check.
 								 * If a chr dies in a lift it can no longer be called.
 								 */
-								if (g_ChrSlots[i].prop && g_ChrSlots[i].lift == link->lift) {
+								if (chrslotGet(i)->prop && chrslotGet(i)->lift == link->lift) {
 									vacant = false;
 									break;
 								}
@@ -2581,8 +2581,8 @@ void objFree(struct defaultobj *obj, bool freeprop, bool canregen)
 				// flag. If the propnum was 0, all chrs would be assigned to
 				// this one chair, and their original chairs would still have
 				// the occupied flag.
-				if ((g_ChrSlots[i].proppreset1 = obj->prop - g_Vars.props)) {
-					g_ChrSlots[i].proppreset1 = -1;
+				if ((chrslotGet(i)->proppreset1 = obj->prop - g_Vars.props)) {
+					chrslotGet(i)->proppreset1 = -1;
 				}
 			}
 		}
@@ -8908,7 +8908,7 @@ void autogunTick(struct prop *prop)
 						continue;
 					}
 				} else {
-					chr = &g_ChrSlots[autogun->nextchrtest];
+					chr = chrslotGet(autogun->nextchrtest);
 
 					if (!chr->prop) {
 						continue;
@@ -11577,8 +11577,8 @@ s32 objTickPlayer(struct prop *prop)
 						numchrs = chrsGetNumSlots();
 
 						for (i = 0; i < numchrs; i++) {
-							if (g_ChrSlots[i].myspecial == tagnum) {
-								g_ChrSlots[i].myspecial = -1;
+							if (chrslotGet(i)->myspecial == tagnum) {
+								chrslotGet(i)->myspecial = -1;
 							}
 						}
 					}
@@ -19220,7 +19220,7 @@ void chrsTriggerProxies(void)
 	s32 i;
 
 	for (i = 0; i < numchrs; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+		struct chrdata *chr = chrslotGet(i);
 		struct coord pos;
 
 		if (chr->model

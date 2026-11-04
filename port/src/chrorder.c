@@ -3,7 +3,7 @@
  * See port/include/chrorder.h for the shape; this is the bookkeeping.
  *
  * A chr is keyed by chrnum, not by pointer: chr slots are reused across a
- * stage restart, and a chrnum survives a reallocation of g_ChrSlots. The
+ * stage restart, and a chrnum survives a reallocation of the chr slots. The
  * whole table is dropped when the stage changes or restarts (lvframenum
  * going backwards).
  *
@@ -198,12 +198,12 @@ s32 chrOrderCount(struct chrdata *chr)
 
 static struct chrdata *chrOrderChr(s32 chrnum)
 {
-	if (!g_ChrSlots) {
+	if (chrsGetNumSlots() <= 0) {
 		return NULL;
 	}
-	for (s32 i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum == chrnum) {
-			return &g_ChrSlots[i];
+	for (s32 i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum == chrnum) {
+			return chrslotGet(i);
 		}
 	}
 	return NULL;

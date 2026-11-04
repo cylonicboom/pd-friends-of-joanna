@@ -348,12 +348,12 @@ static s32 modelSwapRebuildLiveChrs(void)
 	s32 i;
 	s32 rebuilt = 0;
 
-	if (g_ChrSlots == NULL) {
+	if (chrsGetNumSlots() <= 0) {
 		return 0;
 	}
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		struct chrdata *chr = chrslotGet(i);
 		struct model *old;
 		struct model *neu;
 		struct coord pos;
@@ -520,7 +520,7 @@ void modelSwapSetActive(bool on)
 
 		sysLogPrintf(LOG_NOTE,
 				"modelswap: %s chrs=%d rebuilt=%d nullloads=%d redirects=%d misses=%d probe(file=%d '%s' -> overlay=%d)",
-				on ? "ON" : "OFF", g_NumChrSlots, rebuilt,
+				on ? "ON" : "OFF", chrsGetNumSlots(), rebuilt,
 				g_ModelSwapNullLoads, g_ModelSwapRedirects, g_ModelSwapMisses,
 				probefile, romdataFileGetName(probefile) ? romdataFileGetName(probefile) : "?", probecn);
 	}
@@ -911,7 +911,7 @@ void bodyAllocateChr(s32 stagenum, struct packedchr *packed, s32 cmdindex)
 			chr->myspecial = packed->chair;
 			chr->yvisang = packed->yvisang;
 
-			packed->chrindex = chr - g_ChrSlots;
+			packed->chrindex = chrslotIndexOf(chr);
 
 			chr->teamscandist = packed->teamscandist;
 			chr->convtalk = packed->convtalk;

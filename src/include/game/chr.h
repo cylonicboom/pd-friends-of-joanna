@@ -99,7 +99,6 @@ Gfx *chrRenderCloak(Gfx *gdl, struct prop *chr1, struct prop *chr2);
 Gfx *chrRenderShield(Gfx *gdl, struct chrdata *chr, u32 alpha);
 void shieldhitsTick(void);
 void chrSetDrCarollImages(struct chrdata *drcaroll, s32 imageleft, s32 imageright);
-s32 chrsGetNumSlots(void);
 void chrRegister(s32 chrnum, s32 chrindex);
 Vtx *chrAllocateVertices(s32 numvertices);
 void chrsSetVar8006297c(u32 arg0);

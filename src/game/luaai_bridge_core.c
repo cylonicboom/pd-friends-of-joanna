@@ -34,7 +34,7 @@ s32 chraiLuaGetChrNumBySlot(s32 slot)
 	if (slot < 0 || slot >= chrsGetNumSlots()) {
 		return -1;
 	}
-	return (s32)g_ChrSlots[slot].chrnum; // < 0 for an empty slot; caller skips it
+	return (s32)chrslotGet(slot)->chrnum; // < 0 for an empty slot; caller skips it
 }
 
 // pd.lvupdate(): game ticks elapsed this frame (g_Vars.lvupdate60) — exactly
@@ -75,7 +75,7 @@ s32 chraiLuaAimChr(void)
 // "until the level is full" must poll this rather than count their own spawns.
 s32 chraiLuaChrSlotsFree(void)
 {
-	if (g_ChrSlots == NULL) {
+	if (chrsGetNumSlots() <= 0) {
 		return 0;
 	}
 	return chrsGetNumFree();
@@ -83,7 +83,7 @@ s32 chraiLuaChrSlotsFree(void)
 
 s32 chraiLuaChrSlotsTotal(void)
 {
-	return (g_ChrSlots == NULL) ? 0 : chrsGetNumSlots();
+	return chrsGetNumSlots();
 }
 
 // pd.buttons() / pd.buttons_pressed(): the local player's RAW pad buttons

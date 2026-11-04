@@ -953,7 +953,7 @@ s32 chraiLuaSpawnBody(s32 bodynum, s32 weaponnum, f32 dx, f32 dz, s32 sunglasses
 		s32 si;
 
 		for (si = 0; si < numslots; si++) {
-			s32 cn = (s32)g_ChrSlots[si].chrnum;
+			s32 cn = (s32)chrslotGet(si)->chrnum;
 			struct chrdata *other = (cn < 0) ? NULL : chrFindByLiteralId(cn);
 
 			if (other != NULL && other != plchr && other != chr && other->prop != NULL

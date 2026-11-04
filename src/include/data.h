@@ -150,8 +150,7 @@ extern u32 var80062974;
 extern u32 var80062978;
 extern u32 var8006297c;
 extern s32 g_NextChrnum;
-extern struct chrdata *g_ChrSlots;
-extern s32 g_NumChrSlots;
+#include "game/chrslots.h" // chr slots: go through chrslotGet()
 extern struct shieldhit *g_ShieldHits;
 extern bool g_ShieldHitActive;
 extern s32 g_NumBondBodies;

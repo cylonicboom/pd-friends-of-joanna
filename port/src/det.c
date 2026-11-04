@@ -26,7 +26,7 @@
 #include "constants.h"
 #include "types.h"
 #include "bss.h"   // g_Vars
-#include "data.h"  // g_ChrSlots, g_NumChrSlots
+#include "data.h"  // chr slots (game/chrslots.h)
 #include "system.h"
 #include "platform.h"
 #include "lib/joy.h"
@@ -212,7 +212,7 @@ void detComputeHash(struct dethash *out)
 		detFoldS32(&out->props, count);
 	}
 
-	// chrs: by slot index over g_ChrSlots, the real chr array (chrmgr.c). Kai
+	// chrs: by slot index over the chr slots (chrslotGet), the real chr array (chrmgr.c). Kai
 	// walked g_Vars.chrdata[0..g_NumChrs) — but g_Vars.chrdata is the CURRENT
 	// chr pointer, not the array, so that read stale heap past one chr
 	// (measured 2026-10-20: a "chr2" of pointer-shaped garbage diverging every
@@ -221,8 +221,8 @@ void detComputeHash(struct dethash *out)
 	{
 		s32 i;
 		s32 live = 0;
-		for (i = 0; i < g_NumChrSlots; i++) {
-			const struct chrdata *chr = &g_ChrSlots[i];
+		for (i = 0; i < chrsGetNumSlots(); i++) {
+			const struct chrdata *chr = chrslotGet(i);
 			if (chr->chrnum == -1 || chr->prop == NULL) {
 				continue;
 			}
@@ -565,8 +565,8 @@ static void detDumpState(void)
 					pl->bondhealth, pl->oldhealth, pl->oldarmour, pl->apparenthealth, pl->apparentarmour);
 		}
 	}
-	for (i = 0; i < g_NumChrSlots; i++) {
-		const struct chrdata *chr = &g_ChrSlots[i];
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		const struct chrdata *chr = chrslotGet(i);
 		if (chr->chrnum == -1 || chr->prop == NULL) {
 			continue;
 		}

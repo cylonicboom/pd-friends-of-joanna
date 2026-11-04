@@ -9731,12 +9731,12 @@ void chrAlertOthersOfInjury(struct chrdata *chr, bool dying)
 	}
 
 #ifdef AVOID_UB
-	// notifychrindex can be < 0, so avoid reading g_ChrSlots when that is the case
+	// notifychrindex can be < 0, so avoid reading a chr slot when that is the case
 	for (; index >= 0 && index < numchrs && numinrange < 7; index++) {
 #else
 	for (; index < numchrs && numinrange < 7; index++) {
 #endif
-		struct chrdata *loopchr = &g_ChrSlots[index];
+		struct chrdata *loopchr = chrslotGet(index);
 
 		if (loopchr->model && loopchr->prop && (loopchr->prop->flags & PROPFLAG_ENABLED)) {
 			f32 xdiff = loopchr->prop->pos.x - chr->prop->pos.x;
@@ -15134,7 +15134,7 @@ void chraTickBg(void)
 
 	if (g_Vars.normmplayerisrunning == false) {
 		for (i = 0; i < numchrs; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+			struct chrdata *chr = chrslotGet(i);
 
 			if (chr->model && chr->prop && !chrIsDead(chr)) {
 				struct prop *targetprop = chrGetTargetProp(chr);
@@ -15200,7 +15200,7 @@ void chraTickBg(void)
 		s32 numalive = 0;
 
 		for (i = 0; i < numchrs; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+			struct chrdata *chr = chrslotGet(i);
 
 			if (chr->model && chr->prop) {
 				if (chr->actiontype != ACT_DEAD && chr->actiontype != ACT_DRUGGEDKO) {
@@ -15264,7 +15264,7 @@ void chraTickBg(void)
 	// JPN fades corpses immediately
 	if (numdeadonscreen && g_Vars.stagenum != STAGE_CITRAINING) {
 		for (i = 0; i < numchrs; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+			struct chrdata *chr = chrslotGet(i);
 
 			if (chr->model
 					&& (chr->actiontype == ACT_DEAD || (chr->actiontype == ACT_DRUGGEDKO
@@ -15288,7 +15288,7 @@ void chraTickBg(void)
 #endif
 
 		for (i = 0; i < numchrs; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+			struct chrdata *chr = chrslotGet(i);
 
 			if (chr->model) {
 #if VERSION < VERSION_NTSC_1_0
@@ -15791,12 +15791,12 @@ void chrsRetargetPlayer(s32 from, s32 to, s32 fromprop)
 	s32 i;
 
 	for (i = 0; i < chrsGetNumSlots(); i++) {
-		if (g_ChrSlots[i].p1p2 == from) {
-			g_ChrSlots[i].p1p2 = to;
+		if (chrslotGet(i)->p1p2 == from) {
+			chrslotGet(i)->p1p2 = to;
 		}
 
-		if (fromprop >= 0 && g_ChrSlots[i].target == fromprop) {
-			g_ChrSlots[i].target = -1;
+		if (fromprop >= 0 && chrslotGet(i)->target == fromprop) {
+			chrslotGet(i)->target = -1;
 		}
 	}
 
@@ -16907,7 +16907,7 @@ struct prop *chrSpawnAtCoord(s32 bodynum, s32 headnum, struct coord *pos, RoomNu
 #endif
 
 		replacechr = NULL;
-		startindex = rngRandom() % g_NumChrSlots;
+		startindex = rngRandom() % chrsGetNumSlots();
 		index = startindex;
 
 #if VERSION < VERSION_NTSC_1_0
@@ -16915,16 +16915,16 @@ struct prop *chrSpawnAtCoord(s32 bodynum, s32 headnum, struct coord *pos, RoomNu
 #endif
 
 		do {
-			if (g_ChrSlots[index].chrnum >= 0 && g_ChrSlots[index].model && g_ChrSlots[index].prop) {
-				if (g_ChrSlots[index].actiontype == ACT_DEAD
+			if (chrslotGet(index)->chrnum >= 0 && chrslotGet(index)->model && chrslotGet(index)->prop) {
+				if (chrslotGet(index)->actiontype == ACT_DEAD
 #if VERSION >= VERSION_NTSC_1_0
-						|| (g_ChrSlots[index].actiontype == ACT_DRUGGEDKO && (g_ChrSlots[index].chrflags & CHRCFLAG_KEEPCORPSEKO) == 0)
+						|| (chrslotGet(index)->actiontype == ACT_DRUGGEDKO && (chrslotGet(index)->chrflags & CHRCFLAG_KEEPCORPSEKO) == 0)
 #endif
 						) {
 					// If we've found a chr that's ready to be reaped, great.
 					// Bail out of the loop.
-					if (g_ChrSlots[index].act_dead.invistimer60 >= TICKS(120)) {
-						replacechr = &g_ChrSlots[index];
+					if (chrslotGet(index)->act_dead.invistimer60 >= TICKS(120)) {
+						replacechr = chrslotGet(index);
 						break;
 					}
 
@@ -16932,12 +16932,12 @@ struct prop *chrSpawnAtCoord(s32 bodynum, s32 headnum, struct coord *pos, RoomNu
 					// last resort, so store them and keep looping in search of
 					// a better chr.
 					if (replacechr == NULL) {
-						replacechr = &g_ChrSlots[index];
+						replacechr = chrslotGet(index);
 					}
 				}
 			}
 
-			index = (index + 1) % g_NumChrSlots;
+			index = (index + 1) % chrsGetNumSlots();
 		} while (index != startindex);
 
 		if (replacechr) {
@@ -17726,7 +17726,7 @@ void rebuildTeams(void)
 		}
 
 		for (i = 0; i < numchrs; i++) {
-			chr = &g_ChrSlots[i];
+			chr = chrslotGet(i);
 
 			if (chr->chrnum >= 0 && (chr->team & teammasks[team])) {
 				g_TeamList[index] = chr->chrnum;
@@ -17766,7 +17766,7 @@ void rebuildSquadrons(void)
 		}
 
 		for (i = 0; i < numchrs; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+			struct chrdata *chr = chrslotGet(i);
 
 			if (chr->chrnum >= 0 && chr->squadron == squadron) {
 				if (chr->prop == NULL || chr->prop->type != PROPTYPE_PLAYER) {
@@ -17868,7 +17868,7 @@ Gfx *chrsRenderChrStats(Gfx *gdl, RoomNum *rooms)
 	gdl = text0f153628(gdl);
 
 	for (i = 0; i < numchrs; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+		struct chrdata *chr = chrslotGet(i);
 
 		if (chr && chr->prop && arrayIntersects(chr->prop->rooms, rooms)) {
 			sp20c.x = chr->prop->pos.x;

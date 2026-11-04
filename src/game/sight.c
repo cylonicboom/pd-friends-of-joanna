@@ -1689,7 +1689,7 @@ static Gfx *sightDrawChaosAllChrBoxes(Gfx *gdl)
 	numslots = chrsGetNumSlots();
 
 	for (i = 0; i < numslots; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+		struct chrdata *chr = chrslotGet(i);
 
 		if (chr->chrnum < 0 || chr->prop == NULL || chr->model == NULL) {
 			continue;

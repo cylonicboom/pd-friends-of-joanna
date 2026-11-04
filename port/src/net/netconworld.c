@@ -165,7 +165,7 @@ static s32 netConWorldFrom(const char *arg)
 
 static s32 netConWorldInStage(void)
 {
-	if (!g_ChrSlots || !g_NumChrSlots || !g_Vars.players[0]) {
+	if (chrsGetNumSlots() <= 0 || !g_Vars.players[0]) {
 		netConWorldNo("not in a stage");
 		return 0;
 	}
@@ -174,9 +174,9 @@ static s32 netConWorldInStage(void)
 
 static struct chrdata *netConWorldChr(s32 chrnum)
 {
-	for (s32 i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum == chrnum && g_ChrSlots[i].prop) {
-			return &g_ChrSlots[i];
+	for (s32 i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum == chrnum && chrslotGet(i)->prop) {
+			return chrslotGet(i);
 		}
 	}
 	return NULL;
@@ -298,8 +298,8 @@ void netConState(const char *arg)
 	struct chrdata *me = netConWorldPlayerChr(pn >= 0 ? pn : 0);
 	s32 count = 0;
 
-	for (s32 i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum >= 0 && g_ChrSlots[i].prop) {
+	for (s32 i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum >= 0 && chrslotGet(i)->prop) {
 			count++;
 		}
 	}
@@ -307,8 +307,8 @@ void netConState(const char *arg)
 	s_worldUsed = 0;
 	netConWorldLine("stage %d me %d chrs %d", g_StageNum, pn, count);
 
-	for (s32 i = from; i < g_NumChrSlots; i++) {
-		struct chrdata *chr = &g_ChrSlots[i];
+	for (s32 i = from; i < chrsGetNumSlots(); i++) {
+		struct chrdata *chr = chrslotGet(i);
 		if (chr->chrnum < 0 || !chr->prop) {
 			continue;
 		}
@@ -484,8 +484,8 @@ void netConList(const char *arg)
 		}
 	} else if (netConWorldEat(&p, "chrs")) {
 		const s32 from = netConWorldFrom(p);
-		for (i = from; i < g_NumChrSlots; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+		for (i = from; i < chrsGetNumSlots(); i++) {
+			struct chrdata *chr = chrslotGet(i);
 			if (chr->chrnum < 0 || !chr->prop) {
 				continue;
 			}

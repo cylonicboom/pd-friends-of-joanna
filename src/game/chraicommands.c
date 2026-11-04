@@ -10202,17 +10202,17 @@ bool aiShowCutsceneChrs(void)
 
 	if (show) {
 		for (i = chrsGetNumSlots() - 1; i >= 0; i--) {
-			if (g_ChrSlots[i].chrnum >= 0 && g_ChrSlots[i].prop && (g_ChrSlots[i].hidden2 & CHRH2FLAG_HIDDENFORCUTSCENE)) {
-				g_ChrSlots[i].hidden2 &= ~CHRH2FLAG_HIDDENFORCUTSCENE;
-				g_ChrSlots[i].chrflags &= ~CHRCFLAG_HIDDEN;
+			if (chrslotGet(i)->chrnum >= 0 && chrslotGet(i)->prop && (chrslotGet(i)->hidden2 & CHRH2FLAG_HIDDENFORCUTSCENE)) {
+				chrslotGet(i)->hidden2 &= ~CHRH2FLAG_HIDDENFORCUTSCENE;
+				chrslotGet(i)->chrflags &= ~CHRCFLAG_HIDDEN;
 			}
 		}
 	} else {
 		for (i = chrsGetNumSlots() - 1; i >= 0; i--) {
-			if (g_ChrSlots[i].chrnum >= 0 && g_ChrSlots[i].prop &&
-					(g_ChrSlots[i].chrflags & (CHRCFLAG_UNPLAYABLE | CHRCFLAG_HIDDEN)) == 0) {
-				g_ChrSlots[i].hidden2 |= CHRH2FLAG_HIDDENFORCUTSCENE;
-				g_ChrSlots[i].chrflags |= CHRCFLAG_HIDDEN;
+			if (chrslotGet(i)->chrnum >= 0 && chrslotGet(i)->prop &&
+					(chrslotGet(i)->chrflags & (CHRCFLAG_UNPLAYABLE | CHRCFLAG_HIDDEN)) == 0) {
+				chrslotGet(i)->hidden2 |= CHRH2FLAG_HIDDENFORCUTSCENE;
+				chrslotGet(i)->chrflags |= CHRCFLAG_HIDDEN;
 			}
 		}
 	}

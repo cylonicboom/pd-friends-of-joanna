@@ -3239,7 +3239,7 @@ void netEndFrame(void)
 			// the buffer nears full, so every NPC updates over a few ticks (interpolation
 			// hides the gap) and the packet never overflows. Player moves were already
 			// written above, so the threshold accounts for them.
-			if (svsendtick && NET_COOP_GAME() && g_ChrSlots) {
+			if (svsendtick && NET_COOP_GAME() && chrsGetNumSlots() > 0) {
 				const s32 numslots = chrsGetNumSlots();
 				if (g_NetRelevancy) {
 					// P2: per-client relevancy cull (see the sim loop above). Each remote
@@ -3258,7 +3258,7 @@ void netEndFrame(void)
 						s32 scanned = 0;
 						s32 i = coopcursor[c];
 						while (scanned < numslots && g_NetRelevBuf.wp < NET_BUFSIZE - 340) {
-							struct chrdata *chr = &g_ChrSlots[i];
+							struct chrdata *chr = chrslotGet(i);
 							if (chr->chrnum >= 0 && chr->prop && chr->prop->syncid
 									&& chr->prop->type == PROPTYPE_CHR
 									&& !netChrCorpseThrottled(chr) && netChrRelevantTo(chr, cl)) {
@@ -3282,7 +3282,7 @@ void netEndFrame(void)
 					s32 scanned = 0;
 					s32 i = coopnpcstart;
 					while (scanned < numslots && g_NetMsg.wp < NET_BUFSIZE - 340) {
-						struct chrdata *chr = &g_ChrSlots[i];
+						struct chrdata *chr = chrslotGet(i);
 						if (chr->chrnum >= 0 && chr->prop && chr->prop->syncid
 								&& chr->prop->type == PROPTYPE_CHR
 								&& !netChrCorpseThrottled(chr)) {
@@ -4726,7 +4726,7 @@ static f32 s_NetAnimLastErr[NET_ANIM_ERR_SLOTS];
 
 f32 netChrAnimLastErr(const struct chrdata *chr)
 {
-	const s32 i = g_ChrSlots ? (s32)(chr - g_ChrSlots) : -1;
+	const s32 i = chrslotIndexOf(chr);
 	return (i >= 0 && i < NET_ANIM_ERR_SLOTS) ? s_NetAnimLastErr[i] : 0.0f;
 }
 
@@ -5035,7 +5035,7 @@ static void netChrInterpolateBody(struct chrdata *chr)
 					g_NetAnimStatSamples++;
 					g_NetAnimStatErrSum += (err < 0) ? -err : err;
 					{
-						const s32 slot = g_ChrSlots ? (s32)(chr - g_ChrSlots) : -1;
+						const s32 slot = chrslotIndexOf(chr);
 						if (slot >= 0 && slot < NET_ANIM_ERR_SLOTS) {
 							s_NetAnimLastErr[slot] = err;
 						}

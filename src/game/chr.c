@@ -86,14 +86,10 @@ u32 var8006297c = 0;
 u32 var80062980 = 0;
 s32 g_NextChrnum = 5000;
 
-struct chrdata *g_ChrSlots = NULL;
+// The chr slot store; see game/chrslots.h before touching it.
+struct chrdata *g_ChrSlotStore = NULL;
 
-s32 g_NumChrSlots = 0;
-
-s32 chrsGetNumSlots(void)
-{
-	return g_NumChrSlots;
-}
+s32 g_ChrSlotCount = 0;
 
 void chrSetChrnum(struct chrdata *chr, s16 chrnum)
 {
@@ -1041,8 +1037,8 @@ s32 chrsGetNumFree(void)
 	s32 count = 0;
 	s32 i;
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum < 0) {
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum < 0) {
 			count++;
 		}
 	}
@@ -1097,9 +1093,9 @@ void chrInit(struct prop *prop, u8 *ailist)
 	s32 i;
 	struct chrdata *chr = NULL;
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum < 0) {
-			chr = &g_ChrSlots[i];
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum < 0) {
+			chr = chrslotGet(i);
 			break;
 		}
 	}
@@ -1510,13 +1506,13 @@ void chrClearReferences(s32 propnum)
 	s32 j;
 	struct prop *prop = &g_Vars.props[propnum];
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].target == propnum) {
-			if (propGetIndexByChrId(&g_ChrSlots[i], g_ChrSlots[i].chrpreset1) == propnum) {
-				g_ChrSlots[i].chrpreset1 = -1;
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->target == propnum) {
+			if (propGetIndexByChrId(chrslotGet(i), chrslotGet(i)->chrpreset1) == propnum) {
+				chrslotGet(i)->chrpreset1 = -1;
 			}
 
-			g_ChrSlots[i].target = -1;
+			chrslotGet(i)->target = -1;
 		}
 	}
 
@@ -1539,9 +1535,9 @@ void chr0f0211a8(f32 arg0)
 
 	var80062968 = arg0;
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].model) {
-			modelSetAnimPlaySpeed(g_ChrSlots[i].model, PALUPF(var80062968), 600);
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->model) {
+			modelSetAnimPlaySpeed(chrslotGet(i)->model, PALUPF(var80062968), 600);
 		}
 	}
 }
@@ -5524,23 +5520,23 @@ void chrsCheckForNoise(f32 noiseradius)
 	s32 i;
 	f32 add = 0.075f;
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].model) {
-			struct prop *prop = g_ChrSlots[i].prop;
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->model) {
+			struct prop *prop = chrslotGet(i)->prop;
 
 			if (prop && prop->type == PROPTYPE_CHR &&
-					chrGetTargetProp(&g_ChrSlots[i]) == g_Vars.currentplayer->prop) {
+					chrGetTargetProp(chrslotGet(i)) == g_Vars.currentplayer->prop) {
 
-				f32 distance = chrGetDistanceToCurrentPlayer(&g_ChrSlots[i]);
+				f32 distance = chrGetDistanceToCurrentPlayer(chrslotGet(i));
 
 				if (distance == 0) {
 					distance = 2;
 				} else {
-					distance = (noiseradius * 100 * g_ChrSlots[i].hearingscale * (1.0f + add)) / distance;
+					distance = (noiseradius * 100 * chrslotGet(i)->hearingscale * (1.0f + add)) / distance;
 				}
 
 				if (distance > 1.0f) {
-					chrRecordLastHearTargetTime(&g_ChrSlots[i]);
+					chrRecordLastHearTargetTime(chrslotGet(i));
 #if PIRACYCHECKS
 					{
 						s32 *i = (s32 *)&__scHandleRetrace;
@@ -5574,7 +5570,7 @@ struct chrdata *chrFindByLiteralId(s32 chrnum)
 		i = (lower + upper) / 2;
 
 		if (chrnum == g_Chrnums[i]) {
-			return &g_ChrSlots[g_ChrIndexes[i]];
+			return chrslotGet(g_ChrIndexes[i]);
 		}
 
 		if (chrnum < g_Chrnums[i]) {

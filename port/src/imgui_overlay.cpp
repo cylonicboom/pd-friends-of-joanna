@@ -702,8 +702,7 @@ static bool imguiOverlayPropIsCurrent(struct prop *prop)
 
 static bool imguiOverlayChrIsCurrent(struct chrdata *chr)
 {
-	return chr && g_ChrSlots && g_NumChrSlots > 0
-		&& chr >= g_ChrSlots && chr < g_ChrSlots + g_NumChrSlots && chr->chrnum >= 0;
+	return chr && chrslotIndexOf(chr) >= 0 && chr->chrnum >= 0;
 }
 
 static void imguiOverlayFocusProp(struct prop *prop)
@@ -2224,12 +2223,12 @@ static void imguiOverlayDrawEntitiesPanel(void)
 	if (g_ImGuiOverlayFocusChr) {
 		ImGui::SetNextItemOpen(true);
 	}
-	if (g_ChrSlots && g_NumChrSlots && ImGui::CollapsingHeader("Characters", ImGuiTreeNodeFlags_DefaultOpen)) {
-		ImGui::Text("Count: %d/%d", g_NumChrs, g_NumChrSlots);
+	if (chrsGetNumSlots() > 0 && ImGui::CollapsingHeader("Characters", ImGuiTreeNodeFlags_DefaultOpen)) {
+		ImGui::Text("Count: %d/%d", g_NumChrs, chrsGetNumSlots());
 		g_ImGuiOverlayChrTextFilter.Draw("Search characters", 180.0f);
 		if (ImGui::BeginChild("Character list", ImVec2(0.0f, 280.0f), ImGuiChildFlags_Borders)) {
-			for (s32 index = 0; index < g_NumChrSlots; ++index) {
-				struct chrdata *chr = &g_ChrSlots[index];
+			for (s32 index = 0; index < chrsGetNumSlots(); ++index) {
+				struct chrdata *chr = chrslotGet(index);
 				if (chr->chrnum < 0 || !imguiOverlayChrPassesTextFilter(chr, index)) {
 					continue;
 				}
@@ -4047,7 +4046,7 @@ static void imguiPropRelease(void)
  * The latch survives the panel being closed -- only losing the chr should
  * end it. A slot pointer alone is not enough to say the chr is still the
  * same one: chrnum goes to -1 when a slot is freed and a fresh number is
- * assigned when it is reused, and g_ChrSlots is reallocated per stage, so a
+ * assigned when it is reused, and the chr slots are reallocated per stage, so a
  * stale pointer can land in bounds on somebody else entirely. Pin the chrnum
  * at latch and compare it, or edits meant for one character silently follow
  * the slot to whoever spawns into it next.
@@ -4070,12 +4069,12 @@ static s32 imguiPropCountSharingBody(s32 bodynum)
 {
 	s32 n = 0;
 
-	if (!g_ChrSlots) {
+	if (chrsGetNumSlots() <= 0) {
 		return 0;
 	}
 
-	for (s32 i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].chrnum >= 0 && g_ChrSlots[i].bodynum == bodynum) {
+	for (s32 i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->chrnum >= 0 && chrslotGet(i)->bodynum == bodynum) {
 			n++;
 		}
 	}
@@ -4636,7 +4635,7 @@ static void imguiOverlayDrawProportionsPanel(void)
 	// window. This one needs neither: every chr in the level, in one list, with
 	// the button next to it.
 	if (ImGui::CollapsingHeader("Pick a character", ImGuiTreeNodeFlags_DefaultOpen)) {
-		if (g_ChrSlots == NULL || g_NumChrSlots <= 0) {
+		if (chrsGetNumSlots() <= 0) {
 			ImGui::TextDisabled("no chr slots");
 		} else if (ImGui::BeginTable("fojoproplatchlist", 4,
 				ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
@@ -4648,8 +4647,8 @@ static void imguiOverlayDrawProportionsPanel(void)
 			ImGui::TableSetupScrollFreeze(0, 1);
 			ImGui::TableHeadersRow();
 
-			for (s32 i = 0; i < g_NumChrSlots; i++) {
-				struct chrdata *c = &g_ChrSlots[i];
+			for (s32 i = 0; i < chrsGetNumSlots(); i++) {
+				struct chrdata *c = chrslotGet(i);
 
 				if (!imguiOverlayChrIsCurrent(c) || c->prop == NULL || c->model == NULL) {
 					continue;
@@ -8996,9 +8995,9 @@ static void imguiOverlayBarSearchTeleport(const char *q)
 		s32 qn = 0;
 		const bool qnum = imguiOverlayBarQueryNumber(q, &qn);
 
-		if (g_ChrSlots && g_NumChrSlots) {
-			for (s32 i = 0; i < g_NumChrSlots; ++i) {
-				struct chrdata *chr = &g_ChrSlots[i];
+		if (chrsGetNumSlots() > 0) {
+			for (s32 i = 0; i < chrsGetNumSlots(); ++i) {
+				struct chrdata *chr = chrslotGet(i);
 				if (chr->chrnum < 0 || !chr->prop) continue;
 				imguiOverlayEntityLabel(chr->prop, label, sizeof(label));
 				if ((qnum && imguiOverlayBarNumberHitsProp(chr->prop, qn) && (score = 3000))
@@ -9265,9 +9264,9 @@ static void imguiOverlayBarSearch(void)
 		s32 qn = 0;
 		const bool qnum = imguiOverlayBarQueryNumber(q, &qn);
 
-		if (g_ChrSlots && g_NumChrSlots) {
-			for (s32 i = 0; i < g_NumChrSlots; ++i) {
-				struct chrdata *chr = &g_ChrSlots[i];
+		if (chrsGetNumSlots() > 0) {
+			for (s32 i = 0; i < chrsGetNumSlots(); ++i) {
+				struct chrdata *chr = chrslotGet(i);
 
 				if (chr->chrnum < 0 || !chr->prop) {
 					continue;

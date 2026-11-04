@@ -191,22 +191,22 @@ void explosionAlertChrs(f32 *radius, struct coord *noisepos)
 	s32 *end = (s32 *)&doorDestroyGlass;
 	s32 i;
 
-	for (i = 0; i < g_NumChrSlots; i++) {
-		if (g_ChrSlots[i].model
-				&& chrGetTargetProp(&g_ChrSlots[i]) == g_Vars.currentplayer->prop
-				&& g_ChrSlots[i].prop
-				&& g_ChrSlots[i].prop->type == PROPTYPE_CHR
-				&& (g_ChrSlots[i].prop->flags & PROPFLAG_ENABLED)) {
-			f32 distance = chrGetDistanceToCoord(&g_ChrSlots[i], noisepos);
+	for (i = 0; i < chrsGetNumSlots(); i++) {
+		if (chrslotGet(i)->model
+				&& chrGetTargetProp(chrslotGet(i)) == g_Vars.currentplayer->prop
+				&& chrslotGet(i)->prop
+				&& chrslotGet(i)->prop->type == PROPTYPE_CHR
+				&& (chrslotGet(i)->prop->flags & PROPFLAG_ENABLED)) {
+			f32 distance = chrGetDistanceToCoord(chrslotGet(i), noisepos);
 
 			if (distance == 0) {
 				distance = 2;
 			} else {
-				distance = (10.0f * *radius * g_ChrSlots[i].hearingscale) / distance;
+				distance = (10.0f * *radius * chrslotGet(i)->hearingscale) / distance;
 			}
 
 			if (distance > 1) {
-				chrRecordLastHearTargetTime(&g_ChrSlots[i]);
+				chrRecordLastHearTargetTime(chrslotGet(i));
 			}
 		}
 	}

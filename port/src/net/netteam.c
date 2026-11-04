@@ -333,10 +333,10 @@ void netTeamDiagTick(void)
 	// syncid, hidden, pos - so a chr one end never spawned is a diff away
 	{
 		static s32 rosterstage = -1;
-		if (g_Vars.tickmode == TICKMODE_NORMAL && rosterstage != g_StageNum && g_ChrSlots) {
+		if (g_Vars.tickmode == TICKMODE_NORMAL && rosterstage != g_StageNum && chrsGetNumSlots() > 0) {
 			rosterstage = g_StageNum;
-			for (s32 i = 0; i < g_NumChrSlots; i++) {
-				struct chrdata *chr = &g_ChrSlots[i];
+			for (s32 i = 0; i < chrsGetNumSlots(); i++) {
+				struct chrdata *chr = chrslotGet(i);
 				if (chr->chrnum < 0) {
 					continue;
 				}
@@ -352,10 +352,10 @@ void netTeamDiagTick(void)
 	// what each synced NPC is playing, so the verdict can pair host and
 	// client by syncid - looping agreement, and a client cycle parked on
 	// its last frame while the host's still loops. Capped per second.
-	if (g_Vars.tickmode == TICKMODE_NORMAL && g_ChrSlots) {
+	if (g_Vars.tickmode == TICKMODE_NORMAL && chrsGetNumSlots() > 0) {
 		s32 logged = 0;
-		for (s32 i = 0; i < g_NumChrSlots && logged < 32; i++) {
-			struct chrdata *chr = &g_ChrSlots[i];
+		for (s32 i = 0; i < chrsGetNumSlots() && logged < 32; i++) {
+			struct chrdata *chr = chrslotGet(i);
 			if (chr->chrnum < 0 || !chr->prop || chr->prop->type != PROPTYPE_CHR || !chr->prop->syncid
 					|| !chr->model || !chr->model->anim || chr->model->anim->animnum <= 0) {
 				continue;
