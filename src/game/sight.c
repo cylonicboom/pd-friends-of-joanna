@@ -1868,6 +1868,8 @@ static const struct sourcexhairtuning g_SourceXhairDefaults = {
 	0.75f,   // skew
 	1.0f,    // size
 	2.0f,    // alphamul
+	0.0f,    // pull
+	20.0f,   // closest
 	1,       // trace
 };
 
@@ -1893,6 +1895,9 @@ static void sourceXhairClamp(void)
 	if (t->skew > 1.0f) t->skew = 1.0f;
 	if (t->size < 0.1f) t->size = 0.1f;
 	if (t->alphamul < 0.0f) t->alphamul = 0.0f;
+	if (t->pull < 0.0f) t->pull = 0.0f;
+	if (t->pull > 1.0f) t->pull = 1.0f;
+	if (t->closest < 1.0f) t->closest = 1.0f;
 }
 
 void sourceXhairChanged(void)
@@ -1912,6 +1917,8 @@ PD_CONSTRUCTOR static void sightSourceXhairConfigInit(void)
 	configRegisterFloat("SourceCrosshairs.Skew", &g_SourceXhair.skew, 0.f, 1.f);
 	configRegisterFloat("SourceCrosshairs.Size", &g_SourceXhair.size, 0.1f, 10.f);
 	configRegisterFloat("SourceCrosshairs.AlphaMul", &g_SourceXhair.alphamul, 0.f, 10.f);
+	configRegisterFloat("SourceCrosshairs.Pull", &g_SourceXhair.pull, 0.f, 1.f);
+	configRegisterFloat("SourceCrosshairs.Closest", &g_SourceXhair.closest, 1.f, 1000.f);
 	configRegisterInt("SourceCrosshairs.Trace", &g_SourceXhair.trace, 0, 1);
 }
 
@@ -1951,6 +1958,17 @@ f32 sourceXhairScreenScale(f32 dist)
 	// full perspective from normaldist in would be normaldist / d; grow and
 	// the weight take a share of that, as an exponent so it stays smooth
 	return t->size * __builtin_powf(t->normaldist / d, t->grow * w);
+}
+
+f32 sourceXhairDrawDist(f32 dist)
+{
+	const struct sourcexhairtuning *t = &g_SourceXhair;
+
+	if (dist <= t->closest) {
+		return dist;
+	}
+
+	return dist - (dist - t->closest) * t->pull * sourceXhairWeight(dist);
 }
 
 const struct sourcexhairlive *sourceXhairLive(void)
@@ -2043,6 +2061,7 @@ bool sightSurfaceCrosshairWanted(void)
 	g_SourceXhairLive.dist = sqrtf(dx * dx + dy * dy + dz * dz);
 	g_SourceXhairLive.weight = sourceXhairWeight(g_SourceXhairLive.dist);
 	g_SourceXhairLive.scale = sourceXhairScreenScale(g_SourceXhairLive.dist);
+	g_SourceXhairLive.drawdist = sourceXhairDrawDist(g_SourceXhairLive.dist);
 
 	if (g_SourceXhairLive.dist < 1.0f) {
 		return sightSourceXhairNo("hit is at the eye");
@@ -2165,6 +2184,18 @@ Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
 
 	sightSourceXhairBasis(n, u, v);
 
+	// Pull: slide it back along the line of sight toward the eye. It is
+	// sized below at the distance it is drawn at, so this changes where it
+	// sits, not how big it looks.
+	{
+		const f32 f = g_SourceXhairLive.drawdist / dist;
+
+		pos.x *= f;
+		pos.y *= f;
+		pos.z *= f;
+		dist = g_SourceXhairLive.drawdist;
+	}
+
 	// world units per screen pixel at this distance, in the flat cross's
 	// own pixels (viewport height, the same space sightDrawTarget draws in)
 	pxworld = 2.0f * dist * __builtin_tanf(viGetFovY() * (M_PI / 360.0f)) / viGetViewHeight();
@@ -2176,7 +2207,7 @@ Gfx *sightRenderSurfaceCrosshair(Gfx *gdl)
 	sightSourceXhairTrace(true);
 
 	// a touch off the surface, toward the eye, so it neither fights the wall
-	// for depth nor hides under a bullet hole
+	// for depth nor hides under a bullet hole (already clear of it if pulled)
 	{
 		const f32 lift = (2.0f + tip * 0.1f) / dist;
 

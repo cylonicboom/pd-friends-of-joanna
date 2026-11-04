@@ -7578,6 +7578,13 @@ static void imguiOverlayDrawCrosshairPanel(void)
 	changed |= imguiOverlayCrosshairKnob("Size", &t->size, 0.25f, 4.0f, "%.2fx",
 			"On-screen size at the normal distance, times the flat cross.\n"
 			"Above 1 it jumps at the hand-over; Crosshair Size still applies.");
+	changed |= imguiOverlayCrosshairKnob("Closer", &t->pull, 0.0f, 1.0f, "%.2f",
+			"Slides it back toward your eye along the line of sight, so it\n"
+			"floats in front of the wall instead of lying on it. Not bigger:\n"
+			"its size on screen is Grow's. 1 brings it all the way to Closest.");
+	changed |= imguiOverlayCrosshairKnob("Closest", &t->closest, 1.0f, 300.0f, "%.0f",
+			"Nearest to your eye Closer can bring it. Low values put it\n"
+			"in front of the gun.");
 	changed |= imguiOverlayCrosshairKnob("Opacity boost", &t->alphamul, 0.0f, 6.0f, "%.1fx",
 			"Times the crosshair colour's own alpha.");
 
@@ -7596,16 +7603,23 @@ static void imguiOverlayDrawCrosshairPanel(void)
 		static const s32 N = 64;
 		float scale[N];
 		float weight[N];
+		float drawn[N];
 		const f32 maxd = t->normaldist * 1.25f;
 
 		for (s32 i = 0; i < N; i++) {
 			const f32 d = maxd * (i + 0.5f) / N;
 			scale[i] = sourceXhairScreenScale(d);
 			weight[i] = sourceXhairWeight(d);
+			drawn[i] = sourceXhairDrawDist(d) / d;
 		}
 
 		ImGui::PlotLines("Size", scale, N, 0, NULL, 0.0f, 3.4e38f, ImVec2(0, 60));
 		ImGui::PlotLines("On surface", weight, N, 0, NULL, 0.0f, 1.0f, ImVec2(0, 40));
+		ImGui::PlotLines("Depth", drawn, N, 0, NULL, 0.0f, 1.0f, ImVec2(0, 40));
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Where it is drawn, as a share of the way to the wall: 1 is on it.");
+		}
 		ImGui::TextDisabled("Near on the left, %.0f on the right.", maxd);
 	}
 
@@ -7613,7 +7627,8 @@ static void imguiOverlayDrawCrosshairPanel(void)
 	ImGui::Text("Now: %s", live->why && *live->why ? live->why : "-");
 
 	if (live->dist > 0.0f) {
-		ImGui::Text("distance %.0f   on surface %.2f   size %.2fx", live->dist, live->weight, live->scale);
+		ImGui::Text("distance %.0f   drawn at %.0f", live->dist, live->drawdist);
+		ImGui::Text("on surface %.2f   size %.2fx", live->weight, live->scale);
 	}
 
 	if (ImGui::Button("Reset to defaults")) {
